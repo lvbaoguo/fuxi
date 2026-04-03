@@ -616,25 +616,126 @@
       display: none !important;
     }
 
+    /* 移动端：课程栏顶栏（标题 + 收起） */
+    .sidebar-top {
+      display: contents;
+    }
     @media (max-width: 640px) {
+      .sidebar-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 8px;
+        padding: 0 0 6px;
+      }
+      .sidebar-top .sidebar-title {
+        padding: 0;
+        margin: 0;
+      }
+    }
+    .sidebar-collapse-btn {
+      display: none;
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--accent);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sidebar-collapse-btn:hover {
+      background: var(--accent-soft);
+    }
+    .sidebar-tabs-inner {
+      display: contents;
+    }
+    /* 收起后只显示一行：当前课 + 换课 */
+    .sidebar-mini {
+      display: none;
+      box-sizing: border-box;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .sidebar-mini-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .sidebar-mini-label::before {
+      content: "当前：";
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 12px;
+      margin-right: 4px;
+    }
+    .sidebar-mini-expand {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sidebar-mini-expand:hover {
+      filter: brightness(1.05);
+    }
+    @media (max-width: 640px) {
+      .sidebar-collapse-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
       .app { flex-direction: column; border: none; }
       .sidebar {
         width: 100%;
         flex-direction: row;
         flex-wrap: wrap;
-        padding: 12px;
-        gap: 8px;
+        padding: 10px 12px 8px;
+        gap: 6px;
         border-right: none;
         border-bottom: 1px solid var(--border);
       }
-      .sidebar-title { width: 100%; padding-bottom: 4px; }
-      .tab {
-        flex: 1 1 auto;
-        min-width: calc(50% - 4px);
+      .sidebar-title { width: auto; padding-bottom: 0; }
+      .sidebar-tabs-inner {
+        display: flex;
+        flex-wrap: nowrap;
+        width: 100%;
+        gap: 6px;
+      }
+      .sidebar-tabs-inner .tab {
+        flex: 1 1 0;
+        min-width: 0;
         border-left: none;
         border-radius: 8px;
-        padding: 10px 12px;
+        padding: 8px 6px;
         text-align: center;
+        font-size: 14px;
+      }
+      .sidebar--collapsed .sidebar-tabs-inner {
+        display: none !important;
+      }
+      .sidebar--collapsed .sidebar-collapse-btn {
+        display: none;
+      }
+      .sidebar--collapsed .sidebar-mini {
+        display: flex;
+      }
+      .sidebar--collapsed .sidebar-top {
+        display: none;
       }
       .tab[aria-selected="true"] {
         border-left: none;
@@ -647,11 +748,20 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar" role="navigation" aria-label="课程切换">
-      <div class="sidebar-title">课程</div>
-      <button type="button" class="tab" role="tab" id="tab-history" aria-selected="true" aria-controls="panel-history" data-panel="history" title="中国近现代史纲要" aria-label="中国近现代史纲要">近代史</button>
-      <button type="button" class="tab" role="tab" id="tab-xi" aria-selected="false" aria-controls="panel-xi" data-panel="xi" title="习近平新时代中国特色社会主义思想" aria-label="习近平新时代中国特色社会主义思想">习思想</button>
-      <button type="button" class="tab" role="tab" id="tab-marx" aria-selected="false" aria-controls="panel-marx" data-panel="marx" title="马克思主义基本原理" aria-label="马克思主义基本原理">马原</button>
+    <aside class="sidebar" id="course-sidebar" role="navigation" aria-label="课程切换">
+      <div class="sidebar-top">
+        <div class="sidebar-title">课程</div>
+        <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" aria-expanded="true">收起</button>
+      </div>
+      <div class="sidebar-tabs-inner" id="sidebar-tabs-inner">
+        <button type="button" class="tab" role="tab" id="tab-history" aria-selected="true" aria-controls="panel-history" data-panel="history" title="中国近现代史纲要" aria-label="中国近现代史纲要">近代史</button>
+        <button type="button" class="tab" role="tab" id="tab-xi" aria-selected="false" aria-controls="panel-xi" data-panel="xi" title="习近平新时代中国特色社会主义思想" aria-label="习近平新时代中国特色社会主义思想">习思想</button>
+        <button type="button" class="tab" role="tab" id="tab-marx" aria-selected="false" aria-controls="panel-marx" data-panel="marx" title="马克思主义基本原理" aria-label="马克思主义基本原理">马原</button>
+      </div>
+      <div class="sidebar-mini" id="sidebar-mini" aria-hidden="true">
+        <span class="sidebar-mini-label" id="sidebar-mini-label">近代史</span>
+        <button type="button" class="sidebar-mini-expand" id="sidebar-mini-expand">换课</button>
+      </div>
     </aside>
 
     <main class="main">
@@ -973,6 +1083,68 @@
         document.title = "考前复习 · " + btn.textContent.trim();
       });
     });
+
+    /* 竖屏：课程栏可收起，少占高度；状态记入 localStorage */
+    (function initCourseSidebarCollapse() {
+      const STORAGE_KEY = "fuxi-course-bar-collapsed";
+      const courseSidebar = document.getElementById("course-sidebar");
+      const collapseBtn = document.getElementById("sidebar-collapse-btn");
+      const expandMini = document.getElementById("sidebar-mini-expand");
+      const sidebarMiniLabel = document.getElementById("sidebar-mini-label");
+      const sidebarMini = document.getElementById("sidebar-mini");
+      const mqMobile = window.matchMedia("(max-width: 640px)");
+
+      function syncSidebarMiniLabel() {
+        const active = document.querySelector(".tab[aria-selected=true]");
+        if (active && sidebarMiniLabel) sidebarMiniLabel.textContent = active.textContent.trim();
+      }
+
+      function setCollapsed(collapsed) {
+        if (!courseSidebar) return;
+        if (!mqMobile.matches) {
+          courseSidebar.classList.remove("sidebar--collapsed");
+          if (collapseBtn) collapseBtn.setAttribute("aria-expanded", "true");
+          if (sidebarMini) sidebarMini.setAttribute("aria-hidden", "true");
+          return;
+        }
+        courseSidebar.classList.toggle("sidebar--collapsed", collapsed);
+        if (collapseBtn) {
+          collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        }
+        if (sidebarMini) {
+          sidebarMini.setAttribute("aria-hidden", collapsed ? "false" : "true");
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
+        } catch (_) {}
+      }
+
+      function applyStoredState() {
+        syncSidebarMiniLabel();
+        if (!mqMobile.matches) {
+          setCollapsed(false);
+          return;
+        }
+        let collapsed = false;
+        try {
+          const v = localStorage.getItem(STORAGE_KEY);
+          if (v === "1") collapsed = true;
+        } catch (_) {}
+        setCollapsed(collapsed);
+      }
+
+      collapseBtn?.addEventListener("click", () => {
+        setCollapsed(true);
+      });
+      expandMini?.addEventListener("click", () => {
+        setCollapsed(false);
+      });
+      mqMobile.addEventListener("change", applyStoredState);
+      tabs.forEach((btn) => {
+        btn.addEventListener("click", syncSidebarMiniLabel);
+      });
+      applyStoredState();
+    })();
 
     /* 马克思主义基本原理 · 导论（第 data-marx-chapter=1）单选题 */
     const MARX_M1_QUESTIONS = [
