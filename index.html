@@ -176,6 +176,18 @@
       outline-offset: 2px;
     }
 
+    /* 马克思主义 · 与近代史区分的章节列表样式 */
+    .list-card--marx .list-card__head {
+      background: #1b5e20;
+    }
+    .list-card--marx .list-card__wrong-btn {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .list-card--marx .list-card__wrong-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
     .chapter-badge {
       margin-left: 8px;
       padding: 2px 8px;
@@ -336,7 +348,8 @@
     .lecture-link:hover {
       text-decoration: underline;
     }
-    .lecture-row[data-chapter] {
+    .lecture-row[data-chapter],
+    .lecture-row[data-marx-chapter] {
       cursor: pointer;
     }
 
@@ -519,15 +532,7 @@
       margin: 10px 0 0;
       font-size: 14px;
       color: var(--muted);
-    }
-    .feedback-ref--taunt {
-      padding: 10px 12px;
-      border-radius: 8px;
-      background: #fff8f5;
-      border: 1px solid #f0d9ce;
-      color: #8a4a3a;
-      font-style: italic;
-      line-height: 1.5;
+      white-space: pre-line;
     }
     .quiz-nav {
       display: flex;
@@ -793,10 +798,122 @@
       </section>
 
       <section id="panel-marx" class="content-panel" hidden role="tabpanel" aria-labelledby="tab-marx">
-        <h1>马克思主义</h1>
-        <p class="subtitle">本课程练习区 · 题目与选项将在此处展示</p>
-        <div class="panel">
-          <p class="placeholder">这里之后会接入：你粘贴的题目文本 → 自动生成选择题、判对错与提示。当前为排版预览。</p>
+        <h1 class="visually-hidden">马克思主义基本原理</h1>
+
+        <div id="marx-chapter-list">
+          <p class="subtitle" style="margin-bottom:18px;">本地复习 · 《马克思主义基本原理》章节目录</p>
+
+          <div class="list-card list-card--marx">
+            <h2 class="list-card__head">
+              <span class="list-card__head-title"><span class="course">《马克思主义基本原理》</span>章节列表</span>
+              <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
+            </h2>
+            <div class="list-card__body">
+              <ul class="lecture-list" aria-label="马克思主义章节目录">
+                <li class="lecture-row" data-marx-chapter="1" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（导论）</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="2" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第1章）世界的物质性及发展规律</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="3" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第2章）实践与认识及其发展规律</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="4" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第3章）人类社会及其发展规律</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="5" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第4章）资本主义的本质及规律</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="6" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第5章）资本主义的发展及其趋势</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="7" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第6章）社会主义的发展及其规律</span>
+                </li>
+                <li class="lecture-row" data-marx-chapter="8" role="button" tabindex="0">
+                  <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <span class="lecture-link">（第7章）共产主义崇高理想及其最终实现</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div id="marx-quiz-view" class="quiz-view" hidden>
+          <button type="button" class="back-to-chapters" id="marx-quiz-back">← 返回章节目录</button>
+          <p class="quiz-stats" id="mq-stats">
+            本次测试共<span id="mq-total">0</span>题，已做<span id="mq-done">0</span>题，做对<span class="stat-correct" id="mq-right">0</span>题，做错<span class="stat-wrong" id="mq-wrong">0</span>题
+          </p>
+          <p class="quiz-type" id="mq-quiz-type">导论 · 单项选择题</p>
+          <p class="quiz-question" id="mq-question-text"></p>
+          <div class="quiz-options" id="mq-options" role="radiogroup" aria-label="选项"></div>
+          <div class="btn-submit-wrap" id="mq-submit-wrap">
+            <button type="button" class="btn-submit" id="mq-submit" disabled>
+              <span class="btn-submit-icon" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              提交答案
+            </button>
+          </div>
+          <div class="quiz-feedback" id="mq-feedback" aria-live="polite">
+            <p class="feedback-result" id="mq-feedback-result"></p>
+            <p class="feedback-answer" id="mq-feedback-answer"></p>
+            <p class="feedback-ref" id="mq-feedback-ref"></p>
+          </div>
+          <div class="quiz-nav">
+            <button type="button" id="mq-prev" disabled>« 上一题</button>
+            <button type="button" id="mq-next" disabled>» 下一题</button>
+          </div>
+        </div>
+
+        <div id="marx-chapter-stub" class="quiz-view" hidden>
+          <button type="button" class="back-to-chapters" id="marx-back-to-list">← 返回章节目录</button>
+          <p class="quiz-type" id="marx-stub-chapter-label">单项选择题</p>
+          <div class="panel" style="margin-top:12px;">
+            <p class="placeholder" id="marx-stub-msg">本章题目待录入。下一步将在此处接入与「中国近代史纲要」相同的答题界面与进度逻辑。</p>
+          </div>
+        </div>
+
+        <div id="marx-chapter-resume-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
+          <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="marx-chapter-resume-title" tabindex="-1">
+            <p id="marx-chapter-resume-title" class="chapter-resume-msg">上次的题还没有答完，要重新开始吗？</p>
+            <div class="chapter-resume-actions">
+              <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="marx-chapter-resume-restart">重开</button>
+              <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="marx-chapter-resume-continue">继续</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -810,10 +927,36 @@
       marx: document.getElementById("panel-marx"),
     };
 
+    /** 马克思主义 · 与近代史「重开/继续」一致：返回目录时记住题号 */
+    const marxChapterLastIndex = {};
+    let pendingResumeMarxChapter = null;
+    let marxQuizChapter = 1;
+    let marxQuizIndex = 0;
+
+    function closeMarxViews() {
+      const list = document.getElementById("marx-chapter-list");
+      const stub = document.getElementById("marx-chapter-stub");
+      const quiz = document.getElementById("marx-quiz-view");
+      if (quiz && !quiz.hidden) {
+        marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
+      }
+      if (stub) stub.hidden = true;
+      if (quiz) {
+        quiz.hidden = true;
+        quiz.classList.remove("is-submitted");
+      }
+      if (list) list.hidden = false;
+      hideMarxChapterResumeDialog();
+    }
+
     function showPanel(key) {
       Object.entries(panels).forEach(([k, el]) => {
         el.hidden = k !== key;
       });
+      if (key !== "marx") {
+        closeMarxViews();
+        hideMarxChapterResumeDialog();
+      }
       tabs.forEach((btn) => {
         const sel = btn.dataset.panel === key;
         btn.setAttribute("aria-selected", sel);
@@ -831,6 +974,980 @@
       });
     });
 
+    /* 马克思主义基本原理 · 导论（第 data-marx-chapter=1）单选题 */
+    const MARX_M1_QUESTIONS = [
+      {
+        text: "[自测单选]48. 马克思主义的创始人是（）",
+        options: [
+          { key: "A", label: "马克思和列宁" },
+          { key: "B", label: "马克思和圣西门" },
+          { key: "C", label: "马克思和斯密" },
+          { key: "D", label: "马克思和恩格斯" },
+        ],
+        correct: "D",
+        bookRef: "马克思主义是由马克思和恩格斯共同创立的，列宁是后来马克思主义的发展者。",
+      },
+      {
+        text: "[自测单选]2. 与时俱进是马克思主义的（）",
+        options: [
+          { key: "A", label: "理论前提" },
+          { key: "B", label: "理论核心" },
+          { key: "C", label: "理论品质" },
+          { key: "D", label: "理论特征" },
+        ],
+        correct: "C",
+        bookRef: "马克思主义是不断发展的理论，与时俱进是其重要的理论品质。",
+      },
+      {
+        text: "[自测单选]59. 世界上的第一个无产阶级政党是（）",
+        options: [
+          { key: "A", label: "中国共产党" },
+          { key: "B", label: "德国社会民主工党" },
+          { key: "C", label: "共产主义者同盟" },
+          { key: "D", label: "俄国布尔什维克党" },
+        ],
+        correct: "C",
+        bookRef: "共产主义者同盟是马克思和恩格斯参与改组并起草纲领（《共产党宣言》）的第一个国际性无产阶级政党。",
+      },
+      {
+        text: "[自测单选]78. 马克思主义产生于19世纪（）",
+        options: [
+          { key: "A", label: "40年代" },
+          { key: "B", label: "50年代" },
+          { key: "C", label: "60年代" },
+          { key: "D", label: "70年代" },
+        ],
+        correct: "A",
+        bookRef: "马克思主义诞生的标志是1848年《共产党宣言》的发表，因此产生于19世纪40年代。",
+      },
+      {
+        text: "[自测单选]117. 马克思是时代的产物。细胞学说、能量守恒与转化、进化论三个成果的发现，为马克思主义的产生提供了（）",
+        options: [
+          { key: "A", label: "直接理论来源" },
+          { key: "B", label: "阶级利益" },
+          { key: "C", label: "自然科学前提" },
+          { key: "D", label: "主观条件" },
+        ],
+        correct: "C",
+        bookRef: "19世纪的三大自然科学发现（细胞学说、能量守恒与转化定律、生物进化论）为马克思主义哲学的产生提供了自然科学基础。",
+      },
+      {
+        text: "[自测单选]102. 世界上第一个无产阶级政党的党纲是（）",
+        options: [
+          { key: "A", label: "《共产党宣言》" },
+          { key: "B", label: "《法兰西内战》" },
+          { key: "C", label: "《社会主义从空想到科学的发展》" },
+          { key: "D", label: "《哥达纲领批判》" },
+        ],
+        correct: "A",
+        bookRef: "《共产党宣言》是共产主义者同盟的纲领，也是世界上第一个无产阶级政党的纲领。",
+      },
+      {
+        text: "[自测单选]133. 马克思主义作为时代的产物，其理论体系是（）",
+        options: [
+          { key: "A", label: "开放发展的" },
+          { key: "B", label: "抽象思辨的" },
+          { key: "C", label: "穷尽真理的" },
+          { key: "D", label: "完美无缺的" },
+        ],
+        correct: "A",
+        bookRef: "马克思主义不是封闭僵化的，而是随着实践发展而不断丰富和完善的开放体系。",
+      },
+      {
+        text: "[202504单选]2. 马克思主义的基本特征用一句话来概括就是（）",
+        options: [
+          { key: "A", label: "科学性与革命性的统一" },
+          { key: "B", label: "科学性与人民性的统一" },
+          { key: "C", label: "科学性与实践性的统一" },
+          { key: "D", label: "科学性与发展性的统一" },
+        ],
+        correct: "A",
+        bookRef: "马克思主义最鲜明的特征是科学性和革命性的统一。",
+      },
+      {
+        text: "[202510单选]1. 在马克思主义理论体系中，马克思主义哲学、马克思主义政治经济学和科学社会主义共同构成其（）",
+        options: [
+          { key: "A", label: "基本内涵" },
+          { key: "B", label: "主要特征" },
+          { key: "C", label: "根本性质" },
+          { key: "D", label: "主体内容" },
+        ],
+        correct: "D",
+        bookRef: "马克思主义哲学、政治经济学和科学社会主义是马克思主义理论体系的三个主要组成部分，构成了其主体内容。",
+      },
+      {
+        text: "[202510单选]2．下列选项属于为马克思主义的创立提供了直接理论来源的是（）",
+        options: [
+          { key: "A", label: "古希腊罗马哲学" },
+          { key: "B", label: "文艺复兴运动的思想成果" },
+          { key: "C", label: "德国古典哲学" },
+          { key: "D", label: "法国复辟时期历史学家的进步思想" },
+        ],
+        correct: "C",
+        bookRef:
+          "马克思主义的直接理论来源主要包括德国古典哲学、英国古典政治经济学和英法空想社会主义等；德国古典哲学（如黑格尔辩证法、费尔巴哈唯物主义）为马克思主义哲学提供了重要来源。",
+      },
+    ];
+
+    /* 马克思主义基本原理 · 第1章（data-marx-chapter=2）世界的物质性及发展规律（解析用 explain） */
+    const MARX_M2_QUESTIONS = [
+      {
+        text: "[202510单选]6．在唯物辩证法体系中，反映事物的过去、现在和将来关系的一对范畴是（）",
+        options: [
+          { key: "A", label: "内容和形式" },
+          { key: "B", label: "本质和现象" },
+          { key: "C", label: "原因和结果" },
+          { key: "D", label: "现实和可能" },
+        ],
+        correct: "D",
+        explain: "可能性和现实性这对范畴，说明事物由过去、现在到将来的发展，是现实与可能相互转化的过程。",
+      },
+      {
+        text: "[202510单选]4．客观实在性作为物质的唯一特性，体现的是（）",
+        options: [
+          { key: "A", label: "某种自然存在的个别特性" },
+          { key: "B", label: "自然存在和社会存在的不同特性" },
+          { key: "C", label: "几种自然存在的共同特性" },
+          { key: "D", label: "自然存在和社会存在的共同特性" },
+        ],
+        correct: "D",
+        explain: "物质既包括自然存在，也包括社会存在；二者虽形态不同，却都具有不依赖于人的意识的客观实在性。",
+      },
+      {
+        text: "[202510单选]3．唯物主义与唯心主义是两种根本对立的哲学派别，其形成的原因在于（）",
+        options: [
+          { key: "A", label: "二者对客观实在性的认识不同" },
+          { key: "B", label: "二者对主观能动性的认识不同" },
+          { key: "C", label: "二者对物质和意识谁为本原问题的回答不同" },
+          { key: "D", label: "二者对思维和存在有无同一性问题的回答不同" },
+        ],
+        correct: "C",
+        explain: "划分唯物与唯心的唯一标准，是对哲学基本问题第一方面——物质与意识何者为第一性、何者为本原——的回答。",
+      },
+      {
+        text: "[202504单选]6．在唯物辩证法体系中，作为其实质与核心的是（）",
+        options: [
+          { key: "A", label: "对立统一规律" },
+          { key: "B", label: "量变质变规律" },
+          { key: "C", label: "否定之否定规律" },
+          { key: "D", label: "因果规律" },
+        ],
+        correct: "A",
+        explain: "对立统一规律揭示了事物联系与发展的源泉和动力，是贯穿辩证法其他规律和范畴的中心线索。",
+      },
+      {
+        text: "[202504单选]5．唯物辩证法认为，事物之间的相互联系是事物本身固有的，是不以人的主观意志转移的。这说明联系具有（）",
+        options: [
+          { key: "A", label: "稳定性" },
+          { key: "B", label: "普遍性" },
+          { key: "C", label: "客观性" },
+          { key: "D", label: "多样性" },
+        ],
+        correct: "C",
+        explain: "联系的客观性指联系是事物本身固有的，不以人的意志为转移；不能把主观臆想的联系强加给事物。",
+      },
+      {
+        text: "[202504单选]3．思维和存在的关系问题作为哲学的基本问题也称为（）",
+        options: [
+          { key: "A", label: "主体和客体的关系问题" },
+          { key: "B", label: "理论和实践的关系问题" },
+          { key: "C", label: "意识和物质的关系问题" },
+          { key: "D", label: "社会和自然的关系问题" },
+        ],
+        correct: "C",
+        explain: "思维与存在的关系问题，在马克思主义语境中通常表述为意识与物质的关系问题，即何者为第一性、有无同一性。",
+      },
+      {
+        text: "[自测单选]165．下列范畴揭示事物联系和发展中确定的和不确定的两种趋势的是（）",
+        options: [
+          { key: "A", label: "原因和结果" },
+          { key: "B", label: "可能性和现实性" },
+          { key: "C", label: "内容和形式" },
+          { key: "D", label: "必然性和偶然性" },
+        ],
+        correct: "D",
+        explain: "必然性指确定不移的趋势，偶然性指不确定的、可以这样也可以那样的趋势；二者共同制约事物发展。",
+      },
+      {
+        text: "[自测单选]163．空间是物质运动的（）",
+        options: [
+          { key: "A", label: "持续性和顺序性" },
+          { key: "B", label: "绝对性和无限性" },
+          { key: "C", label: "广延性和伸张性" },
+          { key: "D", label: "客观性和普遍性" },
+        ],
+        correct: "C",
+        explain: "空间是物质运动的广延性、伸张性；时间才是持续性和顺序性。",
+      },
+      {
+        text: "[自测单选]150．下列各项完整表述了物质和意识辩证关系是（）",
+        options: [
+          { key: "A", label: "物质第一性，物质决定意识" },
+          { key: "B", label: "物质决定意识，意识根源于物质" },
+          { key: "C", label: "意识第二性，意识反映物质" },
+          { key: "D", label: "物质决定意识，意识反作用于物质" },
+        ],
+        correct: "D",
+        explain: "物质与意识的辩证关系既要讲物质对意识的决定作用，也要讲意识对物质的能动反作用，二者缺一不可。",
+      },
+      {
+        text: "[自测单选]149．相对静止包括两种状态。下列各项中属于相对静止情形是（）",
+        options: [
+          { key: "A", label: "事物没有发生性质上的根本变化" },
+          { key: "B", label: "事物没有发生数量的些微变化" },
+          { key: "C", label: "事物没有发生形式上的任何变化" },
+          { key: "D", label: "事物没有发生结构上的彻底变化" },
+        ],
+        correct: "A",
+        explain: "相对静止包括：空间相对位置未变，或事物的根本性质尚未发生根本变化（量变阶段）。",
+      },
+      {
+        text: "[自测单选]119．“矛盾无处不在，矛盾无时不有。”这句话说的是（）",
+        options: [
+          { key: "A", label: "矛盾具有特殊性" },
+          { key: "B", label: "矛盾具有普遍性" },
+          { key: "C", label: "矛盾具有同一性" },
+          { key: "D", label: "矛盾具有斗争性" },
+        ],
+        correct: "B",
+        explain: "矛盾普遍性指矛盾存在于一切事物之中，并贯穿每一事物发展过程的始终。",
+      },
+      {
+        text: "[自测单选]118．用某一种或几种物质作为本原来解释世界，这种观点属于（）",
+        options: [
+          { key: "A", label: "古代朴素唯物主义" },
+          { key: "B", label: "庸俗唯物主义" },
+          { key: "C", label: "形而上学唯物主义" },
+          { key: "D", label: "辩证唯物主义" },
+        ],
+        correct: "A",
+        explain: "古代朴素唯物主义把世界本原归结为水、火、气等具体物质形态，是直观的、猜测性的。",
+      },
+      {
+        text: "[自测单选]107．判断一个事物是新事物还是旧事物，主要是看它（）",
+        options: [
+          { key: "A", label: "是否形式新奇" },
+          { key: "B", label: "是否满足大多数人的主观愿望" },
+          { key: "C", label: "是否新近出现" },
+          { key: "D", label: "是否符合历史前进方向具有远大前途" },
+        ],
+        correct: "D",
+        explain: "区分新旧事物不能只看出现时间或形式，要看是否符合客观规律、是否具有强大生命力和远大前途。",
+      },
+      {
+        text: "[自测单选]94．唯物辩证法揭示了事物变化发展的一般规律。其中，否定之否定规律揭示的是事物发展的（）",
+        options: [
+          { key: "A", label: "前提和条件" },
+          { key: "B", label: "状态和形式" },
+          { key: "C", label: "动力和源泉" },
+          { key: "D", label: "过程及本质" },
+        ],
+        correct: "D",
+        explain: "对立统一规律揭示动力与源泉；量变质变揭示状态与形式；否定之否定揭示事物发展是螺旋式上升的过程与趋势。",
+      },
+      {
+        text: "[自测单选]80．意识具有调控人的行为和生理活动的作用，这表明（）",
+        options: [
+          { key: "A", label: "意识是人脑的分泌物" },
+          { key: "B", label: "意识对物质具有决定性" },
+          { key: "C", label: "意识是客观事物本身" },
+          { key: "D", label: "意识对物质具有能动性" },
+        ],
+        correct: "D",
+        explain: "意识能动性表现为目的性、创造性，以及对人的行为和生理活动的调控；意识不能代替物质的决定作用。",
+      },
+      {
+        text: "[自测单选]134．联系的观点和发展的观点是（）",
+        options: [
+          { key: "A", label: "马克思主义的理论品质" },
+          { key: "B", label: "唯物辩证法的总观点和总特征" },
+          { key: "C", label: "马克思主义的活的灵魂" },
+          { key: "D", label: "唯物辩证法的实质和核心" },
+        ],
+        correct: "B",
+        explain: "唯物辩证法以联系和发展的观点看世界；对立统一规律才是辩证法的实质与核心。",
+      },
+      {
+        text: "[自测单选]1．世界观是人们对（）",
+        options: [
+          { key: "A", label: "自然界的根本看法和根本观点" },
+          { key: "B", label: "世界的总体看法和把握" },
+          { key: "C", label: "人类社会的根本看法和根本观点" },
+          { key: "D", label: "精神世界的根本看法和根本观点" },
+        ],
+        correct: "B",
+        explain: "世界观是人们对整个世界的总的看法和根本观点，不限于自然界或社会的某一部分。",
+      },
+      {
+        text: "[自测单选]49．运动是物质的运动，物质是运动着的物质。这表明物质和运动（）",
+        options: [
+          { key: "A", label: "不可分割" },
+          { key: "B", label: "不易区别" },
+          { key: "C", label: "完全对立" },
+          { key: "D", label: "绝对同一" },
+        ],
+        correct: "A",
+        explain: "物质是运动的承担者，运动是物质的根本属性；离开物质谈运动或离开运动谈物质都是错误的。",
+      },
+      {
+        text: "[自测单选]79．下列唯物辩证法范畴中反映事物根本性质和表面特征关系的是（）",
+        options: [
+          { key: "A", label: "内容和形式" },
+          { key: "B", label: "必然性和偶然性" },
+          { key: "C", label: "本质和现象" },
+          { key: "D", label: "可能性和现实性" },
+        ],
+        correct: "C",
+        explain: "本质是事物的根本性质和内在联系；现象是事物的外部联系和表面特征。本质深藏于内，通过现象表现。",
+      },
+      {
+        text: "[自测单选]64．矛盾分析方法的核心要求是善于分析矛盾的特殊性，（）",
+        options: [
+          { key: "A", label: "坚持“两点论”" },
+          { key: "B", label: "坚持理论联系实际" },
+          { key: "C", label: "坚持“重点论”" },
+          { key: "D", label: "坚持具体问题具体分析" },
+        ],
+        correct: "D",
+        explain: "矛盾特殊性决定了解决矛盾的方法；具体问题具体分析是马克思主义活的灵魂。",
+      },
+      {
+        text: "[自测单选]63．时间的流逝一去不复返是指时间具有（）",
+        options: [
+          { key: "A", label: "客观性" },
+          { key: "B", label: "一维性" },
+          { key: "C", label: "有限性" },
+          { key: "D", label: "永恒性" },
+        ],
+        correct: "B",
+        explain: "时间一维性指时间只有从过去、现在到将来的一个方向，流逝不可复返。",
+      },
+    ];
+
+    /* 马克思主义基本原理 · 第2章（data-marx-chapter=3）实践与认识及其发展规律（解析用 explain） */
+    const MARX_M3_QUESTIONS = [];
+
+    const WRONG_REVIEW_MARX_CHAPTER = 12;
+    const MARX_WRONG_STORAGE_KEY = "pansan2-marx-wrong-v1";
+    const MARX_MASTERY_STORAGE_KEY = "pansan2-marx-mastery-v1";
+
+    function marxBaseQuestionsForChapter(ch) {
+      if (ch === 1) return MARX_M1_QUESTIONS;
+      if (ch === 2) return MARX_M2_QUESTIONS;
+      if (ch === 3) return MARX_M3_QUESTIONS;
+      return [];
+    }
+
+    function normalizeMarxWrongEntries(raw) {
+      if (!Array.isArray(raw)) return [];
+      const seen = new Set();
+      const out = [];
+      for (const e of raw) {
+        if (!e || typeof e.ch !== "number" || typeof e.i !== "number") continue;
+        if (e.ch < 1 || e.ch > 8) continue;
+        const qs = marxBaseQuestionsForChapter(e.ch);
+        if (e.i < 0 || e.i >= qs.length) continue;
+        const k = e.ch + "-" + e.i;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push({ ch: e.ch, i: e.i });
+      }
+      return out;
+    }
+
+    function getMarxWrongEntries() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(MARX_WRONG_STORAGE_KEY) || "[]");
+        return normalizeMarxWrongEntries(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function saveMarxWrongEntries(entries) {
+      try {
+        localStorage.setItem(MARX_WRONG_STORAGE_KEY, JSON.stringify(entries));
+      } catch (_) {}
+    }
+
+    function buildMarxWrongReviewQuestions() {
+      return getMarxWrongEntries().map((e) => marxBaseQuestionsForChapter(e.ch)[e.i]);
+    }
+
+    function loadMarxMasteryMap() {
+      try {
+        const raw = localStorage.getItem(MARX_MASTERY_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveMarxMasteryMap(map) {
+      try {
+        localStorage.setItem(MARX_MASTERY_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function marxMasteryKey(ch, idx) {
+      return ch + "-" + idx;
+    }
+
+    function updateMarxMasteryForQuestion(ch, idx, ok) {
+      if (ch < 1 || ch > 8) return null;
+      const map = loadMarxMasteryMap();
+      const k = marxMasteryKey(ch, idx);
+      const base = map[k] || {
+        tries: 0,
+        correct: 0,
+        wrong: 0,
+        rightStreak: 0,
+        lastOk: false,
+      };
+      base.tries += 1;
+      if (ok) {
+        base.correct += 1;
+        base.rightStreak += 1;
+      } else {
+        base.wrong += 1;
+        base.rightStreak = 0;
+      }
+      base.lastOk = !!ok;
+      map[k] = base;
+      saveMarxMasteryMap(map);
+      recomputeMarxChapterMasteryBadges(map);
+      return base;
+    }
+
+    function isMarxMastered(map, ch, idx) {
+      const k = marxMasteryKey(ch, idx);
+      const e = map[k];
+      return !!(e && e.rightStreak >= 2 && e.lastOk);
+    }
+
+    function recomputeMarxChapterMasteryBadges(existingMap) {
+      const map = existingMap || loadMarxMasteryMap();
+      for (let ch = 1; ch <= 8; ch++) {
+        const qs = marxBaseQuestionsForChapter(ch);
+        const row = document.querySelector('#panel-marx .lecture-row[data-marx-chapter="' + ch + '"]');
+        if (!row) continue;
+        let badge = row.querySelector(".chapter-badge");
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "chapter-badge";
+          row.appendChild(badge);
+        }
+        badge.className = "chapter-badge";
+        if (!qs.length) {
+          badge.classList.add("chapter-badge--not-started");
+          badge.textContent = "未开始";
+          let medal = row.querySelector(".chapter-medal");
+          if (!medal) {
+            medal = document.createElement("span");
+            medal.setAttribute("role", "img");
+            row.appendChild(medal);
+          }
+          ensureChapterMedalImgEl(medal);
+          medal.className = "chapter-medal chapter-medal--locked";
+          medal.setAttribute("aria-label", "本章尚未录入题目");
+          medal.title = "本章尚未录入题目";
+          continue;
+        }
+        let masteredCount = 0;
+        let triedCount = 0;
+        for (let i = 0; i < qs.length; i++) {
+          const k = marxMasteryKey(ch, i);
+          const e = map[k];
+          if (e && e.tries > 0) triedCount += 1;
+          if (isMarxMastered(map, ch, i)) masteredCount += 1;
+        }
+        const chapterCleared = masteredCount >= qs.length && qs.length > 0;
+        if (chapterCleared) {
+          badge.classList.add("chapter-badge--cleared");
+          badge.textContent = "已通关";
+        } else if (triedCount > 0) {
+          badge.classList.add("chapter-badge--in-progress");
+          badge.textContent = "练习中";
+        } else {
+          badge.classList.add("chapter-badge--not-started");
+          badge.textContent = "未开始";
+        }
+        let medal = row.querySelector(".chapter-medal");
+        if (!medal) {
+          medal = document.createElement("span");
+          medal.setAttribute("role", "img");
+          row.appendChild(medal);
+        }
+        ensureChapterMedalImgEl(medal);
+        medal.className = "chapter-medal";
+        if (chapterCleared) {
+          medal.classList.add("chapter-medal--earned");
+          medal.setAttribute("aria-label", "本章已通关");
+          medal.title = "本章已通关";
+        } else {
+          medal.classList.add("chapter-medal--locked");
+          medal.setAttribute("aria-label", "本章尚未通关");
+          medal.title =
+            "本章尚未通关；全部题目需连续答对两次才算通关。若之后又答错，勋章会重新置灰。";
+        }
+      }
+    }
+
+    function marxQuestionsForChapter(ch) {
+      if (ch === WRONG_REVIEW_MARX_CHAPTER) return buildMarxWrongReviewQuestions();
+      return marxBaseQuestionsForChapter(ch);
+    }
+
+    function addMarxWrongQuestion(ch, origIdx) {
+      if (ch < 1 || ch > 8) return;
+      const qs = marxBaseQuestionsForChapter(ch);
+      if (origIdx < 0 || origIdx >= qs.length) return;
+      const entries = getMarxWrongEntries();
+      if (entries.some((e) => e.ch === ch && e.i === origIdx)) return;
+      entries.push({ ch, i: origIdx });
+      saveMarxWrongEntries(entries);
+      updateMarxWrongReviewButtonBadge();
+    }
+
+    function getMarxWrongSourceAtDisplayIndex(displayIdx) {
+      const entries = getMarxWrongEntries();
+      const n = entries.length;
+      if (n === 0 || displayIdx < 0 || displayIdx >= n) return null;
+      return entries[displayIdx] || null;
+    }
+
+    function removeMarxWrongReviewAtDisplayIndex(displayIdx) {
+      const entries = getMarxWrongEntries();
+      const n = entries.length;
+      if (n === 0 || displayIdx < 0 || displayIdx >= n) return;
+      entries.splice(displayIdx, 1);
+      saveMarxWrongEntries(entries);
+      const newQ = marxQuestionsForChapter(WRONG_REVIEW_MARX_CHAPTER);
+      marxChapterResults[String(WRONG_REVIEW_MARX_CHAPTER)] = newQ.length ? newQ.map(() => null) : [];
+      persistMarxResults();
+      updateMarxWrongReviewButtonBadge();
+      if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
+      if (newQ.length === 0) {
+        closeMarxViews();
+        return;
+      }
+      marxQuizIndex = Math.min(displayIdx, newQ.length - 1);
+      recomputeMarxStats();
+      renderMarxQuiz();
+    }
+
+    function updateMarxWrongReviewButtonBadge() {
+      const btn = document.getElementById("btn-marx-wrong-review");
+      if (!btn) return;
+      const n = getMarxWrongEntries().length;
+      btn.textContent = n > 0 ? "错题回顾（" + n + "）" : "错题回顾";
+    }
+
+    const MARX_RESULT_STORAGE_KEY = "pansan2-marx-chapter-results-v1";
+    let marxChapterResults = {};
+    (function initMarxResultsFromStorage() {
+      try {
+        const raw = localStorage.getItem(MARX_RESULT_STORAGE_KEY);
+        if (raw) marxChapterResults = JSON.parse(raw) || {};
+      } catch (_) {
+        marxChapterResults = {};
+      }
+    })();
+
+    function persistMarxResults() {
+      try {
+        localStorage.setItem(MARX_RESULT_STORAGE_KEY, JSON.stringify(marxChapterResults));
+      } catch (_) {}
+    }
+
+    function ensureMarxResults(ch) {
+      const qs = marxQuestionsForChapter(ch);
+      const key = String(ch);
+      if (!qs.length) return;
+      const existing = marxChapterResults[key];
+      if (!existing || existing.length !== qs.length) {
+        marxChapterResults[key] = qs.map(() => null);
+        persistMarxResults();
+      }
+    }
+
+    function hasUnfinishedMarxChapterProgress(ch) {
+      const qs = marxQuestionsForChapter(ch);
+      if (!qs.length) return false;
+      ensureMarxResults(ch);
+      const key = String(ch);
+      const res = marxChapterResults[key];
+      if (!res || res.length !== qs.length) return false;
+      let answered = 0;
+      for (let i = 0; i < res.length; i++) {
+        if (res[i]) answered += 1;
+      }
+      return answered > 0 && answered < qs.length;
+    }
+
+    const marxChapterResumeOverlay = document.getElementById("marx-chapter-resume-overlay");
+
+    function showMarxChapterResumeDialog() {
+      if (!marxChapterResumeOverlay) return;
+      marxChapterResumeOverlay.hidden = false;
+      marxChapterResumeOverlay.setAttribute("aria-hidden", "false");
+      const dlg = marxChapterResumeOverlay.querySelector(".chapter-resume-dialog");
+      if (dlg) dlg.focus();
+    }
+
+    function hideMarxChapterResumeDialog() {
+      if (!marxChapterResumeOverlay) return;
+      marxChapterResumeOverlay.hidden = true;
+      marxChapterResumeOverlay.setAttribute("aria-hidden", "true");
+      pendingResumeMarxChapter = null;
+    }
+
+    function mqStripQuestionPrefix(raw) {
+      if (!raw) return "";
+      const stripped = raw.replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E]\s*/, "").trim();
+      return stripped || raw.trim();
+    }
+
+    function mqFormatQuestionLine(index, raw) {
+      return index + 1 + ". " + mqStripQuestionPrefix(raw);
+    }
+
+    const marxChapterListEl = document.getElementById("marx-chapter-list");
+    const marxChapterStubEl = document.getElementById("marx-chapter-stub");
+    const marxStubLabelEl = document.getElementById("marx-stub-chapter-label");
+    const marxBackBtn = document.getElementById("marx-back-to-list");
+    const marxQuizViewEl = document.getElementById("marx-quiz-view");
+    const marxQuizBackBtn = document.getElementById("marx-quiz-back");
+    const mqQuestionText = document.getElementById("mq-question-text");
+    const mqOptionsEl = document.getElementById("mq-options");
+    const mqSubmit = document.getElementById("mq-submit");
+    const mqSubmitWrap = document.getElementById("mq-submit-wrap");
+    const mqFeedback = document.getElementById("mq-feedback");
+    const mqFeedbackResult = document.getElementById("mq-feedback-result");
+    const mqFeedbackAnswer = document.getElementById("mq-feedback-answer");
+    const mqFeedbackRef = document.getElementById("mq-feedback-ref");
+    const mqPrev = document.getElementById("mq-prev");
+    const mqNext = document.getElementById("mq-next");
+
+    function marxCurrentResults() {
+      ensureMarxResults(marxQuizChapter);
+      const key = String(marxQuizChapter);
+      return marxChapterResults[key];
+    }
+
+    function recomputeMarxStats() {
+      const res = marxCurrentResults();
+      if (!res) return;
+      let done = 0;
+      let right = 0;
+      let wrong = 0;
+      res.forEach((r) => {
+        if (r) {
+          done += 1;
+          if (r.ok) right += 1;
+          else wrong += 1;
+        }
+      });
+      const total = res.length;
+      const elDone = document.getElementById("mq-done");
+      const elRight = document.getElementById("mq-right");
+      const elWrong = document.getElementById("mq-wrong");
+      const elTotal = document.getElementById("mq-total");
+      if (elDone) elDone.textContent = String(done);
+      if (elRight) elRight.textContent = String(right);
+      if (elWrong) elWrong.textContent = String(wrong);
+      if (elTotal) elTotal.textContent = String(total);
+    }
+
+    function applyMarxFeedback(q, ok) {
+      if (!marxQuizViewEl) return;
+      marxQuizViewEl.classList.add("is-submitted");
+      if (ok) {
+        mqFeedbackResult.className = "feedback-result right";
+        mqFeedbackResult.textContent = "✓ 答对了！";
+      } else {
+        mqFeedbackResult.className = "feedback-result wrong";
+        mqFeedbackResult.textContent = "✘答错了！";
+      }
+      mqFeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
+      mqFeedbackRef.className = "feedback-ref";
+      const ex = q.explain && String(q.explain).trim();
+      let mbr = q.bookRef && String(q.bookRef).trim();
+      if (mbr && /^教材章节/.test(mbr)) {
+        mbr = mbr.replace(/^教材章节\/页面[：:]\s*[\d\-–—\s]+\s*[。]?\s*/u, "").trim();
+      }
+      const refBody = ex || mbr;
+      mqFeedbackRef.textContent = refBody ? "解析：" + refBody : "";
+    }
+
+    function renderMarxQuiz() {
+      const qs = marxQuestionsForChapter(marxQuizChapter);
+      const res = marxCurrentResults();
+      const typeLabel = document.getElementById("mq-quiz-type");
+      if (typeLabel) {
+        if (marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER) {
+          typeLabel.textContent = "错题回顾 · 单项选择题";
+        } else if (marxQuizChapter === 1) {
+          typeLabel.textContent = "导论 · 单项选择题";
+        } else if (marxQuizChapter === 2) {
+          typeLabel.textContent = "第1章 · 单项选择题";
+        } else if (marxQuizChapter === 3) {
+          typeLabel.textContent = "第2章 · 单项选择题";
+        } else {
+          typeLabel.textContent = "单项选择题";
+        }
+      }
+
+      if (!qs.length || !res) {
+        if (mqQuestionText) {
+          mqQuestionText.textContent =
+            marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER
+              ? "暂无错题。在各章练习中答错的题目会自动收录到「错题回顾」。"
+              : "本章暂无题目。";
+        }
+        if (mqOptionsEl) mqOptionsEl.innerHTML = "";
+        if (mqSubmitWrap) mqSubmitWrap.classList.add("is-hidden");
+        if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
+        return;
+      }
+
+      if (mqFeedback) mqFeedback.style.display = "";
+      const q = qs[marxQuizIndex];
+      if (!q) return;
+      const saved = res[marxQuizIndex];
+
+      mqQuestionText.textContent = mqFormatQuestionLine(marxQuizIndex, q.text);
+      mqOptionsEl.innerHTML = "";
+      const name = "mq-" + marxQuizChapter + "-" + marxQuizIndex;
+
+      if (saved) {
+        mqSubmitWrap.classList.add("is-hidden");
+        marxQuizViewEl.classList.add("is-submitted");
+        applyMarxFeedback(q, saved.ok);
+      } else {
+        mqSubmitWrap.classList.remove("is-hidden");
+        marxQuizViewEl.classList.remove("is-submitted");
+        mqFeedbackResult.textContent = "";
+        mqFeedbackAnswer.innerHTML = "";
+        mqFeedbackRef.textContent = "";
+        mqSubmit.disabled = true;
+      }
+
+      q.options.forEach((opt) => {
+        const label = document.createElement("label");
+        label.className = "radio-line";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = name;
+        input.value = opt.key;
+        if (saved && saved.picked === opt.key) input.checked = true;
+        if (saved) input.disabled = true;
+        input.addEventListener("change", () => {
+          if (!marxCurrentResults()[marxQuizIndex]) mqSubmit.disabled = false;
+        });
+        const ui = document.createElement("span");
+        ui.className = "radio-ui";
+        const tx = document.createElement("span");
+        tx.className = "radio-text";
+        tx.textContent = opt.key + ". " + opt.label;
+        label.appendChild(input);
+        label.appendChild(ui);
+        label.appendChild(tx);
+        mqOptionsEl.appendChild(label);
+      });
+
+      mqPrev.disabled = marxQuizIndex === 0;
+      if (saved) {
+        mqNext.disabled = marxQuizIndex >= qs.length - 1;
+        mqNext.title = marxQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      } else {
+        mqNext.disabled = true;
+        mqNext.title = "请先提交本题答案";
+      }
+    }
+
+    function openMarxChapterStub(row) {
+      if (!marxChapterListEl || !marxChapterStubEl || !marxStubLabelEl) return;
+      if (marxQuizViewEl) marxQuizViewEl.hidden = true;
+      const link = row.querySelector(".lecture-link");
+      const title = link ? link.textContent.trim() : "本章";
+      marxStubLabelEl.textContent = "马克思主义基本原理 · " + title;
+      marxChapterListEl.hidden = true;
+      marxChapterStubEl.hidden = false;
+    }
+
+    function openMarxQuiz(ch, opts) {
+      const choice = opts && opts.choice;
+      if (!marxChapterListEl || !marxQuizViewEl) return;
+
+      if (!choice && hasUnfinishedMarxChapterProgress(ch)) {
+        pendingResumeMarxChapter = ch;
+        showMarxChapterResumeDialog();
+        return;
+      }
+
+      if (!marxQuizViewEl.hidden && marxQuizChapter !== ch) {
+        marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
+      }
+
+      if (choice === "continue") {
+        marxChapterListEl.hidden = true;
+        if (marxChapterStubEl) marxChapterStubEl.hidden = true;
+        marxQuizViewEl.hidden = false;
+        marxQuizChapter = ch;
+        const qs = marxQuestionsForChapter(ch);
+        ensureMarxResults(ch);
+        const maxIx = Math.max(0, qs.length - 1);
+        let ix = marxChapterLastIndex[ch];
+        if (typeof ix !== "number" || ix < 0) ix = 0;
+        if (ix > maxIx) ix = maxIx;
+        marxQuizIndex = ix;
+        marxQuizViewEl.classList.remove("is-submitted");
+        recomputeMarxStats();
+        renderMarxQuiz();
+        return;
+      }
+
+      marxQuizChapter = ch;
+      marxQuizIndex = 0;
+      ensureMarxResults(ch);
+      const qs = marxQuestionsForChapter(ch);
+      const key = String(ch);
+      marxChapterResults[key] = qs.map(() => null);
+      persistMarxResults();
+
+      marxChapterListEl.hidden = true;
+      if (marxChapterStubEl) marxChapterStubEl.hidden = true;
+      marxQuizViewEl.hidden = false;
+      marxQuizViewEl.classList.remove("is-submitted");
+      recomputeMarxStats();
+      renderMarxQuiz();
+    }
+
+    document.querySelectorAll("#panel-marx .lecture-row[data-marx-chapter]").forEach((row) => {
+      row.addEventListener("click", () => {
+        const ch = Number(row.dataset.marxChapter || 0);
+        if (marxQuestionsForChapter(ch).length > 0) openMarxQuiz(ch);
+        else openMarxChapterStub(row);
+      });
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const ch = Number(row.dataset.marxChapter || 0);
+          if (marxQuestionsForChapter(ch).length > 0) openMarxQuiz(ch);
+          else openMarxChapterStub(row);
+        }
+      });
+    });
+
+    if (marxChapterResumeOverlay) {
+      marxChapterResumeOverlay.addEventListener("click", (e) => {
+        if (e.target === marxChapterResumeOverlay) hideMarxChapterResumeDialog();
+      });
+      const btnMarxResumeRestart = document.getElementById("marx-chapter-resume-restart");
+      const btnMarxResumeContinue = document.getElementById("marx-chapter-resume-continue");
+      if (btnMarxResumeRestart) {
+        btnMarxResumeRestart.addEventListener("click", () => {
+          const ch = pendingResumeMarxChapter;
+          hideMarxChapterResumeDialog();
+          if (ch != null) openMarxQuiz(ch, { choice: "restart" });
+        });
+      }
+      if (btnMarxResumeContinue) {
+        btnMarxResumeContinue.addEventListener("click", () => {
+          const ch = pendingResumeMarxChapter;
+          hideMarxChapterResumeDialog();
+          if (ch != null) openMarxQuiz(ch, { choice: "continue" });
+        });
+      }
+    }
+
+    if (marxBackBtn) {
+      marxBackBtn.addEventListener("click", closeMarxViews);
+    }
+    if (marxQuizBackBtn) {
+      marxQuizBackBtn.addEventListener("click", closeMarxViews);
+    }
+
+    const btnMarxWrongReview = document.getElementById("btn-marx-wrong-review");
+    if (btnMarxWrongReview) {
+      btnMarxWrongReview.addEventListener("click", () => openMarxQuiz(WRONG_REVIEW_MARX_CHAPTER));
+    }
+
+    if (mqSubmit) {
+      mqSubmit.addEventListener("click", () => {
+        const qs = marxQuestionsForChapter(marxQuizChapter);
+        const q = qs[marxQuizIndex];
+        const res = marxCurrentResults();
+        const picked = mqOptionsEl.querySelector('input[type="radio"]:checked');
+        if (!picked || !q || res[marxQuizIndex]) return;
+        const ok = picked.value === q.correct;
+
+        if (marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER) {
+          const src = getMarxWrongSourceAtDisplayIndex(marxQuizIndex);
+          const mastery = src ? updateMarxMasteryForQuestion(src.ch, src.i, ok) : null;
+          res[marxQuizIndex] = { picked: picked.value, ok };
+          persistMarxResults();
+          recomputeMarxStats();
+          marxQuizViewEl.classList.add("is-submitted");
+          mqOptionsEl.querySelectorAll("input").forEach((inp) => {
+            inp.disabled = true;
+          });
+          mqSubmitWrap.classList.add("is-hidden");
+          applyMarxFeedback(q, ok);
+          mqPrev.disabled = marxQuizIndex === 0;
+          mqNext.disabled = marxQuizIndex >= qs.length - 1;
+          mqNext.title = marxQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+          if (ok && mastery && mastery.rightStreak >= 2) {
+            const idxRemove = marxQuizIndex;
+            setTimeout(() => {
+              if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
+              removeMarxWrongReviewAtDisplayIndex(idxRemove);
+            }, 480);
+          }
+          return;
+        }
+
+        res[marxQuizIndex] = { picked: picked.value, ok };
+        updateMarxMasteryForQuestion(marxQuizChapter, marxQuizIndex, ok);
+        if (!ok) {
+          addMarxWrongQuestion(marxQuizChapter, marxQuizIndex);
+        }
+        persistMarxResults();
+        recomputeMarxStats();
+        marxQuizViewEl.classList.add("is-submitted");
+        mqOptionsEl.querySelectorAll("input").forEach((inp) => {
+          inp.disabled = true;
+        });
+        mqSubmitWrap.classList.add("is-hidden");
+        applyMarxFeedback(q, ok);
+        mqPrev.disabled = marxQuizIndex === 0;
+        mqNext.disabled = marxQuizIndex >= qs.length - 1;
+        mqNext.title = marxQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      });
+    }
+
+    if (mqNext) {
+      mqNext.addEventListener("click", () => {
+        const qs = marxQuestionsForChapter(marxQuizChapter);
+        if (marxQuizIndex < qs.length - 1) {
+          marxQuizIndex += 1;
+          renderMarxQuiz();
+        }
+      });
+    }
+
+    if (mqPrev) {
+      mqPrev.addEventListener("click", () => {
+        if (marxQuizIndex > 0) {
+          marxQuizIndex -= 1;
+          renderMarxQuiz();
+        }
+      });
+    }
+
     /* 中国近代史 · 第1章 单选题 */
     const CH1_QUESTIONS = [
       {
@@ -842,7 +1959,7 @@
           { key: "D", label: "俄国" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：1-11",
+        explain: "鸦片战争前，英国为扭转对华贸易逆差向中国走私鸦片，是走私最猖獗的国家。",
       },
       {
         text: "[自测单选]2. 第一次鸦片战争后，清政府与美国签订的不平等条约是（）",
@@ -853,7 +1970,7 @@
           { key: "D", label: "《瑷珲条约》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：1-19",
+        explain: "1844年中美签订《望厦条约》，扩大了领事裁判权等侵略权益。",
       },
       {
         text: "[自测单选]4. 近代中国半殖民地半封建社会最主要的矛盾是（）",
@@ -864,7 +1981,7 @@
           { key: "D", label: "帝国主义与中华民族的矛盾" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：1-13",
+        explain: "近代中国诸多矛盾中，帝国主义与中华民族的矛盾是最主要的矛盾。",
       },
       {
         text: "[202510单选]1. 自公元前5世纪的战国时代到1840年鸦片战争，中国社会的性质是（ ）",
@@ -875,7 +1992,7 @@
           { key: "D", label: "资本主义社会" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：1-15",
+        explain: "鸦片战争前，中国长期处于封建社会；半殖民地半封建是鸦片战争后逐步形成的。",
       },
       {
         text: "[202510单选]2. 资本—帝国主义列强对近代中国的侵略，首先和主要进行的是（ ）",
@@ -886,7 +2003,7 @@
           { key: "D", label: "文化渗透" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：1-24",
+        explain: "列强侵华往往以武力打开国门，军事侵略是其他侵略方式的前提。",
       },
       {
         text: "[202510单选]3. 第二次鸦片战争中洗劫和烧毁圆明园的是（ ）",
@@ -897,7 +2014,7 @@
           { key: "D", label: "八国联军" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：1-27",
+        explain: "第二次鸦片战争期间，英法联军攻入北京并焚毁圆明园；八国联军是后来庚子事变。",
       },
       {
         text: "[202504单选]7. 甲午战争后，日本迫使清政府签订割让台湾的不平等条约是（ ）",
@@ -908,7 +2025,7 @@
           { key: "D", label: "《马关条约》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：1-25",
+        explain: "甲午战败后《马关条约》割让台湾全岛及澎湖等，大大加深了民族危机。",
       },
       {
         text: "[202504单选]8. 1895年，在《救亡决论》中喊出“救亡”口号的是（ ）",
@@ -919,7 +2036,7 @@
           { key: "D", label: "孙中山" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：1-47",
+        explain: "严复在《救亡决论》中首次响亮喊出“救亡”，影响深远。",
       },
       {
         text: "[202504单选]1. 鸦片战争前，中国封建文化的核心是（）",
@@ -930,7 +2047,7 @@
           { key: "D", label: "墨家思想" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：1-15",
+        explain: "传统政治文化中儒家思想长期占主导地位，是封建文化的核心。",
       },
       {
         text: "[202504单选]2. 1843年，魏源在《海国图志》中提出的思想主张是（ ）",
@@ -941,7 +2058,7 @@
           { key: "D", label: "师夷长技以制夷" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：1-46",
+        explain: "魏源提出“师夷长技以制夷”，主张学习西方军事技术以抵御侵略。",
       },
       {
         text: "[自测单选]9. 1858年，英国和法国等迫使清政府签订的不平等条约是（ ）",
@@ -952,7 +2069,7 @@
           { key: "D", label: "《北京条约》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：1-28",
+        explain: "第二次鸦片战争期间，英法等国迫使清政府签订《天津条约》等，进一步攫取特权。",
       },
       {
         text: "[自测单选]10. 1901年，清政府被迫与外国侵略者签订的不平等条约是（）",
@@ -963,7 +2080,7 @@
           { key: "D", label: "《马关条约》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：1-29",
+        explain: "八国联军侵华后《辛丑条约》签订，中国完全陷入半殖民地半封建深渊。",
       },
       {
         text: "[自测单选]11. 基督教在中国设立的最大出版机构广学会发行的报刊是（ ）",
@@ -974,7 +2091,7 @@
           { key: "D", label: "《万国公报》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：1-35",
+        explain: "广学会发行《万国公报》，是近代在华影响较大的刊物之一。",
       },
       {
         text: "[自测单选]12. 中国近现代史上人民群众第一次大规模反侵略的武装斗争是（ ）",
@@ -985,7 +2102,7 @@
           { key: "D", label: "义和团抗击八国联军的斗争" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：1-36",
+        explain: "三元里人民抗英是近代史上中国人民第一次较大规模的反侵略武装斗争。",
       },
       {
         text: "[自测单选]13. 中国近代史上，列强瓜分中国图谋破产的最根本原因是（）",
@@ -996,7 +2113,7 @@
           { key: "D", label: "中国人民民族意识的觉醒" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：1-41",
+        explain: "列强矛盾会相互牵制，但瓜分图谋破产的根本原因在于中国人民持续不断的反抗。",
       },
       {
         text: "[自测单选]14. 1840至1919年，中国反侵略斗争失败的最根本原因是（）",
@@ -1007,9 +2124,10 @@
           { key: "D", label: "军事装备落后" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：1-43",
+        explain: "近代反侵略战争屡败，根子在于腐朽的封建专制制度，其次才是经济技术落后。",
       },
     ];
+    /* 中国近代史 · 第2章 单选题（不同社会力量对国家出路的早期探索） */
     const CH2_QUESTIONS = [
       {
         text: "[202504单选]3. 洪秀全在广西省桂平县金田村发动起义的时间是（）",
@@ -1020,7 +2138,7 @@
           { key: "D", label: "1858年" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：2-1",
+        explain: "1851年1月，洪秀全在广西桂平金田村发动起义，建号太平天国，史称金田起义。",
       },
       {
         text: "[自测单选]21. 太平天国定都天京后颁布的最能体现其社会理想的纲领性文件是（）",
@@ -1031,7 +2149,7 @@
           { key: "D", label: "《资政新篇》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：2-2",
+        explain: "《天朝田亩制度》提出“凡天下田，天下人同耕”，集中表达了农民对土地的平等要求，是太平天国社会理想的集中体现。",
       },
       {
         text: "[自测单选]22. 太平天国由盛转衰的分水岭是（）",
@@ -1042,7 +2160,7 @@
           { key: "D", label: "安庆失守" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：2-3",
+        explain: "1856年天京事变中领导集团内讧、相互残杀，严重削弱了太平天国的力量，成为由盛转衰的转折点。",
       },
       {
         text: "[自测单选]23. 太平天国后期颁布的具有资本主义色彩的社会发展方案是（）",
@@ -1053,7 +2171,7 @@
           { key: "D", label: "《救亡决论》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：2-4",
+        explain: "洪仁玕《资政新篇》主张学习西方、发展工商业等，是近代中国第一个比较系统的发展资本主义的方案（因环境所限未能实施）。",
       },
       {
         text: "[202504单选]6. 太平天国农民运动失败的根本原因是（）",
@@ -1064,7 +2182,7 @@
           { key: "D", label: "无法长期保持领导集团的团结" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：2-5",
+        explain: "农民阶级不是新的生产力和生产关系的代表，无法克服小生产者所固有的阶级局限性，提不出科学纲领，因而无法担当领导反帝反封建斗争取得胜利的重任。",
       },
       {
         text: "[自测单选]24. 在19世纪中叶的亚洲民族解放运动中，______是时间最久、规模最大、影响最深的一次（）",
@@ -1075,7 +2193,7 @@
           { key: "D", label: "捻军起义" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：2-6",
+        explain: "太平天国运动坚持十余年，席卷大半个中国，是19世纪中叶亚洲民族解放运动中历时最久、规模最大、影响最深的一次。",
       },
       {
         text: "[自测单选]25. 在《校邠庐抗议》一书中对兴办洋务事业的指导思想最先作出比较完整表述的是（）",
@@ -1086,7 +2204,7 @@
           { key: "D", label: "郑观应" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：2-7",
+        explain: "冯桂芬在《校邠庐抗议》中提出“以中国之伦常名教为原本，辅以诸国富强之术”，对后来“中体西用”的洋务方针有先导作用。",
       },
       {
         text: "[自测单选]26. 洋务派创办的国内最大的兵工厂是（）",
@@ -1097,7 +2215,7 @@
           { key: "D", label: "天津机器局" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：2-8",
+        explain: "1865年李鸿章在上海创办江南制造总局，是当时国内规模最大的军事工业，以造枪炮、弹药为主。",
       },
       {
         text: "[自测单选]27. 19世纪60-90年代，洋务派兴办洋务事业的指导思想（）",
@@ -1108,7 +2226,7 @@
           { key: "D", label: "维新变法，救亡图存" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：2-9",
+        explain: "洋务派以封建纲常伦理为根本，同时学习西方科学技术，概括为“中学为体，西学为用”。",
       },
       {
         text: "[自测单选]28. 近代中国向西方派遣第一批留学生是在（）",
@@ -1119,7 +2237,7 @@
           { key: "D", label: "辛亥革命时期" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：2-10",
+        explain: "洋务运动时期选派幼童赴美留学，开近代官费留学之先，旨在培养洋务急需的翻译、科技等方面人才。",
       },
       {
         text: "[自测单选]29. 戊戌维新时期，谭嗣同撰写的宣传变法维新主张的著作是（）",
@@ -1130,7 +2248,7 @@
           { key: "D", label: "《仁学》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：2-11",
+        explain: "谭嗣同著《仁学》，抨击封建专制与纲常名教，宣传变法维新，思想最为激烈。",
       },
       {
         text: "[自测单选]30. 19世纪90年代，梁启超宣传变法维新主张的著作是（）",
@@ -1141,7 +2259,7 @@
           { key: "D", label: "《变法通议》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：2-12",
+        explain: "梁启超在《变法通议》等文中系统阐述变法必要性，文笔通俗，影响广泛。",
       },
       {
         text: "[自测单选]31. 戊戌维新时期，维新派在上海创办的影响较大的报刊是（）",
@@ -1152,7 +2270,7 @@
           { key: "D", label: "《万国公报》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：2-13",
+        explain: "1896年《时务报》在上海创刊，梁启超任主笔，是维新派影响最大的报刊之一。",
       },
       {
         text: "[自测单选]32. 在中国近代史上，资产阶级思想与封建主义思想的第一次正面交锋是（）",
@@ -1163,7 +2281,7 @@
           { key: "D", label: "革命派与改革派的论战" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：2-14",
+        explain: "戊戌维新前后，维新派与守旧派围绕要不要变法、兴民权、废八股等展开论战，是资产阶级思想与封建主义思想第一次正面交锋。",
       },
       {
         text: "[自测单选]33. 戊戌维新运动失败的主要原因是（）",
@@ -1174,10 +2292,11 @@
           { key: "D", label: "维新派自身的局限和以慈禧太后为首的强大的守旧势力的反对" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：2-15",
+        explain: "戊戌变法失败是维新派力量弱小、自身脱离群众等局限，与以慈禧太后为首的顽固守旧势力强大共同作用的结果；选项D概括最为完整。",
       },
     ];
 
+    /* 中国近代史 · 第3章 单选题（辛亥革命与君主专制制度的终结） */
     const CH3_QUESTIONS = [
       {
         text: "[202510单选]4. 1894年，孙中山在檀香山建立的中国第一个资产阶级革命组织是（）",
@@ -1188,7 +2307,7 @@
           { key: "D", label: "华兴会" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：3-1",
+        explain: "1894年孙中山在檀香山创立兴中会，提出“振兴中华”，是中国第一个资产阶级革命组织。",
       },
       {
         text: "[自测单选]43. 20世纪初，章炳麟撰写的歌颂革命是“启迪明智，除旧布新”的良药的著作是（）",
@@ -1199,7 +2318,7 @@
           { key: "D", label: "《猛回头》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：3-2",
+        explain: "章炳麟（章太炎）著《驳康有为论革命书》，针对保皇论调，论证革命必要性，影响极大。",
       },
       {
         text: "[自测单选]42. 20世纪初，邹容发表的号召人民推翻清朝统治、建立“中华共和国”的著作是（）",
@@ -1210,7 +2329,7 @@
           { key: "D", label: "《猛回头》" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：3-3",
+        explain: "邹容《革命军》旗帜鲜明地号召推翻清朝、建立“中华共和国”，是宣传资产阶级民主革命的力作。",
       },
       {
         text: "[自测单选]41. 1904年至1905年，为争夺在华利益而在中国东北进行战争的帝国主义国家是（）",
@@ -1221,7 +2340,7 @@
           { key: "D", label: "英国、法国" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：3-4",
+        explain: "日俄战争是日本与沙俄为争夺中国东北和朝鲜权益而在中国领土上进行的帝国主义战争，清政府竟宣布“局外中立”。",
       },
       {
         text: "[自测单选]44. 以下不属于孙中山三民主义思想内容的选项是（）",
@@ -1232,7 +2351,7 @@
           { key: "D", label: "民生主义" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：3-5",
+        explain: "三民主义指民族、民权、民生三大主义；“民本主义”是传统政治概念，并非三民主义内容。",
       },
       {
         text: "[自测单选]46. 1905年，近代中国第一个领导资产阶级革命的全国性政党是（）",
@@ -1243,7 +2362,7 @@
           { key: "D", label: "国民党" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：3-6",
+        explain: "1905年孙中山在日本东京组建中国同盟会，是第一个全国统一的资产阶级革命政党。",
       },
       {
         text: "[自测单选]45. 1905年，中国同盟会成立后确立的机关报是（）",
@@ -1254,7 +2373,7 @@
           { key: "D", label: "《民报》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-7",
+        explain: "同盟会以《民报》为机关报，孙中山在发刊词中首次系统阐述三民主义。",
       },
       {
         text: "[自测单选]47. 20世纪初，资产阶级革命派与改良派论战的焦点是（）",
@@ -1265,7 +2384,7 @@
           { key: "D", label: "要不要实行平均地权" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：3-8",
+        explain: "革命派与改良派论战的核心是：是否以暴力革命推翻清王朝；是否革命是分歧的焦点。",
       },
       {
         text: "[自测单选]48. 20世纪初，资产阶级革命派与改良派进行了论战，以下不属于论战主要问题的选项是（）",
@@ -1276,7 +2395,7 @@
           { key: "D", label: "要不要废八股" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-9",
+        explain: "论战主要围绕“革命还是改良、共和还是君主立宪、社会革命”三大问题；“废八股”是戊戌维新时维新派与守旧派争论的内容，并非此次论战焦点。",
       },
       {
         text: "[自测单选]49. 在1911年爆发的保路运动中，规模最大、斗争最激烈的省份是（）",
@@ -1287,7 +2406,7 @@
           { key: "D", label: "四川" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-10",
+        explain: "四川人民反对清政府将铁路收归国有并卖给列强，保路运动声势最大，为武昌起义创造了条件。",
       },
       {
         text: "[自测单选]50. 1911年4月，在黄兴的带领下，120多名革命志士在广州举行起义，史称（）",
@@ -1298,7 +2417,7 @@
           { key: "D", label: "护法战争" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：3-11",
+        explain: "1911年4月广州黄花岗起义（黄花岗七十二烈士）是孙中山、黄兴等领导的著名武装起义。",
       },
       {
         text: "[自测单选]51. 中国历史上第一部具有资产阶级共和国宪法性质的法典是（）",
@@ -1309,7 +2428,7 @@
           { key: "D", label: "《中华民国临时约法》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-12",
+        explain: "南京临时政府颁布的《中华民国临时约法》以根本法形式确立“主权在民”等原则，是中国第一部资产阶级共和国性质的宪法文件。",
       },
       {
         text: "[自测单选]52. 中国历史上第一次比较完全意义上的资产阶级民主革命是（）",
@@ -1320,7 +2439,7 @@
           { key: "D", label: "国民革命" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：3-13",
+        explain: "辛亥革命以资产阶级革命政党为领导、以三民主义为纲领、以推翻帝制建立共和为目标，是第一次比较完全意义上的资产阶级民主革命。",
       },
       {
         text: "[自测单选]53. 北洋军阀的专制统治，描述错误的是（）",
@@ -1331,7 +2450,7 @@
           { key: "D", label: "在政治上，积极推进民主宪政，实现了多党平等竞争与权力制衡" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-14",
+        explain: "北洋军阀实行军事独裁、卖国与专制，并未实现真正的民主宪政；D项表述与史实相反。",
       },
       {
         text: "[自测单选]54. 1913年孙中山领导革命党人发动的反对袁世凯的斗争是（）",
@@ -1342,7 +2461,7 @@
           { key: "D", label: "北伐战争" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：3-15",
+        explain: "宋教仁案后，孙中山发动“二次革命”，以武力反对袁世凯独裁，但很快失败。",
       },
       {
         text: "[自测单选]55. 辛亥革命的失败表明，资产阶级共和国的方案救不了中国，以下不属于辛亥革命失败原因的是（）",
@@ -1353,10 +2472,11 @@
           { key: "D", label: "没有宣扬民主共和观念" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：3-16",
+        explain: "辛亥革命建立了共和政体、传播了民主共和观念，并非“没有宣扬”；D项不属于失败原因。失败原因主要是阶级、政党、纲领、群众等方面的局限。",
       },
     ];
 
+    /* 中国近代史 · 第4章 单选题（中国共产党成立和中国革命新局面） */
     const CH4_QUESTIONS = [
       {
         text: "[自测单选]60. 1915年9月，在上海创办《青年杂志》（后改为新青年）的是（）",
@@ -1367,7 +2487,7 @@
           { key: "D", label: "胡适" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-1",
+        explain: "1915年陈独秀在上海创办《青年杂志》（第二卷起改名《新青年》），新文化运动由此发端。",
       },
       {
         text: "[自测单选]62. 五四运动爆发的直接导火线是（）",
@@ -1378,7 +2498,7 @@
           { key: "D", label: "华盛顿会议上中国外交的受挫" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：4-2",
+        explain: "巴黎和会决定将德国在山东的权益转让给日本，消息传来，五四爱国运动爆发。",
       },
       {
         text: "[自测单选]63. 中国新民主主义革命开端的标志是（）",
@@ -1389,7 +2509,7 @@
           { key: "D", label: "五卅运动" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-3",
+        explain: "五四运动中工人阶级以独立姿态登上政治舞台，标志着新民主主义革命的开端。",
       },
       {
         text: "[自测单选]61. 1919年发表《我的马克思主义观》一文，比较系统地介绍马克思主义理论的是（）",
@@ -1400,7 +2520,7 @@
           { key: "D", label: "陈独秀" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-4",
+        explain: "李大钊在《新青年》发表《我的马克思主义观》，比较系统地介绍了唯物史观、政治经济学和科学社会主义。",
       },
       {
         text: "[202504单选]9. 1919年，发表《马克思主义》（一称《科学的社会主义》）一文，对马克思主义基本内容作了比较确切阐述的是（）",
@@ -1411,7 +2531,7 @@
           { key: "D", label: "杨匏安" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-5",
+        explain: "杨匏安在《广东中华新报》连载《马克思主义》，对科学社会主义作了较早、较准确的介绍。",
       },
       {
         text: "[自测单选]64. 以下不是早期马克思主义思想运动的特点是（）",
@@ -1422,7 +2542,7 @@
           { key: "D", label: "提出了“马克思主义中国化”的命题" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-6",
+        explain: "“马克思主义中国化”命题是毛泽东在抗战时期党的六届六中全会上才正式提出的，并非建党初期思想运动的特点。",
       },
       {
         text: "[自测单选]65. 1920年8月，在上海出版的《共产党宣言》第一个中文全译本的译者是（）",
@@ -1433,7 +2553,7 @@
           { key: "D", label: "陈望道" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-7",
+        explain: "陈望道据日文等译本译出《共产党宣言》首个中文全译本，对马克思主义传播影响极大。",
       },
       {
         text: "[自测单选]66. 中国共产党的成立，是中华民族发展史上开天辟地的大事变，具有伟大而深远的意义，中国共产党成立于（）",
@@ -1444,7 +2564,7 @@
           { key: "D", label: "1921年7月" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-8",
+        explain: "1921年7月，中国共产党第一次全国代表大会召开，宣告中国共产党正式成立。",
       },
       {
         text: "[自测单选]67. 中国共产党领导的中国工人运动第一个高潮的起点是（）",
@@ -1455,7 +2575,7 @@
           { key: "D", label: "京汉铁路工人罢工" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-9",
+        explain: "1922年香港海员大罢工是中国工人运动第一次高潮的起点；京汉铁路罢工（二七惨案）是高潮的顶点之一。",
       },
       {
         text: "[自测单选]68. 中国共产党第一次明确提出反帝反封建民主革命纲领的会议是（）",
@@ -1466,7 +2586,7 @@
           { key: "D", label: "中共四大" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-10",
+        explain: "1922年中共二大第一次提出了反帝反封建的民主革命纲领，区分了最高纲领与最低纲领。",
       },
       {
         text: "[202504单选]10. 1923年，北京政府调动军警镇压京汉铁路总同盟罢工制造的惨案是（）",
@@ -1477,7 +2597,7 @@
           { key: "D", label: "校场口惨案" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：4-11",
+        explain: "京汉铁路工人大罢工遭吴佩孚血腥镇压，酿成二七惨案，工人运动暂时转入低潮。",
       },
       {
         text: "[202510单选]8. 中国共产党召开的决定共产党员以个人身份加入国民党，以实现国共合作的会议是（）",
@@ -1488,7 +2608,7 @@
           { key: "D", label: "中共五大" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-12",
+        explain: "1923年中共三大决定共产党员以个人身份加入国民党，建立革命统一战线。",
       },
       {
         text: "[自测单选]69. 第一次国共合作的政治基础是（）",
@@ -1499,7 +2619,7 @@
           { key: "D", label: "社会主义" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：4-13",
+        explain: "孙中山重新解释三民主义，形成反帝反封建的新三民主义，与中共民主革命纲领基本一致，成为国共合作的政治基础。",
       },
       {
         text: "[202504单选]11. 1925年8月广州国民政府将所管辖各部队统一改编为（）",
@@ -1510,7 +2630,7 @@
           { key: "D", label: "国民革命军" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-14",
+        explain: "广州国民政府将所辖部队统一改编为国民革命军，为北伐作了军事准备。",
       },
       {
         text: "[自测单选]70. 1925年，掀起全国范围大革命高潮的起点是（）",
@@ -1521,10 +2641,11 @@
           { key: "D", label: "五卅运动" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：4-15",
+        explain: "五卅运动以反帝爱国为旗帜，迅速席卷全国，标志着大革命高潮的到来。",
       },
     ];
 
+    /* 中国近代史 · 第5章 单选题（中国革命的新道路） */
     const CH5_QUESTIONS = [
       {
         text: "[自测单选]78. 中国共产党独立领导革命战争，创建人民军队和武装夺取政权的伟大开端是（）",
@@ -1535,7 +2656,7 @@
           { key: "D", label: "百色起义" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-1",
+        explain: "1927年8月1日南昌起义打响了武装反抗国民党反动派的第一枪，是中国共产党独立领导革命战争、创建人民军队的开端。",
       },
       {
         text: "[202504单选]12. 大革命失败后，中共中央召开的确定土地革命和武装斗争的紧急会议是（）",
@@ -1546,7 +2667,7 @@
           { key: "D", label: "瓦窑堡会议" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：5-2",
+        explain: "1927年八七会议总结了大革命失败教训，确定了土地革命和武装反抗国民党反动派的总方针。",
       },
       {
         text: "[自测单选]77. 1927年，中共八七会议确定的总方针是（）",
@@ -1557,7 +2678,7 @@
           { key: "D", label: "开展土地革命和武装起义" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：5-3",
+        explain: "八七会议确立了土地革命和武装起义的总方针，给正处在思想混乱中的中国共产党指明了方向。",
       },
       {
         text: "[自测单选]75. 1928年10月，国民通过法令，废除北洋时期在形式上还存在的议会制度。该项法令是（）",
@@ -1568,7 +2689,7 @@
           { key: "D", label: "《训政纲领》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：5-4",
+        explain: "国民党通过《训政纲领》等，确立“以党治国”，废除议会制度，实行一党专政。",
       },
       {
         text: "[202510单选]10. 1928年底，在东北宣布“遵守三民主义，服从国民政府，改易旗帜”的是（）",
@@ -1579,7 +2700,7 @@
           { key: "D", label: "冯玉祥" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-5",
+        explain: "张学良宣布东北易帜，服从南京国民政府，国民党在形式上统一了全国。",
       },
       {
         text: "[202504单选]14. 1930年1月，毛泽东提出中国革命“以乡村为中心”思想，初步形成了农村包围城市武装夺取政权理论的著作是（）",
@@ -1590,7 +2711,7 @@
           { key: "D", label: "《井冈山的斗争》" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-6",
+        explain: "《星星之火，可以燎原》否定了“城市中心论”，阐明以农村包围城市、武装夺取政权的中国革命道路。",
       },
       {
         text: "[自测单选]80. 中国历史上第一个全国性的工农民主政权是（）",
@@ -1601,7 +2722,7 @@
           { key: "D", label: "海陆丰苏维埃政权" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：5-7",
+        explain: "1931年中华苏维埃共和国临时中央政府在瑞金成立，是中国历史上第一个全国性的工农民主政权（国号为中华苏维埃共和国）。",
       },
       {
         text: "[202510单选]11. 1931—1934年，中国共产党内出现的主要错误倾向是（）",
@@ -1612,7 +2733,7 @@
           { key: "D", label: "冒险主义" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-8",
+        explain: "王明“左”倾教条主义在党内占统治地位，导致第五次反“围剿”失败，被迫长征。",
       },
       {
         text: "[202510单选]12. 中共中央、中革军委率中央红军主力开始实行战略转移（即长征）是在（）",
@@ -1623,7 +2744,7 @@
           { key: "D", label: "1936年10月" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-9",
+        explain: "1934年10月中央红军主力被迫撤离中央苏区，开始长征。",
       },
       {
         text: "[自测单选]82. 1935年，中共中央政治局在长征途中召开扩大会议，开始确立以毛泽东为代表的马克思主义正确路线在党中央的领导地位。这次会议是（）",
@@ -1634,7 +2755,7 @@
           { key: "D", label: "古田会议" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：5-10",
+        explain: "遵义会议在极端危急关头挽救了党、挽救了红军、挽救了中国革命，是党的历史上一个生死攸关的转折点。",
       },
       {
         text: "[202504单选]13. 中共中央政治局在遵义会议后成立了全权负责红军军事行动的新三人团，其成员是（）",
@@ -1645,7 +2766,7 @@
           { key: "D", label: "博古、李德、周恩来" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-11",
+        explain: "遵义会议后成立由毛泽东、周恩来、王稼祥组成的新三人团，负责军事指挥。",
       },
       {
         text: "[自测单选]79. 《义勇军进行曲》的曲作者是（）",
@@ -1656,7 +2777,7 @@
           { key: "D", label: "聂耳" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：5-12",
+        explain: "聂耳作曲、田汉作词，《义勇军进行曲》后定为中华人民共和国国歌。",
       },
       {
         text: "[自测单选]83. 1936年10月，中国工农红军三大主力胜利会师地是（）",
@@ -1667,10 +2788,11 @@
           { key: "D", label: "甘孜" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：5-13",
+        explain: "1936年10月红二、红四方面军与红一方面军在甘肃会宁、静宁将台堡一带会师，长征胜利结束。",
       },
     ];
 
+    /* 中国近代史 · 第6章 单选题（中华民族的抗日战争） */
     const CH6_QUESTIONS = [
       {
         text: "[自测单选]88. 1931年日本侵略者在中国制造的事件是（）",
@@ -1681,7 +2803,7 @@
           { key: "D", label: "九一八事变" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：6-1",
+        explain: "1931年九一八事变后东北沦陷，是中国人民抗日战争的起点，揭开了世界反法西斯战争的序幕。",
       },
       {
         text: "[自测单选]91. 1933年5月，在张家口领导成立察哈尔抗日同盟军的国民党爱国将领是（）",
@@ -1692,7 +2814,7 @@
           { key: "D", label: "李济深" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-2",
+        explain: "冯玉祥在张家口组织察哈尔民众抗日同盟军，吉鸿昌等参与，奋起抗日。",
       },
       {
         text: "[自测单选]92. 1933年5月，国民党西北军将领冯玉祥领导成立的抗日武装力量是（）",
@@ -1703,7 +2825,7 @@
           { key: "D", label: "冀中回民支队" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-3",
+        explain: "察哈尔抗日同盟军由冯玉祥等发起，是局部抗战时期重要的抗日武装之一。",
       },
       {
         text: "[自测单选]94. 1933年11月，在福州发动抗日反蒋事变的国民党爱国将领是（）",
@@ -1714,7 +2836,7 @@
           { key: "D", label: "张学良和杨虎城" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：6-4",
+        explain: "十九路军将领蔡廷锴、蒋光鼐等在福州发动福建事变，主张抗日反蒋。",
       },
       {
         text: "[自测单选]89. 1935年，日帝国主义为扩大对华侵略而制造的事变是（）",
@@ -1725,7 +2847,7 @@
           { key: "D", label: "八一三事变" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：6-5",
+        explain: "华北事变指日本策动“华北五省自治”等，妄图把华北从中国分离出去，民族危机空前严重。",
       },
       {
         text: "[自测单选]95. 1935年，中国共产党提出抗日民族统一战线新政策的会议是（）",
@@ -1736,7 +2858,7 @@
           { key: "D", label: "中共六届七中全会" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：6-6",
+        explain: "瓦窑堡会议确立了建立抗日民族统一战线的策略方针，批判了“左”倾关门主义。",
       },
       {
         text: "[202504单选]15. 1936年5月，在共产党人积极参与下，宋庆龄等爱国民主人士发起成立的团体是（）",
@@ -1747,7 +2869,7 @@
           { key: "D", label: "国民参政会" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：6-7",
+        explain: "全国各界救国联合会成立，呼吁停止内战、一致抗日，是抗日救亡运动高涨的重要表现。",
       },
       {
         text: "[自测单选]90. 1937年，日本帝国主义发动全面侵华战争的事变是（）",
@@ -1758,7 +2880,7 @@
           { key: "D", label: "卢沟桥事变" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：6-8",
+        explain: "1937年七七事变（卢沟桥事变）标志着日本全面侵华战争开始，也是中国全民族抗战的开端。",
       },
       {
         text: "[202504单选]16. 1937年8月，中国共产党在洛川会议上通过的重要文件是（）",
@@ -1769,7 +2891,7 @@
           { key: "D", label: "《关于若干历史问题的决议》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-9",
+        explain: "洛川会议通过《抗日救国十大纲领》，提出全面抗战路线和独立自主原则。",
       },
       {
         text: "[自测单选]99. 抗日战争全面爆发后，中国军队取得第一次重大胜利的战役是（）",
@@ -1780,7 +2902,7 @@
           { key: "D", label: "昆仑关战役" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：6-10",
+        explain: "1937年9月八路军一一五师平型关伏击战，歼灭日军一部，是全面抗战后中国军队第一次重大胜利。",
       },
       {
         text: "[自测单选]97. 1937年，在淞沪会战中率领“八百壮士”孤守上海四行仓库的爱国将领是（）",
@@ -1791,7 +2913,7 @@
           { key: "D", label: "戴安澜" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-11",
+        explain: "谢晋元率团附部坚守四行仓库，被誉为“八百壮士”，表现了民族气节。",
       },
       {
         text: "[202504单选]17. 日本侵略者制造震惊中外的“南京大屠杀”的时间是（）",
@@ -1802,7 +2924,7 @@
           { key: "D", label: "1937年12月" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：6-12",
+        explain: "1937年12月日军占领南京后，屠杀我同胞30万人以上，是反人类的重大暴行。",
       },
       {
         text: "[自测单选]96. 1938年3月，国民党军队在抗日战争正面战场取得胜利的战役是（）",
@@ -1813,7 +2935,7 @@
           { key: "D", label: "枣宜战役" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-13",
+        explain: "台儿庄战役是徐州会战中的一次重大胜利，打击了日军侵略气焰。",
       },
       {
         text: "[自测单选]98. 1938年，毛泽东发表的系统阐述抗日战争特点、前途和发展规律的著作是（）",
@@ -1824,7 +2946,7 @@
           { key: "D", label: "《论联合政府》" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：6-14",
+        explain: "《论持久战》科学预见了抗日战争三个阶段，驳斥了“亡国论”和“速胜论”。",
       },
       {
         text: "[202504单选]18. 1940年5月，在枣宜会战中以身殉国的国民党爱国将领是（）",
@@ -1835,7 +2957,7 @@
           { key: "D", label: "佟麟阁" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：6-15",
+        explain: "张自忠第三十三集团军总司令，在枣宜会战中壮烈殉国，是抗战中牺牲的最高级别将领之一。",
       },
       {
         text: "[自测单选]100. 中国共产党开展的延安整风运动最主要的任务是（）",
@@ -1846,7 +2968,7 @@
           { key: "D", label: "反对党八股" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：6-16",
+        explain: "整风运动以反对主观主义、整顿学风为中心任务，以确立实事求是的思想路线。",
       },
       {
         text: "[自测单选]101. 1945年8月，发表《对日寇的最后一战》声明的是（）",
@@ -1857,7 +2979,7 @@
           { key: "D", label: "毛泽东" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：6-17",
+        explain: "毛泽东发表《对日寇的最后一战》，号召八路军、新四军等举行全面反攻。",
       },
       {
         text: "[自测单选]102. 中国人民抗日战争胜利纪念日是（）",
@@ -1868,7 +2990,7 @@
           { key: "D", label: "9月30日" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：6-18",
+        explain: "9月3日是中国人民抗日战争胜利纪念日，以法律形式确定；9月2日签署投降书。",
       },
       {
         text: "[202504单选]19. 1945年出席联合国制宪会议的中国代表团中，解放区的代表是（）",
@@ -1879,10 +3001,11 @@
           { key: "D", label: "王若飞" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：6-19",
+        explain: "董必武作为中国代表团成员出席旧金山联合国制宪会议，代表中国共产党和解放区人民。",
       },
     ];
 
+    /* 中国近代史 · 第7章 单选题（为建立新中国而奋斗） */
     const CH7_QUESTIONS = [
       {
         text: "[自测单选]114. 1930年8月，国民党民主人士邓演达领导成立的中间党派是（）",
@@ -1893,7 +3016,7 @@
           { key: "D", label: "中华职业教育社" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：7-1",
+        explain: "邓演达等组建中国国民党临时行动委员会（“第三党”），主张进行平民革命。",
       },
       {
         text: "[自测单选]113. 1941年3月，在大后方抗日民主运动中诞生的民主党派是（）",
@@ -1904,7 +3027,7 @@
           { key: "D", label: "中国民主建国会" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：7-2",
+        explain: "中国民主政团同盟（后改称中国民主同盟）在抗日民主运动中诞生，是中间党派联合的重要组织。",
       },
       {
         text: "[自测单选]108. 1945年8月，中共中央在《对目前时局的宣言》中明确提出的口号是（）",
@@ -1915,7 +3038,7 @@
           { key: "D", label: "打倒蒋介石，解放全中国" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：7-3",
+        explain: "抗战胜利后，中共中央提出“和平、民主、团结”三大口号，争取和平建国。",
       },
       {
         text: "[202510单选]13. 为争取和平民主，中国共产党在1945年8月至10月与国民党当局进行了（）",
@@ -1926,7 +3049,7 @@
           { key: "D", label: "北平谈判" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：7-4",
+        explain: "毛泽东等赴重庆与国民党谈判，签署《双十协定》（《政府与中共代表会谈纪要》）。",
       },
       {
         text: "[自测单选]107. 1945年国共两党在重庆谈判中签署的文件是（）",
@@ -1937,7 +3060,7 @@
           { key: "D", label: "《对时局的意见》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：7-5",
+        explain: "即著名的《双十协定》，在若干问题上达成协议，但军队、解放区政权等核心问题未解决。",
       },
       {
         text: "[自测单选]111. 1945年底，昆明学生发动了以“反对内战，争取自由”为主要口号的____运动（）",
@@ -1948,7 +3071,7 @@
           { key: "D", label: "一二·一三" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：7-6",
+        explain: "昆明“一二·一”运动以学生为先导，反对内战、争取民主，影响全国。",
       },
       {
         text: "[自测单选]109. 1946年6月，国民党军队挑起全面内战的起点是（）",
@@ -1959,7 +3082,7 @@
           { key: "D", label: "大举围攻东北解放区" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：7-7",
+        explain: "国民党军进攻中原解放区，全面内战爆发；此前为战略防御阶段局部冲突。",
       },
       {
         text: "[自测单选]110. 1947年10月10日，《中国人民解放军宣言》正式提出的口号是（）",
@@ -1970,7 +3093,7 @@
           { key: "D", label: "将革命进行到底" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：7-8",
+        explain: "人民解放军转入战略进攻后，公开提出推翻国民党反动统治、解放全中国的目标。",
       },
       {
         text: "[自测单选]116. 1947年，被国民党当局宣布为“非法团体”而被迫解散的中国民主党派是（）",
@@ -1981,7 +3104,7 @@
           { key: "D", label: "中国民主同盟" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：7-9",
+        explain: "国民党强令民盟解散，使中间党派进一步认清蒋介石独裁面目，转向拥护中共主张。",
       },
       {
         text: "[自测单选]112. 1948年1月1日，在香港正式成立的民主党派是（）",
@@ -1992,7 +3115,7 @@
           { key: "D", label: "中国农工民主党" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：7-10",
+        explain: "民革由国民党民主派等在香港成立，宋庆龄任名誉主席，李济深等为主要领导人。",
       },
       {
         text: "[自测单选]117. 中国人民解放军在1948年9月12日至11月2日进行的重大战役是（）",
@@ -2003,7 +3126,7 @@
           { key: "D", label: "辽沈战役" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：7-11",
+        explain: "辽沈战役是三大战役首战，解放东北全境，使敌我力量对比发生根本变化。",
       },
       {
         text: "[202510单选]14. 1949年3月，毛泽东明确提出“两个务必”要求的会议是（）",
@@ -2014,7 +3137,7 @@
           { key: "D", label: "中共七届二中全会" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：7-12",
+        explain: "七届二中全会在西柏坡召开，毛泽东告诫全党务必保持谦虚谨慎、艰苦奋斗作风。",
       },
       {
         text: "[202510单选]15. 中国人民解放军在1949年4月发起的重大战役是（）",
@@ -2025,7 +3148,7 @@
           { key: "D", label: "淮海战役" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：7-13",
+        explain: "1949年4月渡江战役突破长江防线，解放南京、上海等地，国民党统治崩溃。",
       },
       {
         text: "[自测单选]119. 1949年6月30日，毛泽东系统阐明中国共产党建国主张的文章是（）",
@@ -2036,7 +3159,7 @@
           { key: "D", label: "《丢掉幻想，准备斗争》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：7-14",
+        explain: "《论人民民主专政》阐明新中国国体是工人阶级领导的、以工农联盟为基础的人民民主专政。",
       },
       {
         text: "[自测单选]120. 下列不属于中国革命胜利的基本经验的是（）",
@@ -2047,10 +3170,11 @@
           { key: "D", label: "军队建设" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：7-15",
+        explain: "毛泽东总结中国革命三大法宝：统一战线、武装斗争、党的建设；“军队建设”不是与三者并列的经典表述。",
       },
     ];
 
+    /* 中国近代史 · 第8章 单选题（中华人民共和国的成立与中国社会主义建设道路的探索） */
     const CH8_QUESTIONS = [
       {
         text: "[自测单选]124. 1951年底至1952年春，中国共产党在党政机关工作人员中开展的运动是（）",
@@ -2061,7 +3185,7 @@
           { key: "D", label: "“五反”运动" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：8-1",
+        explain: "“三反”在党政机关反贪污、反浪费、反官僚主义；“五反”主要在资本主义工商业者中开展。",
       },
       {
         text: "[自测单选]128. 新中国发展国民经济第一个五年计划的中心环节是（）",
@@ -2072,7 +3196,7 @@
           { key: "D", label: "优先发展轻工业" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-2",
+        explain: "“一五”计划借鉴苏联经验，集中力量发展重工业，建立国家工业化和国防现代化的初步基础。",
       },
       {
         text: "[自测单选]129. 新中国开始实施发展国民经济第一个五年计划的时间是（）",
@@ -2083,7 +3207,7 @@
           { key: "D", label: "1953年" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：8-3",
+        explain: "1953年起开始执行发展国民经济的第一个五年计划。",
       },
       {
         text: "[自测单选]130. 我国对资本主义工商业进行社会主义改造的高级形式是（）",
@@ -2094,7 +3218,7 @@
           { key: "D", label: "统购包销" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：8-4",
+        explain: "从初级国家资本主义到全行业公私合营，公私合营是改造资本主义工商业的高级形式。",
       },
       {
         text: "[自测单选]131. 中国进入社会主义社会的主要标志是（）",
@@ -2105,7 +3229,7 @@
           { key: "D", label: "社会主义三大改造的完成" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：8-5",
+        explain: "1956年三大改造基本完成，社会主义公有制占主体，标志着中国进入社会主义社会。",
       },
       {
         text: "[自测单选]132. ______是最高国家权力机关（）",
@@ -2116,7 +3240,7 @@
           { key: "D", label: "人民检察院" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：8-6",
+        explain: "1954年宪法规定：中华人民共和国全国人民代表大会是最高国家权力机关。",
       },
       {
         text: "[自测单选]133. 毛泽东在《论十大关系》中提出的处理中国共产党和民主党派关系的方针是（）",
@@ -2127,7 +3251,7 @@
           { key: "D", label: "以诚相待，患难与共" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：8-7",
+        explain: "《论十大关系》提出“长期共存，互相监督”处理党派关系；“肝胆相照、荣辱与共”是改革开放后补充的。",
       },
       {
         text: "[自测单选]134. 1957年2月在扩大的最高国务会议上发表《关于正确处理人民内部矛盾的问题》讲话的是（）",
@@ -2138,7 +3262,7 @@
           { key: "D", label: "周恩来" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：8-8",
+        explain: "毛泽东系统阐述社会主义社会矛盾学说，区分人民内部矛盾与敌我矛盾及处理方法。",
       },
       {
         text: "[自测单选]135. 1957年4月27日，中共中央决定在全党进行一次______的整风运动（）",
@@ -2149,7 +3273,7 @@
           { key: "D", label: "反对教条主义、经验主义和命令主义" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-9",
+        explain: "1957年全党整风以反对官僚主义、宗派主义和主观主义为主要内容。",
       },
       {
         text: "[202504单选]21. 我国在1957年6月开展的政治运动是（）",
@@ -2160,7 +3284,7 @@
           { key: "D", label: "社会主义教育运动" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-10",
+        explain: "整风运动过程中，反右派斗争被严重扩大化，留下了深刻教训。",
       },
       {
         text: "[自测单选]136. 1961年，中共中央决定对国民经济实行“调整、巩固、充实、提高”方针的会议是（）",
@@ -2171,7 +3295,7 @@
           { key: "D", label: "中共八届十中全会" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：8-11",
+        explain: "八届九中全会正式决定对国民经济实行“八字方针”，扭转经济困难局面。",
       },
       {
         text: "[自测单选]137. 1962年初，中共中央为总结经验教训、明确工作方向召开的会议是（）",
@@ -2182,7 +3306,7 @@
           { key: "D", label: "郑州会议" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-12",
+        explain: "“七千人大会”发扬民主、开展批评与自我批评，对统一全党思想、纠正“左”的错误有积极作用。",
       },
       {
         text: "[自测单选]138. 新中国第一次提出实现农业、工业、国防和科学技术“四个现代化”奋斗目标的会议是（）",
@@ -2193,7 +3317,7 @@
           { key: "D", label: "第四届全国人大一次会议" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：8-13",
+        explain: "1964年底至1965年初三届人大一次会议上，周恩来提出“四个现代化”目标。",
       },
       {
         text: "[自测单选]139. 1967年，老一辈革命家与中央文革小组错误做法进行的抗争被诬称为（）",
@@ -2204,7 +3328,7 @@
           { key: "D", label: "“反攻倒算”" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-14",
+        explain: "谭震林等老一辈革命家在怀仁堂会议上批评文革错误，被诬为“二月逆流”。",
       },
       {
         text: "[自测单选]140. 新中国第一颗原子弹试验成功是在（）",
@@ -2215,7 +3339,7 @@
           { key: "D", label: "1970年" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-15",
+        explain: "1964年10月16日第一颗原子弹爆炸成功，打破核垄断，提高国防能力。",
       },
       {
         text: "[自测单选]144. 1964年，中国在科学技术领域取得的重要成就是（）",
@@ -2226,7 +3350,7 @@
           { key: "D", label: "第一颗人造卫星发射成功" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：8-16",
+        explain: "1964年我国第一颗原子弹试验成功，是国防科技事业的重大突破。",
       },
       {
         text: "[自测单选]142. 1967年，新中国在科学技术领域取得的重大成就是（）",
@@ -2237,7 +3361,7 @@
           { key: "D", label: "第一颗装有核弹头的中近程地地导弹发射成功" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：8-17",
+        explain: "1967年6月第一颗氢弹试验成功，核武器发展进入新阶段。",
       },
       {
         text: "[自测单选]143. 新中国第一颗人造地球卫星发射成功的时间是（）",
@@ -2248,7 +3372,7 @@
           { key: "D", label: "1970年4月" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：8-18",
+        explain: "1970年4月24日“东方红一号”发射成功，中国成为世界上第五个独立发射人造卫星的国家。",
       },
       {
         text: "[自测单选]141. 1970年，新中国在科学技术领域取得的重大成就是（）",
@@ -2259,7 +3383,7 @@
           { key: "D", label: "第一颗人造卫星发射成功" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：8-19",
+        explain: "1970年第一颗人造地球卫星发射成功，是我国航天事业的里程碑。",
       },
       {
         text: "[自测单选]145. 新中国恢复在联合国合法席位的时间是（）",
@@ -2270,10 +3394,11 @@
           { key: "D", label: "1978年" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：8-20",
+        explain: "1971年第26届联大通过2758号决议，恢复中华人民共和国在联合国的一切合法权利。",
       },
     ];
 
+    /* 中国近代史 · 第9章 单选题（改革开放与中国特色社会主义的开创和发展） */
     const CH9_QUESTIONS = [
       {
         text: "[自测单选]148. 我国关于真理标准问题大讨论开始的时间是（）",
@@ -2284,7 +3409,7 @@
           { key: "D", label: "1981年6月" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-1",
+        explain: "1978年5月《光明日报》特约评论员文章《实践是检验真理的唯一标准》引发大讨论，为十一届三中全会作了思想准备。",
       },
       {
         text: "[自测单选]149. 中国共产党于1978年12月召开的具有历史转折意义的会议是（）",
@@ -2295,7 +3420,7 @@
           { key: "D", label: "中共十一届六中全会" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：9-2",
+        explain: "十一届三中全会停止使用“以阶级斗争为纲”，作出把党和国家工作中心转移到经济建设、实行改革开放的历史性决策。",
       },
       {
         text: "[202510单选]17. 1979年元旦，全国人大常委会发表的重要文献是（）",
@@ -2306,7 +3431,7 @@
           { key: "D", label: "《告台湾同胞书》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-3",
+        explain: "《告台湾同胞书》郑重宣示争取祖国和平统一的大政方针，倡议两岸通商、通航、通邮。",
       },
       {
         text: "[自测单选]150. 邓小平在1979年3月的理论工作务虚会上明确提出，必须坚持（）",
@@ -2317,7 +3442,7 @@
           { key: "D", label: "“一个中国”的原则" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：9-4",
+        explain: "坚持社会主义道路、人民民主专政、共产党领导、马列主义毛泽东思想，是改革开放和现代化建设的政治保证。",
       },
       {
         text: "[自测单选]151. 1981年6月，中共中央通过《关于建国以来党的若干历史问题的决议》的会议是（）",
@@ -2328,7 +3453,7 @@
           { key: "D", label: "中共十三大" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-5",
+        explain: "《历史决议》科学评价毛泽东和毛泽东思想，总结建国以来历史经验，统一了全党思想。",
       },
       {
         text: "[202504单选]23. 1984年通过《中共中央关于经济体制改革的决定》的重要会议是（）",
@@ -2339,7 +3464,7 @@
           { key: "D", label: "中共十二届六中全会" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：9-6",
+        explain: "十二届三中全会通过《关于经济体制改革的决定》，突破把计划经济与商品经济对立起来的传统观念。",
       },
       {
         text: "[自测单选]152. 1984年，中共十二届三中全会通过的重要文件是（）",
@@ -2350,7 +3475,7 @@
           { key: "D", label: "《关于教育体制改革的决定》" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-7",
+        explain: "该决定以城市为重点推进经济体制改革，提出社会主义经济是公有制基础上的有计划的商品经济。",
       },
       {
         text: "[自测单选]153. 1987年，中共十三大比较系统地阐述了（）",
@@ -2361,7 +3486,7 @@
           { key: "D", label: "“三个有利于”标准的理论" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：9-8",
+        explain: "十三大系统阐述社会主义初级阶段理论与党的基本路线（一个中心、两个基本点）。",
       },
       {
         text: "[自测单选]155. 中共十三大正式制定的社会主义现代化建设发展战略是（）",
@@ -2372,7 +3497,7 @@
           { key: "D", label: "“三步走”" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-9",
+        explain: "“三步走”战略部署：解决温饱、达到小康、到21世纪中叶基本实现现代化。",
       },
       {
         text: "[202510单选]18. 1988年，七届全国人大一次会议正式批准建立的经济特区是（）",
@@ -2383,7 +3508,7 @@
           { key: "D", label: "海南经济特区" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-10",
+        explain: "海南建省并办全国最大经济特区，实行更加灵活开放的政策。",
       },
       {
         text: "[自测单选]158. 1990年，中共中央和国务院为进一步推进对外开放作出的战略举措是（）",
@@ -2394,7 +3519,7 @@
           { key: "D", label: "开发、开放上海浦东新区" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-11",
+        explain: "浦东开发开放带动长江三角洲和整个长江流域发展，是90年代改革开放的重点和标志。",
       },
       {
         text: "[202510单选]19. 中共十四大明确提出，我国经济体制改革的目标是建立（）",
@@ -2405,7 +3530,7 @@
           { key: "D", label: "市场为主、计划为辅的经济体制" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-12",
+        explain: "十四大确立社会主义市场经济体制改革目标，实现了认识上的重大突破。",
       },
       {
         text: "[自测单选]157. 中国对香港恢复行使主权的时间是（）",
@@ -2416,7 +3541,7 @@
           { key: "D", label: "1999年12月20日" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：9-13",
+        explain: "1997年7月1日香港回归祖国；澳门回归为1999年12月20日。",
       },
       {
         text: "[202504单选]24. 中国正式加入世界贸易组织的时间是（）",
@@ -2427,7 +3552,7 @@
           { key: "D", label: "2001年" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-14",
+        explain: "2001年加入世贸组织，标志着中国对外开放进入新阶段，深度参与经济全球化。",
       },
       {
         text: "[202504单选]25. 明确提出我国在21世纪头二十年实现全面建设小康社会奋斗目标的会议是（）",
@@ -2438,7 +3563,7 @@
           { key: "D", label: "中共十九大" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：9-15",
+        explain: "十六大提出本世纪头二十年全面建设惠及十几亿人口的更高水平的小康社会。",
       },
       {
         text: "[202510单选]20. 2005年3月，十届全国人大三次会议通过的法律是（）",
@@ -2449,7 +3574,7 @@
           { key: "D", label: "《反分裂国家法》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-16",
+        explain: "《反分裂国家法》为反对和遏制“台独”、促进祖国和平统一提供法律保障。",
       },
       {
         text: "[自测单选]161. 在全国范围内取消农业税的时间是（）",
@@ -2460,7 +3585,7 @@
           { key: "D", label: "2006年" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：9-17",
+        explain: "2006年起全面取消农业税，减轻农民负担，具有重大历史意义。",
       },
       {
         text: "[自测单选]162. 中共十七大明确提出，科学发展观的核心是（）",
@@ -2471,7 +3596,7 @@
           { key: "D", label: "发展" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-18",
+        explain: "科学发展观，第一要义是发展，核心是以人为本，基本要求是全面协调可持续，根本方法是统筹兼顾。",
       },
       {
         text: "[自测单选]163. 2010年，中国成为世界（）",
@@ -2482,10 +3607,11 @@
           { key: "D", label: "第四大经济体" },
         ],
         correct: "B",
-        bookRef: "教材章节/页面：9-19",
+        explain: "2010年中国国内生产总值超过日本，成为世界第二大经济体（按汇率计算）。",
       },
     ];
 
+    /* 中国近代史 · 第10章 单选题（中国特色社会主义进入新时代） */
     const CH10_QUESTIONS = [
       {
         text: "[自测单选]168. 2012年，在我国进入全面建成小康社会决定性阶段召开的重要会议是（）",
@@ -2496,7 +3622,7 @@
           { key: "D", label: "中共十八大" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：10-1",
+        explain: "十八大开启中国特色社会主义新时代，把科学发展观确立为党的指导思想并写入党章。",
       },
       {
         text: "[自测单选]21. 中国特色社会主义进入新时代的标志是（）",
@@ -2507,7 +3633,7 @@
           { key: "D", label: "中共十八大的召开" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：10-2",
+        explain: "党的十八大标志着中国特色社会主义进入新时代，是我国发展新的历史方位。",
       },
       {
         text: "[自测单选]171. 2013年11月，审议通过《关于全面深化改革若干重大问题的决定》的会议是（）",
@@ -2518,7 +3644,7 @@
           { key: "D", label: "中共十八届四中全会" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：10-3",
+        explain: "十八届三中全会作出全面深化改革总部署，提出完善和发展中国特色社会主义制度、推进国家治理体系和治理能力现代化的总目标。",
       },
       {
         text: "[自测单选]170. 关于十八届三中全会审议通过的重要文件是（）",
@@ -2529,7 +3655,7 @@
           { key: "D", label: "《中共中央关于新形势下党内政治生活的若干准则》" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：10-4",
+        explain: "该决定是新时代全面深化改革的纲领性文件，覆盖经济、政治、文化、社会、生态文明和党的建设等领域。",
       },
       {
         text: "[自测单选]169. 2013年12月，为大力加强理想信念教育，弘扬中华优秀传统文化、革命文化、社会主义先进文化，中共中央办公厅印发的文件是（）",
@@ -2540,7 +3666,7 @@
           { key: "D", label: "《关于培育和践行社会主义核心价值观的意见》" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：10-5",
+        explain: "社会主义核心价值观从国家、社会、公民三个层面概括价值要求，是凝魂聚气的基础性工程。",
       },
       {
         text: "[自测单选]23. 中国特色社会主义最本质的特征是（）",
@@ -2551,7 +3677,7 @@
           { key: "D", label: "全面依法治国" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：10-6",
+        explain: "党的领导是中国特色社会主义制度的最大优势，是中国特色社会主义最本质的特征。",
       },
       {
         text: "[自测单选]176. 全面建成小康社会的底线任务是（）",
@@ -2562,7 +3688,7 @@
           { key: "D", label: "大力发展金融业" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：10-7",
+        explain: "小康路上一个都不能少，脱贫攻坚是全面建成小康社会的底线任务和标志性指标。",
       },
       {
         text: "[自测单选]175. 以下不属于党的十八大以来全方位外交发展成果的选项是（）",
@@ -2573,7 +3699,7 @@
           { key: "D", label: "举办二十国集团领导人杭州峰会" },
         ],
         correct: "A",
-        bookRef: "教材章节/页面：10-8",
+        explain: "恢复联合国合法席位是1971年成就，远早于十八大；其余均为新时代中国特色大国外交的重要实践。",
       },
       {
         text: "[自测单选]172. 将习近平新时代中国特色社会主义思想确立为党的行动指南的会议是（）",
@@ -2584,7 +3710,7 @@
           { key: "D", label: "中共十九届一中全会" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：10-9",
+        explain: "党的十九大把习近平新时代中国特色社会主义思想确立为党必须长期坚持的指导思想并写入党章。",
       },
       {
         text: "[自测单选]173. 中共十九大明确指出，我国社会主要矛盾已经转化为（）",
@@ -2595,7 +3721,7 @@
           { key: "D", label: "人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：10-10",
+        explain: "社会主要矛盾转化反映了我国发展的阶段性特征：人民需要层次拓展，发展不平衡不充分成为主要制约因素。",
       },
       {
         text: "[自测单选]174. 2018年3月，审议通过《中华人民共和国宪法修正案》，把习近平新时代中国特色社会主义思想载入国家根本大法的会议是（）",
@@ -2606,7 +3732,7 @@
           { key: "D", label: "十三届全国人大二次会议" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：10-11",
+        explain: "十三届全国人大一次会议通过宪法修正案，以国家根本法形式确立指导思想与时俱进的成果。",
       },
       {
         text: "[自测单选]24. 中共中央在2018年12月举行大会，庆祝我国实行改革开放（）",
@@ -2617,7 +3743,7 @@
           { key: "D", label: "50周年" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：10-12",
+        explain: "1978年十一届三中全会开启改革开放，2018年隆重纪念改革开放40周年。",
       },
       {
         text: "[自测单选]177. 庆祝中国共产党成立100周年文艺演出____于6月28日晚在京盛大举行。（）",
@@ -2628,7 +3754,7 @@
           { key: "D", label: "《伟大共产党》" },
         ],
         correct: "C",
-        bookRef: "教材章节/页面：10-13",
+        explain: "大型情景史诗《伟大征程》在庆祝建党百年文艺演出中上演，再现百年奋斗历程。",
       },
       {
         text: "[自测单选]25. 中国共产党第二十次全国代表大会胜利召开的时间是（）",
@@ -2639,7 +3765,7 @@
           { key: "D", label: "2022年" },
         ],
         correct: "D",
-        bookRef: "教材章节/页面：10-14",
+        explain: "党的二十大于2022年10月召开，擘画全面建设社会主义现代化国家、全面推进中华民族伟大复兴的蓝图。",
       },
     ];
 
@@ -2984,57 +4110,25 @@
       ch1Wrong.textContent = String(wrong);
     }
 
-    const WRONG_TAUNT_LINES = [
-      "这道题再错，课本都要叹气了。",
-      "记忆离家出走中，快把它喊回来。",
-      "友情提示：再瞄一眼教材，别跟正确答案过不去。",
-      "你刚才选的那份自信，我替正确答案收下了。",
-      "错了不丢人，丢人的是同题再错。",
-      "这题要是再错，闹钟都要替你报警了。",
-      "正确选项在边上挥手，你当没看见。",
-      "大脑缓存不足，建议先刷新再选。",
-      "考试可不会这么温柔，赶紧记下这一题。",
-      "知识点在敲门，你装不在家。",
-      "这一分跟你擦肩而过，还回头看了一眼。",
-      "再这么选，笔都要写抗议信了。",
-      "复习时见过它，考试时假装不认识？",
-      "错题本在排队，这题想插队吗？",
-      "冷静，深呼吸，再想想谁才是正确答案。",
-      "正确答案刚发了个好友申请，你点了忽略。",
-      "这题不难，难的是你和它还没混熟。",
-      "再错一次，连鼠标都想帮你点正确答案。",
-      "历史不会重演，但你会在同类型题上重演吗？",
-      "眼睛说会了，手说再想想——听手的。",
-      "这一题在名单上，你刚才念错了名字。",
-      "不是题刁钻，是缘分还没到。",
-      "知识付费了，你这边好像还没到账。",
-      "选错不亏，亏的是不回头看解析。",
-      "这道题偷偷记你一笔，下次记得还。",
-      "你的直觉今天放假，让理性顶个班。",
-      "四个选项里，只有一个不闹心，你避开了。",
-      "别灰心，错题是进步的台阶——先踩这一级。",
-      "翻书千遍，不如这一遍对上号。",
-    ];
-
-    function randomWrongTaunt() {
-      const a = WRONG_TAUNT_LINES;
-      return a[Math.floor(Math.random() * a.length)];
-    }
-
     function applyCh1Feedback(q, ok) {
       ch1QuizEl.classList.add("is-submitted");
       if (ok) {
         ch1FeedbackResult.className = "feedback-result right";
         ch1FeedbackResult.textContent = "✓ 答对了！";
-        ch1FeedbackRef.className = "feedback-ref";
-        ch1FeedbackRef.textContent = "";
       } else {
         ch1FeedbackResult.className = "feedback-result wrong";
         ch1FeedbackResult.textContent = "✘答错了！";
-        ch1FeedbackRef.className = "feedback-ref feedback-ref--taunt";
-        ch1FeedbackRef.textContent = randomWrongTaunt();
       }
       ch1FeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
+
+      ch1FeedbackRef.className = "feedback-ref";
+      const ex = q.explain && String(q.explain).trim();
+      let mbr = q.bookRef && String(q.bookRef).trim();
+      if (mbr && /^教材章节/.test(mbr)) {
+        mbr = mbr.replace(/^教材章节\/页面[：:]\s*[\d\-–—\s]+\s*[。]?\s*/u, "").trim();
+      }
+      const refBody = ex || mbr;
+      ch1FeedbackRef.textContent = refBody ? "解析：" + refBody : "";
     }
 
     function ch1StripQuestionPrefix(raw) {
@@ -3291,6 +4385,12 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      const marxOv = document.getElementById("marx-chapter-resume-overlay");
+      if (marxOv && !marxOv.hidden) {
+        e.preventDefault();
+        hideMarxChapterResumeDialog();
+        return;
+      }
       if (!chapterResumeOverlay || chapterResumeOverlay.hidden) return;
       e.preventDefault();
       hideChapterResumeDialog();
@@ -3382,6 +4482,8 @@
     }
     updateWrongReviewButtonBadge();
     recomputeChapterMasteryBadges();
+    updateMarxWrongReviewButtonBadge();
+    recomputeMarxChapterMasteryBadges();
 
     ch1Submit.addEventListener("click", () => {
       const qs = getHistoryQuestions();
