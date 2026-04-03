@@ -39,10 +39,10 @@ if errorlevel 1 (
 
 echo.
 if "!COMMITDONE!"=="1" (
-  echo OK: A new commit was pushed. GitHub Pages often needs 1-2 minutes. On phone: pull to refresh or clear site cache.
+  echo OK: A new commit was pushed. GitHub Pages may need 1-2 minutes. On phone: pull to refresh or clear cache.
 ) else (
-  echo NOTE: No new commit. Your files match the last commit. Save in Cursor (Ctrl+S) then run this bat again to upload.
-  echo If you already pushed before: the site is up to date. On phone try refresh or wait for CDN cache.
+  echo NOTE: No new commit. Save files in Cursor with Ctrl+S, then run this bat again.
+  echo If you already pushed: site is up to date. On phone try refresh or wait for CDN.
 )
 echo.
 echo Press Enter to close, or close this window with X.
