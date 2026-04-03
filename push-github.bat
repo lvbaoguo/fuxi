@@ -22,7 +22,11 @@ if errorlevel 1 (
 )
 
 echo [3/3] git push github master
-"%GIT_EXE%" push github master
+echo.
+echo If this step hangs: GitHub may be slow or blocked. Check taskbar for Git login window.
+echo Using HTTP/1.1 may help on some networks.
+echo.
+"%GIT_EXE%" -c http.version=HTTP/1.1 push --progress github master
 if errorlevel 1 (
   echo Push failed.
   pause
