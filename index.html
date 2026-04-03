@@ -586,13 +586,44 @@
       filter: brightness(1.06);
     }
     .quiz-order-tools {
+      display: block;
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .quiz-order-fold {
+      width: 100%;
+      border-radius: 8px;
+    }
+    .quiz-order-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fafbfc;
+    }
+    .quiz-order-summary::-webkit-details-marker {
+      display: none;
+    }
+    .quiz-order-panel {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
-      margin: 0 0 16px;
-      font-size: 13px;
-      color: var(--muted);
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .quiz-order-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
     }
     .quiz-order-tools button {
       padding: 8px 14px;
@@ -614,6 +645,31 @@
     }
     .quiz-order-tools[hidden] {
       display: none !important;
+    }
+    @media (min-width: 641px) {
+      .quiz-order-fold > .quiz-order-summary {
+        display: none;
+      }
+      .quiz-order-panel {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+      }
+    }
+    @media (max-width: 640px) {
+      .quiz-order-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .quiz-order-buttons {
+        width: 100%;
+      }
+      .quiz-order-buttons button {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 10px;
+        font-size: 13px;
+      }
     }
 
     /* 移动端：课程栏顶栏（标题 + 收起） */
@@ -859,9 +915,24 @@
             本次测试共<span id="ch1-total">29</span>题，已做<span id="ch1-done">0</span>题，做对<span class="stat-correct" id="ch1-right">0</span>题，做错<span class="stat-wrong" id="ch1-wrong">0</span>题
           </p>
           <div class="quiz-order-tools" id="quiz-order-tools" hidden>
-            <span id="quiz-order-hint">默认按教材时间线；可打乱自测记忆。</span>
-            <button type="button" id="btn-shuffle-order">打乱题序</button>
-            <button type="button" id="btn-timeline-order" disabled>恢复时间线顺序</button>
+            <details class="quiz-order-fold" id="quiz-order-fold">
+              <summary class="quiz-order-summary">题序</summary>
+              <div class="quiz-order-panel">
+                <span id="quiz-order-hint">默认按教材时间线；可打乱自测。</span>
+                <div class="quiz-order-buttons">
+                  <button type="button" id="btn-shuffle-order" title="打乱题序">打乱</button>
+                  <button type="button" id="btn-timeline-order" disabled title="恢复教材时间线顺序">顺序</button>
+                </div>
+              </div>
+            </details>
+            <script>
+              (function () {
+                var el = document.getElementById("quiz-order-fold");
+                if (!el) return;
+                if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
+                else el.removeAttribute("open");
+              })();
+            </script>
           </div>
           <p class="quiz-type" id="quiz-type-label">单项选择题</p>
           <p class="quiz-question" id="ch1-question-text"></p>
@@ -4199,6 +4270,16 @@
     const quizOrderTools = document.getElementById("quiz-order-tools");
     const btnShuffleOrder = document.getElementById("btn-shuffle-order");
     const btnTimelineOrder = document.getElementById("btn-timeline-order");
+
+    (function syncQuizOrderFoldOnResize() {
+      const fold = document.getElementById("quiz-order-fold");
+      if (!fold) return;
+      const mq = window.matchMedia("(min-width: 641px)");
+      mq.addEventListener("change", () => {
+        if (mq.matches) fold.setAttribute("open", "");
+        else fold.removeAttribute("open");
+      });
+    })();
 
     let historyQuizChapter = 1;
     let historyQuizIndex = 0;
