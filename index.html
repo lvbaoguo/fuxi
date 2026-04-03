@@ -1,0 +1,3494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>考前复习 · 本地练习</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --sidebar: #f7f8fa;
+      --border: #e8eaed;
+      --text: #1a1a1a;
+      --muted: #5f6368;
+      --accent: #1a73e8;
+      --accent-soft: #e8f0fe;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      min-height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    /* 左侧页签 */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sidebar-title {
+      padding: 0 16px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .tab {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 12px 16px 12px 18px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .tab:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+    .tab[aria-selected="true"] {
+      background: var(--bg);
+      border-left-color: var(--accent);
+      font-weight: 600;
+      box-shadow: inset 0 1px 0 rgba(0,0,0,0.03);
+    }
+
+    /* 右侧主内容 */
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 28px 32px 40px;
+    }
+    .main h1 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .main .subtitle {
+      margin: 0 0 28px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      background: var(--bg);
+      min-height: 200px;
+    }
+    .panel p {
+      margin: 0 0 12px;
+      color: var(--text);
+    }
+    .panel p:last-child { margin-bottom: 0; }
+    .placeholder {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* 中国近代史 · 章节列表（仿课程站样式） */
+    .list-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .list-card__head {
+      margin: 0;
+      padding: 14px 18px;
+      background: #1e6fd9;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .list-card__head-title {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .list-card__head span.course {
+      font-weight: 500;
+      opacity: 0.92;
+      margin-right: 6px;
+    }
+    .list-card__wrong-btn {
+      flex-shrink: 0;
+      margin: 0;
+      padding: 8px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font: inherit;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .list-card__wrong-btn:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+    .list-card__wrong-btn:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+
+    .chapter-badge {
+      margin-left: 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1.4;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #f1f3f4;
+      color: var(--muted);
+      vertical-align: middle;
+    }
+    .chapter-badge--cleared {
+      border-color: #1a73e8;
+      background: #e8f0fe;
+      color: #185abc;
+      font-weight: 600;
+    }
+    .chapter-badge--in-progress {
+      border-color: #f29900;
+      background: #fff4e5;
+      color: #c06600;
+    }
+    .chapter-badge--not-started {
+      border-style: dashed;
+    }
+
+    .chapter-medal {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      margin-left: 6px;
+    }
+    .chapter-medal-img {
+      width: 26px;
+      height: 26px;
+      display: block;
+      object-fit: contain;
+    }
+    .chapter-medal--locked .chapter-medal-img {
+      filter: grayscale(1);
+      opacity: 0.55;
+    }
+    .chapter-medal--earned .chapter-medal-img {
+      opacity: 1;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
+    }
+
+    /* 章节未答完 · 重开/继续 */
+    .chapter-resume-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .chapter-resume-overlay[hidden] {
+      display: none !important;
+    }
+    .chapter-resume-dialog {
+      width: 100%;
+      max-width: 400px;
+      padding: 22px 22px 18px;
+      border-radius: var(--radius);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+    .chapter-resume-msg {
+      margin: 0 0 18px;
+      font-size: 1rem;
+      line-height: 1.55;
+      color: var(--text);
+    }
+    .chapter-resume-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chapter-resume-btn {
+      margin: 0;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .chapter-resume-btn:hover {
+      background: var(--sidebar);
+    }
+    .chapter-resume-btn--primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .chapter-resume-btn--primary:hover {
+      filter: brightness(1.05);
+    }
+    .chapter-resume-btn--ghost {
+      background: var(--bg);
+    }
+    .chapter-resume-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .list-card__body {
+      background: #fff;
+    }
+    .lecture-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .lecture-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .lecture-row:last-child {
+      border-bottom: none;
+    }
+    .lecture-row .book-icon {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      margin-top: 1px;
+      /* 课程站常见的「浅草绿书本」；纯 CSS + 内联 SVG，无需额外图片资源 */
+      color: #7cb342;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .lecture-row:hover .book-icon {
+      color: #689f38;
+    }
+    .lecture-row:focus-visible .book-icon {
+      color: #558b2f;
+    }
+    .lecture-link {
+      flex: 1 1 auto;
+      min-width: 0;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .lecture-link:hover {
+      text-decoration: underline;
+    }
+    .lecture-row[data-chapter] {
+      cursor: pointer;
+    }
+
+    /* 第1章 · 单选题测验 */
+    .quiz-view {
+      max-width: 720px;
+    }
+    .back-to-chapters {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 20px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .back-to-chapters:hover {
+      text-decoration: underline;
+    }
+    .quiz-stats {
+      margin: 0 0 22px;
+      font-size: 15px;
+      color: #3c4043;
+      line-height: 1.6;
+    }
+    .quiz-stats .stat-correct {
+      color: #188038;
+      font-weight: 600;
+    }
+    .quiz-stats .stat-wrong {
+      color: #d93025;
+      font-weight: 600;
+    }
+    .quiz-type {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #202124;
+    }
+    .quiz-question {
+      margin: 0 0 22px;
+      font-size: 15px;
+      color: #3c4043;
+      line-height: 1.65;
+    }
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .radio-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      color: #3c4043;
+      line-height: 1.5;
+    }
+    .radio-line input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .radio-ui {
+      position: relative;
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      border: 2px solid #dadce0;
+      border-radius: 50%;
+      background: #fff;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .radio-line input:checked + .radio-ui {
+      border-color: #81c995;
+      background: #e8f5e9;
+    }
+    .radio-line input:checked + .radio-ui::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #34a853;
+    }
+    .radio-line input:focus-visible + .radio-ui {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .quiz-view.is-submitted .radio-line {
+      cursor: default;
+    }
+    .quiz-view.is-submitted .radio-line input:disabled + .radio-ui {
+      opacity: 0.85;
+    }
+    .btn-submit-wrap {
+      margin-bottom: 24px;
+    }
+    .btn-submit {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #4da3ff 0%, #1a73e8 100%);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+      transition: filter 0.15s, transform 0.1s;
+    }
+    .btn-submit:hover:not(:disabled) {
+      filter: brightness(1.05);
+    }
+    .btn-submit:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn-submit:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .btn-submit .btn-submit-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .quiz-feedback {
+      display: none;
+      margin-top: 8px;
+      margin-bottom: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .quiz-view.is-submitted .quiz-feedback {
+      display: block;
+    }
+    .feedback-result {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .feedback-result.wrong {
+      color: #d93025;
+    }
+    .feedback-result.right {
+      color: #188038;
+    }
+    .feedback-answer {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: #3c4043;
+    }
+    .feedback-answer strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 18px;
+      color: #202124;
+    }
+    .feedback-ref:empty {
+      display: none;
+    }
+    .feedback-ref {
+      margin: 10px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .feedback-ref--taunt {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #fff8f5;
+      border: 1px solid #f0d9ce;
+      color: #8a4a3a;
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .quiz-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .quiz-nav button {
+      padding: 10px 18px;
+      border: 1px solid #8ab4f8;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--accent);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .quiz-nav button:hover:not(:disabled) {
+      background: var(--accent-soft);
+    }
+    .quiz-nav button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-submit-wrap.is-hidden {
+      display: none;
+    }
+    .quiz-continue-chapter {
+      margin-top: 16px;
+    }
+    .quiz-continue-chapter[hidden] {
+      display: none !important;
+    }
+    .btn-continue-chapter {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #34a853 0%, #188038 100%);
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(24, 128, 56, 0.35);
+    }
+    .btn-continue-chapter:hover {
+      filter: brightness(1.06);
+    }
+    .quiz-order-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .quiz-order-tools button {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .quiz-order-tools button:hover:not(:disabled) {
+      background: var(--sidebar);
+      border-color: #dadce0;
+    }
+    .quiz-order-tools button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .quiz-order-tools[hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 640px) {
+      .app { flex-direction: column; border: none; }
+      .sidebar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 12px;
+        gap: 8px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-title { width: 100%; padding-bottom: 4px; }
+      .tab {
+        flex: 1 1 auto;
+        min-width: calc(50% - 4px);
+        border-left: none;
+        border-radius: 8px;
+        padding: 10px 12px;
+        text-align: center;
+      }
+      .tab[aria-selected="true"] {
+        border-left: none;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .main { padding: 20px 16px 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" role="navigation" aria-label="课程切换">
+      <div class="sidebar-title">课程</div>
+      <button type="button" class="tab" role="tab" id="tab-history" aria-selected="true" aria-controls="panel-history" data-panel="history">中国近代史纲要</button>
+      <button type="button" class="tab" role="tab" id="tab-xi" aria-selected="false" aria-controls="panel-xi" data-panel="xi">习近平新时代中国特色社会主义思想</button>
+      <button type="button" class="tab" role="tab" id="tab-marx" aria-selected="false" aria-controls="panel-marx" data-panel="marx">马克思主义</button>
+    </aside>
+
+    <main class="main">
+      <section id="panel-history" class="content-panel" role="tabpanel" aria-labelledby="tab-history">
+        <h1 class="visually-hidden">中国近代史纲要</h1>
+
+        <div id="history-chapter-list">
+        <p class="subtitle" style="margin-bottom:18px;">本地复习 · 章节目录（可先当目录用，后续接题目）</p>
+
+        <div class="list-card">
+          <h2 class="list-card__head">
+            <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
+            <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="收录各章答错的题目">错题回顾</button>
+          </h2>
+          <div class="list-card__body">
+            <ul class="lecture-list" aria-label="章节目录">
+              <li class="lecture-row" data-chapter="1" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第1章）进入近代后中华民族的磨难与抗争</span>
+              </li>
+              <li class="lecture-row" data-chapter="2" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第2章）不同社会力量对国家出路的早期探索</span>
+              </li>
+              <li class="lecture-row" data-chapter="3" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第3章）辛亥革命与君主专制制度的终结</span>
+              </li>
+              <li class="lecture-row" data-chapter="4" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第4章）中国共产党成立和中国革命新局面</span>
+              </li>
+              <li class="lecture-row" data-chapter="5" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第5章）中国革命的新道路</span>
+              </li>
+              <li class="lecture-row" data-chapter="6" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第6章）中华民族的抗日战争</span>
+              </li>
+              <li class="lecture-row" data-chapter="7" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第7章）为建立新中国而奋斗</span>
+              </li>
+              <li class="lecture-row" data-chapter="8" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第8章）中华人民共和国的成立与中国社会主义建设道路的探索</span>
+              </li>
+              <li class="lecture-row" data-chapter="9" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第9章）改革开放与中国特色社会主义的开创和发展</span>
+              </li>
+              <li class="lecture-row" data-chapter="10" role="button" tabindex="0">
+                <svg class="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span class="lecture-link">（第10章）中国特色社会主义进入新时代</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        </div>
+
+        <div id="history-ch1-quiz" class="quiz-view" hidden>
+          <button type="button" class="back-to-chapters">← 返回章节目录</button>
+          <p class="quiz-stats" id="ch1-quiz-stats">
+            本次测试共<span id="ch1-total">29</span>题，已做<span id="ch1-done">0</span>题，做对<span class="stat-correct" id="ch1-right">0</span>题，做错<span class="stat-wrong" id="ch1-wrong">0</span>题
+          </p>
+          <div class="quiz-order-tools" id="quiz-order-tools" hidden>
+            <span id="quiz-order-hint">默认按教材时间线；可打乱自测记忆。</span>
+            <button type="button" id="btn-shuffle-order">打乱题序</button>
+            <button type="button" id="btn-timeline-order" disabled>恢复时间线顺序</button>
+          </div>
+          <p class="quiz-type" id="quiz-type-label">单项选择题</p>
+          <p class="quiz-question" id="ch1-question-text"></p>
+          <div class="quiz-options" id="ch1-options" role="radiogroup" aria-label="选项"></div>
+          <div class="btn-submit-wrap" id="ch1-submit-wrap">
+            <button type="button" class="btn-submit" id="ch1-submit" disabled>
+              <span class="btn-submit-icon" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              提交答案
+            </button>
+          </div>
+          <div class="quiz-feedback" id="ch1-feedback" aria-live="polite">
+            <p class="feedback-result" id="ch1-feedback-result"></p>
+            <p class="feedback-answer" id="ch1-feedback-answer"></p>
+            <p class="feedback-ref" id="ch1-feedback-ref"></p>
+          </div>
+          <div class="quiz-nav">
+            <button type="button" id="ch1-prev" disabled>« 上一题</button>
+            <button type="button" id="ch1-next" disabled>» 下一题</button>
+          </div>
+          <div class="quiz-continue-chapter" id="ch-continue-next-chapter-wrap" hidden>
+            <button type="button" class="btn-continue-chapter" id="ch-continue-next-chapter">继续下一章 →</button>
+          </div>
+        </div>
+
+        <div id="chapter-resume-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
+          <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="chapter-resume-title" tabindex="-1">
+            <p id="chapter-resume-title" class="chapter-resume-msg">上次的题还没有答完，要重新开始吗？</p>
+            <div class="chapter-resume-actions">
+              <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="chapter-resume-restart">重开</button>
+              <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="chapter-resume-continue">继续</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-xi" class="content-panel" hidden role="tabpanel" aria-labelledby="tab-xi">
+        <h1>习近平新时代中国特色社会主义思想</h1>
+        <p class="subtitle">本课程练习区 · 题目与选项将在此处展示</p>
+        <div class="panel">
+          <p class="placeholder">这里之后会接入：你粘贴的题目文本 → 自动生成选择题、判对错与提示。当前为排版预览。</p>
+        </div>
+      </section>
+
+      <section id="panel-marx" class="content-panel" hidden role="tabpanel" aria-labelledby="tab-marx">
+        <h1>马克思主义</h1>
+        <p class="subtitle">本课程练习区 · 题目与选项将在此处展示</p>
+        <div class="panel">
+          <p class="placeholder">这里之后会接入：你粘贴的题目文本 → 自动生成选择题、判对错与提示。当前为排版预览。</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll(".tab");
+    const panels = {
+      history: document.getElementById("panel-history"),
+      xi: document.getElementById("panel-xi"),
+      marx: document.getElementById("panel-marx"),
+    };
+
+    function showPanel(key) {
+      Object.entries(panels).forEach(([k, el]) => {
+        el.hidden = k !== key;
+      });
+      tabs.forEach((btn) => {
+        const sel = btn.dataset.panel === key;
+        btn.setAttribute("aria-selected", sel);
+      });
+    }
+
+    tabs.forEach((btn) => {
+      btn.addEventListener("click", () => showPanel(btn.dataset.panel));
+    });
+
+    document.title = "考前复习 · " + document.querySelector(".tab[aria-selected=true]").textContent.trim();
+    tabs.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.title = "考前复习 · " + btn.textContent.trim();
+      });
+    });
+
+    /* 中国近代史 · 第1章 单选题 */
+    const CH1_QUESTIONS = [
+      {
+        text: "[自测单选]1. 19世纪，向中国大肆走私鸦片的主要国家是（）",
+        options: [
+          { key: "A", label: "美国" },
+          { key: "B", label: "英国" },
+          { key: "C", label: "法国" },
+          { key: "D", label: "俄国" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：1-11",
+      },
+      {
+        text: "[自测单选]2. 第一次鸦片战争后，清政府与美国签订的不平等条约是（）",
+        options: [
+          { key: "A", label: "《望厦条约》" },
+          { key: "B", label: "《黄埔条约》" },
+          { key: "C", label: "《马关条约》" },
+          { key: "D", label: "《瑷珲条约》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：1-19",
+      },
+      {
+        text: "[自测单选]4. 近代中国半殖民地半封建社会最主要的矛盾是（）",
+        options: [
+          { key: "A", label: "地主阶级与农民阶级的矛盾" },
+          { key: "B", label: "封建主义与人民大众的矛盾" },
+          { key: "C", label: "资产阶级与工人阶级的矛盾" },
+          { key: "D", label: "帝国主义与中华民族的矛盾" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：1-13",
+      },
+      {
+        text: "[202510单选]1. 自公元前5世纪的战国时代到1840年鸦片战争，中国社会的性质是（ ）",
+        options: [
+          { key: "A", label: "奴隶社会" },
+          { key: "B", label: "封建社会" },
+          { key: "C", label: "半殖民地半封建社会" },
+          { key: "D", label: "资本主义社会" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：1-15",
+      },
+      {
+        text: "[202510单选]2. 资本—帝国主义列强对近代中国的侵略，首先和主要进行的是（ ）",
+        options: [
+          { key: "A", label: "军事侵略" },
+          { key: "B", label: "政治控制" },
+          { key: "C", label: "经济掠夺" },
+          { key: "D", label: "文化渗透" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：1-24",
+      },
+      {
+        text: "[202510单选]3. 第二次鸦片战争中洗劫和烧毁圆明园的是（ ）",
+        options: [
+          { key: "A", label: "英国军队" },
+          { key: "B", label: "法国军队" },
+          { key: "C", label: "英法联军" },
+          { key: "D", label: "八国联军" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：1-27",
+      },
+      {
+        text: "[202504单选]7. 甲午战争后，日本迫使清政府签订割让台湾的不平等条约是（ ）",
+        options: [
+          { key: "A", label: "《南京条约》" },
+          { key: "B", label: "《北京条约》" },
+          { key: "C", label: "《天津条约》" },
+          { key: "D", label: "《马关条约》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：1-25",
+      },
+      {
+        text: "[202504单选]8. 1895年，在《救亡决论》中喊出“救亡”口号的是（ ）",
+        options: [
+          { key: "A", label: "康有为" },
+          { key: "B", label: "严复" },
+          { key: "C", label: "梁启超" },
+          { key: "D", label: "孙中山" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：1-47",
+      },
+      {
+        text: "[202504单选]1. 鸦片战争前，中国封建文化的核心是（）",
+        options: [
+          { key: "A", label: "儒家思想" },
+          { key: "B", label: "法家思想" },
+          { key: "C", label: "道家思想" },
+          { key: "D", label: "墨家思想" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：1-15",
+      },
+      {
+        text: "[202504单选]2. 1843年，魏源在《海国图志》中提出的思想主张是（ ）",
+        options: [
+          { key: "A", label: "中学为体，西学为用" },
+          { key: "B", label: "物竞天择，适者生存" },
+          { key: "C", label: "救亡图存" },
+          { key: "D", label: "师夷长技以制夷" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：1-46",
+      },
+      {
+        text: "[自测单选]9. 1858年，英国和法国等迫使清政府签订的不平等条约是（ ）",
+        options: [
+          { key: "A", label: "《南京条约》" },
+          { key: "B", label: "《黄埔条约》" },
+          { key: "C", label: "《天津条约》" },
+          { key: "D", label: "《北京条约》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：1-28",
+      },
+      {
+        text: "[自测单选]10. 1901年，清政府被迫与外国侵略者签订的不平等条约是（）",
+        options: [
+          { key: "A", label: "《辛丑条约》" },
+          { key: "B", label: "《天津条约》" },
+          { key: "C", label: "《北京条约》" },
+          { key: "D", label: "《马关条约》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：1-29",
+      },
+      {
+        text: "[自测单选]11. 基督教在中国设立的最大出版机构广学会发行的报刊是（ ）",
+        options: [
+          { key: "A", label: "《中国丛报》" },
+          { key: "B", label: "《北华捷报》" },
+          { key: "C", label: "《字林西报》" },
+          { key: "D", label: "《万国公报》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：1-35",
+      },
+      {
+        text: "[自测单选]12. 中国近现代史上人民群众第一次大规模反侵略的武装斗争是（ ）",
+        options: [
+          { key: "A", label: "台湾人民的抗日斗争" },
+          { key: "B", label: "太平天国抗击洋枪队的斗争" },
+          { key: "C", label: "三元里人民的抗英斗争" },
+          { key: "D", label: "义和团抗击八国联军的斗争" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：1-36",
+      },
+      {
+        text: "[自测单选]13. 中国近代史上，列强瓜分中国图谋破产的最根本原因是（）",
+        options: [
+          { key: "A", label: "帝国主义列强之间的矛盾和相互制约" },
+          { key: "B", label: "清政府的抗击" },
+          { key: "C", label: "中国人民进行了不屈不挠的反侵略斗争" },
+          { key: "D", label: "中国人民民族意识的觉醒" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：1-41",
+      },
+      {
+        text: "[自测单选]14. 1840至1919年，中国反侵略斗争失败的最根本原因是（）",
+        options: [
+          { key: "A", label: "经济技术落后" },
+          { key: "B", label: "社会制度腐败" },
+          { key: "C", label: "思想文化保守" },
+          { key: "D", label: "军事装备落后" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：1-43",
+      },
+    ];
+    const CH2_QUESTIONS = [
+      {
+        text: "[202504单选]3. 洪秀全在广西省桂平县金田村发动起义的时间是（）",
+        options: [
+          { key: "A", label: "1851年" },
+          { key: "B", label: "1853年" },
+          { key: "C", label: "1856年" },
+          { key: "D", label: "1858年" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：2-1",
+      },
+      {
+        text: "[自测单选]21. 太平天国定都天京后颁布的最能体现其社会理想的纲领性文件是（）",
+        options: [
+          { key: "A", label: "《原道救世歌》" },
+          { key: "B", label: "《原道觉世训》" },
+          { key: "C", label: "《天朝田亩制度》" },
+          { key: "D", label: "《资政新篇》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：2-2",
+      },
+      {
+        text: "[自测单选]22. 太平天国由盛转衰的分水岭是（）",
+        options: [
+          { key: "A", label: "长沙战役" },
+          { key: "B", label: "北伐受挫" },
+          { key: "C", label: "天京事变" },
+          { key: "D", label: "安庆失守" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：2-3",
+      },
+      {
+        text: "[自测单选]23. 太平天国后期颁布的具有资本主义色彩的社会发展方案是（）",
+        options: [
+          { key: "A", label: "《海国图志》" },
+          { key: "B", label: "《天朝田亩制度》" },
+          { key: "C", label: "《资政新篇》" },
+          { key: "D", label: "《救亡决论》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：2-4",
+      },
+      {
+        text: "[202504单选]6. 太平天国农民运动失败的根本原因是（）",
+        options: [
+          { key: "A", label: "对外国资本主义列强缺乏理性认识" },
+          { key: "B", label: "没有科学的理论指导" },
+          { key: "C", label: "缺乏先进阶级的领导" },
+          { key: "D", label: "无法长期保持领导集团的团结" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：2-5",
+      },
+      {
+        text: "[自测单选]24. 在19世纪中叶的亚洲民族解放运动中，______是时间最久、规模最大、影响最深的一次（）",
+        options: [
+          { key: "A", label: "义和团运动" },
+          { key: "B", label: "太平天国起义" },
+          { key: "C", label: "三元里人民抗英" },
+          { key: "D", label: "捻军起义" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：2-6",
+      },
+      {
+        text: "[自测单选]25. 在《校邠庐抗议》一书中对兴办洋务事业的指导思想最先作出比较完整表述的是（）",
+        options: [
+          { key: "A", label: "魏源" },
+          { key: "B", label: "冯桂芬" },
+          { key: "C", label: "薛福成" },
+          { key: "D", label: "郑观应" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：2-7",
+      },
+      {
+        text: "[自测单选]26. 洋务派创办的国内最大的兵工厂是（）",
+        options: [
+          { key: "A", label: "江南制造总局" },
+          { key: "B", label: "金陵机器局" },
+          { key: "C", label: "马尾船政局" },
+          { key: "D", label: "天津机器局" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：2-8",
+      },
+      {
+        text: "[自测单选]27. 19世纪60-90年代，洋务派兴办洋务事业的指导思想（）",
+        options: [
+          { key: "A", label: "师夷长技以制夷" },
+          { key: "B", label: "中学为体，西学为用" },
+          { key: "C", label: "物竞天择，适者生存" },
+          { key: "D", label: "维新变法，救亡图存" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：2-9",
+      },
+      {
+        text: "[自测单选]28. 近代中国向西方派遣第一批留学生是在（）",
+        options: [
+          { key: "A", label: "洋务运动时期" },
+          { key: "B", label: "戊戌维新时期" },
+          { key: "C", label: "清末“新政”时期" },
+          { key: "D", label: "辛亥革命时期" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：2-10",
+      },
+      {
+        text: "[自测单选]29. 戊戌维新时期，谭嗣同撰写的宣传变法维新主张的著作是（）",
+        options: [
+          { key: "A", label: "《孔子改制考》" },
+          { key: "B", label: "《变法通议》" },
+          { key: "C", label: "《日本变政考》" },
+          { key: "D", label: "《仁学》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：2-11",
+      },
+      {
+        text: "[自测单选]30. 19世纪90年代，梁启超宣传变法维新主张的著作是（）",
+        options: [
+          { key: "A", label: "《新学伪经考》" },
+          { key: "B", label: "《仁学》" },
+          { key: "C", label: "《人类公理》" },
+          { key: "D", label: "《变法通议》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：2-12",
+      },
+      {
+        text: "[自测单选]31. 戊戌维新时期，维新派在上海创办的影响较大的报刊是（）",
+        options: [
+          { key: "A", label: "《时务报》" },
+          { key: "B", label: "《国闻报》" },
+          { key: "C", label: "《湘报》" },
+          { key: "D", label: "《万国公报》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：2-13",
+      },
+      {
+        text: "[自测单选]32. 在中国近代史上，资产阶级思想与封建主义思想的第一次正面交锋是（）",
+        options: [
+          { key: "A", label: "洋务派与顽固派的论战" },
+          { key: "B", label: "洋务派与维新派的论战" },
+          { key: "C", label: "维新派与守旧派的论战" },
+          { key: "D", label: "革命派与改革派的论战" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：2-14",
+      },
+      {
+        text: "[自测单选]33. 戊戌维新运动失败的主要原因是（）",
+        options: [
+          { key: "A", label: "中国民族资本主义经济力量十分弱小" },
+          { key: "B", label: "维新派把希望完全寄托在一个没有实权的皇帝身上" },
+          { key: "C", label: "没有发动群众的支持" },
+          { key: "D", label: "维新派自身的局限和以慈禧太后为首的强大的守旧势力的反对" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：2-15",
+      },
+    ];
+
+    const CH3_QUESTIONS = [
+      {
+        text: "[202510单选]4. 1894年，孙中山在檀香山建立的中国第一个资产阶级革命组织是（）",
+        options: [
+          { key: "A", label: "兴中会" },
+          { key: "B", label: "岳王会" },
+          { key: "C", label: "光复会" },
+          { key: "D", label: "华兴会" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：3-1",
+      },
+      {
+        text: "[自测单选]43. 20世纪初，章炳麟撰写的歌颂革命是“启迪明智，除旧布新”的良药的著作是（）",
+        options: [
+          { key: "A", label: "《驳康有为论革命书》" },
+          { key: "B", label: "《中国问题的真解决》" },
+          { key: "C", label: "《警世钟》" },
+          { key: "D", label: "《猛回头》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：3-2",
+      },
+      {
+        text: "[自测单选]42. 20世纪初，邹容发表的号召人民推翻清朝统治、建立“中华共和国”的著作是（）",
+        options: [
+          { key: "A", label: "《驳康有为论革命书》" },
+          { key: "B", label: "《革命军》" },
+          { key: "C", label: "《警世钟》" },
+          { key: "D", label: "《猛回头》" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：3-3",
+      },
+      {
+        text: "[自测单选]41. 1904年至1905年，为争夺在华利益而在中国东北进行战争的帝国主义国家是（）",
+        options: [
+          { key: "A", label: "日本、美国" },
+          { key: "B", label: "英国、俄国" },
+          { key: "C", label: "日本、俄国" },
+          { key: "D", label: "英国、法国" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：3-4",
+      },
+      {
+        text: "[自测单选]44. 以下不属于孙中山三民主义思想内容的选项是（）",
+        options: [
+          { key: "A", label: "民本主义" },
+          { key: "B", label: "民族主义" },
+          { key: "C", label: "民权主义" },
+          { key: "D", label: "民生主义" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：3-5",
+      },
+      {
+        text: "[自测单选]46. 1905年，近代中国第一个领导资产阶级革命的全国性政党是（）",
+        options: [
+          { key: "A", label: "中国同盟会" },
+          { key: "B", label: "兴中会" },
+          { key: "C", label: "中华革命党" },
+          { key: "D", label: "国民党" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：3-6",
+      },
+      {
+        text: "[自测单选]45. 1905年，中国同盟会成立后确立的机关报是（）",
+        options: [
+          { key: "A", label: "《国闻报》" },
+          { key: "B", label: "《万国公报》" },
+          { key: "C", label: "《新民丛报》" },
+          { key: "D", label: "《民报》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-7",
+      },
+      {
+        text: "[自测单选]47. 20世纪初，资产阶级革命派与改良派论战的焦点是（）",
+        options: [
+          { key: "A", label: "要不要废科举，兴学堂" },
+          { key: "B", label: "要不要以革命手段推翻清王朝" },
+          { key: "C", label: "要不要实行共和" },
+          { key: "D", label: "要不要实行平均地权" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：3-8",
+      },
+      {
+        text: "[自测单选]48. 20世纪初，资产阶级革命派与改良派进行了论战，以下不属于论战主要问题的选项是（）",
+        options: [
+          { key: "A", label: "要不要以革命手段推翻清政府" },
+          { key: "B", label: "要不要推翻帝制，实现共和" },
+          { key: "C", label: "要不要社会革命" },
+          { key: "D", label: "要不要废八股" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-9",
+      },
+      {
+        text: "[自测单选]49. 在1911年爆发的保路运动中，规模最大、斗争最激烈的省份是（）",
+        options: [
+          { key: "A", label: "湖南" },
+          { key: "B", label: "湖北" },
+          { key: "C", label: "广东" },
+          { key: "D", label: "四川" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-10",
+      },
+      {
+        text: "[自测单选]50. 1911年4月，在黄兴的带领下，120多名革命志士在广州举行起义，史称（）",
+        options: [
+          { key: "A", label: "赣宁之役" },
+          { key: "B", label: "黄花岗起义" },
+          { key: "C", label: "护国战争" },
+          { key: "D", label: "护法战争" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：3-11",
+      },
+      {
+        text: "[自测单选]51. 中国历史上第一部具有资产阶级共和国宪法性质的法典是（）",
+        options: [
+          { key: "A", label: "《总统选举法》" },
+          { key: "B", label: "《钦定宪法大纲》" },
+          { key: "C", label: "《中华民国约法》" },
+          { key: "D", label: "《中华民国临时约法》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-12",
+      },
+      {
+        text: "[自测单选]52. 中国历史上第一次比较完全意义上的资产阶级民主革命是（）",
+        options: [
+          { key: "A", label: "戊戌维新运动" },
+          { key: "B", label: "辛亥革命" },
+          { key: "C", label: "五四运动" },
+          { key: "D", label: "国民革命" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：3-13",
+      },
+      {
+        text: "[自测单选]53. 北洋军阀的专制统治，描述错误的是（）",
+        options: [
+          { key: "A", label: "在政治上，北洋政府实行军阀官僚的专制统治" },
+          { key: "B", label: "在经济上，北洋政府竭力维护帝国主义、地主阶级和买办资产阶级的利益" },
+          { key: "C", label: "在文化思想方面，尊孔复古思潮猖獗一时" },
+          { key: "D", label: "在政治上，积极推进民主宪政，实现了多党平等竞争与权力制衡" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-14",
+      },
+      {
+        text: "[自测单选]54. 1913年孙中山领导革命党人发动的反对袁世凯的斗争是（）",
+        options: [
+          { key: "A", label: "“二次革命”" },
+          { key: "B", label: "护国战争" },
+          { key: "C", label: "护法战争" },
+          { key: "D", label: "北伐战争" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：3-15",
+      },
+      {
+        text: "[自测单选]55. 辛亥革命的失败表明，资产阶级共和国的方案救不了中国，以下不属于辛亥革命失败原因的是（）",
+        options: [
+          { key: "A", label: "没有建立坚强的革命政党" },
+          { key: "B", label: "没有充分发动和依靠民众" },
+          { key: "C", label: "没有提出彻底的反帝反封建的革命纲领" },
+          { key: "D", label: "没有宣扬民主共和观念" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：3-16",
+      },
+    ];
+
+    const CH4_QUESTIONS = [
+      {
+        text: "[自测单选]60. 1915年9月，在上海创办《青年杂志》（后改为新青年）的是（）",
+        options: [
+          { key: "A", label: "鲁迅" },
+          { key: "B", label: "陈独秀" },
+          { key: "C", label: "蔡元培" },
+          { key: "D", label: "胡适" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-1",
+      },
+      {
+        text: "[自测单选]62. 五四运动爆发的直接导火线是（）",
+        options: [
+          { key: "A", label: "北洋军阀接受日本提出的“二十一条”" },
+          { key: "B", label: "北洋军阀与日本签订“西原借款”合同" },
+          { key: "C", label: "巴黎和会上中国外交的失败" },
+          { key: "D", label: "华盛顿会议上中国外交的受挫" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：4-2",
+      },
+      {
+        text: "[自测单选]63. 中国新民主主义革命开端的标志是（）",
+        options: [
+          { key: "A", label: "北伐战争" },
+          { key: "B", label: "五四运动" },
+          { key: "C", label: "保路运动" },
+          { key: "D", label: "五卅运动" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-3",
+      },
+      {
+        text: "[自测单选]61. 1919年发表《我的马克思主义观》一文，比较系统地介绍马克思主义理论的是（）",
+        options: [
+          { key: "A", label: "杨匏安" },
+          { key: "B", label: "李大钊" },
+          { key: "C", label: "蔡和森" },
+          { key: "D", label: "陈独秀" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-4",
+      },
+      {
+        text: "[202504单选]9. 1919年，发表《马克思主义》（一称《科学的社会主义》）一文，对马克思主义基本内容作了比较确切阐述的是（）",
+        options: [
+          { key: "A", label: "毛泽东" },
+          { key: "B", label: "李达" },
+          { key: "C", label: "蔡和森" },
+          { key: "D", label: "杨匏安" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-5",
+      },
+      {
+        text: "[自测单选]64. 以下不是早期马克思主义思想运动的特点是（）",
+        options: [
+          { key: "A", label: "重视对马克思主义基本理论的学习" },
+          { key: "B", label: "注意从中国的实际出发，学习、运用马克思主义" },
+          { key: "C", label: "开始提出知识分子应当同劳动群众相结合的思想" },
+          { key: "D", label: "提出了“马克思主义中国化”的命题" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-6",
+      },
+      {
+        text: "[自测单选]65. 1920年8月，在上海出版的《共产党宣言》第一个中文全译本的译者是（）",
+        options: [
+          { key: "A", label: "陈独秀" },
+          { key: "B", label: "李大钊" },
+          { key: "C", label: "蔡和森" },
+          { key: "D", label: "陈望道" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-7",
+      },
+      {
+        text: "[自测单选]66. 中国共产党的成立，是中华民族发展史上开天辟地的大事变，具有伟大而深远的意义，中国共产党成立于（）",
+        options: [
+          { key: "A", label: "1919年5月" },
+          { key: "B", label: "1920年7月" },
+          { key: "C", label: "1921年5月" },
+          { key: "D", label: "1921年7月" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-8",
+      },
+      {
+        text: "[自测单选]67. 中国共产党领导的中国工人运动第一个高潮的起点是（）",
+        options: [
+          { key: "A", label: "安源路矿工人罢工" },
+          { key: "B", label: "香港海员罢工" },
+          { key: "C", label: "省港工人罢工" },
+          { key: "D", label: "京汉铁路工人罢工" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-9",
+      },
+      {
+        text: "[自测单选]68. 中国共产党第一次明确提出反帝反封建民主革命纲领的会议是（）",
+        options: [
+          { key: "A", label: "中共一大" },
+          { key: "B", label: "中共二大" },
+          { key: "C", label: "中共三大" },
+          { key: "D", label: "中共四大" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-10",
+      },
+      {
+        text: "[202504单选]10. 1923年，北京政府调动军警镇压京汉铁路总同盟罢工制造的惨案是（）",
+        options: [
+          { key: "A", label: "二七惨案" },
+          { key: "B", label: "济南惨案" },
+          { key: "C", label: "下关惨案" },
+          { key: "D", label: "校场口惨案" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：4-11",
+      },
+      {
+        text: "[202510单选]8. 中国共产党召开的决定共产党员以个人身份加入国民党，以实现国共合作的会议是（）",
+        options: [
+          { key: "A", label: "中共二大" },
+          { key: "B", label: "中共三大" },
+          { key: "C", label: "中共四大" },
+          { key: "D", label: "中共五大" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-12",
+      },
+      {
+        text: "[自测单选]69. 第一次国共合作的政治基础是（）",
+        options: [
+          { key: "A", label: "三民主义" },
+          { key: "B", label: "新三民主义" },
+          { key: "C", label: "新民主主义" },
+          { key: "D", label: "社会主义" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：4-13",
+      },
+      {
+        text: "[202504单选]11. 1925年8月广州国民政府将所管辖各部队统一改编为（）",
+        options: [
+          { key: "A", label: "国民军" },
+          { key: "B", label: "东征军" },
+          { key: "C", label: "北伐军" },
+          { key: "D", label: "国民革命军" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-14",
+      },
+      {
+        text: "[自测单选]70. 1925年，掀起全国范围大革命高潮的起点是（）",
+        options: [
+          { key: "A", label: "中华全国总工会成立" },
+          { key: "B", label: "省港大罢工" },
+          { key: "C", label: "安源路矿工人罢工" },
+          { key: "D", label: "五卅运动" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：4-15",
+      },
+    ];
+
+    const CH5_QUESTIONS = [
+      {
+        text: "[自测单选]78. 中国共产党独立领导革命战争，创建人民军队和武装夺取政权的伟大开端是（）",
+        options: [
+          { key: "A", label: "秋收起义" },
+          { key: "B", label: "南昌起义" },
+          { key: "C", label: "广州起义" },
+          { key: "D", label: "百色起义" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-1",
+      },
+      {
+        text: "[202504单选]12. 大革命失败后，中共中央召开的确定土地革命和武装斗争的紧急会议是（）",
+        options: [
+          { key: "A", label: "古田会议" },
+          { key: "B", label: "遵义会议" },
+          { key: "C", label: "八七会议" },
+          { key: "D", label: "瓦窑堡会议" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：5-2",
+      },
+      {
+        text: "[自测单选]77. 1927年，中共八七会议确定的总方针是（）",
+        options: [
+          { key: "A", label: "实行国共合作，建立革命统一战线" },
+          { key: "B", label: "把工作重心由城市转向农村" },
+          { key: "C", label: "建立抗日民族统一战线" },
+          { key: "D", label: "开展土地革命和武装起义" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：5-3",
+      },
+      {
+        text: "[自测单选]75. 1928年10月，国民通过法令，废除北洋时期在形式上还存在的议会制度。该项法令是（）",
+        options: [
+          { key: "A", label: "《中华民国约法》" },
+          { key: "B", label: "《中华民国训政时期约法》" },
+          { key: "C", label: "《五·五宪草》" },
+          { key: "D", label: "《训政纲领》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：5-4",
+      },
+      {
+        text: "[202510单选]10. 1928年底，在东北宣布“遵守三民主义，服从国民政府，改易旗帜”的是（）",
+        options: [
+          { key: "A", label: "张作霖" },
+          { key: "B", label: "张学良" },
+          { key: "C", label: "阎锡山" },
+          { key: "D", label: "冯玉祥" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-5",
+      },
+      {
+        text: "[202504单选]14. 1930年1月，毛泽东提出中国革命“以乡村为中心”思想，初步形成了农村包围城市武装夺取政权理论的著作是（）",
+        options: [
+          { key: "A", label: "《反对本本主义》" },
+          { key: "B", label: "《星星之火，可以燎原》" },
+          { key: "C", label: "《中国的红色政权为什么能够存在？》" },
+          { key: "D", label: "《井冈山的斗争》" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-6",
+      },
+      {
+        text: "[自测单选]80. 中国历史上第一个全国性的工农民主政权是（）",
+        options: [
+          { key: "A", label: "中华苏维埃共和国" },
+          { key: "B", label: "中华苏维埃共和国临时中央政府" },
+          { key: "C", label: "广州苏维埃政府" },
+          { key: "D", label: "海陆丰苏维埃政权" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：5-7",
+      },
+      {
+        text: "[202510单选]11. 1931—1934年，中国共产党内出现的主要错误倾向是（）",
+        options: [
+          { key: "A", label: "右倾机会主义" },
+          { key: "B", label: "“左”倾教条主义" },
+          { key: "C", label: "经验主义" },
+          { key: "D", label: "冒险主义" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-8",
+      },
+      {
+        text: "[202510单选]12. 中共中央、中革军委率中央红军主力开始实行战略转移（即长征）是在（）",
+        options: [
+          { key: "A", label: "1934年1月" },
+          { key: "B", label: "1934年10月" },
+          { key: "C", label: "1935年10月" },
+          { key: "D", label: "1936年10月" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-9",
+      },
+      {
+        text: "[自测单选]82. 1935年，中共中央政治局在长征途中召开扩大会议，开始确立以毛泽东为代表的马克思主义正确路线在党中央的领导地位。这次会议是（）",
+        options: [
+          { key: "A", label: "瓦窑堡会议" },
+          { key: "B", label: "洛川会议" },
+          { key: "C", label: "遵义会议" },
+          { key: "D", label: "古田会议" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：5-10",
+      },
+      {
+        text: "[202504单选]13. 中共中央政治局在遵义会议后成立了全权负责红军军事行动的新三人团，其成员是（）",
+        options: [
+          { key: "A", label: "毛泽东、朱德、周恩来" },
+          { key: "B", label: "毛泽东、周恩来、王稼祥" },
+          { key: "C", label: "毛泽东、周恩来、张闻天" },
+          { key: "D", label: "博古、李德、周恩来" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-11",
+      },
+      {
+        text: "[自测单选]79. 《义勇军进行曲》的曲作者是（）",
+        options: [
+          { key: "A", label: "冼星海" },
+          { key: "B", label: "贺绿汀" },
+          { key: "C", label: "田汉" },
+          { key: "D", label: "聂耳" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：5-12",
+      },
+      {
+        text: "[自测单选]83. 1936年10月，中国工农红军三大主力胜利会师地是（）",
+        options: [
+          { key: "A", label: "陕北吴起镇" },
+          { key: "B", label: "甘肃会宁、静宁将台堡" },
+          { key: "C", label: "四川懋功" },
+          { key: "D", label: "甘孜" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：5-13",
+      },
+    ];
+
+    const CH6_QUESTIONS = [
+      {
+        text: "[自测单选]88. 1931年日本侵略者在中国制造的事件是（）",
+        options: [
+          { key: "A", label: "华北事变" },
+          { key: "B", label: "卢沟桥事变" },
+          { key: "C", label: "八一三事变" },
+          { key: "D", label: "九一八事变" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：6-1",
+      },
+      {
+        text: "[自测单选]91. 1933年5月，在张家口领导成立察哈尔抗日同盟军的国民党爱国将领是（）",
+        options: [
+          { key: "A", label: "蔡廷锴" },
+          { key: "B", label: "蒋光鼐" },
+          { key: "C", label: "冯玉祥" },
+          { key: "D", label: "李济深" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-2",
+      },
+      {
+        text: "[自测单选]92. 1933年5月，国民党西北军将领冯玉祥领导成立的抗日武装力量是（）",
+        options: [
+          { key: "A", label: "东北抗日义勇军" },
+          { key: "B", label: "东北抗日联军" },
+          { key: "C", label: "察哈尔抗日同盟军" },
+          { key: "D", label: "冀中回民支队" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-3",
+      },
+      {
+        text: "[自测单选]94. 1933年11月，在福州发动抗日反蒋事变的国民党爱国将领是（）",
+        options: [
+          { key: "A", label: "蔡廷锴和蒋光鼐" },
+          { key: "B", label: "佟麟阁和赵登禹" },
+          { key: "C", label: "冯玉祥和吉鸿昌" },
+          { key: "D", label: "张学良和杨虎城" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：6-4",
+      },
+      {
+        text: "[自测单选]89. 1935年，日帝国主义为扩大对华侵略而制造的事变是（）",
+        options: [
+          { key: "A", label: "九一八事变" },
+          { key: "B", label: "华北事变" },
+          { key: "C", label: "卢沟桥事变" },
+          { key: "D", label: "八一三事变" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：6-5",
+      },
+      {
+        text: "[自测单选]95. 1935年，中国共产党提出抗日民族统一战线新政策的会议是（）",
+        options: [
+          { key: "A", label: "瓦窑堡会议" },
+          { key: "B", label: "洛川会议" },
+          { key: "C", label: "中共六届六中全会" },
+          { key: "D", label: "中共六届七中全会" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：6-6",
+      },
+      {
+        text: "[202504单选]15. 1936年5月，在共产党人积极参与下，宋庆龄等爱国民主人士发起成立的团体是（）",
+        options: [
+          { key: "A", label: "保卫中国同盟" },
+          { key: "B", label: "全国各界救国联合会" },
+          { key: "C", label: "中国民权保障同盟" },
+          { key: "D", label: "国民参政会" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：6-7",
+      },
+      {
+        text: "[自测单选]90. 1937年，日本帝国主义发动全面侵华战争的事变是（）",
+        options: [
+          { key: "A", label: "九一八事变" },
+          { key: "B", label: "一·二八事变" },
+          { key: "C", label: "华北事变" },
+          { key: "D", label: "卢沟桥事变" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：6-8",
+      },
+      {
+        text: "[202504单选]16. 1937年8月，中国共产党在洛川会议上通过的重要文件是（）",
+        options: [
+          { key: "A", label: "《为抗日救国告全国同胞书》" },
+          { key: "B", label: "《停战议和一致抗日通电》" },
+          { key: "C", label: "《抗日救国十大纲领》" },
+          { key: "D", label: "《关于若干历史问题的决议》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-9",
+      },
+      {
+        text: "[自测单选]99. 抗日战争全面爆发后，中国军队取得第一次重大胜利的战役是（）",
+        options: [
+          { key: "A", label: "平型关战役" },
+          { key: "B", label: "台儿庄战役" },
+          { key: "C", label: "百团大战" },
+          { key: "D", label: "昆仑关战役" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：6-10",
+      },
+      {
+        text: "[自测单选]97. 1937年，在淞沪会战中率领“八百壮士”孤守上海四行仓库的爱国将领是（）",
+        options: [
+          { key: "A", label: "佟麟阁" },
+          { key: "B", label: "赵登禹" },
+          { key: "C", label: "谢晋元" },
+          { key: "D", label: "戴安澜" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-11",
+      },
+      {
+        text: "[202504单选]17. 日本侵略者制造震惊中外的“南京大屠杀”的时间是（）",
+        options: [
+          { key: "A", label: "1931年9月" },
+          { key: "B", label: "1932年1月" },
+          { key: "C", label: "1937年7月" },
+          { key: "D", label: "1937年12月" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：6-12",
+      },
+      {
+        text: "[自测单选]96. 1938年3月，国民党军队在抗日战争正面战场取得胜利的战役是（）",
+        options: [
+          { key: "A", label: "昆仑关战役" },
+          { key: "B", label: "桂南战役" },
+          { key: "C", label: "台儿庄战役" },
+          { key: "D", label: "枣宜战役" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-13",
+      },
+      {
+        text: "[自测单选]98. 1938年，毛泽东发表的系统阐述抗日战争特点、前途和发展规律的著作是（）",
+        options: [
+          { key: "A", label: "《论反对日本帝国主义的策略》" },
+          { key: "B", label: "《论持久战》" },
+          { key: "C", label: "《抗日救国十大纲领》" },
+          { key: "D", label: "《论联合政府》" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：6-14",
+      },
+      {
+        text: "[202504单选]18. 1940年5月，在枣宜会战中以身殉国的国民党爱国将领是（）",
+        options: [
+          { key: "A", label: "张自忠" },
+          { key: "B", label: "赵登禹" },
+          { key: "C", label: "戴安澜" },
+          { key: "D", label: "佟麟阁" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：6-15",
+      },
+      {
+        text: "[自测单选]100. 中国共产党开展的延安整风运动最主要的任务是（）",
+        options: [
+          { key: "A", label: "反对主观主义" },
+          { key: "B", label: "反对宗派主义" },
+          { key: "C", label: "反对官僚主义" },
+          { key: "D", label: "反对党八股" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：6-16",
+      },
+      {
+        text: "[自测单选]101. 1945年8月，发表《对日寇的最后一战》声明的是（）",
+        options: [
+          { key: "A", label: "朱德" },
+          { key: "B", label: "周恩来" },
+          { key: "C", label: "彭德怀" },
+          { key: "D", label: "毛泽东" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：6-17",
+      },
+      {
+        text: "[自测单选]102. 中国人民抗日战争胜利纪念日是（）",
+        options: [
+          { key: "A", label: "8月15日" },
+          { key: "B", label: "9月2日" },
+          { key: "C", label: "9月3日" },
+          { key: "D", label: "9月30日" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：6-18",
+      },
+      {
+        text: "[202504单选]19. 1945年出席联合国制宪会议的中国代表团中，解放区的代表是（）",
+        options: [
+          { key: "A", label: "叶剑英" },
+          { key: "B", label: "董必武" },
+          { key: "C", label: "林伯渠" },
+          { key: "D", label: "王若飞" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：6-19",
+      },
+    ];
+
+    const CH7_QUESTIONS = [
+      {
+        text: "[自测单选]114. 1930年8月，国民党民主人士邓演达领导成立的中间党派是（）",
+        options: [
+          { key: "A", label: "中国国民党临时行动委员会" },
+          { key: "B", label: "中国青年党" },
+          { key: "C", label: "中国民主同盟" },
+          { key: "D", label: "中华职业教育社" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：7-1",
+      },
+      {
+        text: "[自测单选]113. 1941年3月，在大后方抗日民主运动中诞生的民主党派是（）",
+        options: [
+          { key: "A", label: "中国国民党临时行动委员会" },
+          { key: "B", label: "中国民主政团同盟" },
+          { key: "C", label: "中国民主促进会" },
+          { key: "D", label: "中国民主建国会" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：7-2",
+      },
+      {
+        text: "[自测单选]108. 1945年8月，中共中央在《对目前时局的宣言》中明确提出的口号是（）",
+        options: [
+          { key: "A", label: "向北发展，向南防御" },
+          { key: "B", label: "和平、民主、团结" },
+          { key: "C", label: "抗战、团结、进步" },
+          { key: "D", label: "打倒蒋介石，解放全中国" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：7-3",
+      },
+      {
+        text: "[202510单选]13. 为争取和平民主，中国共产党在1945年8月至10月与国民党当局进行了（）",
+        options: [
+          { key: "A", label: "重庆谈判" },
+          { key: "B", label: "西安谈判" },
+          { key: "C", label: "南京谈判" },
+          { key: "D", label: "北平谈判" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：7-4",
+      },
+      {
+        text: "[自测单选]107. 1945年国共两党在重庆谈判中签署的文件是（）",
+        options: [
+          { key: "A", label: "《国内和平协定》" },
+          { key: "B", label: "《和平建国纲领》" },
+          { key: "C", label: "《政府与中共代表会谈纪要》" },
+          { key: "D", label: "《对时局的意见》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：7-5",
+      },
+      {
+        text: "[自测单选]111. 1945年底，昆明学生发动了以“反对内战，争取自由”为主要口号的____运动（）",
+        options: [
+          { key: "A", label: "一二·一" },
+          { key: "B", label: "一二·三〇" },
+          { key: "C", label: "五·二〇" },
+          { key: "D", label: "一二·一三" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：7-6",
+      },
+      {
+        text: "[自测单选]109. 1946年6月，国民党军队挑起全面内战的起点是（）",
+        options: [
+          { key: "A", label: "重点进攻陕甘宁边区" },
+          { key: "B", label: "重点进攻山东解放区" },
+          { key: "C", label: "大举围攻中原解放区" },
+          { key: "D", label: "大举围攻东北解放区" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：7-7",
+      },
+      {
+        text: "[自测单选]110. 1947年10月10日，《中国人民解放军宣言》正式提出的口号是（）",
+        options: [
+          { key: "A", label: "和平、民主、团结" },
+          { key: "B", label: "向北发展、向南防御" },
+          { key: "C", label: "打倒蒋介石，解放全中国" },
+          { key: "D", label: "将革命进行到底" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：7-8",
+      },
+      {
+        text: "[自测单选]116. 1947年，被国民党当局宣布为“非法团体”而被迫解散的中国民主党派是（）",
+        options: [
+          { key: "A", label: "中国国民党革命委员会" },
+          { key: "B", label: "台湾民主自治同盟" },
+          { key: "C", label: "中国致公党" },
+          { key: "D", label: "中国民主同盟" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：7-9",
+      },
+      {
+        text: "[自测单选]112. 1948年1月1日，在香港正式成立的民主党派是（）",
+        options: [
+          { key: "A", label: "中国民主同盟" },
+          { key: "B", label: "中国国民党革命委员会" },
+          { key: "C", label: "中国民主促进会" },
+          { key: "D", label: "中国农工民主党" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：7-10",
+      },
+      {
+        text: "[自测单选]117. 中国人民解放军在1948年9月12日至11月2日进行的重大战役是（）",
+        options: [
+          { key: "A", label: "平津战役" },
+          { key: "B", label: "淮海战役" },
+          { key: "C", label: "渡江战役" },
+          { key: "D", label: "辽沈战役" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：7-11",
+      },
+      {
+        text: "[202510单选]14. 1949年3月，毛泽东明确提出“两个务必”要求的会议是（）",
+        options: [
+          { key: "A", label: "中共六大" },
+          { key: "B", label: "中共六届六中全会" },
+          { key: "C", label: "中共七大" },
+          { key: "D", label: "中共七届二中全会" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：7-12",
+      },
+      {
+        text: "[202510单选]15. 中国人民解放军在1949年4月发起的重大战役是（）",
+        options: [
+          { key: "A", label: "辽沈战役" },
+          { key: "B", label: "平津战役" },
+          { key: "C", label: "渡江战役" },
+          { key: "D", label: "淮海战役" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：7-13",
+      },
+      {
+        text: "[自测单选]119. 1949年6月30日，毛泽东系统阐明中国共产党建国主张的文章是（）",
+        options: [
+          { key: "A", label: "《论人民民主专政》" },
+          { key: "B", label: "《中国革命和中国共产党》" },
+          { key: "C", label: "《新民主主义论》" },
+          { key: "D", label: "《丢掉幻想，准备斗争》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：7-14",
+      },
+      {
+        text: "[自测单选]120. 下列不属于中国革命胜利的基本经验的是（）",
+        options: [
+          { key: "A", label: "统一战线" },
+          { key: "B", label: "武装斗争" },
+          { key: "C", label: "党的建设" },
+          { key: "D", label: "军队建设" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：7-15",
+      },
+    ];
+
+    const CH8_QUESTIONS = [
+      {
+        text: "[自测单选]124. 1951年底至1952年春，中国共产党在党政机关工作人员中开展的运动是（）",
+        options: [
+          { key: "A", label: "肃反运动" },
+          { key: "B", label: "整风、整党运动" },
+          { key: "C", label: "“三反”运动" },
+          { key: "D", label: "“五反”运动" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：8-1",
+      },
+      {
+        text: "[自测单选]128. 新中国发展国民经济第一个五年计划的中心环节是（）",
+        options: [
+          { key: "A", label: "重点发展城市经济" },
+          { key: "B", label: "优先发展重工业" },
+          { key: "C", label: "重点发展农村经济" },
+          { key: "D", label: "优先发展轻工业" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-2",
+      },
+      {
+        text: "[自测单选]129. 新中国开始实施发展国民经济第一个五年计划的时间是（）",
+        options: [
+          { key: "A", label: "1950年" },
+          { key: "B", label: "1951年" },
+          { key: "C", label: "1952年" },
+          { key: "D", label: "1953年" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：8-3",
+      },
+      {
+        text: "[自测单选]130. 我国对资本主义工商业进行社会主义改造的高级形式是（）",
+        options: [
+          { key: "A", label: "公私合营" },
+          { key: "B", label: "经销代销" },
+          { key: "C", label: "加工订货" },
+          { key: "D", label: "统购包销" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：8-4",
+      },
+      {
+        text: "[自测单选]131. 中国进入社会主义社会的主要标志是（）",
+        options: [
+          { key: "A", label: "中华人民共和国的成立" },
+          { key: "B", label: "“一五”计划的制定" },
+          { key: "C", label: "第一届全国人民代表大会的召开" },
+          { key: "D", label: "社会主义三大改造的完成" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：8-5",
+      },
+      {
+        text: "[自测单选]132. ______是最高国家权力机关（）",
+        options: [
+          { key: "A", label: "国务院" },
+          { key: "B", label: "人民法院" },
+          { key: "C", label: "全国人民代表大会" },
+          { key: "D", label: "人民检察院" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：8-6",
+      },
+      {
+        text: "[自测单选]133. 毛泽东在《论十大关系》中提出的处理中国共产党和民主党派关系的方针是（）",
+        options: [
+          { key: "A", label: "长期共存，互相监督" },
+          { key: "B", label: "同甘共苦，同舟共济" },
+          { key: "C", label: "肝胆相照，荣辱与共" },
+          { key: "D", label: "以诚相待，患难与共" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：8-7",
+      },
+      {
+        text: "[自测单选]134. 1957年2月在扩大的最高国务会议上发表《关于正确处理人民内部矛盾的问题》讲话的是（）",
+        options: [
+          { key: "A", label: "毛泽东" },
+          { key: "B", label: "刘少奇" },
+          { key: "C", label: "朱德" },
+          { key: "D", label: "周恩来" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：8-8",
+      },
+      {
+        text: "[自测单选]135. 1957年4月27日，中共中央决定在全党进行一次______的整风运动（）",
+        options: [
+          { key: "A", label: "反对腐败、浪费和官僚主义" },
+          { key: "B", label: "反对官僚主义、宗派主义和主观主义" },
+          { key: "C", label: "反对右倾机会主义" },
+          { key: "D", label: "反对教条主义、经验主义和命令主义" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-9",
+      },
+      {
+        text: "[202504单选]21. 我国在1957年6月开展的政治运动是（）",
+        options: [
+          { key: "A", label: "肃反运动" },
+          { key: "B", label: "反右派运动" },
+          { key: "C", label: "人民公社化运动" },
+          { key: "D", label: "社会主义教育运动" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-10",
+      },
+      {
+        text: "[自测单选]136. 1961年，中共中央决定对国民经济实行“调整、巩固、充实、提高”方针的会议是（）",
+        options: [
+          { key: "A", label: "中共八届五中全会" },
+          { key: "B", label: "中共八届六中全会" },
+          { key: "C", label: "中共八届九中全会" },
+          { key: "D", label: "中共八届十中全会" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：8-11",
+      },
+      {
+        text: "[自测单选]137. 1962年初，中共中央为总结经验教训、明确工作方向召开的会议是（）",
+        options: [
+          { key: "A", label: "南宁会议" },
+          { key: "B", label: "“七千人大会”" },
+          { key: "C", label: "成都会议" },
+          { key: "D", label: "郑州会议" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-12",
+      },
+      {
+        text: "[自测单选]138. 新中国第一次提出实现农业、工业、国防和科学技术“四个现代化”奋斗目标的会议是（）",
+        options: [
+          { key: "A", label: "第一届全国人大一次会议" },
+          { key: "B", label: "第二届全国人大一次会议" },
+          { key: "C", label: "第三届全国人大一次会议" },
+          { key: "D", label: "第四届全国人大一次会议" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：8-13",
+      },
+      {
+        text: "[自测单选]139. 1967年，老一辈革命家与中央文革小组错误做法进行的抗争被诬称为（）",
+        options: [
+          { key: "A", label: "“一月风暴”" },
+          { key: "B", label: "“二月逆流”" },
+          { key: "C", label: "“右倾翻案”" },
+          { key: "D", label: "“反攻倒算”" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-14",
+      },
+      {
+        text: "[自测单选]140. 新中国第一颗原子弹试验成功是在（）",
+        options: [
+          { key: "A", label: "1962年" },
+          { key: "B", label: "1964年" },
+          { key: "C", label: "1967年" },
+          { key: "D", label: "1970年" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-15",
+      },
+      {
+        text: "[自测单选]144. 1964年，中国在科学技术领域取得的重要成就是（）",
+        options: [
+          { key: "A", label: "第一颗原子弹试验成功" },
+          { key: "B", label: "第一颗氢弹试验成功" },
+          { key: "C", label: "第一台万吨水压机试制成功" },
+          { key: "D", label: "第一颗人造卫星发射成功" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：8-16",
+      },
+      {
+        text: "[自测单选]142. 1967年，新中国在科学技术领域取得的重大成就是（）",
+        options: [
+          { key: "A", label: "第一颗原子弹试验成功" },
+          { key: "B", label: "第一颗氢弹试验成功" },
+          { key: "C", label: "第一颗人造卫星发射成功" },
+          { key: "D", label: "第一颗装有核弹头的中近程地地导弹发射成功" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：8-17",
+      },
+      {
+        text: "[自测单选]143. 新中国第一颗人造地球卫星发射成功的时间是（）",
+        options: [
+          { key: "A", label: "1964年10月" },
+          { key: "B", label: "1966年10月" },
+          { key: "C", label: "1967年10月" },
+          { key: "D", label: "1970年4月" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：8-18",
+      },
+      {
+        text: "[自测单选]141. 1970年，新中国在科学技术领域取得的重大成就是（）",
+        options: [
+          { key: "A", label: "第一颗原子弹试验成功" },
+          { key: "B", label: "第一颗氢弹试验成功" },
+          { key: "C", label: "第一颗中近程地地核导弹发射成功" },
+          { key: "D", label: "第一颗人造卫星发射成功" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：8-19",
+      },
+      {
+        text: "[自测单选]145. 新中国恢复在联合国合法席位的时间是（）",
+        options: [
+          { key: "A", label: "1949年" },
+          { key: "B", label: "1956年" },
+          { key: "C", label: "1971年" },
+          { key: "D", label: "1978年" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：8-20",
+      },
+    ];
+
+    const CH9_QUESTIONS = [
+      {
+        text: "[自测单选]148. 我国关于真理标准问题大讨论开始的时间是（）",
+        options: [
+          { key: "A", label: "1976年10月" },
+          { key: "B", label: "1978年5月" },
+          { key: "C", label: "1979年3月" },
+          { key: "D", label: "1981年6月" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-1",
+      },
+      {
+        text: "[自测单选]149. 中国共产党于1978年12月召开的具有历史转折意义的会议是（）",
+        options: [
+          { key: "A", label: "中共十一届三中全会" },
+          { key: "B", label: "中共十一届四中全会" },
+          { key: "C", label: "中共十一届五中全会" },
+          { key: "D", label: "中共十一届六中全会" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：9-2",
+      },
+      {
+        text: "[202510单选]17. 1979年元旦，全国人大常委会发表的重要文献是（）",
+        options: [
+          { key: "A", label: "《为实现民族伟大复兴、推进祖国和平统一而共同奋斗》" },
+          { key: "B", label: "《关于台湾回归祖国实现和平统一的方针政策》" },
+          { key: "C", label: "《为促进祖国统一大业的完成而继续奋斗》" },
+          { key: "D", label: "《告台湾同胞书》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-3",
+      },
+      {
+        text: "[自测单选]150. 邓小平在1979年3月的理论工作务虚会上明确提出，必须坚持（）",
+        options: [
+          { key: "A", label: "四项基本原则" },
+          { key: "B", label: "“两手抓、两手都要硬”的方针" },
+          { key: "C", label: "“三个有利于”的标准" },
+          { key: "D", label: "“一个中国”的原则" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：9-4",
+      },
+      {
+        text: "[自测单选]151. 1981年6月，中共中央通过《关于建国以来党的若干历史问题的决议》的会议是（）",
+        options: [
+          { key: "A", label: "中共十一届三中全会" },
+          { key: "B", label: "中共十一届六中全会" },
+          { key: "C", label: "中共十二届三中全会" },
+          { key: "D", label: "中共十三大" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-5",
+      },
+      {
+        text: "[202504单选]23. 1984年通过《中共中央关于经济体制改革的决定》的重要会议是（）",
+        options: [
+          { key: "A", label: "中共十一届三中全会" },
+          { key: "B", label: "中共十一届六中全会" },
+          { key: "C", label: "中共十二届三中全会" },
+          { key: "D", label: "中共十二届六中全会" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：9-6",
+      },
+      {
+        text: "[自测单选]152. 1984年，中共十二届三中全会通过的重要文件是（）",
+        options: [
+          { key: "A", label: "《关于加快农业发展若干问题的决定》" },
+          { key: "B", label: "《关于经济体制改革的决定》" },
+          { key: "C", label: "《关于科技体制改革的决定》" },
+          { key: "D", label: "《关于教育体制改革的决定》" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-7",
+      },
+      {
+        text: "[自测单选]153. 1987年，中共十三大比较系统地阐述了（）",
+        options: [
+          { key: "A", label: "社会主义初级阶段理论" },
+          { key: "B", label: "社会主义本质理论" },
+          { key: "C", label: "社会主义市场经济理论" },
+          { key: "D", label: "“三个有利于”标准的理论" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：9-8",
+      },
+      {
+        text: "[自测单选]155. 中共十三大正式制定的社会主义现代化建设发展战略是（）",
+        options: [
+          { key: "A", label: "“两步走”" },
+          { key: "B", label: "“两个飞跃”" },
+          { key: "C", label: "“两个大局”" },
+          { key: "D", label: "“三步走”" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-9",
+      },
+      {
+        text: "[202510单选]18. 1988年，七届全国人大一次会议正式批准建立的经济特区是（）",
+        options: [
+          { key: "A", label: "深圳经济特区" },
+          { key: "B", label: "汕头经济特区" },
+          { key: "C", label: "珠海经济特区" },
+          { key: "D", label: "海南经济特区" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-10",
+      },
+      {
+        text: "[自测单选]158. 1990年，中共中央和国务院为进一步推进对外开放作出的战略举措是（）",
+        options: [
+          { key: "A", label: "建立厦门经济特区" },
+          { key: "B", label: "建立海南经济特区" },
+          { key: "C", label: "开发、开放长江三角洲" },
+          { key: "D", label: "开发、开放上海浦东新区" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-11",
+      },
+      {
+        text: "[202510单选]19. 中共十四大明确提出，我国经济体制改革的目标是建立（）",
+        options: [
+          { key: "A", label: "社会主义有计划商品经济体制" },
+          { key: "B", label: "社会主义市场经济体制" },
+          { key: "C", label: "计划为主、市场为辅的经济体制" },
+          { key: "D", label: "市场为主、计划为辅的经济体制" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-12",
+      },
+      {
+        text: "[自测单选]157. 中国对香港恢复行使主权的时间是（）",
+        options: [
+          { key: "A", label: "1997年7月1日" },
+          { key: "B", label: "1997年12月20日" },
+          { key: "C", label: "1998年7月1日" },
+          { key: "D", label: "1999年12月20日" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：9-13",
+      },
+      {
+        text: "[202504单选]24. 中国正式加入世界贸易组织的时间是（）",
+        options: [
+          { key: "A", label: "1988年" },
+          { key: "B", label: "1990年" },
+          { key: "C", label: "1997年" },
+          { key: "D", label: "2001年" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-14",
+      },
+      {
+        text: "[202504单选]25. 明确提出我国在21世纪头二十年实现全面建设小康社会奋斗目标的会议是（）",
+        options: [
+          { key: "A", label: "中共十六大" },
+          { key: "B", label: "中共十七大" },
+          { key: "C", label: "中共十八大" },
+          { key: "D", label: "中共十九大" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：9-15",
+      },
+      {
+        text: "[202510单选]20. 2005年3月，十届全国人大三次会议通过的法律是（）",
+        options: [
+          { key: "A", label: "《中华人民共和国香港特别行政区基本法》" },
+          { key: "B", label: "《中华人民共和国国家安全法》" },
+          { key: "C", label: "《中华人民共和国澳门特别行政区基本法》" },
+          { key: "D", label: "《反分裂国家法》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-16",
+      },
+      {
+        text: "[自测单选]161. 在全国范围内取消农业税的时间是（）",
+        options: [
+          { key: "A", label: "1990年" },
+          { key: "B", label: "1999年" },
+          { key: "C", label: "2001年" },
+          { key: "D", label: "2006年" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：9-17",
+      },
+      {
+        text: "[自测单选]162. 中共十七大明确提出，科学发展观的核心是（）",
+        options: [
+          { key: "A", label: "统筹兼顾" },
+          { key: "B", label: "以人为本" },
+          { key: "C", label: "全面协调可持续" },
+          { key: "D", label: "发展" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-18",
+      },
+      {
+        text: "[自测单选]163. 2010年，中国成为世界（）",
+        options: [
+          { key: "A", label: "第一大经济体" },
+          { key: "B", label: "第二大经济体" },
+          { key: "C", label: "第三大经济体" },
+          { key: "D", label: "第四大经济体" },
+        ],
+        correct: "B",
+        bookRef: "教材章节/页面：9-19",
+      },
+    ];
+
+    const CH10_QUESTIONS = [
+      {
+        text: "[自测单选]168. 2012年，在我国进入全面建成小康社会决定性阶段召开的重要会议是（）",
+        options: [
+          { key: "A", label: "中共十五大" },
+          { key: "B", label: "中共十六大" },
+          { key: "C", label: "中共十七大" },
+          { key: "D", label: "中共十八大" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：10-1",
+      },
+      {
+        text: "[自测单选]21. 中国特色社会主义进入新时代的标志是（）",
+        options: [
+          { key: "A", label: "中共十五大的召开" },
+          { key: "B", label: "中共十六大的召开" },
+          { key: "C", label: "中共十七大的召开" },
+          { key: "D", label: "中共十八大的召开" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：10-2",
+      },
+      {
+        text: "[自测单选]171. 2013年11月，审议通过《关于全面深化改革若干重大问题的决定》的会议是（）",
+        options: [
+          { key: "A", label: "中共十八届一中全会" },
+          { key: "B", label: "中共十八届二中全会" },
+          { key: "C", label: "中共十八届三中全会" },
+          { key: "D", label: "中共十八届四中全会" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：10-3",
+      },
+      {
+        text: "[自测单选]170. 关于十八届三中全会审议通过的重要文件是（）",
+        options: [
+          { key: "A", label: "《中共中央关于全面深化改革若干重大问题的决定》" },
+          { key: "B", label: "《中共中央关于培育和践行社会主义核心价值观的意见》" },
+          { key: "C", label: "《中共中央关于制定国民经济和社会发展第十三个五年规划的建议》" },
+          { key: "D", label: "《中共中央关于新形势下党内政治生活的若干准则》" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：10-4",
+      },
+      {
+        text: "[自测单选]169. 2013年12月，为大力加强理想信念教育，弘扬中华优秀传统文化、革命文化、社会主义先进文化，中共中央办公厅印发的文件是（）",
+        options: [
+          { key: "A", label: "《关于教育体制改革的决定》" },
+          { key: "B", label: "《关于加强社会主义精神文明建设若干重要问题的决议》" },
+          { key: "C", label: "《中共中央关于深化文化体制改革，推动社会主义文化大发展大繁荣若干重大问题的决定》" },
+          { key: "D", label: "《关于培育和践行社会主义核心价值观的意见》" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：10-5",
+      },
+      {
+        text: "[自测单选]23. 中国特色社会主义最本质的特征是（）",
+        options: [
+          { key: "A", label: "中国共产党领导" },
+          { key: "B", label: "人民民主专政" },
+          { key: "C", label: "人民代表大会制度" },
+          { key: "D", label: "全面依法治国" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：10-6",
+      },
+      {
+        text: "[自测单选]176. 全面建成小康社会的底线任务是（）",
+        options: [
+          { key: "A", label: "打赢脱贫攻坚战" },
+          { key: "B", label: "形成开放经济新格局" },
+          { key: "C", label: "推动制造业发展" },
+          { key: "D", label: "大力发展金融业" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：10-7",
+      },
+      {
+        text: "[自测单选]175. 以下不属于党的十八大以来全方位外交发展成果的选项是（）",
+        options: [
+          { key: "A", label: "中国恢复在联合国合法席位" },
+          { key: "B", label: "实施共建一带一路倡议" },
+          { key: "C", label: "发起创办亚洲基础设施投资银行" },
+          { key: "D", label: "举办二十国集团领导人杭州峰会" },
+        ],
+        correct: "A",
+        bookRef: "教材章节/页面：10-8",
+      },
+      {
+        text: "[自测单选]172. 将习近平新时代中国特色社会主义思想确立为党的行动指南的会议是（）",
+        options: [
+          { key: "A", label: "中共十八大" },
+          { key: "B", label: "中共十八届一中全会" },
+          { key: "C", label: "中共十九大" },
+          { key: "D", label: "中共十九届一中全会" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：10-9",
+      },
+      {
+        text: "[自测单选]173. 中共十九大明确指出，我国社会主要矛盾已经转化为（）",
+        options: [
+          { key: "A", label: "人民对于建立工业国的要求同落后的农业国的现实之间的矛盾" },
+          { key: "B", label: "人民对于经济文化迅速发展的需要同经济文化不能满足人民需要的状况之间的矛盾" },
+          { key: "C", label: "人民日益增长的物质文化需要和落后的社会生产之间的矛盾" },
+          { key: "D", label: "人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：10-10",
+      },
+      {
+        text: "[自测单选]174. 2018年3月，审议通过《中华人民共和国宪法修正案》，把习近平新时代中国特色社会主义思想载入国家根本大法的会议是（）",
+        options: [
+          { key: "A", label: "十二届全国人大一次会议" },
+          { key: "B", label: "十二届全国人大二次会议" },
+          { key: "C", label: "十三届全国人大一次会议" },
+          { key: "D", label: "十三届全国人大二次会议" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：10-11",
+      },
+      {
+        text: "[自测单选]24. 中共中央在2018年12月举行大会，庆祝我国实行改革开放（）",
+        options: [
+          { key: "A", label: "20周年" },
+          { key: "B", label: "30周年" },
+          { key: "C", label: "40周年" },
+          { key: "D", label: "50周年" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：10-12",
+      },
+      {
+        text: "[自测单选]177. 庆祝中国共产党成立100周年文艺演出____于6月28日晚在京盛大举行。（）",
+        options: [
+          { key: "A", label: "《伟大祖国》" },
+          { key: "B", label: "《光辉征程》" },
+          { key: "C", label: "《伟大征程》" },
+          { key: "D", label: "《伟大共产党》" },
+        ],
+        correct: "C",
+        bookRef: "教材章节/页面：10-13",
+      },
+      {
+        text: "[自测单选]25. 中国共产党第二十次全国代表大会胜利召开的时间是（）",
+        options: [
+          { key: "A", label: "2019年" },
+          { key: "B", label: "2020年" },
+          { key: "C", label: "2021年" },
+          { key: "D", label: "2022年" },
+        ],
+        correct: "D",
+        bookRef: "教材章节/页面：10-14",
+      },
+    ];
+
+    const WRONG_REVIEW_CHAPTER = 11;
+    const WRONG_STORAGE_KEY = "pansan2-history-wrong-v1";
+    const MASTERY_STORAGE_KEY = "pansan2-history-mastery-v1";
+    const MASTERED_STREAK = 2;
+
+    function normalizeWrongEntries(raw) {
+      if (!Array.isArray(raw)) return [];
+      const seen = new Set();
+      const out = [];
+      for (const e of raw) {
+        if (!e || typeof e.ch !== "number" || typeof e.i !== "number") continue;
+        if (e.ch < 1 || e.ch > 10) continue;
+        const k = e.ch + "-" + e.i;
+        if (seen.has(k)) continue;
+        const qs = questionsForChapter(e.ch);
+        if (e.i < 0 || e.i >= qs.length) continue;
+        seen.add(k);
+        out.push({ ch: e.ch, i: e.i });
+      }
+      return out;
+    }
+
+    function getWrongReviewEntries() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(WRONG_STORAGE_KEY) || "[]");
+        return normalizeWrongEntries(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function saveWrongReviewEntries(entries) {
+      try {
+        localStorage.setItem(WRONG_STORAGE_KEY, JSON.stringify(entries));
+      } catch (_) {}
+    }
+
+    function buildWrongReviewQuestions() {
+      return getWrongReviewEntries().map((e) => questionsForChapter(e.ch)[e.i]);
+    }
+
+    function loadMasteryMap() {
+      try {
+        const raw = localStorage.getItem(MASTERY_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveMasteryMap(map) {
+      try {
+        localStorage.setItem(MASTERY_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function masteryKey(ch, idx) {
+      return ch + "-" + idx;
+    }
+
+    function updateMasteryForQuestion(ch, idx, ok) {
+      if (ch < 1 || ch > 10) return null;
+      const map = loadMasteryMap();
+      const k = masteryKey(ch, idx);
+      const base = map[k] || {
+        tries: 0,
+        correct: 0,
+        wrong: 0,
+        rightStreak: 0,
+        lastOk: false,
+      };
+      base.tries += 1;
+      if (ok) {
+        base.correct += 1;
+        base.rightStreak += 1;
+      } else {
+        base.wrong += 1;
+        base.rightStreak = 0;
+      }
+      base.lastOk = !!ok;
+      map[k] = base;
+      saveMasteryMap(map);
+      recomputeChapterMasteryBadges(map);
+      return base;
+    }
+
+    function isMastered(map, ch, idx) {
+      const k = masteryKey(ch, idx);
+      const e = map[k];
+      return !!(e && e.rightStreak >= MASTERED_STREAK && e.lastOk);
+    }
+
+    const CHAPTER_MEDAL_IMG = "images/勋章.png";
+
+    function ensureChapterMedalImgEl(medal) {
+      let img = medal.querySelector(".chapter-medal-img");
+      if (!img) {
+        medal.textContent = "";
+        img = document.createElement("img");
+        img.className = "chapter-medal-img";
+        img.alt = "";
+        img.src = CHAPTER_MEDAL_IMG;
+        img.decoding = "async";
+        img.loading = "lazy";
+        medal.appendChild(img);
+      }
+      return img;
+    }
+
+    function recomputeChapterMasteryBadges(existingMap) {
+      const map = existingMap || loadMasteryMap();
+      for (let ch = 1; ch <= 10; ch++) {
+        const qs = questionsForChapter(ch);
+        if (!qs.length) continue;
+        let masteredCount = 0;
+        let triedCount = 0;
+        for (let i = 0; i < qs.length; i++) {
+          const k = masteryKey(ch, i);
+          const e = map[k];
+          if (e && e.tries > 0) triedCount += 1;
+          if (isMastered(map, ch, i)) masteredCount += 1;
+        }
+        const row = document.querySelector('.lecture-row[data-chapter="' + ch + '"]');
+        if (!row) continue;
+        let badge = row.querySelector(".chapter-badge");
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "chapter-badge";
+          row.appendChild(badge);
+        }
+        badge.className = "chapter-badge";
+        const chapterCleared = masteredCount >= qs.length && qs.length > 0;
+        if (chapterCleared) {
+          badge.classList.add("chapter-badge--cleared");
+          badge.textContent = "已通关";
+        } else if (triedCount > 0) {
+          badge.classList.add("chapter-badge--in-progress");
+          badge.textContent = "练习中";
+        } else {
+          badge.classList.add("chapter-badge--not-started");
+          badge.textContent = "未开始";
+        }
+
+        let medal = row.querySelector(".chapter-medal");
+        if (!medal) {
+          medal = document.createElement("span");
+          medal.setAttribute("role", "img");
+          row.appendChild(medal);
+        }
+        ensureChapterMedalImgEl(medal);
+        medal.className = "chapter-medal";
+        if (chapterCleared) {
+          medal.classList.add("chapter-medal--earned");
+          medal.setAttribute("aria-label", "本章已通关");
+          medal.title = "本章已通关";
+        } else {
+          medal.classList.add("chapter-medal--locked");
+          medal.setAttribute("aria-label", "本章尚未通关");
+          medal.title =
+            "本章尚未通关；全部题目需连续答对两次才算通关。若之后又答错，勋章会重新置灰。";
+        }
+      }
+    }
+
+    function questionsForChapter(ch) {
+      if (ch === 1) return CH1_QUESTIONS;
+      if (ch === 2) return CH2_QUESTIONS;
+      if (ch === 3) return CH3_QUESTIONS;
+      if (ch === 4) return CH4_QUESTIONS;
+      if (ch === 5) return CH5_QUESTIONS;
+      if (ch === 6) return CH6_QUESTIONS;
+      if (ch === 7) return CH7_QUESTIONS;
+      if (ch === 8) return CH8_QUESTIONS;
+      if (ch === 9) return CH9_QUESTIONS;
+      if (ch === 10) return CH10_QUESTIONS;
+      if (ch === WRONG_REVIEW_CHAPTER) return buildWrongReviewQuestions();
+      return CH10_QUESTIONS;
+    }
+
+    function addWrongQuestion(ch, origIdx) {
+      if (ch < 1 || ch > 10) return;
+      const qs = questionsForChapter(ch);
+      if (origIdx < 0 || origIdx >= qs.length) return;
+      const entries = getWrongReviewEntries();
+      if (entries.some((e) => e.ch === ch && e.i === origIdx)) return;
+      entries.push({ ch, i: origIdx });
+      saveWrongReviewEntries(entries);
+      updateWrongReviewButtonBadge();
+    }
+
+    function getWrongSourceAtDisplayIndex(displayIdx) {
+      const entries = getWrongReviewEntries();
+      const n = entries.length;
+      if (n === 0 || displayIdx < 0 || displayIdx >= n) return null;
+      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const canonIdx = order[displayIdx];
+      if (canonIdx < 0 || canonIdx >= n) return null;
+      return entries[canonIdx] || null;
+    }
+
+    function removeWrongReviewAtDisplayIndex(displayIdx) {
+      const entries = getWrongReviewEntries();
+      const n = entries.length;
+      if (n === 0 || displayIdx < 0 || displayIdx >= n) return;
+      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const canonIdx = order[displayIdx];
+      if (canonIdx < 0 || canonIdx >= n) return;
+      entries.splice(canonIdx, 1);
+      saveWrongReviewEntries(entries);
+      delete historyDisplayOrder[WRONG_REVIEW_CHAPTER];
+      const newQ = questionsForChapter(WRONG_REVIEW_CHAPTER);
+      historyChapterResults[WRONG_REVIEW_CHAPTER] = newQ.length ? newQ.map(() => null) : [];
+      updateWrongReviewButtonBadge();
+
+      if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+
+      if (newQ.length === 0) {
+        closeHistoryQuiz();
+        return;
+      }
+      historyQuizIndex = Math.min(displayIdx, newQ.length - 1);
+      recomputeHistoryStats();
+      renderHistoryQuiz();
+    }
+
+    function updateWrongReviewButtonBadge() {
+      const btn = document.getElementById("btn-wrong-review");
+      if (!btn) return;
+      const n = getWrongReviewEntries().length;
+      btn.textContent = n > 0 ? "错题回顾（" + n + "）" : "错题回顾";
+    }
+
+    function getHistoryQuestions() {
+      return questionsForChapter(historyQuizChapter);
+    }
+
+    const historyListEl = document.getElementById("history-chapter-list");
+    const ch1QuizEl = document.getElementById("history-ch1-quiz");
+    const ch1QuestionText = document.getElementById("ch1-question-text");
+    const ch1OptionsEl = document.getElementById("ch1-options");
+    const ch1Submit = document.getElementById("ch1-submit");
+    const ch1SubmitWrap = document.getElementById("ch1-submit-wrap");
+    const ch1Feedback = document.getElementById("ch1-feedback");
+    const ch1FeedbackResult = document.getElementById("ch1-feedback-result");
+    const ch1FeedbackAnswer = document.getElementById("ch1-feedback-answer");
+    const ch1FeedbackRef = document.getElementById("ch1-feedback-ref");
+    const ch1Done = document.getElementById("ch1-done");
+    const ch1Right = document.getElementById("ch1-right");
+    const ch1Wrong = document.getElementById("ch1-wrong");
+    const ch1Prev = document.getElementById("ch1-prev");
+    const ch1Next = document.getElementById("ch1-next");
+    const chContinueWrap = document.getElementById("ch-continue-next-chapter-wrap");
+    const chContinueBtn = document.getElementById("ch-continue-next-chapter");
+    const quizOrderTools = document.getElementById("quiz-order-tools");
+    const btnShuffleOrder = document.getElementById("btn-shuffle-order");
+    const btnTimelineOrder = document.getElementById("btn-timeline-order");
+
+    let historyQuizChapter = 1;
+    let historyQuizIndex = 0;
+    /** 弹窗「重开/继续」待打开的章节 */
+    let pendingResumeChapter = null;
+    const historyChapterResults = {};
+    /** 返回章节目录时记住的题号（按显示顺序下标），用于「继续」 */
+    const historyChapterLastIndex = {};
+    /** @type {Record<number, number[]|undefined>} 每章题目的显示顺序（下标数组，未打乱则为 undefined） */
+    const historyDisplayOrder = {};
+
+    function shuffleIndices(n) {
+      const a = Array.from({ length: n }, (_, i) => i);
+      for (let i = n - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+      }
+      return a;
+    }
+
+    function getDisplayOrder(ch) {
+      const qs = questionsForChapter(ch);
+      const n = qs.length;
+      const stored = historyDisplayOrder[ch];
+      if (!stored || stored.length !== n) {
+        return Array.from({ length: n }, (_, i) => i);
+      }
+      return stored;
+    }
+
+    function isTimelineOrder(ch) {
+      const o = getDisplayOrder(ch);
+      return o.every((v, i) => v === i);
+    }
+
+    function getQuestionAtDisplayIndex(ch, displayIndex) {
+      const qs = questionsForChapter(ch);
+      const order = getDisplayOrder(ch);
+      return qs[order[displayIndex]];
+    }
+
+    function updateOrderButtons() {
+      const ch = historyQuizChapter;
+      const qs = questionsForChapter(ch);
+      if (!qs.length) {
+        quizOrderTools.hidden = true;
+        return;
+      }
+      quizOrderTools.hidden = false;
+      btnTimelineOrder.disabled = isTimelineOrder(ch);
+    }
+
+    function ensureHistoryResults(ch) {
+      const qs = questionsForChapter(ch);
+      if (!historyChapterResults[ch] || historyChapterResults[ch].length !== qs.length) {
+        historyChapterResults[ch] = qs.map(() => null);
+      }
+    }
+
+    function currentResults() {
+      ensureHistoryResults(historyQuizChapter);
+      return historyChapterResults[historyQuizChapter];
+    }
+
+    function recomputeHistoryStats() {
+      const res = currentResults();
+      let done = 0;
+      let right = 0;
+      let wrong = 0;
+      res.forEach((r) => {
+        if (r) {
+          done += 1;
+          if (r.ok) right += 1;
+          else wrong += 1;
+        }
+      });
+      ch1Done.textContent = String(done);
+      ch1Right.textContent = String(right);
+      ch1Wrong.textContent = String(wrong);
+    }
+
+    const WRONG_TAUNT_LINES = [
+      "这道题再错，课本都要叹气了。",
+      "记忆离家出走中，快把它喊回来。",
+      "友情提示：再瞄一眼教材，别跟正确答案过不去。",
+      "你刚才选的那份自信，我替正确答案收下了。",
+      "错了不丢人，丢人的是同题再错。",
+      "这题要是再错，闹钟都要替你报警了。",
+      "正确选项在边上挥手，你当没看见。",
+      "大脑缓存不足，建议先刷新再选。",
+      "考试可不会这么温柔，赶紧记下这一题。",
+      "知识点在敲门，你装不在家。",
+      "这一分跟你擦肩而过，还回头看了一眼。",
+      "再这么选，笔都要写抗议信了。",
+      "复习时见过它，考试时假装不认识？",
+      "错题本在排队，这题想插队吗？",
+      "冷静，深呼吸，再想想谁才是正确答案。",
+      "正确答案刚发了个好友申请，你点了忽略。",
+      "这题不难，难的是你和它还没混熟。",
+      "再错一次，连鼠标都想帮你点正确答案。",
+      "历史不会重演，但你会在同类型题上重演吗？",
+      "眼睛说会了，手说再想想——听手的。",
+      "这一题在名单上，你刚才念错了名字。",
+      "不是题刁钻，是缘分还没到。",
+      "知识付费了，你这边好像还没到账。",
+      "选错不亏，亏的是不回头看解析。",
+      "这道题偷偷记你一笔，下次记得还。",
+      "你的直觉今天放假，让理性顶个班。",
+      "四个选项里，只有一个不闹心，你避开了。",
+      "别灰心，错题是进步的台阶——先踩这一级。",
+      "翻书千遍，不如这一遍对上号。",
+    ];
+
+    function randomWrongTaunt() {
+      const a = WRONG_TAUNT_LINES;
+      return a[Math.floor(Math.random() * a.length)];
+    }
+
+    function applyCh1Feedback(q, ok) {
+      ch1QuizEl.classList.add("is-submitted");
+      if (ok) {
+        ch1FeedbackResult.className = "feedback-result right";
+        ch1FeedbackResult.textContent = "✓ 答对了！";
+        ch1FeedbackRef.className = "feedback-ref";
+        ch1FeedbackRef.textContent = "";
+      } else {
+        ch1FeedbackResult.className = "feedback-result wrong";
+        ch1FeedbackResult.textContent = "✘答错了！";
+        ch1FeedbackRef.className = "feedback-ref feedback-ref--taunt";
+        ch1FeedbackRef.textContent = randomWrongTaunt();
+      }
+      ch1FeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
+    }
+
+    function ch1StripQuestionPrefix(raw) {
+      if (!raw) return "";
+      const stripped = raw.replace(/^\[[^\]]+\]\s*\d+\.\s*/, "").trim();
+      return stripped || raw.trim();
+    }
+
+    function ch1FormatQuestionLine(index, raw) {
+      return index + 1 + ". " + ch1StripQuestionPrefix(raw);
+    }
+
+    function updateContinueChapterVisibility() {
+      const qs = getHistoryQuestions();
+      const res = currentResults();
+      const saved = res[historyQuizIndex];
+      const last = historyQuizIndex >= qs.length - 1;
+      const canContinue =
+        historyQuizChapter !== WRONG_REVIEW_CHAPTER &&
+        (historyQuizChapter === 1 ||
+          (historyQuizChapter === 2 && CH3_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 3 && CH4_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 4 && CH5_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 5 && CH6_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 6 && CH7_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 7 && CH8_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 8 && CH9_QUESTIONS.length > 0) ||
+          (historyQuizChapter === 9 && CH10_QUESTIONS.length > 0));
+      chContinueWrap.hidden = !(saved && last && canContinue);
+    }
+
+    function renderHistoryQuiz() {
+      const qs = getHistoryQuestions();
+      const res = currentResults();
+
+      if (qs.length === 0) {
+        quizOrderTools.hidden = true;
+        ch1QuestionText.textContent =
+          historyQuizChapter === 2
+            ? "第2章尚未录入题目。可在 index.html 的 CH2_QUESTIONS 中粘贴题目，或返回章节目录。"
+            : historyQuizChapter === 3
+              ? "第3章尚未录入题目。可在 index.html 的 CH3_QUESTIONS 中粘贴题目，或返回章节目录。"
+              : historyQuizChapter === 4
+                ? "第4章尚未录入题目。可在 index.html 的 CH4_QUESTIONS 中粘贴题目，或返回章节目录。"
+                : historyQuizChapter === 5
+                  ? "第5章尚未录入题目。可在 index.html 的 CH5_QUESTIONS 中粘贴题目，或返回章节目录。"
+                  : historyQuizChapter === 6
+                    ? "第6章尚未录入题目。可在 index.html 的 CH6_QUESTIONS 中粘贴题目，或返回章节目录。"
+                    : historyQuizChapter === 7
+                      ? "第7章尚未录入题目。可在 index.html 的 CH7_QUESTIONS 中粘贴题目，或返回章节目录。"
+                      : historyQuizChapter === 8
+                        ? "第8章尚未录入题目。可在 index.html 的 CH8_QUESTIONS 中粘贴题目，或返回章节目录。"
+                        : historyQuizChapter === 9
+                          ? "第9章尚未录入题目。可在 index.html 的 CH9_QUESTIONS 中粘贴题目，或返回章节目录。"
+                          : historyQuizChapter === 10
+                            ? "第10章尚未录入题目。可在 index.html 的 CH10_QUESTIONS 中粘贴题目，或返回章节目录。"
+                            : historyQuizChapter === WRONG_REVIEW_CHAPTER
+                              ? "暂无错题。在各章练习中答错的题目会自动收录到「错题回顾」。"
+                              : "本章暂无题目。";
+        ch1OptionsEl.innerHTML = "";
+        ch1SubmitWrap.classList.add("is-hidden");
+        ch1QuizEl.classList.remove("is-submitted");
+        ch1FeedbackResult.textContent = "";
+        ch1FeedbackAnswer.innerHTML = "";
+        ch1FeedbackRef.className = "feedback-ref";
+        ch1FeedbackRef.textContent = "";
+        ch1Feedback.style.display = "none";
+        ch1Prev.disabled = true;
+        ch1Next.disabled = true;
+        chContinueWrap.hidden = true;
+        document.getElementById("ch1-total").textContent = "0";
+        const quizTypeEmpty = document.getElementById("quiz-type-label");
+        if (quizTypeEmpty) {
+          quizTypeEmpty.textContent =
+            historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
+        }
+        return;
+      }
+
+      ch1Feedback.style.display = "";
+
+      const quizTypeLabel = document.getElementById("quiz-type-label");
+      if (quizTypeLabel) {
+        quizTypeLabel.textContent =
+          historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
+      }
+
+      const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
+      if (!q) return;
+      const saved = res[historyQuizIndex];
+
+      ch1QuestionText.textContent = ch1FormatQuestionLine(historyQuizIndex, q.text);
+      ch1OptionsEl.innerHTML = "";
+      const name = "hq-" + historyQuizChapter + "-" + historyQuizIndex;
+
+      if (saved) {
+        ch1SubmitWrap.classList.add("is-hidden");
+        ch1QuizEl.classList.add("is-submitted");
+        applyCh1Feedback(q, saved.ok);
+      } else {
+        ch1SubmitWrap.classList.remove("is-hidden");
+        ch1QuizEl.classList.remove("is-submitted");
+        ch1FeedbackResult.textContent = "";
+        ch1FeedbackAnswer.innerHTML = "";
+        ch1FeedbackRef.className = "feedback-ref";
+        ch1FeedbackRef.textContent = "";
+        ch1Submit.disabled = true;
+      }
+
+      q.options.forEach((opt) => {
+        const label = document.createElement("label");
+        label.className = "radio-line";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = name;
+        input.value = opt.key;
+        if (saved && saved.picked === opt.key) input.checked = true;
+        if (saved) input.disabled = true;
+        input.addEventListener("change", () => {
+          if (!currentResults()[historyQuizIndex]) ch1Submit.disabled = false;
+        });
+        const ui = document.createElement("span");
+        ui.className = "radio-ui";
+        const tx = document.createElement("span");
+        tx.className = "radio-text";
+        tx.textContent = opt.key + ". " + opt.label;
+        label.appendChild(input);
+        label.appendChild(ui);
+        label.appendChild(tx);
+        ch1OptionsEl.appendChild(label);
+      });
+
+      document.getElementById("ch1-total").textContent = String(qs.length);
+
+      ch1Prev.disabled = historyQuizIndex === 0;
+      if (saved) {
+        ch1Next.disabled = historyQuizIndex >= qs.length - 1;
+        ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      } else {
+        ch1Next.disabled = true;
+        ch1Next.title = "请先提交本题答案";
+      }
+
+      updateContinueChapterVisibility();
+      updateOrderButtons();
+    }
+
+    function hasUnfinishedChapterProgress(ch) {
+      const qs = questionsForChapter(ch);
+      if (!qs.length) return false;
+      const res = historyChapterResults[ch];
+      if (!res || res.length !== qs.length) return false;
+      let answered = 0;
+      for (let i = 0; i < res.length; i++) {
+        if (res[i]) answered += 1;
+      }
+      return answered > 0 && answered < qs.length;
+    }
+
+    const chapterResumeOverlay = document.getElementById("chapter-resume-overlay");
+
+    function showChapterResumeDialog() {
+      if (!chapterResumeOverlay) return;
+      chapterResumeOverlay.hidden = false;
+      chapterResumeOverlay.setAttribute("aria-hidden", "false");
+      const dlg = chapterResumeOverlay.querySelector(".chapter-resume-dialog");
+      if (dlg) dlg.focus();
+    }
+
+    function hideChapterResumeDialog() {
+      if (!chapterResumeOverlay) return;
+      chapterResumeOverlay.hidden = true;
+      chapterResumeOverlay.setAttribute("aria-hidden", "true");
+      pendingResumeChapter = null;
+    }
+
+    function openHistoryQuiz(chapterNum, opts) {
+      const choice = opts && opts.choice;
+
+      if (!choice && hasUnfinishedChapterProgress(chapterNum)) {
+        pendingResumeChapter = chapterNum;
+        showChapterResumeDialog();
+        return;
+      }
+
+      if (!ch1QuizEl.hidden && historyQuizChapter !== chapterNum) {
+        historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
+      }
+
+      if (choice === "continue") {
+        historyListEl.hidden = true;
+        ch1QuizEl.hidden = false;
+        historyQuizChapter = chapterNum;
+        const qs = questionsForChapter(chapterNum);
+        if (!qs.length) {
+          ensureHistoryResults(chapterNum);
+          recomputeHistoryStats();
+          renderHistoryQuiz();
+          return;
+        }
+        const maxIx = Math.max(0, qs.length - 1);
+        let ix = historyChapterLastIndex[chapterNum];
+        if (typeof ix !== "number" || ix < 0) ix = 0;
+        if (ix > maxIx) ix = maxIx;
+        historyQuizIndex = ix;
+        ensureHistoryResults(chapterNum);
+        recomputeHistoryStats();
+        renderHistoryQuiz();
+        return;
+      }
+
+      historyListEl.hidden = true;
+      ch1QuizEl.hidden = false;
+      historyQuizChapter = chapterNum;
+      historyQuizIndex = 0;
+      delete historyDisplayOrder[chapterNum];
+      const qs = questionsForChapter(chapterNum);
+      historyChapterResults[chapterNum] = qs.map(() => null);
+      recomputeHistoryStats();
+      renderHistoryQuiz();
+    }
+
+    function closeHistoryQuiz() {
+      historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
+      ch1QuizEl.hidden = true;
+      historyListEl.hidden = false;
+      ch1QuizEl.classList.remove("is-submitted");
+      chContinueWrap.hidden = true;
+    }
+
+    document.querySelector(".back-to-chapters").addEventListener("click", closeHistoryQuiz);
+
+    if (chapterResumeOverlay) {
+      chapterResumeOverlay.addEventListener("click", (e) => {
+        if (e.target === chapterResumeOverlay) hideChapterResumeDialog();
+      });
+      const btnResumeRestart = document.getElementById("chapter-resume-restart");
+      const btnResumeContinue = document.getElementById("chapter-resume-continue");
+      if (btnResumeRestart) {
+        btnResumeRestart.addEventListener("click", () => {
+          const ch = pendingResumeChapter;
+          hideChapterResumeDialog();
+          if (ch != null) openHistoryQuiz(ch, { choice: "restart" });
+        });
+      }
+      if (btnResumeContinue) {
+        btnResumeContinue.addEventListener("click", () => {
+          const ch = pendingResumeChapter;
+          hideChapterResumeDialog();
+          if (ch != null) openHistoryQuiz(ch, { choice: "continue" });
+        });
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!chapterResumeOverlay || chapterResumeOverlay.hidden) return;
+      e.preventDefault();
+      hideChapterResumeDialog();
+    });
+
+    document.querySelector('[data-chapter="1"]').addEventListener("click", () => openHistoryQuiz(1));
+    document.querySelector('[data-chapter="1"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(1);
+      }
+    });
+
+    document.querySelector('[data-chapter="2"]').addEventListener("click", () => openHistoryQuiz(2));
+    document.querySelector('[data-chapter="2"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(2);
+      }
+    });
+
+    document.querySelector('[data-chapter="3"]').addEventListener("click", () => openHistoryQuiz(3));
+    document.querySelector('[data-chapter="3"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(3);
+      }
+    });
+
+    document.querySelector('[data-chapter="4"]').addEventListener("click", () => openHistoryQuiz(4));
+    document.querySelector('[data-chapter="4"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(4);
+      }
+    });
+
+    document.querySelector('[data-chapter="5"]').addEventListener("click", () => openHistoryQuiz(5));
+    document.querySelector('[data-chapter="5"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(5);
+      }
+    });
+
+    document.querySelector('[data-chapter="6"]').addEventListener("click", () => openHistoryQuiz(6));
+    document.querySelector('[data-chapter="6"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(6);
+      }
+    });
+
+    document.querySelector('[data-chapter="7"]').addEventListener("click", () => openHistoryQuiz(7));
+    document.querySelector('[data-chapter="7"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(7);
+      }
+    });
+
+    document.querySelector('[data-chapter="8"]').addEventListener("click", () => openHistoryQuiz(8));
+    document.querySelector('[data-chapter="8"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(8);
+      }
+    });
+
+    document.querySelector('[data-chapter="9"]').addEventListener("click", () => openHistoryQuiz(9));
+    document.querySelector('[data-chapter="9"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(9);
+      }
+    });
+
+    document.querySelector('[data-chapter="10"]').addEventListener("click", () => openHistoryQuiz(10));
+    document.querySelector('[data-chapter="10"]').addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHistoryQuiz(10);
+      }
+    });
+
+    const btnWrongReview = document.getElementById("btn-wrong-review");
+    if (btnWrongReview) {
+      btnWrongReview.addEventListener("click", () => openHistoryQuiz(WRONG_REVIEW_CHAPTER));
+    }
+    updateWrongReviewButtonBadge();
+    recomputeChapterMasteryBadges();
+
+    ch1Submit.addEventListener("click", () => {
+      const qs = getHistoryQuestions();
+      const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
+      const res = currentResults();
+      const picked = ch1OptionsEl.querySelector('input[type="radio"]:checked');
+      if (!picked || res[historyQuizIndex]) return;
+      const ok = picked.value === q.correct;
+
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+        const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
+        const mastery = src ? updateMasteryForQuestion(src.ch, src.i, ok) : null;
+        res[historyQuizIndex] = { picked: picked.value, ok };
+        recomputeHistoryStats();
+        ch1QuizEl.classList.add("is-submitted");
+        ch1OptionsEl.querySelectorAll("input").forEach((inp) => {
+          inp.disabled = true;
+        });
+        ch1SubmitWrap.classList.add("is-hidden");
+        applyCh1Feedback(q, ok);
+        ch1Prev.disabled = historyQuizIndex === 0;
+        ch1Next.disabled = historyQuizIndex >= qs.length - 1;
+        ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+        updateContinueChapterVisibility();
+
+        if (ok && mastery && mastery.rightStreak >= MASTERED_STREAK) {
+          const idxRemove = historyQuizIndex;
+          setTimeout(() => {
+            if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+            removeWrongReviewAtDisplayIndex(idxRemove);
+          }, 480);
+        }
+        return;
+      }
+
+      res[historyQuizIndex] = { picked: picked.value, ok };
+      if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
+        const order = getDisplayOrder(historyQuizChapter);
+        const origIdx = order[historyQuizIndex];
+        const mastery = updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
+        if (!ok) {
+          addWrongQuestion(historyQuizChapter, origIdx);
+        }
+      }
+      recomputeHistoryStats();
+      ch1QuizEl.classList.add("is-submitted");
+      ch1OptionsEl.querySelectorAll("input").forEach((inp) => {
+        inp.disabled = true;
+      });
+      ch1SubmitWrap.classList.add("is-hidden");
+      applyCh1Feedback(q, ok);
+      ch1Prev.disabled = historyQuizIndex === 0;
+      ch1Next.disabled = historyQuizIndex >= qs.length - 1;
+      ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      updateContinueChapterVisibility();
+    });
+
+    ch1Next.addEventListener("click", () => {
+      const qs = getHistoryQuestions();
+      if (historyQuizIndex < qs.length - 1) {
+        historyQuizIndex += 1;
+        renderHistoryQuiz();
+      }
+    });
+
+    ch1Prev.addEventListener("click", () => {
+      if (historyQuizIndex > 0) {
+        historyQuizIndex -= 1;
+        renderHistoryQuiz();
+      }
+    });
+
+    chContinueBtn.addEventListener("click", () => {
+      if (historyQuizChapter === 1) openHistoryQuiz(2);
+      else if (historyQuizChapter === 2) openHistoryQuiz(3);
+      else if (historyQuizChapter === 3) openHistoryQuiz(4);
+      else if (historyQuizChapter === 4) openHistoryQuiz(5);
+      else if (historyQuizChapter === 5) openHistoryQuiz(6);
+      else if (historyQuizChapter === 6) openHistoryQuiz(7);
+      else if (historyQuizChapter === 7) openHistoryQuiz(8);
+      else if (historyQuizChapter === 8) openHistoryQuiz(9);
+      else if (historyQuizChapter === 9) openHistoryQuiz(10);
+    });
+
+    btnShuffleOrder.addEventListener("click", () => {
+      const ch = historyQuizChapter;
+      const qs = questionsForChapter(ch);
+      const n = qs.length;
+      if (n < 2) return;
+      historyDisplayOrder[ch] = shuffleIndices(n);
+      historyChapterResults[ch] = qs.map(() => null);
+      historyQuizIndex = 0;
+      ch1QuizEl.classList.remove("is-submitted");
+      recomputeHistoryStats();
+      renderHistoryQuiz();
+    });
+
+    btnTimelineOrder.addEventListener("click", () => {
+      const ch = historyQuizChapter;
+      delete historyDisplayOrder[ch];
+      const qs = questionsForChapter(ch);
+      historyChapterResults[ch] = qs.map(() => null);
+      historyQuizIndex = 0;
+      ch1QuizEl.classList.remove("is-submitted");
+      recomputeHistoryStats();
+      renderHistoryQuiz();
+    });
+  </script>
+</body>
+</html>
