@@ -657,9 +657,15 @@
       }
     }
     @media (max-width: 640px) {
+      /* 竖屏不显示说明句，只保留「题序」+ 打乱/顺序，省一行 */
+      .quiz-order-hint {
+        display: none !important;
+      }
       .quiz-order-panel {
         flex-direction: column;
         align-items: stretch;
+        margin-top: 6px;
+        padding-top: 6px;
       }
       .quiz-order-buttons {
         width: 100%;
@@ -918,7 +924,7 @@
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="quiz-order-hint">默认按教材时间线；可打乱自测。</span>
+                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；可打乱自测。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-timeline-order" disabled title="恢复教材时间线顺序">顺序</button>
