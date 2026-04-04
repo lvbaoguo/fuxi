@@ -1063,6 +1063,26 @@
           <p class="quiz-stats" id="mq-stats">
             本次测试共<span id="mq-total">0</span>题，已做<span id="mq-done">0</span>题，做对<span class="stat-correct" id="mq-right">0</span>题，做错<span class="stat-wrong" id="mq-wrong">0</span>题
           </p>
+          <div class="quiz-order-tools" id="marx-quiz-order-tools" hidden>
+            <details class="quiz-order-fold" id="marx-quiz-order-fold">
+              <summary class="quiz-order-summary">题序</summary>
+              <div class="quiz-order-panel">
+                <span id="marx-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；可打乱自测。</span>
+                <div class="quiz-order-buttons">
+                  <button type="button" id="btn-marx-shuffle-order" title="打乱题序">打乱</button>
+                  <button type="button" id="btn-marx-timeline-order" disabled title="恢复教材顺序">顺序</button>
+                </div>
+              </div>
+            </details>
+            <script>
+              (function () {
+                var el = document.getElementById("marx-quiz-order-fold");
+                if (!el) return;
+                if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
+                else el.removeAttribute("open");
+              })();
+            </script>
+          </div>
           <p class="quiz-type" id="mq-quiz-type">导论 · 单项选择题</p>
           <p class="quiz-question" id="mq-question-text"></p>
           <div class="quiz-options" id="mq-options" role="radiogroup" aria-label="选项"></div>
@@ -1749,6 +1769,30 @@
       return marxBaseQuestionsForChapter(ch);
     }
 
+    /** 马原各章题目显示顺序（下标置换；未打乱则为 undefined） */
+    const marxDisplayOrder = {};
+
+    function getMarxDisplayOrder(ch) {
+      const qs = marxQuestionsForChapter(ch);
+      const n = qs.length;
+      const stored = marxDisplayOrder[ch];
+      if (!stored || stored.length !== n) {
+        return Array.from({ length: n }, (_, i) => i);
+      }
+      return stored;
+    }
+
+    function isMarxTimelineOrder(ch) {
+      const o = getMarxDisplayOrder(ch);
+      return o.every((v, i) => v === i);
+    }
+
+    function getMarxQuestionAtDisplayIndex(ch, displayIndex) {
+      const qs = marxQuestionsForChapter(ch);
+      const order = getMarxDisplayOrder(ch);
+      return qs[order[displayIndex]];
+    }
+
     function addMarxWrongQuestion(ch, origIdx) {
       if (ch < 1 || ch > 8) return;
       const qs = marxBaseQuestionsForChapter(ch);
@@ -1764,15 +1808,22 @@
       const entries = getMarxWrongEntries();
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return null;
-      return entries[displayIdx] || null;
+      const order = getMarxDisplayOrder(WRONG_REVIEW_MARX_CHAPTER);
+      const canonIdx = order[displayIdx];
+      if (canonIdx < 0 || canonIdx >= n) return null;
+      return entries[canonIdx] || null;
     }
 
     function removeMarxWrongReviewAtDisplayIndex(displayIdx) {
       const entries = getMarxWrongEntries();
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return;
-      entries.splice(displayIdx, 1);
+      const order = getMarxDisplayOrder(WRONG_REVIEW_MARX_CHAPTER);
+      const canonIdx = order[displayIdx];
+      if (canonIdx < 0 || canonIdx >= n) return;
+      entries.splice(canonIdx, 1);
       saveMarxWrongEntries(entries);
+      delete marxDisplayOrder[WRONG_REVIEW_MARX_CHAPTER];
       const newQ = marxQuestionsForChapter(WRONG_REVIEW_MARX_CHAPTER);
       marxChapterResults[String(WRONG_REVIEW_MARX_CHAPTER)] = newQ.length ? newQ.map(() => null) : [];
       persistMarxResults();
@@ -1879,6 +1930,21 @@
     const mqFeedbackRef = document.getElementById("mq-feedback-ref");
     const mqPrev = document.getElementById("mq-prev");
     const mqNext = document.getElementById("mq-next");
+    const marxQuizOrderTools = document.getElementById("marx-quiz-order-tools");
+    const btnMarxShuffleOrder = document.getElementById("btn-marx-shuffle-order");
+    const btnMarxTimelineOrder = document.getElementById("btn-marx-timeline-order");
+
+    function updateMarxOrderButtons() {
+      const ch = marxQuizChapter;
+      const qs = marxQuestionsForChapter(ch);
+      if (!marxQuizOrderTools || !btnMarxTimelineOrder) return;
+      if (!qs.length) {
+        marxQuizOrderTools.hidden = true;
+        return;
+      }
+      marxQuizOrderTools.hidden = false;
+      btnMarxTimelineOrder.disabled = isMarxTimelineOrder(ch);
+    }
 
     function marxCurrentResults() {
       ensureMarxResults(marxQuizChapter);
@@ -1950,6 +2016,7 @@
       }
 
       if (!qs.length || !res) {
+        if (marxQuizOrderTools) marxQuizOrderTools.hidden = true;
         if (mqQuestionText) {
           mqQuestionText.textContent =
             marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER
@@ -1963,7 +2030,7 @@
       }
 
       if (mqFeedback) mqFeedback.style.display = "";
-      const q = qs[marxQuizIndex];
+      const q = getMarxQuestionAtDisplayIndex(marxQuizChapter, marxQuizIndex);
       if (!q) return;
       const saved = res[marxQuizIndex];
 
@@ -2015,6 +2082,7 @@
         mqNext.disabled = true;
         mqNext.title = "请先提交本题答案";
       }
+      updateMarxOrderButtons();
     }
 
     function openMarxChapterStub(row) {
@@ -2061,6 +2129,7 @@
 
       marxQuizChapter = ch;
       marxQuizIndex = 0;
+      delete marxDisplayOrder[ch];
       ensureMarxResults(ch);
       const qs = marxQuestionsForChapter(ch);
       const key = String(ch);
@@ -2128,7 +2197,7 @@
     if (mqSubmit) {
       mqSubmit.addEventListener("click", () => {
         const qs = marxQuestionsForChapter(marxQuizChapter);
-        const q = qs[marxQuizIndex];
+        const q = getMarxQuestionAtDisplayIndex(marxQuizChapter, marxQuizIndex);
         const res = marxCurrentResults();
         const picked = mqOptionsEl.querySelector('input[type="radio"]:checked');
         if (!picked || !q || res[marxQuizIndex]) return;
@@ -2160,9 +2229,11 @@
         }
 
         res[marxQuizIndex] = { picked: picked.value, ok };
-        updateMarxMasteryForQuestion(marxQuizChapter, marxQuizIndex, ok);
+        const order = getMarxDisplayOrder(marxQuizChapter);
+        const origIdx = order[marxQuizIndex];
+        updateMarxMasteryForQuestion(marxQuizChapter, origIdx, ok);
         if (!ok) {
-          addMarxWrongQuestion(marxQuizChapter, marxQuizIndex);
+          addMarxWrongQuestion(marxQuizChapter, origIdx);
         }
         persistMarxResults();
         recomputeMarxStats();
@@ -4278,12 +4349,14 @@
     const btnTimelineOrder = document.getElementById("btn-timeline-order");
 
     (function syncQuizOrderFoldOnResize() {
-      const fold = document.getElementById("quiz-order-fold");
-      if (!fold) return;
       const mq = window.matchMedia("(min-width: 641px)");
       mq.addEventListener("change", () => {
-        if (mq.matches) fold.setAttribute("open", "");
-        else fold.removeAttribute("open");
+        ["quiz-order-fold", "marx-quiz-order-fold"].forEach((id) => {
+          const fold = document.getElementById(id);
+          if (!fold) return;
+          if (mq.matches) fold.setAttribute("open", "");
+          else fold.removeAttribute("open");
+        });
       });
     })();
 
@@ -4850,6 +4923,35 @@
       recomputeHistoryStats();
       renderHistoryQuiz();
     });
+
+    if (btnMarxShuffleOrder) {
+      btnMarxShuffleOrder.addEventListener("click", () => {
+        const ch = marxQuizChapter;
+        const qs = marxQuestionsForChapter(ch);
+        const n = qs.length;
+        if (n < 2) return;
+        marxDisplayOrder[ch] = shuffleIndices(n);
+        marxChapterResults[String(ch)] = qs.map(() => null);
+        marxQuizIndex = 0;
+        if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
+        persistMarxResults();
+        recomputeMarxStats();
+        renderMarxQuiz();
+      });
+    }
+    if (btnMarxTimelineOrder) {
+      btnMarxTimelineOrder.addEventListener("click", () => {
+        const ch = marxQuizChapter;
+        delete marxDisplayOrder[ch];
+        const qs = marxQuestionsForChapter(ch);
+        marxChapterResults[String(ch)] = qs.map(() => null);
+        marxQuizIndex = 0;
+        if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
+        persistMarxResults();
+        recomputeMarxStats();
+        renderMarxQuiz();
+      });
+    }
   </script>
 </body>
 </html>
