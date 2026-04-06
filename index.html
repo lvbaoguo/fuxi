@@ -715,6 +715,114 @@
       font-weight: 600;
     }
 
+    /* 近代史 · 本章助学要点（与马原同一交互） */
+    .history-chapter-notes-fold {
+      margin: 0 0 16px;
+      border-radius: 10px;
+      border: 1px solid #90caf9;
+      background: linear-gradient(165deg, #e3f2fd 0%, #f8fafc 55%, #fff 100%);
+      box-shadow: 0 1px 0 rgba(13, 71, 161, 0.06);
+    }
+    .history-chapter-notes-fold[hidden] {
+      display: none !important;
+    }
+    .history-chapter-notes-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0d47a1;
+      padding: 10px 12px;
+      letter-spacing: 0.02em;
+    }
+    .history-chapter-notes-summary::-webkit-details-marker {
+      display: none;
+    }
+    .history-chapter-notes-summary::before {
+      content: "📌 ";
+    }
+    .history-chapter-notes-body {
+      padding: 0 12px 12px;
+      font-size: 13px;
+      line-height: 1.68;
+      color: var(--text);
+      border-top: 1px dashed rgba(25, 118, 210, 0.28);
+      max-height: min(52vh, 560px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .history-chapter-notes-body p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .history-chapter-notes-body ul {
+      margin: 0;
+      padding-left: 1.2em;
+    }
+    .history-chapter-notes-body li {
+      margin: 7px 0;
+    }
+    .history-chapter-notes-body strong {
+      color: #0d47a1;
+      font-weight: 600;
+    }
+
+    /* 习思想 · 本章助学要点 */
+    .xi-chapter-notes-fold {
+      margin: 0 0 16px;
+      border-radius: 10px;
+      border: 1px solid #ffcdd2;
+      background: linear-gradient(165deg, #ffebee 0%, #fafafa 55%, #fff 100%);
+      box-shadow: 0 1px 0 rgba(183, 28, 28, 0.06);
+    }
+    .xi-chapter-notes-fold[hidden] {
+      display: none !important;
+    }
+    .xi-chapter-notes-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: #b71c1c;
+      padding: 10px 12px;
+      letter-spacing: 0.02em;
+    }
+    .xi-chapter-notes-summary::-webkit-details-marker {
+      display: none;
+    }
+    .xi-chapter-notes-summary::before {
+      content: "📌 ";
+    }
+    .xi-chapter-notes-body {
+      padding: 0 12px 12px;
+      font-size: 13px;
+      line-height: 1.68;
+      color: var(--text);
+      border-top: 1px dashed rgba(183, 28, 28, 0.28);
+      max-height: min(52vh, 560px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .xi-chapter-notes-body p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .xi-chapter-notes-body ul {
+      margin: 0;
+      padding-left: 1.2em;
+    }
+    .xi-chapter-notes-body li {
+      margin: 7px 0;
+    }
+    .xi-chapter-notes-body strong {
+      color: #7f0000;
+      font-weight: 600;
+    }
+
     @media (min-width: 641px) {
       .quiz-order-fold > .quiz-order-summary {
         display: none;
@@ -789,10 +897,14 @@
         min-height: 44px;
         align-items: center;
       }
-      .marx-chapter-notes-fold {
+      .marx-chapter-notes-fold,
+      .history-chapter-notes-fold,
+      .xi-chapter-notes-fold {
         margin-bottom: 12px;
       }
-      .marx-chapter-notes-summary {
+      .marx-chapter-notes-summary,
+      .history-chapter-notes-summary,
+      .xi-chapter-notes-summary {
         font-size: 12px;
         padding: 6px 10px;
         border-radius: 8px;
@@ -800,7 +912,9 @@
         background: #fafbfc;
         color: var(--muted);
       }
-      .marx-chapter-notes-body {
+      .marx-chapter-notes-body,
+      .history-chapter-notes-body,
+      .xi-chapter-notes-body {
         max-height: min(42vh, 360px);
       }
     }
@@ -1047,6 +1161,20 @@
           <p class="quiz-stats" id="ch1-quiz-stats">
             本次测试共<span id="ch1-total">29</span>题，已做<span id="ch1-done">0</span>题，做对<span class="stat-correct" id="ch1-right">0</span>题，做错<span class="stat-wrong" id="ch1-wrong">0</span>题
           </p>
+          <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
+            <summary class="history-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
+            <div class="history-chapter-notes-body" id="hist-chapter-notes-body">
+              <p>刷题前可展开看一眼，把章节在脑子里「挂个钩」，再做题会顺一点。不能替代教材与系统学习。</p>
+            </div>
+          </details>
+          <script>
+            (function () {
+              var el = document.getElementById("hist-chapter-notes-fold");
+              if (!el) return;
+              if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
+              else el.removeAttribute("open");
+            })();
+          </script>
           <div class="quiz-order-tools" id="quiz-order-tools" hidden>
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
@@ -1252,6 +1380,20 @@
           <p class="quiz-stats" id="xq-stats">
             本次测试共<span id="xq-total">0</span>题，已做<span id="xq-done">0</span>题，做对<span class="stat-correct" id="xq-right">0</span>题，做错<span class="stat-wrong" id="xq-wrong">0</span>题
           </p>
+          <details class="xi-chapter-notes-fold" id="xi-chapter-notes-fold" hidden>
+            <summary class="xi-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
+            <div class="xi-chapter-notes-body" id="xi-chapter-notes-body">
+              <p>刷题前可展开看一眼，把章节在脑子里「挂个钩」，再做题会顺一点。不能替代教材与系统学习。</p>
+            </div>
+          </details>
+          <script>
+            (function () {
+              var el = document.getElementById("xi-chapter-notes-fold");
+              if (!el) return;
+              if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
+              else el.removeAttribute("open");
+            })();
+          </script>
           <div class="quiz-order-tools" id="xi-quiz-order-tools" hidden>
             <details class="quiz-order-fold" id="xi-quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
@@ -9480,6 +9622,137 @@
       "第17章 · 单项选择题",
     ];
 
+    /** 习思想各章助学纲要（章次与题库一致：1=导论 … 18=第17章） */
+    const XI_CHAPTER_NOTES_HTML = {
+      1:
+        "<p><strong>导论</strong>：习近平新时代中国特色社会主义思想的历史地位与「六个必须坚持」等总论表述。</p>" +
+        "<ul>" +
+        "<li><strong>两个结合</strong>：马克思主义基本原理同中国具体实际、同中华优秀传统文化相结合。</li>" +
+        "<li><strong>六个必须坚持</strong>：人民至上、自信自立、守正创新、问题导向、系统观念、胸怀天下。</li>" +
+        "<li><strong>历史责任</strong>：新时代坚持和发展中国特色社会主义、以中国式现代化推进民族复兴。</li>" +
+        "<li><strong>易混</strong>：「十个明确」「十四个坚持」「十三个方面成就」各是不同层面的概括，题干问「坚持什么」优先对表「十四个坚持」等。</li>" +
+        "</ul>",
+      2:
+        "<p><strong>第1章</strong>：新时代坚持和发展中国特色社会主义——道路、理论、制度、文化；四个自信。</p>" +
+        "<ul>" +
+        "<li><strong>中国特色社会主义</strong>：科学社会主义逻辑与中国社会发展历史逻辑的辩证统一。</li>" +
+        "<li><strong>四个自信</strong>：道路、理论、制度、文化。</li>" +
+        "<li><strong>易混</strong>：「中国特色社会主义最本质特征」→ 党的全面领导（与马原、史纲表述衔接）。</li>" +
+        "</ul>",
+      3:
+        "<p><strong>第2章</strong>：中国式现代化——特征、本质要求、重大原则。</p>" +
+        "<ul>" +
+        "<li><strong>中国特色</strong>：人口规模巨大、全体人民共同富裕、物质文明和精神文明相协调、人与自然和谐共生、走和平发展道路。</li>" +
+        "<li><strong>本质要求</strong>：坚持中国共产党领导、坚持中国特色社会主义等（对表教材最新表述）。</li>" +
+        "<li><strong>易混</strong>：「现代化」≠西方化；共同富裕是长期过程。</li>" +
+        "</ul>",
+      4:
+        "<p><strong>第3章</strong>：坚持党的全面领导——最高政治领导力量、制度优势。</p>" +
+        "<ul>" +
+        "<li><strong>党的领导</strong>：中国特色社会主义最本质特征、最大优势。</li>" +
+        "<li><strong>全面领导</strong>：党总揽全局、协调各方；民主集中制。</li>" +
+        "<li><strong>易混</strong>：「党政军民学，东西南北中」；党的领导、人民当家作主、依法治国有机统一。</li>" +
+        "</ul>",
+      5:
+        "<p><strong>第4章</strong>：坚持以人民为中心——根本立场、发展为了人民、依靠人民。</p>" +
+        "<ul>" +
+        "<li><strong>人民立场</strong>：党的根本政治立场；全心全意为人民服务。</li>" +
+        "<li><strong>群众路线</strong>：从群众中来、到群众中去；全过程人民民主与民生福祉。</li>" +
+        "<li><strong>易混</strong>：「以人民为中心」与「以经济建设为中心」关系——发展为了人民。</li>" +
+        "</ul>",
+      6:
+        "<p><strong>第5章</strong>：全面深化改革开放——改革开放是决定当代中国命运的关键一招。</p>" +
+        "<ul>" +
+        "<li><strong>全面深化改革</strong>：总目标（完善和发展中国特色社会主义制度、推进国家治理体系和治理能力现代化）。</li>" +
+        "<li><strong>高水平开放</strong>：互利共赢；共建「一带一路」等。</li>" +
+        "<li><strong>易混</strong>：「改革」是社会主义制度自我完善和发展。</li>" +
+        "</ul>",
+      7:
+        "<p><strong>第6章</strong>：推动高质量发展——新发展阶段、新发展理念、新发展格局。</p>" +
+        "<ul>" +
+        "<li><strong>新发展理念</strong>：创新、协调、绿色、开放、共享。</li>" +
+        "<li><strong>新发展格局</strong>：以国内大循环为主体、国内国际双循环相互促进。</li>" +
+        "<li><strong>易混</strong>：高质量发展是首要任务；供给侧结构性改革主线。</li>" +
+        "</ul>",
+      8:
+        "<p><strong>第7章</strong>：教育、科技、人才战略——科技自立自强、人才引领驱动。</p>" +
+        "<ul>" +
+        "<li><strong>优先发展教育</strong>：立德树人；教育强国。</li>" +
+        "<li><strong>科技自立自强</strong>：国家战略支撑；创新驱动发展。</li>" +
+        "<li><strong>易混</strong>：「第一生产力」「第一资源」「第一动力」等表述。</li>" +
+        "</ul>",
+      9:
+        "<p><strong>第8章</strong>：发展全过程人民民主——人民当家作主制度体系。</p>" +
+        "<ul>" +
+        "<li><strong>全过程人民民主</strong>：全链条、全方位、全覆盖；人民代表大会制度是根本政治制度。</li>" +
+        "<li><strong>统一战线</strong>：爱国统一战线；协商民主。</li>" +
+        "<li><strong>易混</strong>：民主不是装饰品；选举民主与协商民主结合。</li>" +
+        "</ul>",
+      10:
+        "<p><strong>第9章</strong>：全面依法治国——中国特色社会主义法治道路。</p>" +
+        "<ul>" +
+        "<li><strong>法治体系</strong>：法律规范、法治实施、监督、保障、党内法规体系。</li>" +
+        "<li><strong>根本遵循</strong>：习近平法治思想；党的领导、人民当家作主、依法治国有机统一。</li>" +
+        "<li><strong>易混</strong>：「科学立法、严格执法、公正司法、全民守法」。</li>" +
+        "</ul>",
+      11:
+        "<p><strong>第10章</strong>：建设社会主义文化强国——意识形态、核心价值观、文化自信。</p>" +
+        "<ul>" +
+        "<li><strong>意识形态工作</strong>：极端重要；马克思主义在意识形态领域指导地位。</li>" +
+        "<li><strong>社会主义核心价值观</strong>：国家、社会、公民三个层面。</li>" +
+        "<li><strong>易混</strong>：「两个文明」协调；中华优秀传统文化创造性转化、创新性发展。</li>" +
+        "</ul>",
+      12:
+        "<p><strong>第11章</strong>：以保障和改善民生为重点加强社会建设——共同富裕、社会治理。</p>" +
+        "<ul>" +
+        "<li><strong>民生</strong>：幼有所育、学有所教、劳有所得、病有所医、老有所养、住有所居、弱有所扶。</li>" +
+        "<li><strong>社会治理</strong>：共建共治共享；平安中国。</li>" +
+        "<li><strong>易混</strong>：保障与改善民生与经济发展相协调。</li>" +
+        "</ul>",
+      13:
+        "<p><strong>第12章</strong>：建设社会主义生态文明——人与自然和谐共生的现代化。</p>" +
+        "<ul>" +
+        "<li><strong>生态文明理念</strong>：绿水青山就是金山银山；节约优先、保护优先、自然恢复为主。</li>" +
+        "<li><strong>「双碳」等</strong>：积极稳妥推进碳达峰碳中和（对表教材表述）。</li>" +
+        "<li><strong>易混</strong>：生态环境是最普惠的民生福祉。</li>" +
+        "</ul>",
+      14:
+        "<p><strong>第13章</strong>：维护和塑造国家安全——总体国家安全观。</p>" +
+        "<ul>" +
+        "<li><strong>总体国家安全观</strong>：以人民安全为宗旨、政治安全为根本、经济安全为基础等。</li>" +
+        "<li><strong>统筹</strong>：发展和安全；传统与非传统安全。</li>" +
+        "<li><strong>易混</strong>：国家安全一切为了人民、一切依靠人民。</li>" +
+        "</ul>",
+      15:
+        "<p><strong>第14章</strong>：建设巩固国防和强大人民军队——强军目标、党指挥枪。</p>" +
+        "<ul>" +
+        "<li><strong>强军目标</strong>：听党指挥、能打胜仗、作风优良。</li>" +
+        "<li><strong>根本原则</strong>：党对人民军队的绝对领导。</li>" +
+        "<li><strong>易混</strong>：人民军队鲜明特色和政治优势。</li>" +
+        "</ul>",
+      16:
+        "<p><strong>第15章</strong>：坚持「一国两制」和推进祖国完全统一。</p>" +
+        "<ul>" +
+        "<li><strong>一国两制</strong>：港澳「一国两制」方针；中央全面管治权与高度自治统一。</li>" +
+        "<li><strong>台湾问题</strong>：一个中国原则；反对「台独」分裂。</li>" +
+        "<li><strong>易混</strong>：「一国」是根、「两制」从属和服务于「一国」。</li>" +
+        "</ul>",
+      17:
+        "<p><strong>第16章</strong>：中国特色大国外交与人类命运共同体。</p>" +
+        "<ul>" +
+        "<li><strong>外交宗旨</strong>：维护世界和平、促进共同发展；独立自主和平外交政策。</li>" +
+        "<li><strong>人类命运共同体</strong>：持久和平、普遍安全、共同繁荣、开放包容、清洁美丽。</li>" +
+        "<li><strong>易混</strong>：真正的多边主义；共商共建共享（全球发展倡议、安全倡议、文明倡议等对表教材）。</li>" +
+        "</ul>",
+      18:
+        "<p><strong>第17章</strong>：全面从严治党——自我革命、跳出历史周期率。</p>" +
+        "<ul>" +
+        "<li><strong>自我革命</strong>：党最鲜明品格；全面从严治党永远在路上。</li>" +
+        "<li><strong>政治建设</strong>：统领党的各项建设；反腐败是最彻底的自我革命。</li>" +
+        "<li><strong>易混</strong>：「窑洞对」两个答案：人民监督、自我革命。</li>" +
+        "</ul>",
+    };
+
     function xiBaseQuestionsForChapter(ch) {
       if (ch === 1) return XI_M1_QUESTIONS;
       if (ch === 2) return XI_M2_QUESTIONS;
@@ -9892,6 +10165,22 @@
       xqFeedbackRef.textContent = refBody ? "解析：" + refBody : "";
     }
 
+    function updateXiChapterNotesPanel() {
+      const fold = document.getElementById("xi-chapter-notes-fold");
+      const body = document.getElementById("xi-chapter-notes-body");
+      if (!fold || !body) return;
+      if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+        fold.hidden = true;
+        return;
+      }
+      if (xiQuizChapter < 1 || xiQuizChapter > 18) {
+        fold.hidden = true;
+        return;
+      }
+      fold.hidden = false;
+      body.innerHTML = XI_CHAPTER_NOTES_HTML[xiQuizChapter] || "";
+    }
+
     function updateXiContinueChapterVisibility() {
       if (!xqContinueWrap) return;
       const qs = xiQuestionsForChapter(xiQuizChapter);
@@ -9933,8 +10222,12 @@
         if (xqOptionsEl) xqOptionsEl.innerHTML = "";
         if (xqSubmitWrap) xqSubmitWrap.classList.add("is-hidden");
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
+        const xiNotesFoldEmpty = document.getElementById("xi-chapter-notes-fold");
+        if (xiNotesFoldEmpty) xiNotesFoldEmpty.hidden = true;
         return;
       }
+
+      updateXiChapterNotesPanel();
 
       if (xqFeedback) xqFeedback.style.display = "";
       const q = getXiQuestionAtDisplayIndex(xiQuizChapter, xiQuizIndex);
@@ -12006,6 +12299,91 @@
     ];
 
     const WRONG_REVIEW_CHAPTER = 11;
+
+    /** 近代史各章助学纲要（章次与题库一致：1–10），考点线索+易混提示 */
+    const HISTORY_CHAPTER_NOTES_HTML = {
+      1:
+        "<p><strong>第1章</strong>：鸦片战争以降「两半」社会、主要矛盾与历史任务。题干常出现「开端」「第一个不平等条约」「近代史起点」。</p>" +
+        "<ul>" +
+        "<li><strong>侵略与条约</strong>：鸦片战争（1840–1842）与《南京条约》等；第二次鸦片战争、甲午、八国联军与《辛丑条约》——把握「主权沦丧一步步加深」。</li>" +
+        "<li><strong>两半社会</strong>：半殖民地半封建；主要矛盾：帝国主义与中华民族、封建主义与人民大众。</li>" +
+        "<li><strong>抗争与探索线索</strong>：林则徐、太平天国、洋务、维新、义和团等，分清「农民阶级/地主阶级改良/资产阶级」各自主张与局限。</li>" +
+        "<li><strong>易混</strong>：「近代史开端」常指鸦片战争；「完全沦为半殖民地半封建社会」与《辛丑条约》等表述对应教材表述。</li>" +
+        "</ul>",
+      2:
+        "<p><strong>第2章</strong>：太平天国、洋务运动、戊戌维新、义和团——不同阶级对国家出路的探索。</p>" +
+        "<ul>" +
+        "<li><strong>太平天国</strong>：《天朝田亩制度》《资政新篇》；农民战争最高峰，但无法克服阶级局限。</li>" +
+        "<li><strong>洋务运动</strong>：「自强」「求富」；官办军工与民用；未触动封建制度根本，甲午战败标志洋务破产。</li>" +
+        "<li><strong>戊戌维新</strong>：资产阶级改良；短暂百日维新；思想启蒙意义。</li>" +
+        "<li><strong>易混</strong>：洋务派≠维新派；「中体西用」与制度变革主张要分清。</li>" +
+        "</ul>",
+      3:
+        "<p><strong>第3章</strong>：辛亥革命与君主专制制度终结；旧民主主义革命高峰与局限。</p>" +
+        "<ul>" +
+        "<li><strong>三民主义</strong>：民族、民权、民生；同盟会与武装起义。</li>" +
+        "<li><strong>辛亥革命意义</strong>：推翻清朝、结束两千多年君主专制、建立共和、思想解放。</li>" +
+        "<li><strong>局限</strong>：未改变社会性质；未充分发动群众；革命果实被篡夺。</li>" +
+        "<li><strong>易混</strong>：「结束封建制度」与教材表述常区分「君主专制制度」；南京临时政府性质。</li>" +
+        "</ul>",
+      4:
+        "<p><strong>第4章</strong>：五四运动、中国共产党成立、国共合作与大革命。</p>" +
+        "<ul>" +
+        "<li><strong>五四运动</strong>：新民主主义革命开端；反帝反封建；马克思主义与工人运动结合。</li>" +
+        "<li><strong>建党</strong>：中共一大；开天辟地大事变；民主革命纲领（中共二大）。</li>" +
+        "<li><strong>大革命</strong>：国共第一次合作；北伐；失败原因与教训（陈独秀右倾、国民党叛变等）。</li>" +
+        "<li><strong>易混</strong>：新民主主义革命<strong>开端</strong>是五四；中共成立是「面貌焕然一新」。</li>" +
+        "</ul>",
+      5:
+        "<p><strong>第5章</strong>：中国革命新道路——农村包围城市、武装夺取政权。</p>" +
+        "<ul>" +
+        "<li><strong>土地革命</strong>：八七会议、武装反抗、根据地建设；土地革命路线。</li>" +
+        "<li><strong>长征与遵义会议</strong>：伟大转折；独立自主解决中国革命问题。</li>" +
+        "<li><strong>统一战线</strong>：抗日民族统一战线；逼蒋抗日与第二次国共合作。</li>" +
+        "<li><strong>易混</strong>：「工农武装割据」内涵；左倾错误与遵义会议纠偏。</li>" +
+        "</ul>",
+      6:
+        "<p><strong>第6章</strong>：抗日战争——中流砥柱、持久战、胜利意义。</p>" +
+        "<ul>" +
+        "<li><strong>统一战线与全面抗战</strong>：卢沟桥事变；正面战场与敌后战场。</li>" +
+        "<li><strong>中共中流砥柱</strong>：全面抗战路线、持久战战略、根据地与人民战争。</li>" +
+        "<li><strong>胜利意义</strong>：近代第一次反侵略完全胜利；民族复兴转折点；世界反法西斯东方主战场。</li>" +
+        "<li><strong>易混</strong>：抗战起点表述（教材章节表述）；中共在抗战中的路线与国民党片面抗战。</li>" +
+        "</ul>",
+      7:
+        "<p><strong>第7章</strong>：解放战争、筹建新中国、《共同纲领》。</p>" +
+        "<ul>" +
+        "<li><strong>重庆谈判与内战</strong>：争取和平民主；战略决战与三大战役。</li>" +
+        "<li><strong>中国革命胜利</strong>：三大法宝（统一战线、武装斗争、党的建设）；人民民主专政。</li>" +
+        "<li><strong>共同纲领</strong>：临时宪法作用；向社会主义过渡准备。</li>" +
+        "<li><strong>易混</strong>：新民主主义革命胜利标志与「新中国成立」表述关系。</li>" +
+        "</ul>",
+      8:
+        "<p><strong>第8章</strong>：新中国成立与社会主义制度建立；社会主义建设探索与曲折。</p>" +
+        "<ul>" +
+        "<li><strong>过渡时期总路线</strong>：一化三改；1956 年社会主义制度确立。</li>" +
+        "<li><strong>探索成就</strong>：独立工业体系、两弹一星等；中共八大正确路线。</li>" +
+        "<li><strong>曲折</strong>：大跃进、人民公社化、文化大革命等教训。</li>" +
+        "<li><strong>易混</strong>：「进入社会主义社会」与「社会主义初级阶段」时间节点。</li>" +
+        "</ul>",
+      9:
+        "<p><strong>第9章</strong>：改革开放与中国特色社会主义开创与发展。</p>" +
+        "<ul>" +
+        "<li><strong>十一届三中全会</strong>：伟大历史转折；以经济建设为中心、改革开放。</li>" +
+        "<li><strong>理论成果</strong>：邓小平理论、「三个代表」、科学发展观等一脉相承又与时俱进。</li>" +
+        "<li><strong>经济体制</strong>：社会主义市场经济体制确立；加入世贸等对外开放里程碑。</li>" +
+        "<li><strong>易混</strong>：改革开放前后两个时期「不能割裂」；基本路线与基本国情。</li>" +
+        "</ul>",
+      10:
+        "<p><strong>第10章</strong>：中国特色社会主义进入新时代；民族复兴与现代化。</p>" +
+        "<ul>" +
+        "<li><strong>新时代主要矛盾</strong>：人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾。</li>" +
+        "<li><strong>两步走战略</strong>：全面建成小康社会与全面建设社会主义现代化国家新征程。</li>" +
+        "<li><strong>「四个全面」等</strong>：与治国理政新实践结合理解。</li>" +
+        "<li><strong>易混</strong>：「新时代」历史方位；「新发展阶段、新发展理念、新发展格局」。</li>" +
+        "</ul>",
+    };
+
     const WRONG_STORAGE_KEY = "pansan2-history-wrong-v1";
     const MASTERY_STORAGE_KEY = "pansan2-history-mastery-v1";
     const MASTERED_STREAK = 2;
@@ -12267,7 +12645,14 @@
     (function syncQuizOrderFoldOnResize() {
       const mq = window.matchMedia("(min-width: 641px)");
       mq.addEventListener("change", () => {
-        ["quiz-order-fold", "marx-quiz-order-fold", "xi-quiz-order-fold", "mq-chapter-notes-fold"].forEach((id) => {
+        [
+          "quiz-order-fold",
+          "marx-quiz-order-fold",
+          "xi-quiz-order-fold",
+          "mq-chapter-notes-fold",
+          "hist-chapter-notes-fold",
+          "xi-chapter-notes-fold",
+        ].forEach((id) => {
           const fold = document.getElementById(id);
           if (!fold) return;
           if (mq.matches) fold.setAttribute("open", "");
@@ -12408,6 +12793,22 @@
       chContinueWrap.hidden = !(saved && last && canContinue);
     }
 
+    function updateHistoryChapterNotesPanel() {
+      const fold = document.getElementById("hist-chapter-notes-fold");
+      const body = document.getElementById("hist-chapter-notes-body");
+      if (!fold || !body) return;
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+        fold.hidden = true;
+        return;
+      }
+      if (historyQuizChapter < 1 || historyQuizChapter > 10) {
+        fold.hidden = true;
+        return;
+      }
+      fold.hidden = false;
+      body.innerHTML = HISTORY_CHAPTER_NOTES_HTML[historyQuizChapter] || "";
+    }
+
     function renderHistoryQuiz() {
       const qs = getHistoryQuestions();
       const res = currentResults();
@@ -12453,8 +12854,12 @@
           quizTypeEmpty.textContent =
             historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
         }
+        const histNotesFoldEmpty = document.getElementById("hist-chapter-notes-fold");
+        if (histNotesFoldEmpty) histNotesFoldEmpty.hidden = true;
         return;
       }
+
+      updateHistoryChapterNotesPanel();
 
       ch1Feedback.style.display = "";
 
