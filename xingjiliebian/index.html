@@ -495,7 +495,6 @@
   <section class="panel" id="panelRoute">
     <div class="route-layout" id="routeLayout">
       <div class="route-canvas-wrap">
-        <div class="hl-bar" id="hlBar">当前高亮：<strong id="hlName"></strong> <span id="hlMeta"></span></div>
         <div class="route-toolbar">
           <button class="btn" type="button" id="headerToggle2">收起顶栏</button>
           <button class="btn" type="button" id="landscapeBtn" title="请将手机横过来">横屏全屏</button>
@@ -822,9 +821,6 @@ function pathSets(focus, edges) {
 
 function applyHighlight(focus) {
   const world = document.getElementById("routeWorld");
-  const hlBar = document.getElementById("hlBar");
-  const hlName = document.getElementById("hlName");
-  const hlMeta = document.getElementById("hlMeta");
 
   if (!focus || !routeState.graph) {
     routeState.highlight = null;
@@ -833,7 +829,6 @@ function applyHighlight(focus) {
     world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-up, .node.hl-down").forEach(el => {
       el.classList.remove("hl", "hl-focus", "hl-up", "hl-down");
     });
-    hlBar.classList.remove("show");
     return;
   }
 
@@ -859,12 +854,6 @@ function applyHighlight(focus) {
     else if (up.has(name) && name !== focus) el.classList.add("hl-up");
     else if (down.has(name) && name !== focus) el.classList.add("hl-down");
   });
-
-  const upCount = [...up].filter(n => n !== focus).length;
-  const downCount = [...down].filter(n => n !== focus).length;
-  hlName.textContent = focus;
-  hlMeta.textContent = `· 上游 ${upCount} · 下游 ${downCount}（橙线相关，其它变淡）`;
-  hlBar.classList.add("show");
 }
 
 function renderRouteGraph(target, opts = {}) {
@@ -874,7 +863,6 @@ function renderRouteGraph(target, opts = {}) {
   world.innerHTML = "";
   routeState.highlight = null;
   routeState.graph = null;
-  document.getElementById("hlBar").classList.remove("show");
   world.classList.remove("is-hl");
 
   if (!target) {
