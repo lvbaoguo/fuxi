@@ -927,27 +927,47 @@ function applyTransform() {
   world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
 }
 
-/** 屏幕坐标 → SVG 用户坐标（自动适配假横屏 CSS rotate） */
-function clientToSvg(clientX, clientY) {
-  const svgEl = document.getElementById("routeSvg");
-  const pt = svgEl.createSVGPoint();
-  pt.x = clientX;
-  pt.y = clientY;
-  const ctm = svgEl.getScreenCTM();
-  if (!ctm) return { x: clientX, y: clientY };
-  const p = pt.matrixTransform(ctm.inverse());
-  return { x: p.x, y: p.y };
+/**
+ * 假横屏：手机仍竖屏，CSS rotate(90deg)。
+ * 屏幕滑动 → 画布本地：横屏“往下”= 竖屏“往左”
+ * rotate(90deg CW): local(+x)→screen(+y下), local(+y)→screen(-x左)
+ * 所以 screen(dx,dy) → local(dy, -dx)
+ */
+function isFakeLandscape() {
+  return document.body.classList.contains("ls-rotate");
+}
+
+function mapScreenDeltaToLocal(dx, dy) {
+  if (isFakeLandscape()) return { dx: dy, dy: -dx };
+  return { dx, dy };
+}
+
+/** 屏幕点 → 画布本地坐标（假横屏按中心逆旋转） */
+function clientToLocal(clientX, clientY) {
+  const layout = document.getElementById("routeLayout");
+  if (!isFakeLandscape()) {
+    const rect = document.getElementById("routeSvg").getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+  // 未旋转时的布局尺寸（offset* 不受 transform 影响）
+  const w = layout.offsetWidth;
+  const h = layout.offsetHeight;
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const sx = clientX - cx;
+  const sy = clientY - cy;
+  // 逆旋转 90deg CW: (sx,sy) → (sy, -sx)，再平移到左上角原点
+  return { x: sy + w / 2, y: -sx + h / 2 };
 }
 
 function panByClientDelta(fromX, fromY, toX, toY) {
-  const a = clientToSvg(fromX, fromY);
-  const b = clientToSvg(toX, toY);
-  routeState.tx += b.x - a.x;
-  routeState.ty += b.y - a.y;
+  const mapped = mapScreenDeltaToLocal(toX - fromX, toY - fromY);
+  routeState.tx += mapped.dx;
+  routeState.ty += mapped.dy;
 }
 
 function zoomAtClient(clientX, clientY, nextScale) {
-  const c = clientToSvg(clientX, clientY);
+  const c = clientToLocal(clientX, clientY);
   const next = Math.min(3.5, Math.max(0.3, nextScale));
   const k = next / routeState.scale;
   routeState.tx = c.x - (c.x - routeState.tx) * k;
