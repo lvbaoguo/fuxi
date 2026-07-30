@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
 <title>星际裂变 · 合成工具</title>
 <style>
   :root {
@@ -1157,19 +1157,7 @@ document.getElementById("zoomReset").addEventListener("click", () => {
 
 document.getElementById("clearRouteHl").addEventListener("click", () => applyHighlight(null));
 
-/* ---- mobile: no pinch zoom + landscape view ---- */
-(function lockPageZoom() {
-  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
-  let lastTouchEnd = 0;
-  document.addEventListener("touchend", (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) e.preventDefault();
-    lastTouchEnd = now;
-  }, { passive: false });
-})();
-
+/* ---- mobile landscape + pinch zoom on canvas ---- */
 async function enterLandscapeView() {
   document.body.classList.add("landscape-view");
   document.getElementById("landscapeBtn")?.classList.add("active");
@@ -1188,7 +1176,6 @@ async function enterLandscapeView() {
     }
   } catch (_) {}
   document.body.classList.toggle("ls-rotate", !locked);
-  // fit canvas after layout change
   setTimeout(() => {
     routeState.tx = 60;
     routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
@@ -1214,38 +1201,74 @@ document.getElementById("landscapeBtn").addEventListener("click", () => {
 document.getElementById("landscapeExit").addEventListener("click", () => exitLandscapeView());
 document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement && document.body.classList.contains("landscape-view")) {
-    // keep CSS rotate mode if user exits fullscreen manually
     document.body.classList.add("ls-rotate");
   }
 });
 
-// touch pan for route canvas
+// 单指拖动 + 双指捏合缩放（竖屏/横屏都可用）
+const touchCtl = { mode: null, lastDist: 0, lastCX: 0, lastCY: 0 };
+function touchDist(a, b) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return Math.hypot(dx, dy);
+}
+function touchCenter(a, b) {
+  return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+}
 svg.addEventListener("touchstart", (e) => {
-  if (e.target.closest(".node")) return;
-  if (e.touches.length !== 1) return;
-  const t = e.touches[0];
-  routeState.dragging = true;
-  routeState.lastX = t.clientX;
-  routeState.lastY = t.clientY;
-  svg.classList.add("dragging");
+  if (e.target.closest(".node") && e.touches.length === 1) return;
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    touchCtl.mode = "pan";
+    routeState.dragging = true;
+    routeState.lastX = t.clientX;
+    routeState.lastY = t.clientY;
+    svg.classList.add("dragging");
+  } else if (e.touches.length >= 2) {
+    touchCtl.mode = "pinch";
+    routeState.dragging = false;
+    touchCtl.lastDist = touchDist(e.touches[0], e.touches[1]);
+    const c = touchCenter(e.touches[0], e.touches[1]);
+    touchCtl.lastCX = c.x;
+    touchCtl.lastCY = c.y;
+    svg.classList.remove("dragging");
+  }
 }, { passive: true });
 svg.addEventListener("touchmove", (e) => {
-  if (!routeState.dragging || e.touches.length !== 1) return;
-  const t = e.touches[0];
-  routeState.tx += t.clientX - routeState.lastX;
-  routeState.ty += t.clientY - routeState.lastY;
-  routeState.lastX = t.clientX;
-  routeState.lastY = t.clientY;
-  applyTransform();
+  if (touchCtl.mode === "pan" && e.touches.length === 1) {
+    const t = e.touches[0];
+    routeState.tx += t.clientX - routeState.lastX;
+    routeState.ty += t.clientY - routeState.lastY;
+    routeState.lastX = t.clientX;
+    routeState.lastY = t.clientY;
+    applyTransform();
+  } else if (e.touches.length >= 2) {
+    touchCtl.mode = "pinch";
+    const dist = touchDist(e.touches[0], e.touches[1]);
+    if (touchCtl.lastDist > 0) {
+      const factor = dist / touchCtl.lastDist;
+      const next = Math.min(3.5, Math.max(0.3, routeState.scale * factor));
+      // 以双指中心缩放
+      const c = touchCenter(e.touches[0], e.touches[1]);
+      const k = next / routeState.scale;
+      routeState.tx = c.x - (c.x - routeState.tx) * k;
+      routeState.ty = c.y - (c.y - routeState.ty) * k;
+      routeState.scale = next;
+      touchCtl.lastCX = c.x;
+      touchCtl.lastCY = c.y;
+      applyTransform();
+    }
+    touchCtl.lastDist = dist;
+  }
 }, { passive: true });
-svg.addEventListener("touchend", () => {
+function endTouch() {
+  touchCtl.mode = null;
+  touchCtl.lastDist = 0;
   routeState.dragging = false;
   svg.classList.remove("dragging");
-});
-svg.addEventListener("touchcancel", () => {
-  routeState.dragging = false;
-  svg.classList.remove("dragging");
-});
+}
+svg.addEventListener("touchend", endTouch);
+svg.addEventListener("touchcancel", endTouch);
 
 
 
