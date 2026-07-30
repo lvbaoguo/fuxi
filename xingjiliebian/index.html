@@ -3,525 +3,121 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>星际裂变 · 合成工具</title>
+<title>星际裂变 · 合成路线</title>
 <style>
   :root {
-    --bg: #e8eaee;
-    --panel: #f6f7f9;
     --line: #c5ccd6;
     --text: #2a3038;
     --muted: #6b7585;
     --accent: #2f9d84;
-    --accent2: #d4892a;
-    --machine: #e4e9ef;
-    --product: #e2eee9;
-    --mat: #eef0f3;
-    --hi: #2f9d8422;
-    --hi-border: #2f9d84;
     --raw: #f3e9d8;
-    --shadow: 0 6px 18px rgba(60,70,85,.12);
-    --radius: 12px;
     --font: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    font-family: var(--font);
-    background: linear-gradient(180deg, #edf0f4 0%, var(--bg) 40%, #e2e6ec 100%);
-    color: var(--text);
-    min-height: 100vh;
+  html, body {
+    margin: 0; width: 100%; max-width: 100%; height: 100%; overflow: hidden;
+    font-family: var(--font); color: var(--text); background: #edf0f4;
+    -webkit-text-size-adjust: 100%; touch-action: manipulation; overscroll-behavior: none;
   }
-  header {
-    position: sticky; top: 0; z-index: 40;
-    backdrop-filter: blur(14px);
-    background: rgba(246,247,249,.94);
-    border-bottom: 1px solid var(--line);
-  }
-  .header-inner {
-    max-width: 1400px; margin: 0 auto;
-    padding: 14px 20px 12px;
-    display: grid; gap: 12px;
-  }
-  .title-row {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  }
-  h1 { margin: 0; font-size: 1.3rem; font-weight: 700; }
-  h1 span { color: var(--accent); font-weight: 600; }
-  .sub { color: var(--muted); font-size: .85rem; }
-  .mode-tabs { display: flex; gap: 8px; margin-left: auto; }
-  .mode-tab {
-    border: 1px solid var(--line);
-    background: #fff;
-    color: var(--muted);
-    border-radius: 10px;
-    padding: 8px 14px;
-    font-size: .9rem;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .mode-tab.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-  }
-  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .search {
-    flex: 1; min-width: 220px;
-    background: #fff;
-    border: 1px solid var(--line);
-    color: var(--text);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: .95rem;
-    outline: none;
-  }
-  .search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px #2f9d8422; }
-  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip, .btn {
-    border: 1px solid var(--line);
-    background: #fff;
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: .82rem;
-    cursor: pointer;
-    user-select: none;
-  }
-  .chip:hover, .btn:hover { color: var(--text); border-color: #9aa6b5; background: #f0f2f5; }
-  .chip.active, .btn.active {
-    color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 600;
-  }
-  .btn.clear { color: #a66a18; border-color: #e0c49a; background: #fff8ee; }
-  main { max-width: 1600px; margin: 0 auto; padding: 18px 20px 40px; }
-  .panel { display: none; }
-  .panel.show { display: block; }
-
-  .focus-bar {
-    display: none;
-    margin-bottom: 16px;
-    padding: 12px 14px;
-    border: 1px solid var(--hi-border);
-    background: var(--hi);
-    border-radius: var(--radius);
-    align-items: center; justify-content: space-between; gap: 10px;
-  }
-  .focus-bar.show { display: flex; }
-  .focus-bar strong { color: #1f7a66; }
-  .level-block { margin-bottom: 28px; }
-  .level-head {
-    display: flex; align-items: center; gap: 10px;
-    margin: 8px 0 12px;
-    position: sticky; top: 130px; z-index: 20;
-    background: linear-gradient(180deg, rgba(232,234,238,.96), rgba(232,234,238,.88));
-    padding: 8px 0;
-  }
-  .level-badge {
-    background: var(--accent2);
-    color: #fff;
-    font-weight: 700;
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: .9rem;
-  }
-  .level-count { color: var(--muted); font-size: .85rem; }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 12px;
-  }
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    display: grid;
-    grid-template-columns: 1.25fr .85fr .95fr;
-    min-height: 108px;
-    transition: border-color .15s, transform .15s, opacity .15s;
-  }
-  .card:hover { border-color: #9aa8b8; transform: translateY(-1px); }
-  .card.dim { opacity: .28; }
-  .card.hit { border-color: var(--hi-border); box-shadow: 0 0 0 1px var(--hi-border), var(--shadow); }
-  .col {
-    padding: 10px;
-    display: flex; flex-direction: column; gap: 6px;
-    justify-content: center;
-  }
-  .col.mats { background: var(--mat); }
-  .col.machine {
-    background: var(--machine);
-    align-items: center; text-align: center;
-    border-left: 1px solid var(--line);
-    border-right: 1px solid var(--line);
-  }
-  .col.product { background: var(--product); align-items: center; text-align: center; }
-  .label {
-    font-size: .68rem; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 2px;
-  }
-  .item {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 100%; border-radius: 8px; padding: 6px 8px;
-    font-size: .86rem; line-height: 1.25; cursor: pointer;
-    border: 1px solid #d5dae2; background: #fff; color: var(--text);
-  }
-  .item:hover { background: #e8f6f2; border-color: #7bc4b2; }
-  .item.active { background: #d8f0ea; border-color: var(--accent); font-weight: 600; }
-  .machine-name { font-size: .92rem; font-weight: 600; color: #3d556e; }
-  .machine-name.v2 { color: #b8741c; }
-  .product-name { font-size: 1rem; font-weight: 700; color: #1f7a66; }
-  .empty {
-    display: none; text-align: center; color: var(--muted);
-    padding: 40px 10px; border: 1px dashed var(--line); border-radius: var(--radius);
-    background: #f4f5f7;
-  }
-  .empty.show { display: block; }
-
-  /* ---- route ---- */
-  .route-layout {
-    min-height: calc(100vh - 170px);
-    height: calc(100vh - 170px);
-  }
-  .suggest-wrap { flex: 1; min-width: 260px; position: relative; }
-  .suggest {
-    display: none;
-    position: absolute;
-    left: 0; right: 0; top: calc(100% + 4px);
-    z-index: 50;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: #fff;
-    max-height: 320px;
-    overflow: auto;
-    box-shadow: 0 10px 28px rgba(40,50,70,.14);
-  }
-  .suggest.show { display: block; }
-  .suggest .sg-sec {
-    padding: 6px 12px 2px;
-    font-size: .72rem;
-    color: var(--muted);
-    letter-spacing: .04em;
-  }
-  .suggest button {
-    display: flex; width: 100%; text-align: left; align-items: center; gap: 8px;
-    border: 0; background: transparent; padding: 8px 12px;
-    cursor: pointer; color: var(--text); font-size: .9rem;
-  }
-  .suggest button:hover, .suggest button.active { background: #eef6f3; }
-  .suggest .tag {
-    margin-left: auto;
-    font-size: .72rem;
-    color: var(--muted);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 1px 7px;
-    flex-shrink: 0;
-  }
-  .suggest .tag.hist { color: #a66a18; border-color: #e0c49a; background: #fff8ee; }
-  .suggest .tag.raw { color: #6b7585; }
-  .hl-bar {
-    display: none;
-    position: absolute; left: 12px; top: 10px; z-index: 6;
-    max-width: min(520px, calc(100% - 280px));
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #e0b07a;
-    background: #fff7ee;
-    font-size: .84rem;
-    color: #6a4a22;
-    box-shadow: var(--shadow);
-  }
-  .hl-bar.show { display: block; }
-  .hl-bar strong { color: #c45e12; }
+  .route-layout { position: fixed; inset: 0; width: 100vw; height: 100dvh; height: 100vh; }
   .route-canvas-wrap {
-    position: relative;
-    height: 100%;
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-  .route-toolbar {
-    position: absolute; top: 10px; right: 10px; z-index: 5;
-    display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+    position: relative; width: 100%; height: 100%; background: #fff; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none;
   }
   .route-canvas-wrap svg {
-    width: 100%; height: 100%;
-    cursor: grab;
+    width: 100%; height: 100%; cursor: grab; touch-action: none;
     background:
       linear-gradient(#eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
       linear-gradient(90deg, #eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
       #f8f9fb;
   }
   .route-canvas-wrap svg.dragging { cursor: grabbing; }
+  .float-search {
+    position: absolute; z-index: 20; display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(40,50,70,.12); padding: 6px;
+  }
+  .float-search .suggest-wrap { position: relative; flex: 1; min-width: 0; }
+  .float-search input {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    font-size: 16px; outline: none; background: #fff; color: var(--text);
+  }
+  .float-search input:focus { border-color: var(--accent); }
+  .float-search .go {
+    flex-shrink: 0; border: 0; background: var(--accent); color: #fff; border-radius: 8px;
+    padding: 8px 12px; font-size: .85rem; font-weight: 600; cursor: pointer;
+  }
+  .suggest {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
+    overflow: auto; box-shadow: 0 10px 28px rgba(40,50,70,.14);
+  }
+  .suggest.show { display: block; }
+  .suggest .sg-sec { padding: 6px 12px 2px; font-size: .72rem; color: var(--muted); }
+  .suggest button {
+    display: flex; width: 100%; text-align: left; align-items: center; gap: 8px;
+    border: 0; background: transparent; padding: 8px 12px; cursor: pointer; color: var(--text); font-size: .9rem;
+  }
+  .suggest button:hover, .suggest button.active { background: #eef6f3; }
+  .suggest .tag {
+    margin-left: auto; font-size: .72rem; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .suggest .tag.hist { color: #a66a18; border-color: #e0c49a; background: #fff8ee; }
+  .route-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: .95rem; pointer-events: none;
+  }
+  .route-empty.hide { display: none; }
   .node-raw rect { fill: var(--raw); stroke: #d2b48c; }
   .node-mid rect { fill: #fff; stroke: #9db0c2; }
   .node-target rect { fill: #d8f0ea; stroke: var(--accent); stroke-width: 2.2; }
   .node-cycle rect { fill: #fce8e8; stroke: #d88; }
   .node text.name { font-size: 13px; font-weight: 700; fill: var(--text); }
   .node text.meta { font-size: 11px; fill: var(--muted); }
-  .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; transition: opacity .15s, stroke .15s, stroke-width .15s; }
+  .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; }
   .route-world.is-hl .edge { opacity: .14; stroke: #b7c3d0; }
-  .route-world.is-hl .edge.hl {
-    opacity: 1;
-    stroke: #e07a2f;
-    stroke-width: 2.8;
-    marker-end: url(#arrowHl);
-  }
+  .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowHl); }
   .route-world.is-hl .node { opacity: .22; }
   .route-world.is-hl .node.hl { opacity: 1; }
-  .route-world.is-hl .node.hl-focus rect {
-    stroke: #e07a2f;
-    stroke-width: 3;
-    filter: drop-shadow(0 0 4px rgba(224,122,47,.45));
-  }
+  .route-world.is-hl .node.hl-focus rect { stroke: #e07a2f; stroke-width: 3; filter: drop-shadow(0 0 4px rgba(224,122,47,.45)); }
   .route-world.is-hl .node.hl-up rect { stroke: #d4892a; stroke-width: 2.2; }
   .route-world.is-hl .node.hl-down rect { stroke: #2f9d84; stroke-width: 2.2; }
-  .route-empty {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: .95rem; pointer-events: none;
-  }
-  .route-empty.hide { display: none; }
-  footer {
-    max-width: 1400px; margin: 0 auto; padding: 0 20px 28px;
-    color: var(--muted); font-size: .8rem;
-  }
 
-  /* mobile + landscape */
-  /* 页面布局锁死，缩放只发生在路线画布内 */
-  html, body {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-    touch-action: manipulation;
+  @media (orientation: portrait) {
+    .float-search { left: 10px; right: 10px; top: 10px; }
   }
-  .route-canvas-wrap {
-    touch-action: none; /* 禁止浏览器对画布区做页面缩放/滚动，交给我们自己处理 */
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  .route-canvas-wrap svg {
-    touch-action: none;
-  }
-
-  html, body {
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior: none;
-  }
-  body.landscape-view {
-    overflow: hidden;
-    background: #f8f9fb;
-  }
-  body.landscape-view header,
-  body.landscape-view footer,
-  body.landscape-view #panelTable {
-    display: none !important;
-  }
-  body.landscape-view main {
-    max-width: none;
-    margin: 0;
-    padding: 0;
-  }
-  body.landscape-view #panelRoute.panel {
-    display: block !important;
-  }
-  body.landscape-view .route-layout {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100dvh;
-    height: 100vh;
-    z-index: 2000;
-    min-height: 0;
-  }
-  body.landscape-view .route-canvas-wrap {
-    height: 100%;
-    border-radius: 0;
-    border: 0;
-    box-shadow: none;
-  }
-  .ls-exit {
-    display: none;
-    position: absolute;
-    left: 12px;
-    bottom: 12px;
-    z-index: 8;
-  }
-  body.landscape-view .ls-exit { display: inline-flex; }
-  body.landscape-view .hl-bar {
-    max-width: min(420px, calc(100% - 220px));
-  }
-  @media (max-width: 720px) {
-    .header-inner { padding: 10px 12px; gap: 8px; }
-    h1 { font-size: 1.05rem; }
-    .sub { display: none; }
-    .controls { gap: 8px; }
-    .search { min-width: 0; width: 100%; font-size: 16px; /* 防 iOS 自动放大 */ }
-    .btn, .chip, .mode-tab { min-height: 36px; padding: 8px 12px; }
-    .route-layout {
-      min-height: calc(100dvh - 150px);
-      height: calc(100dvh - 150px);
-    }
-    .route-toolbar { gap: 4px; max-width: 58%; }
-    .route-toolbar .btn { font-size: .75rem; padding: 6px 8px; }
-    .hl-bar {
-      left: 8px; top: 8px;
-      max-width: calc(100% - 16px);
-      font-size: .78rem;
-    }
-    /* footer removed */
-  }
-  @media (max-width: 720px) {
-    main { max-width: 100%; padding: 10px 10px 24px; }
-    .header-inner { max-width: 100%; }
-    .card { grid-template-columns: 1fr; }
-    .col.machine, .col.product { border: 0; border-top: 1px solid var(--line); }
-    .level-head { top: 160px; }
-    .mode-tabs { margin-left: 0; width: 100%; }
-    .mode-tab { flex: 1; text-align: center; }
-  }
-
-  /* 真横屏：手机横过来后自动铺满 */
   @media (orientation: landscape) {
-    body.route-mode header {
-      padding: 0;
-    }
-    body.route-mode .header-inner {
-      padding: 6px 10px;
-      gap: 6px;
-    }
-    body.route-mode .title-row .sub { display: none; }
-    body.route-mode .route-layout {
-      min-height: calc(100dvh - 88px);
-      height: calc(100dvh - 88px);
-    }
-    body.landscape-view .route-layout,
-    body.route-mode.landscape-view .route-layout {
-      height: 100dvh;
-      height: 100vh;
-    }
-    body.landscape-view .ls-exit {
-      left: 12px;
-      top: 12px;
-      bottom: auto;
-    }
-  }
-
-  /* 顶栏折叠 */
-  body.header-collapsed header .header-foldable { display: none !important; }
-  body.header-collapsed header {
-    border-bottom: 0;
-  }
-  body.header-collapsed .header-inner {
-    padding: 0 !important;
-    gap: 0 !important;
-  }
-  body.header-collapsed .title-row { display: none !important; }
-  #headerToggle {
-    display: none;
-  }
-  body.route-mode #headerToggle { display: inline-flex; }
-  body.header-collapsed #headerToggle.expand-only { }
-  @media (orientation: landscape) {
-    footer { display: none !important; }
-    body.route-mode:not(.landscape-view) .route-layout {
-      min-height: calc(100dvh - 52px);
-      height: calc(100dvh - 52px);
-    }
-    body.route-mode.header-collapsed:not(.landscape-view) .route-layout {
-      min-height: 100dvh;
-      height: 100dvh;
-    }
-    body.route-mode.header-collapsed main {
-      padding: 0 !important;
-      max-width: none;
-    }
-    body.route-mode .route-canvas-wrap {
-      border-radius: 0;
-    }
+    .float-search { left: 8px; top: 8px; right: auto; width: min(300px, 42vw); padding: 5px; }
+    .float-search input { padding: 6px 8px; font-size: 15px; }
+    .float-search .go { padding: 6px 10px; }
   }
 </style>
 </head>
 <body>
-<header>
-  <div class="header-inner">
-    <div class="title-row">
-      <h1>星际裂变 <span>· 合成工具</span></h1>
-      <div class="sub">合成表快查 + 合成路线流程图</div>
-      <div class="mode-tabs">
-        <button class="mode-tab active" type="button" data-mode="table">合成表</button>
-        <button class="mode-tab" type="button" data-mode="route">合成路线</button>
-      </div>
-      <button class="btn" type="button" id="headerToggle" title="折叠/展开顶栏">收起顶栏</button>
-    </div>
-
-    <div class="header-foldable">
-    <div class="controls" id="tableControls">
-      <input class="search" id="q" type="search" placeholder="搜索产品 / 材料 / 机器…" autocomplete="off" />
-      <button class="btn" id="toggleV2" type="button">隐藏 v.2</button>
-      <button class="btn clear" id="clearFocus" type="button">清除高亮</button>
-    </div>
-    <div class="chip-row" id="levelChips"></div>
-
-    <div class="controls" id="routeControls" style="display:none">
+<div class="route-layout" id="routeLayout">
+  <div class="route-canvas-wrap">
+    <div class="float-search">
       <div class="suggest-wrap">
-        <input class="search" id="routeQ" type="search" placeholder="搜索产品名，支持联想与历史…" autocomplete="off" />
+        <input id="routeQ" type="search" placeholder="搜索产品…" autocomplete="off" enterkeyhint="search" />
         <div class="suggest" id="routeSuggest"></div>
       </div>
-      <button class="btn active" id="preferBase" type="button">优先基础机</button>
-      <button class="btn" id="routeGo" type="button">生成路线</button>
-      <button class="btn clear" id="routeClear" type="button">清空</button>
+      <button class="go" type="button" id="routeGo">确定</button>
     </div>
-    </div>
+    <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
+    <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8aa0b5"></path>
+        </marker>
+        <marker id="arrowHl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#e07a2f"></path>
+        </marker>
+      </defs>
+      <g id="routeWorld" class="route-world"></g>
+    </svg>
   </div>
-</header>
-
-<main>
-  <section class="panel show" id="panelTable">
-    <div class="focus-bar" id="focusBar">
-      <div>当前聚焦：<strong id="focusName"></strong> <span class="sub" id="focusMeta"></span></div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn" type="button" id="toRouteFromFocus">看合成路线</button>
-        <button class="btn clear" type="button" id="clearFocus2">清除</button>
-      </div>
-    </div>
-    <div id="boards"></div>
-    <div class="empty" id="empty">没有匹配的配方</div>
-  </section>
-
-  <section class="panel" id="panelRoute">
-    <div class="route-layout" id="routeLayout">
-      <div class="route-canvas-wrap">
-        <div class="route-toolbar">
-          <button class="btn" type="button" id="headerToggle2">收起顶栏</button>
-          <button class="btn" type="button" id="landscapeBtn" title="请将手机横过来">横屏全屏</button>
-          <button class="btn clear" type="button" id="clearRouteHl">清除高亮</button>
-          <button class="btn" type="button" id="zoomIn">放大</button>
-          <button class="btn" type="button" id="zoomOut">缩小</button>
-          <button class="btn" type="button" id="zoomReset">复位</button>
-        </div>
-        <button class="btn clear ls-exit" type="button" id="landscapeExit">退出横屏</button>
-        <div id="lsTip" style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;background:rgba(42,48,56,.88);color:#fff;padding:12px 16px;border-radius:10px;font-size:.9rem;pointer-events:none;">请将手机横过来观看</div>
-        <div class="route-empty" id="routeEmpty">搜索目标产品后点「生成路线」</div>
-        <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8aa0b5"></path>
-            </marker>
-            <marker id="arrowHl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#e07a2f"></path>
-            </marker>
-          </defs>
-          <g id="routeWorld" class="route-world"></g>
-        </svg>
-      </div>
-    </div>
-  </section>
-</main>
-
+</div>
 <script>
 const RECIPES = [{"level": 1, "product": "钨条", "machine": "冶炼厂", "materials": ["钨矿石"]}, {"level": 1, "product": "钛条", "machine": "冶炼厂", "materials": ["钛矿石"]}, {"level": 1, "product": "钙块", "machine": "冶炼厂", "materials": ["钙矿石"]}, {"level": 1, "product": "基础建筑材料", "machine": "制造厂", "materials": ["钨矿石", "钛矿石"]}, {"level": 1, "product": "中级建筑材料", "machine": "大型冲压机", "materials": ["基础建筑材料", "电感器", "玻璃", "钛金属外壳"]}, {"level": 2, "product": "钛棒", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂", "materials": ["钨条"]}, {"level": 2, "product": "方解石板", "machine": "制造厂", "materials": ["钙块"]}, {"level": 2, "product": "钛梁", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨粉", "machine": "熔炉", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉", "materials": ["钙块"]}, {"level": 2, "product": "钛棒", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂 v.2", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉 v.2", "materials": ["钙块"]}, {"level": 2, "product": "钨粉", "machine": "熔炉 v.2", "materials": ["钨条"]}, {"level": 3, "product": "钨板", "machine": "制造厂", "materials": ["钨条"]}, {"level": 3, "product": "转子", "machine": "制造厂", "materials": ["钛棒", "钨丝"]}, {"level": 3, "product": "管材", "machine": "制造厂", "materials": ["钛棒", "钛板"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉", "materials": ["方解石板", "钨粉"]}, {"level": 3, "product": "钛金属外壳", "machine": "熔炉", "materials": ["钛梁", "钛板"]}, {"level": 3, "product": "玻璃", "machine": "熔炉", "materials": ["氦-3", "钙粉"]}, {"level": 3, "product": "钨板", "machine": "制造厂 v.2", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂 v.2", "materials": ["钛棒", "钨丝", "钨板"]}, {"level": 3, "product": "管材", "machine": "制造厂 v.2", "materials": ["针铁矿锭", "钛板", "钨粉"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉 v.2", "materials": ["方解石板", "氦-3", "钨粉"]}, {"level": 3, "product": "玻璃", "machine": "熔炉 v.2", "materials": ["加压氦气", "方解石板", "针铁矿锭"]}, {"level": 4, "product": "稳定器", "machine": "制造厂", "materials": ["转子", "钛棒"]}, {"level": 4, "product": "定子", "machine": "制造厂", "materials": ["钛金属外壳", "钨丝"]}, {"level": 4, "product": "耐热板", "machine": "熔炉", "materials": ["钨板", "钛板", "玻璃"]}, {"level": 4, "product": "合成硅", "machine": "熔炉", "materials": ["钙粉", "氦-3", "陶瓷"]}, {"level": 4, "product": "化学品", "machine": "熔炉", "materials": ["合成硅", "钨粉", "氦-3"]}, {"level": 4, "product": "定子", "machine": "制造厂 v.2", "materials": ["钛金属外壳", "钨丝", "钛板"]}, {"level": 4, "product": "化学品", "machine": "熔炉 v.2", "materials": ["钙粉", "钨粉", "氦-3", "针铁矿锭"]}, {"level": 4, "product": "耐热板", "machine": "熔炉 v.2", "materials": ["钛铁合金锭", "钨钢锭", "氦-3"]}, {"level": 5, "product": "给药器", "machine": "制造厂", "materials": ["管材", "玻璃"]}, {"level": 5, "product": "电感器", "machine": "熔炉", "materials": ["管材", "钨丝", "陶瓷"]}, {"level": 5, "product": "电子元件", "machine": "熔炉", "materials": ["合成硅", "电感器", "定子"]}, {"level": 5, "product": "涡轮机", "machine": "大型冲压机", "materials": ["叶轮", "定子", "转子", "硫酸"]}, {"level": 5, "product": "阀门", "machine": "大型冲压机", "materials": ["钛金属外壳", "钛梁", "钛棒", "喷嘴"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉", "materials": ["硫酸", "合成硅", "给药器"]}, {"level": 6, "product": "超磁体", "machine": "熔炉", "materials": ["硫酸", "钨板", "化学品"]}, {"level": 6, "product": "叶轮", "machine": "大型冲压机", "materials": ["钛棒", "耐热板", "钨板", "稳定器"]}, {"level": 6, "product": "喷嘴", "machine": "大型冲压机", "materials": ["耐热板", "氦-3", "稳定器"]}, {"level": 6, "product": "电池", "machine": "大型冲压机", "materials": ["电感器", "电子元件", "硫酸"]}, {"level": 6, "product": "加压氦气", "machine": "加压器", "materials": ["氦-3", "硫矿石"]}, {"level": 6, "product": "硫酸", "machine": "加压器", "materials": ["硫矿石", "化学品"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉 v.2", "materials": ["硫酸", "合成硅", "给药器", "加压氦气"]}, {"level": 6, "product": "加压氦气", "machine": "化合反应炉 v.2", "materials": ["氦-3", "硫矿石", "钙粉"]}, {"level": 6, "product": "硫酸", "machine": "化合反应炉 v.2", "materials": ["硫矿石", "化学品", "钨粉"]}, {"level": 7, "product": "电磁线圈", "machine": "大型冲压机", "materials": ["电感器", "加压氦气", "钨板", "超磁体"]}, {"level": 7, "product": "蓄电池", "machine": "装配厂", "materials": ["电子元件", "定子", "电池"]}, {"level": 7, "product": "发电机", "machine": "装配厂", "materials": ["涡轮机", "电池", "喷嘴"]}, {"level": 7, "product": "压力罐", "machine": "装配厂", "materials": ["耐热板", "阀门", "泵"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉", "materials": ["加压氦气", "硬化剂"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉 v.2", "materials": ["加压氦气", "硬化剂", "化学品"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉 v.2", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 8, "product": "泵", "machine": "大型冲压机", "materials": ["阀门", "涡轮机", "叶轮", "硫酸"]}, {"level": 8, "product": "谐振器", "machine": "装配厂", "materials": ["蓄电池", "发电机", "液态氦"]}, {"level": 8, "product": "透镜", "machine": "化合反应炉", "materials": ["玻璃", "硬化剂", "合成树脂"]}, {"level": 8, "product": "超导体", "machine": "化合反应炉", "materials": ["合成树脂", "电磁铁", "超磁体"]}, {"level": 8, "product": "针铁矿锭", "machine": "锻造炉", "materials": ["针铁矿"]}, {"level": 8, "product": "钛铁合金锭", "machine": "锻造炉", "materials": ["钛矿石", "针铁矿"]}, {"level": 8, "product": "钨钢锭", "machine": "锻造炉", "materials": ["钨矿石", "针铁矿"]}, {"level": 8, "product": "针铁矿粉", "machine": "化合反应炉", "materials": ["针铁矿锭", "加压氦气", "钙粉"]}, {"level": 8, "product": "针铁矿晶格", "machine": "大型冲压机", "materials": ["针铁矿锭", "钛铁合金锭", "钨钢锭"]}, {"level": 8, "product": "超导体", "machine": "加工厂 v.2", "materials": ["合成树脂", "电磁铁", "超磁体", "气凝胶", "隔热罩"]}, {"level": 9, "product": "电磁铁", "machine": "装配厂", "materials": ["电磁线圈", "合成树脂", "蓄电池"]}, {"level": 9, "product": "激光发射器", "machine": "装配厂", "materials": ["透镜", "谐振器", "电磁线圈"]}, {"level": 9, "product": "扫描仪", "machine": "装配厂", "materials": ["透镜", "发电机", "稳定器"]}, {"level": 9, "product": "纳米纤维", "machine": "化合反应炉", "materials": ["管材", "液态氦", "钨丝"]}, {"level": 9, "product": "离子注入器", "machine": "化合反应炉", "materials": ["给药器", "电磁铁", "压力罐"]}, {"level": 9, "product": "环氧树脂", "machine": "化合反应炉", "materials": ["液态氦", "针铁矿粉", "合成树脂"]}, {"level": 9, "product": "基础燃料", "machine": "化合反应炉", "materials": ["钨粉", "针铁矿粉", "液态氦"]}, {"level": 9, "product": "精炼油", "machine": "精炼厂", "materials": ["能源矿", "钙矿石", "钛矿石"]}, {"level": 9, "product": "气凝胶", "machine": "化合反应炉", "materials": ["针铁矿粉", "钙粉", "液态氦"]}, {"level": 9, "product": "强化框架", "machine": "大型冲压机", "materials": ["管材", "钛铁合金锭", "钛梁"]}, {"level": 9, "product": "强化外壳", "machine": "大型冲压机", "materials": ["钛金属外壳", "钨钢锭", "钨板"]}, {"level": 9, "product": "塑料", "machine": "化合反应炉", "materials": ["精炼油", "硫酸", "化学品"]}, {"level": 9, "product": "有机化合物", "machine": "化合反应炉", "materials": ["硫酸", "精炼油", "环氧树脂"]}, {"level": 9, "product": "离子注入器", "machine": "加工厂 v.2", "materials": ["给药器", "电磁铁", "压力罐", "针铁矿晶格", "塑料"]}, {"level": 9, "product": "激光发射器", "machine": "加工厂 v.2", "materials": ["透镜", "谐振器", "电磁线圈", "炸药", "环氧树脂"]}, {"level": 9, "product": "扫描仪", "machine": "加工厂 v.2", "materials": ["透镜", "发电机", "稳定器", "超级纤维", "拟橡胶绝缘体"]}, {"level": 10, "product": "冷凝器", "machine": "装配厂", "materials": ["谐振器", "泵", "纳米纤维"]}, {"level": 10, "product": "穹顶", "machine": "弹药加工厂", "materials": ["超级纤维", "冷凝器", "气闸舱", "脚手架", "转换器"]}, {"level": 10, "product": "火箭引擎", "machine": "弹药加工厂", "materials": ["喷嘴", "涡轮机", "泵", "火箭燃料", "冷凝器"]}, {"level": 10, "product": "炸药", "machine": "装配厂", "materials": ["强化外壳", "环氧树脂"]}, {"level": 10, "product": "离子推进器", "machine": "加工厂", "materials": ["阀门", "隔热罩", "压力罐", "火箭燃料"]}, {"level": 10, "product": "离子稳定器", "machine": "大型冲压机", "materials": ["环氧树脂", "液态氦", "船载仪器", "炸药"]}, {"level": 10, "product": "塑料粉尘", "machine": "装配厂", "materials": ["有机化合物", "基础燃料", "塑料"]}, {"level": 10, "product": "拟橡胶绝缘体", "machine": "装配厂", "materials": ["塑料", "环氧树脂", "针铁矿晶格"]}, {"level": 10, "product": "物质#FHS-135-493", "machine": "化合反应炉", "materials": ["硫酸", "针铁矿粉", "液态氦"]}, {"level": 10, "product": "合成蛋白", "machine": "化合反应炉", "materials": ["有机化合物", "物质#FHS-135-493", "硫酸"]}, {"level": 10, "product": "冷凝器", "machine": "加工厂 v.2", "materials": ["谐振器", "泵", "纳米纤维", "强化外壳", "基础燃料"]}, {"level": 11, "product": "抗辐射罩", "machine": "加工厂", "materials": ["强化外壳", "强化框架", "拟橡胶绝缘体", "环氧树脂"]}, {"level": 11, "product": "纳米注射器", "machine": "加工厂", "materials": ["硬化剂", "给药器", "纳米纤维", "物质#FHS-135-493"]}, {"level": 11, "product": "卫星主体", "machine": "弹药加工厂", "materials": ["船载仪器", "扫描仪", "离子推进器", "火箭引擎", "隔热罩"]}, {"level": 11, "product": "脚手架", "machine": "加工厂", "materials": ["超级纤维", "强化框架", "针铁矿晶格", "塑料粉尘"]}, {"level": 11, "product": "船载仪器", "machine": "装配厂", "materials": ["电子元件", "稳定器", "强化外壳"]}, {"level": 11, "product": "RNA稳定剂", "machine": "加工厂", "materials": ["有机化合物", "纳米注射器", "合成蛋白", "塑料"]}, {"level": 11, "product": "RTSC（室温超导体）", "machine": "加工厂", "materials": ["抗辐射罩", "隔热罩", "气凝胶", "拟橡胶绝缘体"]}, {"level": 11, "product": "超级纤维", "machine": "装配厂", "materials": ["钙粉", "针铁矿晶格", "环氧树脂"]}, {"level": 12, "product": "气闸舱", "machine": "加工厂", "materials": ["脚手架", "压力罐", "超级纤维", "拟橡胶绝缘体"]}, {"level": 12, "product": "回旋加速器", "machine": "弹药加工厂", "materials": ["气凝胶", "电磁铁", "离子注入器", "强化外壳", "塑料粉尘"]}, {"level": 12, "product": "隔热罩", "machine": "大型冲压机", "materials": ["环氧树脂", "气凝胶", "超级纤维", "强化框架"]}, {"level": 12, "product": "生物纤维", "machine": "弹药加工厂", "materials": ["合成蛋白", "RNA稳定剂", "物质#FHS-135-493", "纳米纤维", "超导体"]}, {"level": 12, "product": "碳声呐", "machine": "加工厂", "materials": ["离子稳定器", "量子镇定剂", "蓄电池", "船载仪器"]}, {"level": 12, "product": "量子镇定剂", "machine": "加工厂", "materials": ["离子稳定器", "超磁体", "塑料粉尘", "硫酸"]}, {"level": 12, "product": "火箭燃料", "machine": "加工厂", "materials": ["液态氦", "基础燃料", "硫酸", "精炼油"]}, {"level": 12, "product": "合成DNA", "machine": "弹药加工厂", "materials": ["合成蛋白", "物质#FHS-135-493", "纳米注射器", "塑料", "生物纤维"]}, {"level": 13, "product": "转换器", "machine": "弹药加工厂", "materials": ["激光发射器", "蓄电池", "电磁线圈", "塑料", "RTSC（室温超导体）"]}, {"level": 13, "product": "RTSC发电机", "machine": "弹药加工厂", "materials": ["RTSC（室温超导体）", "发电机", "激光发射器", "抗辐射罩", "回旋加速器"]}, {"level": 13, "product": "追踪装置", "machine": "弹药加工厂", "materials": ["碳声呐", "量子镇定剂", "透镜", "船载仪器", "扫描仪"]}, {"level": 13, "product": "离子炸弹", "machine": "弹药加工厂", "materials": ["离子注入器", "离子稳定器", "炸药", "追踪装置", "谐振器"]}];
 
@@ -529,126 +125,6 @@ function isV2(machine) {
   return /v\.?2|V\.?2/.test(machine);
 }
 
-/* ========== 合成表 ========== */
-const tableState = { q: "", level: 0, hideV2: false, focus: null };
-const boards = document.getElementById("boards");
-const empty = document.getElementById("empty");
-const focusBar = document.getElementById("focusBar");
-const focusName = document.getElementById("focusName");
-const focusMeta = document.getElementById("focusMeta");
-const levelChips = document.getElementById("levelChips");
-
-function buildChips() {
-  const all = document.createElement("button");
-  all.className = "chip active";
-  all.textContent = "全部";
-  all.dataset.level = "0";
-  levelChips.appendChild(all);
-  for (let i = 1; i <= 13; i++) {
-    const b = document.createElement("button");
-    b.className = "chip";
-    b.textContent = i + "级";
-    b.dataset.level = String(i);
-    levelChips.appendChild(b);
-  }
-  levelChips.addEventListener("click", (e) => {
-    const btn = e.target.closest(".chip");
-    if (!btn) return;
-    tableState.level = Number(btn.dataset.level);
-    [...levelChips.children].forEach(c => c.classList.toggle("active", c === btn));
-    renderTable();
-  });
-}
-
-function matchRecipe(r) {
-  if (tableState.level && r.level !== tableState.level) return false;
-  if (tableState.hideV2 && isV2(r.machine)) return false;
-  const q = tableState.q.trim().toLowerCase();
-  if (!q) return true;
-  return [r.product, r.machine, ...r.materials].join(" ").toLowerCase().includes(q);
-}
-
-function setFocus(name) {
-  tableState.focus = name;
-  focusName.textContent = name;
-  const makes = RECIPES.filter(r => r.product === name);
-  const uses = RECIPES.filter(r => r.materials.includes(name));
-  focusMeta.textContent = ` · 配方 ${makes.length} · 下游 ${uses.length}`;
-  focusBar.classList.add("show");
-  renderTable();
-}
-
-function clearFocus() {
-  tableState.focus = null;
-  focusBar.classList.remove("show");
-  renderTable();
-}
-
-function itemBtn(name, extraClass="") {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "item" + (extraClass ? " " + extraClass : "") + (tableState.focus === name ? " active" : "");
-  b.textContent = name;
-  b.addEventListener("click", () => setFocus(name));
-  return b;
-}
-
-function renderTable() {
-  boards.innerHTML = "";
-  const filtered = RECIPES.filter(matchRecipe);
-  empty.classList.toggle("show", filtered.length === 0);
-  const byLevel = {};
-  for (const r of filtered) (byLevel[r.level] ||= []).push(r);
-  Object.keys(byLevel).map(Number).sort((a,b)=>a-b).forEach((lv) => {
-    const list = byLevel[lv];
-    const block = document.createElement("section");
-    block.className = "level-block";
-    const head = document.createElement("div");
-    head.className = "level-head";
-    head.innerHTML = `<span class="level-badge">${lv}级材料</span><span class="level-count">${list.length} 条配方</span>`;
-    block.appendChild(head);
-    const grid = document.createElement("div");
-    grid.className = "grid";
-    for (const r of list) {
-      const card = document.createElement("article");
-      card.className = "card";
-      if (tableState.focus) {
-        const hit = r.product === tableState.focus || r.materials.includes(tableState.focus);
-        card.classList.add(hit ? "hit" : "dim");
-      }
-      const mats = document.createElement("div");
-      mats.className = "col mats";
-      mats.innerHTML = `<div class="label">材料</div>`;
-      r.materials.forEach(m => mats.appendChild(itemBtn(m)));
-      const mac = document.createElement("div");
-      mac.className = "col machine";
-      mac.innerHTML = `<div class="label">机器</div><div class="machine-name${isV2(r.machine)?" v2":""}">${r.machine}</div>`;
-      const prod = document.createElement("div");
-      prod.className = "col product";
-      prod.innerHTML = `<div class="label">产品</div>`;
-      prod.appendChild(itemBtn(r.product, "product-name"));
-      card.append(mats, mac, prod);
-      grid.appendChild(card);
-    }
-    block.appendChild(grid);
-    boards.appendChild(block);
-  });
-}
-
-document.getElementById("q").addEventListener("input", (e) => {
-  tableState.q = e.target.value;
-  renderTable();
-});
-document.getElementById("toggleV2").addEventListener("click", (e) => {
-  tableState.hideV2 = !tableState.hideV2;
-  e.currentTarget.classList.toggle("active", tableState.hideV2);
-  e.currentTarget.textContent = tableState.hideV2 ? "已隐藏 v.2" : "隐藏 v.2";
-  renderTable();
-});
-document.getElementById("clearFocus").addEventListener("click", clearFocus);
-document.getElementById("clearFocus2").addEventListener("click", clearFocus);
-
-/* ========== 合成路线 ========== */
 const routeState = {
   preferBase: true,
   target: "",
@@ -867,7 +343,7 @@ function renderRouteGraph(target, opts = {}) {
 
   if (!target) {
     emptyEl.classList.remove("hide");
-    emptyEl.textContent = "搜索目标产品后点「生成路线」或点联想结果";
+    emptyEl.textContent = "输入产品名后点确定";
     applyTransform();
     return;
   }
@@ -1171,18 +647,7 @@ routeQ.addEventListener("keydown", (e) => {
 document.getElementById("routeGo").addEventListener("click", () => {
   goSearch(document.getElementById("routeQ").value);
 });
-document.getElementById("routeClear").addEventListener("click", () => {
-  document.getElementById("routeQ").value = "";
-  routeState.target = "";
-  hideSuggest();
-  renderRouteGraph("");
-});
-document.getElementById("preferBase").addEventListener("click", (e) => {
-  routeState.preferBase = !routeState.preferBase;
-  e.currentTarget.classList.toggle("active", routeState.preferBase);
-  e.currentTarget.textContent = routeState.preferBase ? "优先基础机" : "优先 v.2";
-  if (routeState.target) renderRouteGraph(routeState.target);
-});
+/* preferBase stays true */
 
 const svg = document.getElementById("routeSvg");
 svg.addEventListener("mousedown", (e) => {
@@ -1209,126 +674,7 @@ svg.addEventListener("wheel", (e) => {
   zoomAtClient(e.clientX, e.clientY, routeState.scale * delta);
   applyTransform();
 }, { passive: false });
-document.getElementById("zoomIn").addEventListener("click", () => {
-  routeState.scale = Math.min(2.5, routeState.scale * 1.15);
-  applyTransform();
-});
-document.getElementById("zoomOut").addEventListener("click", () => {
-  routeState.scale = Math.max(0.35, routeState.scale / 1.15);
-  applyTransform();
-});
-document.getElementById("zoomReset").addEventListener("click", () => {
-  routeState.scale = 1;
-  routeState.tx = 60;
-  routeState.ty = (svg.clientHeight || 600) / 2;
-  applyTransform();
-});
 
-document.getElementById("clearRouteHl").addEventListener("click", () => applyHighlight(null));
-
-/* ---- page locked; zoom only inside route canvas ---- */
-(function lockPageViewport() {
-  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
-  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
-  // 阻止双击放大页面
-  let lastTouchEnd = 0;
-  document.addEventListener("touchend", (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 280) e.preventDefault();
-    lastTouchEnd = now;
-  }, { passive: false });
-})();
-
-/* ---- 真横屏全屏（请把手机横过来，不再假旋转） ---- */
-async function enterLandscapeView() {
-  setMode("route");
-  document.body.classList.add("landscape-view", "route-mode");
-  document.getElementById("landscapeBtn")?.classList.add("active");
-  try {
-    const root = document.documentElement;
-    if (!document.fullscreenElement && root.requestFullscreen) {
-      await root.requestFullscreen();
-    }
-  } catch (_) {}
-  try {
-    if (screen.orientation && screen.orientation.lock) {
-      await screen.orientation.lock("landscape");
-    }
-  } catch (_) {
-    // iOS 等常锁不住，提示用户手动横拿
-    const tip = document.getElementById("lsTip");
-    if (tip) {
-      tip.style.display = "block";
-      clearTimeout(tip._t);
-      tip._t = setTimeout(() => { tip.style.display = "none"; }, 2500);
-    }
-  }
-  setTimeout(() => {
-    routeState.tx = 60;
-    routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
-    applyTransform();
-  }, 120);
-}
-
-async function exitLandscapeView() {
-  document.body.classList.remove("landscape-view");
-  document.getElementById("landscapeBtn")?.classList.remove("active");
-  const tip = document.getElementById("lsTip");
-  if (tip) tip.style.display = "none";
-  try {
-    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-  } catch (_) {}
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-  } catch (_) {}
-}
-
-document.getElementById("landscapeBtn").addEventListener("click", () => {
-  if (document.body.classList.contains("landscape-view")) exitLandscapeView();
-  else enterLandscapeView();
-});
-document.getElementById("landscapeExit").addEventListener("click", () => exitLandscapeView());
-
-// 手机横过来时自动进入路线全屏；竖回来可保持，点退出横屏即可
-window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
-  if (e.matches && document.getElementById("panelRoute").classList.contains("show")) {
-    document.body.classList.add("landscape-view", "route-mode");
-    document.getElementById("landscapeBtn")?.classList.add("active");
-    setTimeout(() => {
-      routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
-      applyTransform();
-    }, 100);
-  }
-});
-
-// 单指拖动 + 双指捏合：坐标按 SVG CTM 换算，假横屏旋转后方向正确
-const touchCtl = { mode: null, lastDist: 0 };
-function touchDist(a, b) {
-  const dx = a.clientX - b.clientX;
-  const dy = a.clientY - b.clientY;
-  return Math.hypot(dx, dy);
-}
-function touchCenter(a, b) {
-  return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
-}
-svg.addEventListener("touchstart", (e) => {
-  if (e.target.closest(".node") && e.touches.length === 1) return;
-  if (e.touches.length === 1) {
-    const t = e.touches[0];
-    touchCtl.mode = "pan";
-    routeState.dragging = true;
-    routeState.lastX = t.clientX;
-    routeState.lastY = t.clientY;
-    svg.classList.add("dragging");
-  } else if (e.touches.length >= 2) {
-    e.preventDefault();
-    touchCtl.mode = "pinch";
-    routeState.dragging = false;
-    touchCtl.lastDist = touchDist(e.touches[0], e.touches[1]);
-    svg.classList.remove("dragging");
-  }
-}, { passive: false });
 svg.addEventListener("touchmove", (e) => {
   if (touchCtl.mode === "pan" && e.touches.length === 1) {
     e.preventDefault();
@@ -1360,72 +706,24 @@ svg.addEventListener("touchend", endTouch);
 svg.addEventListener("touchcancel", endTouch);
 
 
+(function lockPageViewport() {
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 280) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+})();
 
-/* ========== mode switch ========== */
-function setMode(mode) {
-  document.querySelectorAll(".mode-tab").forEach(t => t.classList.toggle("active", t.dataset.mode === mode));
-  document.getElementById("panelTable").classList.toggle("show", mode === "table");
-  document.getElementById("panelRoute").classList.toggle("show", mode === "route");
-  document.getElementById("tableControls").style.display = mode === "table" ? "flex" : "none";
-  document.getElementById("levelChips").style.display = mode === "table" ? "flex" : "none";
-  document.getElementById("routeControls").style.display = mode === "route" ? "flex" : "none";
-  document.querySelector("h1 span").textContent = mode === "table" ? "· 合成表" : "· 合成路线";
-  document.body.classList.toggle("route-mode", mode === "route");
-  if (mode === "table" && document.body.classList.contains("landscape-view")) {
-    exitLandscapeView();
-  }
-  if (mode === "route" && window.matchMedia("(orientation: landscape)").matches) {
-    setHeaderCollapsed(true);
-  } else if (mode === "table") {
-    setHeaderCollapsed(false);
-  }
-}
-
-document.querySelectorAll(".mode-tab").forEach(tab => {
-  tab.addEventListener("click", () => setMode(tab.dataset.mode));
-});
-
-document.getElementById("toRouteFromFocus").addEventListener("click", () => {
-  if (!tableState.focus) return;
-  setMode("route");
-  document.getElementById("routeQ").value = tableState.focus;
-  routeState.target = tableState.focus;
-  renderRouteGraph(tableState.focus);
-});
-
-// from table item: double path via focus + button; also allow right-click? skip
-
-
-function setHeaderCollapsed(on) {
-  document.body.classList.toggle("header-collapsed", !!on);
-  const label = on ? "展开顶栏" : "收起顶栏";
-  const a = document.getElementById("headerToggle");
-  const b = document.getElementById("headerToggle2");
-  if (a) { a.textContent = label; a.classList.toggle("active", !!on); }
-  if (b) { b.textContent = label; b.classList.toggle("active", !!on); }
+window.addEventListener("orientationchange", () => {
   setTimeout(() => {
-    const svg = document.getElementById("routeSvg");
-    if (svg) {
-      routeState.ty = (svg.clientHeight || 360) / 2;
-      applyTransform();
-    }
-  }, 60);
-}
-function toggleHeaderCollapsed() {
-  setHeaderCollapsed(!document.body.classList.contains("header-collapsed"));
-}
-document.getElementById("headerToggle")?.addEventListener("click", toggleHeaderCollapsed);
-document.getElementById("headerToggle2")?.addEventListener("click", toggleHeaderCollapsed);
-
-// 横屏自动收起顶栏，竖屏恢复
-window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
-  if (document.getElementById("panelRoute").classList.contains("show")) {
-    setHeaderCollapsed(e.matches);
-  }
+    routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
+    applyTransform();
+  }, 200);
 });
-
-buildChips();
-renderTable();
 </script>
 </body>
 </html>
