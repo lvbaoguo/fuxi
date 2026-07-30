@@ -372,7 +372,7 @@
       max-width: calc(100% - 16px);
       font-size: .78rem;
     }
-    footer { padding-bottom: 20px; font-size: .75rem; }
+    /* footer removed */
   }
   @media (max-width: 720px) {
     main { max-width: 100%; padding: 10px 10px 24px; }
@@ -409,6 +409,40 @@
       bottom: auto;
     }
   }
+
+  /* 顶栏折叠 */
+  body.header-collapsed header .header-foldable { display: none !important; }
+  body.header-collapsed header {
+    border-bottom: 0;
+  }
+  body.header-collapsed .header-inner {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  body.header-collapsed .title-row { display: none !important; }
+  #headerToggle {
+    display: none;
+  }
+  body.route-mode #headerToggle { display: inline-flex; }
+  body.header-collapsed #headerToggle.expand-only { }
+  @media (orientation: landscape) {
+    footer { display: none !important; }
+    body.route-mode:not(.landscape-view) .route-layout {
+      min-height: calc(100dvh - 52px);
+      height: calc(100dvh - 52px);
+    }
+    body.route-mode.header-collapsed:not(.landscape-view) .route-layout {
+      min-height: 100dvh;
+      height: 100dvh;
+    }
+    body.route-mode.header-collapsed main {
+      padding: 0 !important;
+      max-width: none;
+    }
+    body.route-mode .route-canvas-wrap {
+      border-radius: 0;
+    }
+  }
 </style>
 </head>
 <body>
@@ -421,8 +455,10 @@
         <button class="mode-tab active" type="button" data-mode="table">合成表</button>
         <button class="mode-tab" type="button" data-mode="route">合成路线</button>
       </div>
+      <button class="btn" type="button" id="headerToggle" title="折叠/展开顶栏">收起顶栏</button>
     </div>
 
+    <div class="header-foldable">
     <div class="controls" id="tableControls">
       <input class="search" id="q" type="search" placeholder="搜索产品 / 材料 / 机器…" autocomplete="off" />
       <button class="btn" id="toggleV2" type="button">隐藏 v.2</button>
@@ -438,6 +474,7 @@
       <button class="btn active" id="preferBase" type="button">优先基础机</button>
       <button class="btn" id="routeGo" type="button">生成路线</button>
       <button class="btn clear" id="routeClear" type="button">清空</button>
+    </div>
     </div>
   </div>
 </header>
@@ -460,6 +497,7 @@
       <div class="route-canvas-wrap">
         <div class="hl-bar" id="hlBar">当前高亮：<strong id="hlName"></strong> <span id="hlMeta"></span></div>
         <div class="route-toolbar">
+          <button class="btn" type="button" id="headerToggle2">收起顶栏</button>
           <button class="btn" type="button" id="landscapeBtn" title="请将手机横过来">横屏全屏</button>
           <button class="btn clear" type="button" id="clearRouteHl">清除高亮</button>
           <button class="btn" type="button" id="zoomIn">放大</button>
@@ -484,9 +522,6 @@
     </div>
   </section>
 </main>
-<footer>
-  合成表快查；合成路线看总图。单击节点高亮上下游；搜索支持历史与联想。默认优先基础机。
-</footer>
 
 <script>
 const RECIPES = [{"level": 1, "product": "钨条", "machine": "冶炼厂", "materials": ["钨矿石"]}, {"level": 1, "product": "钛条", "machine": "冶炼厂", "materials": ["钛矿石"]}, {"level": 1, "product": "钙块", "machine": "冶炼厂", "materials": ["钙矿石"]}, {"level": 1, "product": "基础建筑材料", "machine": "制造厂", "materials": ["钨矿石", "钛矿石"]}, {"level": 1, "product": "中级建筑材料", "machine": "大型冲压机", "materials": ["基础建筑材料", "电感器", "玻璃", "钛金属外壳"]}, {"level": 2, "product": "钛棒", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂", "materials": ["钨条"]}, {"level": 2, "product": "方解石板", "machine": "制造厂", "materials": ["钙块"]}, {"level": 2, "product": "钛梁", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨粉", "machine": "熔炉", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉", "materials": ["钙块"]}, {"level": 2, "product": "钛棒", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂 v.2", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉 v.2", "materials": ["钙块"]}, {"level": 2, "product": "钨粉", "machine": "熔炉 v.2", "materials": ["钨条"]}, {"level": 3, "product": "钨板", "machine": "制造厂", "materials": ["钨条"]}, {"level": 3, "product": "转子", "machine": "制造厂", "materials": ["钛棒", "钨丝"]}, {"level": 3, "product": "管材", "machine": "制造厂", "materials": ["钛棒", "钛板"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉", "materials": ["方解石板", "钨粉"]}, {"level": 3, "product": "钛金属外壳", "machine": "熔炉", "materials": ["钛梁", "钛板"]}, {"level": 3, "product": "玻璃", "machine": "熔炉", "materials": ["氦-3", "钙粉"]}, {"level": 3, "product": "钨板", "machine": "制造厂 v.2", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂 v.2", "materials": ["钛棒", "钨丝", "钨板"]}, {"level": 3, "product": "管材", "machine": "制造厂 v.2", "materials": ["针铁矿锭", "钛板", "钨粉"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉 v.2", "materials": ["方解石板", "氦-3", "钨粉"]}, {"level": 3, "product": "玻璃", "machine": "熔炉 v.2", "materials": ["加压氦气", "方解石板", "针铁矿锭"]}, {"level": 4, "product": "稳定器", "machine": "制造厂", "materials": ["转子", "钛棒"]}, {"level": 4, "product": "定子", "machine": "制造厂", "materials": ["钛金属外壳", "钨丝"]}, {"level": 4, "product": "耐热板", "machine": "熔炉", "materials": ["钨板", "钛板", "玻璃"]}, {"level": 4, "product": "合成硅", "machine": "熔炉", "materials": ["钙粉", "氦-3", "陶瓷"]}, {"level": 4, "product": "化学品", "machine": "熔炉", "materials": ["合成硅", "钨粉", "氦-3"]}, {"level": 4, "product": "定子", "machine": "制造厂 v.2", "materials": ["钛金属外壳", "钨丝", "钛板"]}, {"level": 4, "product": "化学品", "machine": "熔炉 v.2", "materials": ["钙粉", "钨粉", "氦-3", "针铁矿锭"]}, {"level": 4, "product": "耐热板", "machine": "熔炉 v.2", "materials": ["钛铁合金锭", "钨钢锭", "氦-3"]}, {"level": 5, "product": "给药器", "machine": "制造厂", "materials": ["管材", "玻璃"]}, {"level": 5, "product": "电感器", "machine": "熔炉", "materials": ["管材", "钨丝", "陶瓷"]}, {"level": 5, "product": "电子元件", "machine": "熔炉", "materials": ["合成硅", "电感器", "定子"]}, {"level": 5, "product": "涡轮机", "machine": "大型冲压机", "materials": ["叶轮", "定子", "转子", "硫酸"]}, {"level": 5, "product": "阀门", "machine": "大型冲压机", "materials": ["钛金属外壳", "钛梁", "钛棒", "喷嘴"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉", "materials": ["硫酸", "合成硅", "给药器"]}, {"level": 6, "product": "超磁体", "machine": "熔炉", "materials": ["硫酸", "钨板", "化学品"]}, {"level": 6, "product": "叶轮", "machine": "大型冲压机", "materials": ["钛棒", "耐热板", "钨板", "稳定器"]}, {"level": 6, "product": "喷嘴", "machine": "大型冲压机", "materials": ["耐热板", "氦-3", "稳定器"]}, {"level": 6, "product": "电池", "machine": "大型冲压机", "materials": ["电感器", "电子元件", "硫酸"]}, {"level": 6, "product": "加压氦气", "machine": "加压器", "materials": ["氦-3", "硫矿石"]}, {"level": 6, "product": "硫酸", "machine": "加压器", "materials": ["硫矿石", "化学品"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉 v.2", "materials": ["硫酸", "合成硅", "给药器", "加压氦气"]}, {"level": 6, "product": "加压氦气", "machine": "化合反应炉 v.2", "materials": ["氦-3", "硫矿石", "钙粉"]}, {"level": 6, "product": "硫酸", "machine": "化合反应炉 v.2", "materials": ["硫矿石", "化学品", "钨粉"]}, {"level": 7, "product": "电磁线圈", "machine": "大型冲压机", "materials": ["电感器", "加压氦气", "钨板", "超磁体"]}, {"level": 7, "product": "蓄电池", "machine": "装配厂", "materials": ["电子元件", "定子", "电池"]}, {"level": 7, "product": "发电机", "machine": "装配厂", "materials": ["涡轮机", "电池", "喷嘴"]}, {"level": 7, "product": "压力罐", "machine": "装配厂", "materials": ["耐热板", "阀门", "泵"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉", "materials": ["加压氦气", "硬化剂"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉 v.2", "materials": ["加压氦气", "硬化剂", "化学品"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉 v.2", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 8, "product": "泵", "machine": "大型冲压机", "materials": ["阀门", "涡轮机", "叶轮", "硫酸"]}, {"level": 8, "product": "谐振器", "machine": "装配厂", "materials": ["蓄电池", "发电机", "液态氦"]}, {"level": 8, "product": "透镜", "machine": "化合反应炉", "materials": ["玻璃", "硬化剂", "合成树脂"]}, {"level": 8, "product": "超导体", "machine": "化合反应炉", "materials": ["合成树脂", "电磁铁", "超磁体"]}, {"level": 8, "product": "针铁矿锭", "machine": "锻造炉", "materials": ["针铁矿"]}, {"level": 8, "product": "钛铁合金锭", "machine": "锻造炉", "materials": ["钛矿石", "针铁矿"]}, {"level": 8, "product": "钨钢锭", "machine": "锻造炉", "materials": ["钨矿石", "针铁矿"]}, {"level": 8, "product": "针铁矿粉", "machine": "化合反应炉", "materials": ["针铁矿锭", "加压氦气", "钙粉"]}, {"level": 8, "product": "针铁矿晶格", "machine": "大型冲压机", "materials": ["针铁矿锭", "钛铁合金锭", "钨钢锭"]}, {"level": 8, "product": "超导体", "machine": "加工厂 v.2", "materials": ["合成树脂", "电磁铁", "超磁体", "气凝胶", "隔热罩"]}, {"level": 9, "product": "电磁铁", "machine": "装配厂", "materials": ["电磁线圈", "合成树脂", "蓄电池"]}, {"level": 9, "product": "激光发射器", "machine": "装配厂", "materials": ["透镜", "谐振器", "电磁线圈"]}, {"level": 9, "product": "扫描仪", "machine": "装配厂", "materials": ["透镜", "发电机", "稳定器"]}, {"level": 9, "product": "纳米纤维", "machine": "化合反应炉", "materials": ["管材", "液态氦", "钨丝"]}, {"level": 9, "product": "离子注入器", "machine": "化合反应炉", "materials": ["给药器", "电磁铁", "压力罐"]}, {"level": 9, "product": "环氧树脂", "machine": "化合反应炉", "materials": ["液态氦", "针铁矿粉", "合成树脂"]}, {"level": 9, "product": "基础燃料", "machine": "化合反应炉", "materials": ["钨粉", "针铁矿粉", "液态氦"]}, {"level": 9, "product": "精炼油", "machine": "精炼厂", "materials": ["能源矿", "钙矿石", "钛矿石"]}, {"level": 9, "product": "气凝胶", "machine": "化合反应炉", "materials": ["针铁矿粉", "钙粉", "液态氦"]}, {"level": 9, "product": "强化框架", "machine": "大型冲压机", "materials": ["管材", "钛铁合金锭", "钛梁"]}, {"level": 9, "product": "强化外壳", "machine": "大型冲压机", "materials": ["钛金属外壳", "钨钢锭", "钨板"]}, {"level": 9, "product": "塑料", "machine": "化合反应炉", "materials": ["精炼油", "硫酸", "化学品"]}, {"level": 9, "product": "有机化合物", "machine": "化合反应炉", "materials": ["硫酸", "精炼油", "环氧树脂"]}, {"level": 9, "product": "离子注入器", "machine": "加工厂 v.2", "materials": ["给药器", "电磁铁", "压力罐", "针铁矿晶格", "塑料"]}, {"level": 9, "product": "激光发射器", "machine": "加工厂 v.2", "materials": ["透镜", "谐振器", "电磁线圈", "炸药", "环氧树脂"]}, {"level": 9, "product": "扫描仪", "machine": "加工厂 v.2", "materials": ["透镜", "发电机", "稳定器", "超级纤维", "拟橡胶绝缘体"]}, {"level": 10, "product": "冷凝器", "machine": "装配厂", "materials": ["谐振器", "泵", "纳米纤维"]}, {"level": 10, "product": "穹顶", "machine": "弹药加工厂", "materials": ["超级纤维", "冷凝器", "气闸舱", "脚手架", "转换器"]}, {"level": 10, "product": "火箭引擎", "machine": "弹药加工厂", "materials": ["喷嘴", "涡轮机", "泵", "火箭燃料", "冷凝器"]}, {"level": 10, "product": "炸药", "machine": "装配厂", "materials": ["强化外壳", "环氧树脂"]}, {"level": 10, "product": "离子推进器", "machine": "加工厂", "materials": ["阀门", "隔热罩", "压力罐", "火箭燃料"]}, {"level": 10, "product": "离子稳定器", "machine": "大型冲压机", "materials": ["环氧树脂", "液态氦", "船载仪器", "炸药"]}, {"level": 10, "product": "塑料粉尘", "machine": "装配厂", "materials": ["有机化合物", "基础燃料", "塑料"]}, {"level": 10, "product": "拟橡胶绝缘体", "machine": "装配厂", "materials": ["塑料", "环氧树脂", "针铁矿晶格"]}, {"level": 10, "product": "物质#FHS-135-493", "machine": "化合反应炉", "materials": ["硫酸", "针铁矿粉", "液态氦"]}, {"level": 10, "product": "合成蛋白", "machine": "化合反应炉", "materials": ["有机化合物", "物质#FHS-135-493", "硫酸"]}, {"level": 10, "product": "冷凝器", "machine": "加工厂 v.2", "materials": ["谐振器", "泵", "纳米纤维", "强化外壳", "基础燃料"]}, {"level": 11, "product": "抗辐射罩", "machine": "加工厂", "materials": ["强化外壳", "强化框架", "拟橡胶绝缘体", "环氧树脂"]}, {"level": 11, "product": "纳米注射器", "machine": "加工厂", "materials": ["硬化剂", "给药器", "纳米纤维", "物质#FHS-135-493"]}, {"level": 11, "product": "卫星主体", "machine": "弹药加工厂", "materials": ["船载仪器", "扫描仪", "离子推进器", "火箭引擎", "隔热罩"]}, {"level": 11, "product": "脚手架", "machine": "加工厂", "materials": ["超级纤维", "强化框架", "针铁矿晶格", "塑料粉尘"]}, {"level": 11, "product": "船载仪器", "machine": "装配厂", "materials": ["电子元件", "稳定器", "强化外壳"]}, {"level": 11, "product": "RNA稳定剂", "machine": "加工厂", "materials": ["有机化合物", "纳米注射器", "合成蛋白", "塑料"]}, {"level": 11, "product": "RTSC（室温超导体）", "machine": "加工厂", "materials": ["抗辐射罩", "隔热罩", "气凝胶", "拟橡胶绝缘体"]}, {"level": 11, "product": "超级纤维", "machine": "装配厂", "materials": ["钙粉", "针铁矿晶格", "环氧树脂"]}, {"level": 12, "product": "气闸舱", "machine": "加工厂", "materials": ["脚手架", "压力罐", "超级纤维", "拟橡胶绝缘体"]}, {"level": 12, "product": "回旋加速器", "machine": "弹药加工厂", "materials": ["气凝胶", "电磁铁", "离子注入器", "强化外壳", "塑料粉尘"]}, {"level": 12, "product": "隔热罩", "machine": "大型冲压机", "materials": ["环氧树脂", "气凝胶", "超级纤维", "强化框架"]}, {"level": 12, "product": "生物纤维", "machine": "弹药加工厂", "materials": ["合成蛋白", "RNA稳定剂", "物质#FHS-135-493", "纳米纤维", "超导体"]}, {"level": 12, "product": "碳声呐", "machine": "加工厂", "materials": ["离子稳定器", "量子镇定剂", "蓄电池", "船载仪器"]}, {"level": 12, "product": "量子镇定剂", "machine": "加工厂", "materials": ["离子稳定器", "超磁体", "塑料粉尘", "硫酸"]}, {"level": 12, "product": "火箭燃料", "machine": "加工厂", "materials": ["液态氦", "基础燃料", "硫酸", "精炼油"]}, {"level": 12, "product": "合成DNA", "machine": "弹药加工厂", "materials": ["合成蛋白", "物质#FHS-135-493", "纳米注射器", "塑料", "生物纤维"]}, {"level": 13, "product": "转换器", "machine": "弹药加工厂", "materials": ["激光发射器", "蓄电池", "电磁线圈", "塑料", "RTSC（室温超导体）"]}, {"level": 13, "product": "RTSC发电机", "machine": "弹药加工厂", "materials": ["RTSC（室温超导体）", "发电机", "激光发射器", "抗辐射罩", "回旋加速器"]}, {"level": 13, "product": "追踪装置", "machine": "弹药加工厂", "materials": ["碳声呐", "量子镇定剂", "透镜", "船载仪器", "扫描仪"]}, {"level": 13, "product": "离子炸弹", "machine": "弹药加工厂", "materials": ["离子注入器", "离子稳定器", "炸药", "追踪装置", "谐振器"]}];
@@ -1351,6 +1386,11 @@ function setMode(mode) {
   if (mode === "table" && document.body.classList.contains("landscape-view")) {
     exitLandscapeView();
   }
+  if (mode === "route" && window.matchMedia("(orientation: landscape)").matches) {
+    setHeaderCollapsed(true);
+  } else if (mode === "table") {
+    setHeaderCollapsed(false);
+  }
 }
 
 document.querySelectorAll(".mode-tab").forEach(tab => {
@@ -1366,6 +1406,35 @@ document.getElementById("toRouteFromFocus").addEventListener("click", () => {
 });
 
 // from table item: double path via focus + button; also allow right-click? skip
+
+
+function setHeaderCollapsed(on) {
+  document.body.classList.toggle("header-collapsed", !!on);
+  const label = on ? "展开顶栏" : "收起顶栏";
+  const a = document.getElementById("headerToggle");
+  const b = document.getElementById("headerToggle2");
+  if (a) { a.textContent = label; a.classList.toggle("active", !!on); }
+  if (b) { b.textContent = label; b.classList.toggle("active", !!on); }
+  setTimeout(() => {
+    const svg = document.getElementById("routeSvg");
+    if (svg) {
+      routeState.ty = (svg.clientHeight || 360) / 2;
+      applyTransform();
+    }
+  }, 60);
+}
+function toggleHeaderCollapsed() {
+  setHeaderCollapsed(!document.body.classList.contains("header-collapsed"));
+}
+document.getElementById("headerToggle")?.addEventListener("click", toggleHeaderCollapsed);
+document.getElementById("headerToggle2")?.addEventListener("click", toggleHeaderCollapsed);
+
+// 横屏自动收起顶栏，竖屏恢复
+window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
+  if (document.getElementById("panelRoute").classList.contains("show")) {
+    setHeaderCollapsed(e.matches);
+  }
+});
 
 buildChips();
 renderTable();
