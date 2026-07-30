@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>星际裂变 · 合成工具</title>
 <style>
   :root {
@@ -289,6 +289,88 @@
     max-width: 1400px; margin: 0 auto; padding: 0 20px 28px;
     color: var(--muted); font-size: .8rem;
   }
+
+  /* mobile + landscape */
+  html, body {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+  body.landscape-view {
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+  body.landscape-view header,
+  body.landscape-view footer,
+  body.landscape-view #panelTable {
+    display: none !important;
+  }
+  body.landscape-view main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  body.landscape-view #panelRoute.panel {
+    display: block !important;
+  }
+  body.landscape-view .route-layout {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    height: 100vh;
+    z-index: 2000;
+    min-height: 0;
+  }
+  body.landscape-view .route-canvas-wrap {
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  /* 竖屏手机上用旋转模拟横屏 */
+  body.landscape-view.ls-rotate .route-layout {
+    width: 100dvh;
+    width: 100vh;
+    height: 100dvw;
+    height: 100vw;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+  }
+  .ls-exit {
+    display: none;
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 8;
+  }
+  body.landscape-view .ls-exit { display: inline-flex; }
+  body.landscape-view .hl-bar {
+    max-width: min(420px, calc(100% - 220px));
+  }
+  @media (max-width: 720px) {
+    .header-inner { padding: 10px 12px; gap: 8px; }
+    h1 { font-size: 1.05rem; }
+    .sub { display: none; }
+    .controls { gap: 8px; }
+    .search { min-width: 0; width: 100%; font-size: 16px; /* 防 iOS 自动放大 */ }
+    .btn, .chip, .mode-tab { min-height: 36px; padding: 8px 12px; }
+    .route-layout {
+      min-height: calc(100dvh - 150px);
+      height: calc(100dvh - 150px);
+    }
+    .route-toolbar { gap: 4px; max-width: 58%; }
+    .route-toolbar .btn { font-size: .75rem; padding: 6px 8px; }
+    .hl-bar {
+      left: 8px; top: 8px;
+      max-width: calc(100% - 16px);
+      font-size: .78rem;
+    }
+    footer { padding-bottom: 20px; font-size: .75rem; }
+  }
   @media (max-width: 720px) {
     .card { grid-template-columns: 1fr; }
     .col.machine, .col.product { border: 0; border-top: 1px solid var(--line); }
@@ -347,11 +429,13 @@
       <div class="route-canvas-wrap">
         <div class="hl-bar" id="hlBar">当前高亮：<strong id="hlName"></strong> <span id="hlMeta"></span></div>
         <div class="route-toolbar">
+          <button class="btn" type="button" id="landscapeBtn">横屏观看</button>
           <button class="btn clear" type="button" id="clearRouteHl">清除高亮</button>
           <button class="btn" type="button" id="zoomIn">放大</button>
           <button class="btn" type="button" id="zoomOut">缩小</button>
           <button class="btn" type="button" id="zoomReset">复位</button>
         </div>
+        <button class="btn clear ls-exit" type="button" id="landscapeExit">退出横屏</button>
         <div class="route-empty" id="routeEmpty">搜索目标产品后点「生成路线」</div>
         <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -1070,7 +1154,99 @@ document.getElementById("zoomReset").addEventListener("click", () => {
   routeState.ty = (svg.clientHeight || 600) / 2;
   applyTransform();
 });
+
 document.getElementById("clearRouteHl").addEventListener("click", () => applyHighlight(null));
+
+/* ---- mobile: no pinch zoom + landscape view ---- */
+(function lockPageZoom() {
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+})();
+
+async function enterLandscapeView() {
+  document.body.classList.add("landscape-view");
+  document.getElementById("landscapeBtn")?.classList.add("active");
+  setMode("route");
+  let locked = false;
+  try {
+    const root = document.documentElement;
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      await root.requestFullscreen();
+    }
+  } catch (_) {}
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock("landscape");
+      locked = true;
+    }
+  } catch (_) {}
+  document.body.classList.toggle("ls-rotate", !locked);
+  // fit canvas after layout change
+  setTimeout(() => {
+    routeState.tx = 60;
+    routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
+    applyTransform();
+  }, 80);
+}
+
+async function exitLandscapeView() {
+  document.body.classList.remove("landscape-view", "ls-rotate");
+  document.getElementById("landscapeBtn")?.classList.remove("active");
+  try {
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+  } catch (_) {}
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+  } catch (_) {}
+}
+
+document.getElementById("landscapeBtn").addEventListener("click", () => {
+  if (document.body.classList.contains("landscape-view")) exitLandscapeView();
+  else enterLandscapeView();
+});
+document.getElementById("landscapeExit").addEventListener("click", () => exitLandscapeView());
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && document.body.classList.contains("landscape-view")) {
+    // keep CSS rotate mode if user exits fullscreen manually
+    document.body.classList.add("ls-rotate");
+  }
+});
+
+// touch pan for route canvas
+svg.addEventListener("touchstart", (e) => {
+  if (e.target.closest(".node")) return;
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  routeState.dragging = true;
+  routeState.lastX = t.clientX;
+  routeState.lastY = t.clientY;
+  svg.classList.add("dragging");
+}, { passive: true });
+svg.addEventListener("touchmove", (e) => {
+  if (!routeState.dragging || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  routeState.tx += t.clientX - routeState.lastX;
+  routeState.ty += t.clientY - routeState.lastY;
+  routeState.lastX = t.clientX;
+  routeState.lastY = t.clientY;
+  applyTransform();
+}, { passive: true });
+svg.addEventListener("touchend", () => {
+  routeState.dragging = false;
+  svg.classList.remove("dragging");
+});
+svg.addEventListener("touchcancel", () => {
+  routeState.dragging = false;
+  svg.classList.remove("dragging");
+});
+
 
 
 /* ========== mode switch ========== */
@@ -1082,6 +1258,9 @@ function setMode(mode) {
   document.getElementById("levelChips").style.display = mode === "table" ? "flex" : "none";
   document.getElementById("routeControls").style.display = mode === "route" ? "flex" : "none";
   document.querySelector("h1 span").textContent = mode === "table" ? "· 合成表" : "· 合成路线";
+  if (mode === "table" && document.body.classList.contains("landscape-view")) {
+    exitLandscapeView();
+  }
 }
 
 document.querySelectorAll(".mode-tab").forEach(tab => {
