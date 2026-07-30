@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>星际裂变 · 合成路线</title>
 <style>
@@ -33,9 +35,9 @@
   }
   .route-canvas-wrap svg.dragging { cursor: grabbing; }
   .float-search {
-    position: absolute; z-index: 20; display: flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(40,50,70,.12); padding: 6px;
+    position: absolute; z-index: 40; display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(40,50,70,.18); padding: 6px;
   }
   .float-search .suggest-wrap { position: relative; flex: 1; min-width: 0; }
   .float-search input {
@@ -88,9 +90,13 @@
     .float-search { left: 10px; right: 10px; top: 10px; }
   }
   @media (orientation: landscape) {
-    .float-search { left: 8px; top: 8px; right: auto; width: min(300px, 42vw); padding: 5px; }
-    .float-search input { padding: 6px 8px; font-size: 15px; }
-    .float-search .go { padding: 6px 10px; }
+    .float-search {
+      left: max(8px, env(safe-area-inset-left));
+      top: max(8px, env(safe-area-inset-top));
+      right: auto; width: min(320px, 46vw); padding: 5px;
+    }
+    .float-search input { padding: 7px 9px; font-size: 15px; }
+    .float-search .go { padding: 7px 12px; }
   }
 </style>
 </head>
