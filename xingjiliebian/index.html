@@ -675,6 +675,32 @@ svg.addEventListener("wheel", (e) => {
   applyTransform();
 }, { passive: false });
 
+const touchCtl = { mode: null, lastDist: 0 };
+function touchDist(a, b) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return Math.hypot(dx, dy);
+}
+function touchCenter(a, b) {
+  return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+}
+svg.addEventListener("touchstart", (e) => {
+  if (e.target.closest(".node") && e.touches.length === 1) return;
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    touchCtl.mode = "pan";
+    routeState.dragging = true;
+    routeState.lastX = t.clientX;
+    routeState.lastY = t.clientY;
+    svg.classList.add("dragging");
+  } else if (e.touches.length >= 2) {
+    e.preventDefault();
+    touchCtl.mode = "pinch";
+    routeState.dragging = false;
+    touchCtl.lastDist = touchDist(e.touches[0], e.touches[1]);
+    svg.classList.remove("dragging");
+  }
+}, { passive: false });
 svg.addEventListener("touchmove", (e) => {
   if (touchCtl.mode === "pan" && e.touches.length === 1) {
     e.preventDefault();
