@@ -343,19 +343,6 @@
     border: 0;
     box-shadow: none;
   }
-  /* 竖屏手机上用旋转模拟横屏 */
-  body.landscape-view.ls-rotate .route-layout {
-    width: 100dvh;
-    width: 100vh;
-    height: 100dvw;
-    height: 100vw;
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
-  }
   .ls-exit {
     display: none;
     position: absolute;
@@ -395,6 +382,32 @@
     .level-head { top: 160px; }
     .mode-tabs { margin-left: 0; width: 100%; }
     .mode-tab { flex: 1; text-align: center; }
+  }
+
+  /* 真横屏：手机横过来后自动铺满 */
+  @media (orientation: landscape) {
+    body.route-mode header {
+      padding: 0;
+    }
+    body.route-mode .header-inner {
+      padding: 6px 10px;
+      gap: 6px;
+    }
+    body.route-mode .title-row .sub { display: none; }
+    body.route-mode .route-layout {
+      min-height: calc(100dvh - 88px);
+      height: calc(100dvh - 88px);
+    }
+    body.landscape-view .route-layout,
+    body.route-mode.landscape-view .route-layout {
+      height: 100dvh;
+      height: 100vh;
+    }
+    body.landscape-view .ls-exit {
+      left: 12px;
+      top: 12px;
+      bottom: auto;
+    }
   }
 </style>
 </head>
@@ -447,13 +460,14 @@
       <div class="route-canvas-wrap">
         <div class="hl-bar" id="hlBar">当前高亮：<strong id="hlName"></strong> <span id="hlMeta"></span></div>
         <div class="route-toolbar">
-          <button class="btn" type="button" id="landscapeBtn">横屏观看</button>
+          <button class="btn" type="button" id="landscapeBtn" title="请将手机横过来">横屏全屏</button>
           <button class="btn clear" type="button" id="clearRouteHl">清除高亮</button>
           <button class="btn" type="button" id="zoomIn">放大</button>
           <button class="btn" type="button" id="zoomOut">缩小</button>
           <button class="btn" type="button" id="zoomReset">复位</button>
         </div>
         <button class="btn clear ls-exit" type="button" id="landscapeExit">退出横屏</button>
+        <div id="lsTip" style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;background:rgba(42,48,56,.88);color:#fff;padding:12px 16px;border-radius:10px;font-size:.9rem;pointer-events:none;">请将手机横过来观看</div>
         <div class="route-empty" id="routeEmpty">搜索目标产品后点「生成路线」</div>
         <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -927,47 +941,14 @@ function applyTransform() {
   world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
 }
 
-/**
- * 假横屏：手机仍竖屏，CSS rotate(90deg)。
- * 屏幕滑动 → 画布本地：横屏“往下”= 竖屏“往左”
- * rotate(90deg CW): local(+x)→screen(+y下), local(+y)→screen(-x左)
- * 所以 screen(dx,dy) → local(dy, -dx)
- */
-function isFakeLandscape() {
-  return document.body.classList.contains("ls-rotate");
-}
-
-function mapScreenDeltaToLocal(dx, dy) {
-  if (isFakeLandscape()) return { dx: dy, dy: -dx };
-  return { dx, dy };
-}
-
-/** 屏幕点 → 画布本地坐标（假横屏按中心逆旋转） */
-function clientToLocal(clientX, clientY) {
-  const layout = document.getElementById("routeLayout");
-  if (!isFakeLandscape()) {
-    const rect = document.getElementById("routeSvg").getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }
-  // 未旋转时的布局尺寸（offset* 不受 transform 影响）
-  const w = layout.offsetWidth;
-  const h = layout.offsetHeight;
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  const sx = clientX - cx;
-  const sy = clientY - cy;
-  // 逆旋转 90deg CW: (sx,sy) → (sy, -sx)，再平移到左上角原点
-  return { x: sy + w / 2, y: -sx + h / 2 };
-}
-
 function panByClientDelta(fromX, fromY, toX, toY) {
-  const mapped = mapScreenDeltaToLocal(toX - fromX, toY - fromY);
-  routeState.tx += mapped.dx;
-  routeState.ty += mapped.dy;
+  routeState.tx += toX - fromX;
+  routeState.ty += toY - fromY;
 }
 
 function zoomAtClient(clientX, clientY, nextScale) {
-  const c = clientToLocal(clientX, clientY);
+  const rect = document.getElementById("routeSvg").getBoundingClientRect();
+  const c = { x: clientX - rect.left, y: clientY - rect.top };
   const next = Math.min(3.5, Math.max(0.3, nextScale));
   const k = next / routeState.scale;
   routeState.tx = c.x - (c.x - routeState.tx) * k;
@@ -1236,12 +1217,11 @@ document.getElementById("clearRouteHl").addEventListener("click", () => applyHig
   }, { passive: false });
 })();
 
-/* ---- mobile landscape + pinch zoom on canvas ---- */
+/* ---- 真横屏全屏（请把手机横过来，不再假旋转） ---- */
 async function enterLandscapeView() {
-  document.body.classList.add("landscape-view");
-  document.getElementById("landscapeBtn")?.classList.add("active");
   setMode("route");
-  let locked = false;
+  document.body.classList.add("landscape-view", "route-mode");
+  document.getElementById("landscapeBtn")?.classList.add("active");
   try {
     const root = document.documentElement;
     if (!document.fullscreenElement && root.requestFullscreen) {
@@ -1251,20 +1231,28 @@ async function enterLandscapeView() {
   try {
     if (screen.orientation && screen.orientation.lock) {
       await screen.orientation.lock("landscape");
-      locked = true;
     }
-  } catch (_) {}
-  document.body.classList.toggle("ls-rotate", !locked);
+  } catch (_) {
+    // iOS 等常锁不住，提示用户手动横拿
+    const tip = document.getElementById("lsTip");
+    if (tip) {
+      tip.style.display = "block";
+      clearTimeout(tip._t);
+      tip._t = setTimeout(() => { tip.style.display = "none"; }, 2500);
+    }
+  }
   setTimeout(() => {
     routeState.tx = 60;
     routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
     applyTransform();
-  }, 80);
+  }, 120);
 }
 
 async function exitLandscapeView() {
-  document.body.classList.remove("landscape-view", "ls-rotate");
+  document.body.classList.remove("landscape-view");
   document.getElementById("landscapeBtn")?.classList.remove("active");
+  const tip = document.getElementById("lsTip");
+  if (tip) tip.style.display = "none";
   try {
     if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
   } catch (_) {}
@@ -1278,9 +1266,16 @@ document.getElementById("landscapeBtn").addEventListener("click", () => {
   else enterLandscapeView();
 });
 document.getElementById("landscapeExit").addEventListener("click", () => exitLandscapeView());
-document.addEventListener("fullscreenchange", () => {
-  if (!document.fullscreenElement && document.body.classList.contains("landscape-view")) {
-    document.body.classList.add("ls-rotate");
+
+// 手机横过来时自动进入路线全屏；竖回来可保持，点退出横屏即可
+window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
+  if (e.matches && document.getElementById("panelRoute").classList.contains("show")) {
+    document.body.classList.add("landscape-view", "route-mode");
+    document.getElementById("landscapeBtn")?.classList.add("active");
+    setTimeout(() => {
+      routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
+      applyTransform();
+    }, 100);
   }
 });
 
@@ -1352,6 +1347,7 @@ function setMode(mode) {
   document.getElementById("levelChips").style.display = mode === "table" ? "flex" : "none";
   document.getElementById("routeControls").style.display = mode === "route" ? "flex" : "none";
   document.querySelector("h1 span").textContent = mode === "table" ? "· 合成表" : "· 合成路线";
+  document.body.classList.toggle("route-mode", mode === "route");
   if (mode === "table" && document.body.classList.contains("landscape-view")) {
     exitLandscapeView();
   }
