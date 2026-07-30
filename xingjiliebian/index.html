@@ -927,6 +927,34 @@ function applyTransform() {
   world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
 }
 
+/** 屏幕坐标 → SVG 用户坐标（自动适配假横屏 CSS rotate） */
+function clientToSvg(clientX, clientY) {
+  const svgEl = document.getElementById("routeSvg");
+  const pt = svgEl.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = svgEl.getScreenCTM();
+  if (!ctm) return { x: clientX, y: clientY };
+  const p = pt.matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+
+function panByClientDelta(fromX, fromY, toX, toY) {
+  const a = clientToSvg(fromX, fromY);
+  const b = clientToSvg(toX, toY);
+  routeState.tx += b.x - a.x;
+  routeState.ty += b.y - a.y;
+}
+
+function zoomAtClient(clientX, clientY, nextScale) {
+  const c = clientToSvg(clientX, clientY);
+  const next = Math.min(3.5, Math.max(0.3, nextScale));
+  const k = next / routeState.scale;
+  routeState.tx = c.x - (c.x - routeState.tx) * k;
+  routeState.ty = c.y - (c.y - routeState.ty) * k;
+  routeState.scale = next;
+}
+
 const HIST_KEY = "starrupture_search_hist";
 const HIST_MAX = 12;
 let suggestIndex = -1;
@@ -1142,8 +1170,7 @@ svg.addEventListener("mousedown", (e) => {
 });
 window.addEventListener("mousemove", (e) => {
   if (!routeState.dragging) return;
-  routeState.tx += e.clientX - routeState.lastX;
-  routeState.ty += e.clientY - routeState.lastY;
+  panByClientDelta(routeState.lastX, routeState.lastY, e.clientX, e.clientY);
   routeState.lastX = e.clientX;
   routeState.lastY = e.clientY;
   applyTransform();
@@ -1155,7 +1182,7 @@ window.addEventListener("mouseup", () => {
 svg.addEventListener("wheel", (e) => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
-  routeState.scale = Math.min(2.5, Math.max(0.35, routeState.scale * delta));
+  zoomAtClient(e.clientX, e.clientY, routeState.scale * delta);
   applyTransform();
 }, { passive: false });
 document.getElementById("zoomIn").addEventListener("click", () => {
@@ -1237,7 +1264,7 @@ document.addEventListener("fullscreenchange", () => {
   }
 });
 
-// 单指拖动 + 双指捏合缩放：只作用在画布，不缩放页面
+// 单指拖动 + 双指捏合：坐标按 SVG CTM 换算，假横屏旋转后方向正确
 const touchCtl = { mode: null, lastDist: 0 };
 function touchDist(a, b) {
   const dx = a.clientX - b.clientX;
@@ -1268,8 +1295,7 @@ svg.addEventListener("touchmove", (e) => {
   if (touchCtl.mode === "pan" && e.touches.length === 1) {
     e.preventDefault();
     const t = e.touches[0];
-    routeState.tx += t.clientX - routeState.lastX;
-    routeState.ty += t.clientY - routeState.lastY;
+    panByClientDelta(routeState.lastX, routeState.lastY, t.clientX, t.clientY);
     routeState.lastX = t.clientX;
     routeState.lastY = t.clientY;
     applyTransform();
@@ -1279,12 +1305,8 @@ svg.addEventListener("touchmove", (e) => {
     const dist = touchDist(e.touches[0], e.touches[1]);
     if (touchCtl.lastDist > 0) {
       const factor = dist / touchCtl.lastDist;
-      const next = Math.min(3.5, Math.max(0.3, routeState.scale * factor));
       const c = touchCenter(e.touches[0], e.touches[1]);
-      const k = next / routeState.scale;
-      routeState.tx = c.x - (c.x - routeState.tx) * k;
-      routeState.ty = c.y - (c.y - routeState.ty) * k;
-      routeState.scale = next;
+      zoomAtClient(c.x, c.y, routeState.scale * factor);
       applyTransform();
     }
     touchCtl.lastDist = dist;
