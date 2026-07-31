@@ -61,6 +61,12 @@
     white-space: nowrap;
   }
   .m-toolbar .btn.active { border-color: var(--accent); background: #e8f6f2; color: var(--accent); }
+  /* 收起阅读模式：只留右上角展开按钮 */
+  body.ui-folded .float-search,
+  body.ui-folded .m-fold-hide { display: none !important; }
+  body.ui-folded .m-toolbar .btn#mFold {
+    background: rgba(255,255,255,.92);
+  }
   .suggest {
     display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
     border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
@@ -99,14 +105,14 @@
   .route-world.is-hl .node.hl-down rect { stroke: #2f9d84; stroke-width: 2.2; }
 
   @media (orientation: portrait) {
-    .float-search { left: 10px; right: 96px; top: 10px; }
+    .float-search { left: 10px; right: 188px; top: 10px; }
     .m-toolbar { top: 10px; right: 10px; }
   }
   @media (orientation: landscape) {
     .float-search {
       left: max(8px, env(safe-area-inset-left));
       top: max(8px, env(safe-area-inset-top));
-      right: auto; width: min(320px, 46vw); padding: 5px;
+      right: auto; width: min(280px, 40vw); padding: 5px;
     }
     .float-search input { padding: 7px 9px; font-size: 15px; }
     .float-search .go { padding: 7px 12px; }
@@ -129,7 +135,9 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="m-toolbar">
-      <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
+      <button class="btn m-fold-hide" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
+      <button class="btn m-fold-hide" type="button" id="pcReset" title="复位视角">复位</button>
+      <button class="btn" type="button" id="mFold" title="收起控件，专心看图">收起</button>
     </div>
     <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
@@ -710,6 +718,26 @@ document.getElementById("pcDir").addEventListener("click", () => {
   btn.classList.toggle("active", routeState.dir === "v");
   btn.title = routeState.dir === "v" ? "当前竖向，点击切回横向" : "当前横向，点击切换竖向";
   if (routeState.target) renderRouteGraph(routeState.target);
+});
+function resetView() {
+  const svgEl = document.getElementById("routeSvg");
+  routeState.scale = 1;
+  if (routeState.dir === "v") {
+    routeState.tx = (svgEl.clientWidth || 400) / 2;
+    routeState.ty = 64;
+  } else {
+    routeState.tx = 40;
+    routeState.ty = (svgEl.clientHeight || 600) / 2;
+  }
+  applyTransform();
+}
+document.getElementById("pcReset").addEventListener("click", resetView);
+document.getElementById("mFold").addEventListener("click", () => {
+  const folded = document.body.classList.toggle("ui-folded");
+  const btn = document.getElementById("mFold");
+  btn.textContent = folded ? "展开" : "收起";
+  btn.title = folded ? "展开搜索与控件" : "收起控件，专心看图";
+  hideSuggest();
 });
 /* preferBase stays true */
 
