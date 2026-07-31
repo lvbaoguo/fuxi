@@ -37,7 +37,7 @@
   .palette { display: grid; gap: 6px; }
   .palette.reordering { touch-action: none; }
   .pal {
-    display: grid; grid-template-columns: 36px 1fr auto auto; gap: 6px; align-items: center;
+    display: grid; grid-template-columns: 36px 1fr auto auto auto; gap: 4px; align-items: center;
     border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: grab; background: #fafbfc;
     user-select: none; -webkit-user-select: none; touch-action: manipulation;
   }
@@ -53,11 +53,27 @@
   }
   .pal .name { font-size: .82rem; font-weight: 600; }
   .pal .sz { font-size: .72rem; color: var(--muted); }
-  .pal .del {
-    border: 0; background: transparent; color: #b91c1c; cursor: pointer;
+  .pal .edit, .pal .del {
+    border: 0; background: transparent; cursor: pointer;
     font-size: .75rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
   }
+  .pal .edit { color: var(--accent); }
+  .pal .edit:hover { background: #e8f6f2; }
+  .pal .del { color: #b91c1c; }
   .pal .del:hover { background: #fef2f2; }
+  .shape-grid {
+    display: inline-grid; gap: 3px; padding: 8px; background: #f3f5f8;
+    border-radius: 8px; border: 1px solid var(--line); max-width: 100%;
+  }
+  .shape-grid .cell {
+    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line);
+    background: #fff; cursor: pointer; padding: 0;
+  }
+  .shape-grid .cell.on { background: var(--accent); border-color: #1f7a68; }
+  .shape-grid .cell:hover { outline: 2px solid rgba(47,157,132,.35); }
+  .port-fields label.mini { margin: 0 0 4px; }
+  .port-fields select, .port-fields input[type="range"] { width: 100%; }
+  .modal { max-height: 92vh; overflow: auto; }
   .modal-mask {
     display: none; position: fixed; inset: 0; z-index: 60;
     background: rgba(30,40,55,.35); align-items: center; justify-content: center;
@@ -124,7 +140,7 @@
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">右键菜单删建筑；拖建筑可移动，轨道跟着走。快捷键可点下面改键自定义。</p>
+    <p class="sub">右键删建筑；拖建筑可移动。点「改」可调不规则占地与进出口方向。</p>
     <div class="nav">
       <a href="../pc/">合成路线</a>
       <a href="../full/">全链路</a>
@@ -190,6 +206,38 @@
         <input id="customH" type="number" min="1" max="12" value="3" />
       </div>
     </div>
+    <div class="field">
+      <label>占地形状（点格切换 · 空格可穿线）</label>
+      <div id="shapeGrid" class="shape-grid"></div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" type="button" id="shapeFill">填满</button>
+        <button class="btn" type="button" id="shapeClear">清空角</button>
+      </div>
+    </div>
+    <div class="field row2 port-fields">
+      <div>
+        <label class="mini" for="portOutSide">输出口（绿）</label>
+        <select id="portOutSide">
+          <option value="E">右</option>
+          <option value="S">下</option>
+          <option value="W">左</option>
+          <option value="N">上</option>
+        </select>
+        <label class="mini" for="portOutT" style="margin-top:8px">沿边位置</label>
+        <input id="portOutT" type="range" min="0" max="100" value="50" />
+      </div>
+      <div>
+        <label class="mini" for="portInSide">输入口（黄）</label>
+        <select id="portInSide">
+          <option value="W">左</option>
+          <option value="N">上</option>
+          <option value="E">右</option>
+          <option value="S">下</option>
+        </select>
+        <label class="mini" for="portInT" style="margin-top:8px">沿边位置</label>
+        <input id="portInT" type="range" min="0" max="100" value="50" />
+      </div>
+    </div>
     <div class="actions">
       <button class="btn" type="button" id="customCancel">取消</button>
       <button class="btn active" type="button" id="customOk">生效并选用</button>
@@ -203,15 +251,57 @@ const ROWS = 32;
 const PORT_R = 7;
 const PORT_HIT = 12;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
-const CATALOG_LS = "starrupture_sandbox_catalog_v1";
+const CATALOG_LS = "starrupture_sandbox_catalog_v2";
+const CATALOG_LS_OLD = "starrupture_sandbox_catalog_v1";
+
+function fullMask(w, h) { return "1".repeat(w * h); }
+function cutCornersMask(w, h) {
+  let s = "";
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const corner = (x === 0 || x === w - 1) && (y === 0 || y === h - 1);
+      s += corner && w >= 3 && h >= 3 ? "0" : "1";
+    }
+  }
+  return s;
+}
 
 const DEFAULT_CATALOG = [
-  { id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a" },
-  { id: "smelter", name: "冶炼厂", w: 3, h: 3, color: "#8b5a2b", top: "#b8834a" },
-  { id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8" },
-  { id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d" },
-  { id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a" },
-  { id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0" },
+  {
+    id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a",
+    // 111 / 111 / 110 / 110
+    mask: "111111110110",
+    ports: { out: { side: "E", t: 0.62 }, in: { side: "W", t: 0.62 } },
+  },
+  {
+    id: "smelter", name: "冶炼厂", w: 3, h: 4, color: "#5b9fd4", top: "#7eb8e8",
+    // 近似实况阶梯/L：后部高柱 + 前部主体，边角可穿线
+    // .11 / 111 / 111 / 11.
+    mask: "011111111110",
+    ports: { out: { side: "S", t: 0.5 }, in: { side: "W", t: 0.38 } },
+  },
+  {
+    id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8",
+    // 圆柱感：十字占地，四角可穿线
+    // .1. / 111 / .1.
+    mask: "010111010",
+    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+  },
+  {
+    id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d",
+    mask: "1111",
+    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+  },
+  {
+    id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a",
+    mask: "1111",
+    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+  },
+  {
+    id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0",
+    mask: "1111",
+    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+  },
 ];
 
 function lightenHex(hex, amt) {
@@ -227,27 +317,73 @@ function lightenHex(hex, amt) {
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
+function normalizeMask(mask, w, h, fallback) {
+  const fb = fallback && fallback.length === w * h ? fallback : fullMask(w, h);
+  if (typeof mask !== "string" || mask.length !== w * h) return fb;
+  if (![...mask].some((ch) => ch === "1")) return fb;
+  return [...mask].map((ch) => (ch === "1" ? "1" : "0")).join("");
+}
+
+function normalizePort(p, fallback) {
+  const fb = fallback || { side: "E", t: 0.5 };
+  const side = p && ["E", "S", "W", "N"].includes(p.side) ? p.side : fb.side;
+  let t = Number(p && p.t);
+  if (!Number.isFinite(t)) t = fb.t;
+  t = Math.max(0, Math.min(1, t));
+  return { side, t };
+}
+
 function normalizeCatalogItem(c) {
-  const w = Math.max(1, Math.min(12, Number(c.w) || 2));
-  const h = Math.max(1, Math.min(12, Number(c.h) || 2));
-  const color = /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : "#7c5cff";
+  const base = DEFAULT_CATALOG.find((d) => d.id === c.id);
+  const w = Math.max(1, Math.min(12, Number(c.w) || (base && base.w) || 2));
+  const h = Math.max(1, Math.min(12, Number(c.h) || (base && base.h) || 2));
+  const color = /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : (base ? base.color : "#7c5cff");
+  const maskFallback = base && base.w === w && base.h === h ? base.mask : fullMask(w, h);
+  const portsIn = (c.ports && c.ports.in) || (base && base.ports && base.ports.in);
+  const portsOut = (c.ports && c.ports.out) || (base && base.ports && base.ports.out);
   return {
     id: String(c.id || ("custom_" + Date.now())),
     name: String(c.name || "自定义").slice(0, 12),
     w, h,
     color,
     top: c.top && /^#[0-9a-fA-F]{6}$/.test(c.top) ? c.top : lightenHex(color, 36),
+    mask: normalizeMask(c.mask, w, h, maskFallback),
+    ports: {
+      out: normalizePort(portsOut, (base && base.ports && base.ports.out) || { side: "E", t: 0.5 }),
+      in: normalizePort(portsIn, (base && base.ports && base.ports.in) || { side: "W", t: 0.5 }),
+    },
     custom: !!c.custom,
   };
 }
 
 function loadCatalog() {
   try {
-    const raw = JSON.parse(localStorage.getItem(CATALOG_LS) || "null");
-    if (!Array.isArray(raw) || !raw.length) return DEFAULT_CATALOG.map((c) => ({ ...c }));
-    return raw.map(normalizeCatalogItem);
+    let fromOld = false;
+    let raw = JSON.parse(localStorage.getItem(CATALOG_LS) || "null");
+    if (!Array.isArray(raw) || !raw.length) {
+      raw = JSON.parse(localStorage.getItem(CATALOG_LS_OLD) || "null");
+      fromOld = Array.isArray(raw) && raw.length > 0;
+    }
+    if (!Array.isArray(raw) || !raw.length) return DEFAULT_CATALOG.map((c) => normalizeCatalogItem(c));
+    const list = raw.map((c) => {
+      const base = DEFAULT_CATALOG.find((d) => d.id === c.id);
+      // 旧版无 mask：内置建筑升级为新外形/端口（保留自定义排序与自定义项）
+      if (base && (c.mask == null || c.mask === undefined)) {
+        return normalizeCatalogItem({
+          ...base,
+          name: c.name || base.name,
+          color: /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : base.color,
+          custom: false,
+        });
+      }
+      return normalizeCatalogItem(c);
+    });
+    if (fromOld) {
+      try { localStorage.setItem(CATALOG_LS, JSON.stringify(list)); } catch (_) {}
+    }
+    return list;
   } catch (_) {
-    return DEFAULT_CATALOG.map((c) => ({ ...c }));
+    return DEFAULT_CATALOG.map((c) => normalizeCatalogItem(c));
   }
 }
 function saveCatalog() {
@@ -381,6 +517,50 @@ function dimsFor(type, rot) {
   const swap = (rot % 2) === 1;
   return { w: swap ? c.h : c.w, h: swap ? c.w : c.h };
 }
+function maskCells(c, rot) {
+  const w = c.w, h = c.h;
+  const mask = normalizeMask(c.mask, w, h, fullMask(w, h));
+  const cells = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (mask[y * w + x] !== "1") continue;
+      let rx = x, ry = y;
+      if (rot === 1) { rx = h - 1 - y; ry = x; }
+      else if (rot === 2) { rx = w - 1 - x; ry = h - 1 - y; }
+      else if (rot === 3) { rx = y; ry = w - 1 - x; }
+      cells.push({ dx: rx, dy: ry });
+    }
+  }
+  return cells;
+}
+function worldCellsOf(b) {
+  const c = cat(b.type);
+  if (!c) {
+    const cells = [];
+    for (let dy = 0; dy < b.h; dy++) for (let dx = 0; dx < b.w; dx++) cells.push({ x: b.gx + dx, y: b.gy + dy });
+    return cells;
+  }
+  return maskCells(c, b.rot || 0).map(({ dx, dy }) => ({ x: b.gx + dx, y: b.gy + dy }));
+}
+function portWorld(b, kind) {
+  const c = cat(b.type);
+  const def = { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } };
+  const p = normalizePort(c && c.ports && c.ports[kind], def[kind]);
+  const uw = c ? c.w : b.w;
+  const uh = c ? c.h : b.h;
+  const t = p.t;
+  let lx, ly;
+  if (p.side === "E") { lx = uw; ly = t * uh; }
+  else if (p.side === "W") { lx = 0; ly = t * uh; }
+  else if (p.side === "S") { lx = t * uw; ly = uh; }
+  else { lx = t * uw; ly = 0; }
+  const rot = b.rot || 0;
+  let rx = lx, ry = ly;
+  if (rot === 1) { rx = uh - ly; ry = lx; }
+  else if (rot === 2) { rx = uw - lx; ry = uh - ly; }
+  else if (rot === 3) { rx = ly; ry = uw - lx; }
+  return { x: (b.gx + rx) * CELL, y: (b.gy + ry) * CELL };
+}
 function syncPalette() {
   [...paletteEl.querySelectorAll(".pal")].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
 }
@@ -400,7 +580,7 @@ function commitPaletteOrder() {
 function bindPaletteLongPress(el) {
   el.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest("[data-del]")) return;
+    if (e.target.closest("[data-del], [data-edit]")) return;
     if (palDrag) return;
     const startX = e.clientX;
     const startY = e.clientY;
@@ -485,10 +665,10 @@ function renderPalette() {
     el.dataset.id = c.id;
     el.innerHTML = `<div class="ico" style="background:linear-gradient(145deg,${c.top},${c.color})"></div>
       <div><div class="name">${c.name}</div><div class="sz">${c.w}×${c.h} 格</div></div>
-      <div class="sz">选</div>
+      <button class="edit" type="button" title="改形状/端口" data-edit="${c.id}">改</button>
       <button class="del" type="button" title="从列表删除" data-del="${c.id}">删</button>`;
     el.addEventListener("click", (e) => {
-      if (e.target.closest("[data-del]")) return;
+      if (e.target.closest("[data-del], [data-edit]")) return;
       if (el.dataset.skipClick === "1") {
         delete el.dataset.skipClick;
         return;
@@ -501,6 +681,10 @@ function renderPalette() {
       }
       syncPalette();
       draw();
+    });
+    el.querySelector("[data-edit]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openEditModal(c.id);
     });
     el.querySelector("[data-del]").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -537,32 +721,144 @@ function removeCatalogItem(id) {
 }
 
 const customModal = document.getElementById("customModal");
+const customTitle = document.getElementById("customTitle");
 const customName = document.getElementById("customName");
 const customColor = document.getElementById("customColor");
 const customW = document.getElementById("customW");
 const customH = document.getElementById("customH");
 const customPreview = document.getElementById("customPreview");
+const shapeGridEl = document.getElementById("shapeGrid");
+const portOutSide = document.getElementById("portOutSide");
+const portInSide = document.getElementById("portInSide");
+const portOutT = document.getElementById("portOutT");
+const portInT = document.getElementById("portInT");
+let editingId = null;
+let draftMask = "";
 
+function readModalSize() {
+  return {
+    w: Math.max(1, Math.min(12, parseInt(customW.value, 10) || 1)),
+    h: Math.max(1, Math.min(12, parseInt(customH.value, 10) || 1)),
+  };
+}
+function resizeDraftMask(nextW, nextH, prevW, prevH, prevMask) {
+  let s = "";
+  for (let y = 0; y < nextH; y++) {
+    for (let x = 0; x < nextW; x++) {
+      if (prevMask && x < prevW && y < prevH) s += prevMask[y * prevW + x] === "1" ? "1" : "0";
+      else s += "1";
+    }
+  }
+  if (![...s].some((ch) => ch === "1")) s = fullMask(nextW, nextH);
+  return s;
+}
+function renderShapeGrid() {
+  const { w, h } = readModalSize();
+  if (!draftMask || draftMask.length !== w * h) draftMask = fullMask(w, h);
+  shapeGridEl.style.gridTemplateColumns = `repeat(${w}, 22px)`;
+  shapeGridEl.innerHTML = "";
+  for (let i = 0; i < w * h; i++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cell" + (draftMask[i] === "1" ? " on" : "");
+    btn.title = draftMask[i] === "1" ? "实心（再点挖空）" : "空心（再点填实）";
+    btn.addEventListener("click", () => {
+      const arr = [...draftMask];
+      arr[i] = arr[i] === "1" ? "0" : "1";
+      if (!arr.some((ch) => ch === "1")) arr[i] = "1";
+      draftMask = arr.join("");
+      renderShapeGrid();
+    });
+    shapeGridEl.appendChild(btn);
+  }
+}
+function fillModalFromItem(item) {
+  customName.value = item.name;
+  customColor.value = item.color;
+  customW.value = String(item.w);
+  customH.value = String(item.h);
+  customPreview.style.background = item.color;
+  draftMask = normalizeMask(item.mask, item.w, item.h, fullMask(item.w, item.h));
+  portOutSide.value = item.ports.out.side;
+  portInSide.value = item.ports.in.side;
+  portOutT.value = String(Math.round(item.ports.out.t * 100));
+  portInT.value = String(Math.round(item.ports.in.t * 100));
+  customW.dataset.prevW = String(item.w);
+  customH.dataset.prevH = String(item.h);
+  renderShapeGrid();
+}
 function openCustomModal() {
-  customName.value = "自定义";
-  customColor.value = "#7c5cff";
-  customW.value = "3";
-  customH.value = "3";
-  customPreview.style.background = customColor.value;
+  editingId = null;
+  customTitle.textContent = "自定义建筑";
+  document.getElementById("customOk").textContent = "生效并选用";
+  fillModalFromItem(normalizeCatalogItem({
+    id: "tmp", name: "自定义", w: 3, h: 3, color: "#7c5cff",
+    mask: cutCornersMask(3, 3),
+    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    custom: true,
+  }));
+  customModal.classList.add("show");
+  customName.focus();
+}
+function openEditModal(id) {
+  const item = cat(id);
+  if (!item) return;
+  editingId = id;
+  customTitle.textContent = "编辑建筑 · " + item.name;
+  document.getElementById("customOk").textContent = "保存并选用";
+  fillModalFromItem(item);
   customModal.classList.add("show");
   customName.focus();
 }
 function closeCustomModal() {
   customModal.classList.remove("show");
+  editingId = null;
+}
+function readModalPorts() {
+  return {
+    out: { side: portOutSide.value, t: Number(portOutT.value) / 100 },
+    in: { side: portInSide.value, t: Number(portInT.value) / 100 },
+  };
 }
 function applyCustomBuilding() {
   const name = (customName.value || "自定义").trim().slice(0, 12) || "自定义";
-  const w = Math.max(1, Math.min(12, parseInt(customW.value, 10) || 1));
-  const h = Math.max(1, Math.min(12, parseInt(customH.value, 10) || 1));
+  const { w, h } = readModalSize();
   const color = customColor.value || "#7c5cff";
+  const mask = normalizeMask(draftMask, w, h, fullMask(w, h));
+  const ports = readModalPorts();
+  if (editingId) {
+    const idx = state.catalog.findIndex((c) => c.id === editingId);
+    if (idx < 0) return;
+    const prev = state.catalog[idx];
+    const item = normalizeCatalogItem({
+      ...prev, name, w, h, color, mask, ports, custom: prev.custom || !DEFAULT_CATALOG.some((d) => d.id === prev.id),
+    });
+    item.id = prev.id;
+    state.catalog[idx] = item;
+    // 刷新已放置实例尺寸（朝向保留）
+    for (const b of state.buildings) {
+      if (b.type !== item.id) continue;
+      const d = dimsFor(item.id, b.rot || 0);
+      b.w = d.w;
+      b.h = d.h;
+      if (b.gx + b.w > COLS || b.gy + b.h > ROWS || collides(b, b.id)) {
+        // 越界则尽量钳制
+        b.gx = Math.max(0, Math.min(COLS - b.w, b.gx));
+        b.gy = Math.max(0, Math.min(ROWS - b.h, b.gy));
+      }
+    }
+    saveCatalog();
+    state.selected = item.id;
+    state.mode = "place";
+    syncModes();
+    renderPalette();
+    closeCustomModal();
+    draw();
+    return;
+  }
   const item = normalizeCatalogItem({
     id: "custom_" + Date.now().toString(36),
-    name, w, h, color, custom: true,
+    name, w, h, color, mask, ports, custom: true,
   });
   state.catalog.push(item);
   saveCatalog();
@@ -580,15 +876,47 @@ document.getElementById("customOk").addEventListener("click", applyCustomBuildin
 customColor.addEventListener("input", () => {
   customPreview.style.background = customColor.value;
 });
+function onSizeChange() {
+  const { w, h } = readModalSize();
+  const prevLen = draftMask.length;
+  let prevW = Number(customW.dataset.prevW) || w;
+  let prevH = Number(customH.dataset.prevH) || Math.round(prevLen / (prevW || 1)) || h;
+  if (prevW * prevH !== prevLen) {
+    prevW = w;
+    prevH = h;
+  }
+  draftMask = resizeDraftMask(w, h, prevW, prevH, draftMask);
+  customW.dataset.prevW = String(w);
+  customH.dataset.prevH = String(h);
+  renderShapeGrid();
+}
+customW.addEventListener("change", onSizeChange);
+customH.addEventListener("change", onSizeChange);
+document.getElementById("shapeFill").addEventListener("click", () => {
+  const { w, h } = readModalSize();
+  draftMask = fullMask(w, h);
+  renderShapeGrid();
+});
+document.getElementById("shapeClear").addEventListener("click", () => {
+  const { w, h } = readModalSize();
+  draftMask = cutCornersMask(w, h);
+  renderShapeGrid();
+});
 customModal.addEventListener("click", (e) => {
   if (e.target === customModal) closeCustomModal();
 });
 document.getElementById("btnRestoreCatalog").addEventListener("click", () => {
   if (!confirm("恢复默认建筑列表？自定义建筑会从列表移除（沙盘上已放的自定义块也会清掉）。")) return;
   const keepIds = new Set(DEFAULT_CATALOG.map((c) => c.id));
-  state.catalog = DEFAULT_CATALOG.map((c) => ({ ...c }));
+  state.catalog = DEFAULT_CATALOG.map((c) => normalizeCatalogItem(c));
   saveCatalog();
   state.buildings = state.buildings.filter((b) => keepIds.has(b.type));
+  // 同步默认尺寸/朝向外框
+  for (const b of state.buildings) {
+    const d = dimsFor(b.type, b.rot || 0);
+    b.w = d.w;
+    b.h = d.h;
+  }
   state.rails = state.rails.filter((r) => {
     const a = state.buildings.find((b) => b.id === r.fromId);
     const bb = state.buildings.find((b) => b.id === r.toId);
@@ -663,15 +991,19 @@ function deleteBuilding(id) {
   draw();
 }
 function collides(nb, ignoreId) {
+  const setA = new Set(worldCellsOf(nb).map((c) => c.x + "," + c.y));
   for (const b of state.buildings) {
     if (b.id === ignoreId) continue;
-    if (nb.gx < b.gx + b.w && nb.gx + nb.w > b.gx && nb.gy < b.gy + b.h && nb.gy + nb.h > b.gy) return true;
+    if (nb.gx >= b.gx + b.w || nb.gx + nb.w <= b.gx || nb.gy >= b.gy + b.h || nb.gy + nb.h <= b.gy) continue;
+    for (const c of worldCellsOf(b)) {
+      if (setA.has(c.x + "," + c.y)) return true;
+    }
   }
   return false;
 }
 function canMoveTo(b, gx, gy) {
   if (gx < 0 || gy < 0 || gx + b.w > COLS || gy + b.h > ROWS) return false;
-  return !collides({ gx, gy, w: b.w, h: b.h }, b.id);
+  return !collides({ ...b, gx, gy }, b.id);
 }
 function screenToGrid(sx, sy) {
   return { gx: Math.floor((sx - state.panX) / CELL), gy: Math.floor((sy - state.panY) / CELL) };
@@ -682,7 +1014,8 @@ function toWorld(sx, sy) {
 function buildingAt(gx, gy) {
   for (let i = state.buildings.length - 1; i >= 0; i--) {
     const b = state.buildings[i];
-    if (gx >= b.gx && gx < b.gx + b.w && gy >= b.gy && gy < b.gy + b.h) return b;
+    if (gx < b.gx || gy < b.gy || gx >= b.gx + b.w || gy >= b.gy + b.h) continue;
+    if (worldCellsOf(b).some((c) => c.x === gx && c.y === gy)) return b;
   }
   return null;
 }
@@ -690,26 +1023,10 @@ function canPlace(type, gx, gy, rot) {
   if (!type) return false;
   const d = dimsFor(type, rot);
   if (gx < 0 || gy < 0 || gx + d.w > COLS || gy + d.h > ROWS) return false;
-  return !collides({ gx, gy, w: d.w, h: d.h }, null);
+  return !collides({ gx, gy, w: d.w, h: d.h, type, rot }, null);
 }
-function portOut(b) {
-  const cx = (b.gx + b.w / 2) * CELL;
-  const cy = (b.gy + b.h / 2) * CELL;
-  const rot = b.rot || 0;
-  if (rot === 0) return { x: (b.gx + b.w) * CELL, y: cy };
-  if (rot === 1) return { x: cx, y: (b.gy + b.h) * CELL };
-  if (rot === 2) return { x: b.gx * CELL, y: cy };
-  return { x: cx, y: b.gy * CELL };
-}
-function portIn(b) {
-  const cx = (b.gx + b.w / 2) * CELL;
-  const cy = (b.gy + b.h / 2) * CELL;
-  const rot = b.rot || 0;
-  if (rot === 0) return { x: b.gx * CELL, y: cy };
-  if (rot === 1) return { x: cx, y: b.gy * CELL };
-  if (rot === 2) return { x: (b.gx + b.w) * CELL, y: cy };
-  return { x: cx, y: (b.gy + b.h) * CELL };
-}
+function portOut(b) { return portWorld(b, "out"); }
+function portIn(b) { return portWorld(b, "in"); }
 function hitPort(wx, wy) {
   let best = null;
   let bestD = PORT_HIT;
@@ -759,26 +1076,47 @@ function findCrossings() {
   }
   return { pairs, bad };
 }
-function drawIsoBlock(gx, gy, w, h, color, top, focused) {
-  const x = gx * CELL;
-  const y = gy * CELL;
-  const pw = w * CELL;
-  const ph = h * CELL;
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y + 4, pw, ph - 4);
-  ctx.fillStyle = top;
-  ctx.beginPath();
-  ctx.moveTo(x, y + 4);
-  ctx.lineTo(x + 6, y);
-  ctx.lineTo(x + pw + 6, y);
-  ctx.lineTo(x + pw, y + 4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "rgba(0,0,0,.12)";
-  ctx.fillRect(x + pw, y + 4, 6, ph - 4);
-  ctx.strokeStyle = focused ? "#2f9d84" : "rgba(0,0,0,.25)";
-  ctx.lineWidth = focused ? 2.5 : 1;
-  ctx.strokeRect(x, y + 4, pw, ph - 4);
+function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
+  const gx = bOrGhost.gx, gy = bOrGhost.gy;
+  const c = cat(bOrGhost.type);
+  const rot = bOrGhost.rot || 0;
+  const cells = c
+    ? maskCells(c, rot)
+    : (() => {
+        const list = [];
+        for (let dy = 0; dy < bOrGhost.h; dy++) for (let dx = 0; dx < bOrGhost.w; dx++) list.push({ dx, dy });
+        return list;
+      })();
+  if (showBBox) {
+    ctx.strokeStyle = "rgba(47,157,132,.28)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(gx * CELL + 0.5, gy * CELL + 0.5, bOrGhost.w * CELL - 1, bOrGhost.h * CELL - 1);
+    ctx.setLineDash([]);
+  }
+  for (const { dx, dy } of cells) {
+    const x = (gx + dx) * CELL;
+    const y = (gy + dy) * CELL;
+    const pad = 1;
+    ctx.fillStyle = color;
+    ctx.fillRect(x + pad, y + pad + 3, CELL - pad * 2, CELL - pad * 2 - 3);
+    ctx.fillStyle = top;
+    ctx.fillRect(x + pad, y + pad, CELL - pad * 2, 5);
+    ctx.fillStyle = "rgba(0,0,0,.1)";
+    ctx.fillRect(x + CELL - 4, y + pad + 3, 3, CELL - pad * 2 - 3);
+  }
+  // 外轮廓：对每个实心格描边
+  ctx.strokeStyle = focused ? "#2f9d84" : "rgba(0,0,0,.28)";
+  ctx.lineWidth = focused ? 2.2 : 1;
+  const set = new Set(cells.map((p) => p.dx + "," + p.dy));
+  for (const { dx, dy } of cells) {
+    const x = (gx + dx) * CELL;
+    const y = (gy + dy) * CELL;
+    if (!set.has(dx + "," + (dy - 1))) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + CELL, y); ctx.stroke(); }
+    if (!set.has(dx + "," + (dy + 1))) { ctx.beginPath(); ctx.moveTo(x, y + CELL); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
+    if (!set.has((dx - 1) + "," + dy)) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + CELL); ctx.stroke(); }
+    if (!set.has((dx + 1) + "," + dy)) { ctx.beginPath(); ctx.moveTo(x + CELL, y); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
+  }
 }
 function drawPort(pos, kind, highlight) {
   ctx.beginPath();
@@ -841,11 +1179,15 @@ function draw() {
   for (const b of state.buildings) {
     const c = cat(b.type);
     if (!c) continue;
-    drawIsoBlock(b.gx, b.gy, b.w, b.h, c.color, c.top, b.id === state.focusId);
+    drawBuildingBody(b, c.color, c.top, b.id === state.focusId, true);
     ctx.fillStyle = "#fff";
     ctx.font = "600 11px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(c.name, (b.gx + b.w / 2) * CELL, (b.gy + b.h / 2) * CELL + 6);
+    ctx.textBaseline = "middle";
+    const cells = worldCellsOf(b);
+    const ax = cells.reduce((s, p) => s + p.x, 0) / (cells.length || 1);
+    const ay = cells.reduce((s, p) => s + p.y, 0) / (cells.length || 1);
+    ctx.fillText(c.name, (ax + 0.5) * CELL, (ay + 0.5) * CELL);
     const o = portOut(b), i = portIn(b);
     const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "out";
     const hi = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "in";
@@ -858,10 +1200,13 @@ function draw() {
     const d = dimsFor(state.selected, state.placeRot);
     const c = cat(state.selected);
     const ok = canPlace(state.selected, state.hover.gx, state.hover.gy, state.placeRot);
-    ctx.globalAlpha = 0.45;
-    drawIsoBlock(state.hover.gx, state.hover.gy, d.w, d.h, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false);
+    const ghost = {
+      gx: state.hover.gx, gy: state.hover.gy, w: d.w, h: d.h,
+      rot: state.placeRot, type: state.selected,
+    };
+    ctx.globalAlpha = 0.5;
+    drawBuildingBody(ghost, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false, true);
     ctx.globalAlpha = 1;
-    const ghost = { gx: state.hover.gx, gy: state.hover.gy, w: d.w, h: d.h, rot: state.placeRot };
     drawPort(portOut(ghost), "out", false);
     drawPort(portIn(ghost), "in", false);
   }
