@@ -105,7 +105,7 @@
   .route-world.is-hl .node.hl-down rect { stroke: #2f9d84; stroke-width: 2.2; }
 
   @media (orientation: portrait) {
-    .float-search { left: 10px; right: 188px; top: 10px; }
+    .float-search { left: 10px; right: 128px; top: 10px; }
     .m-toolbar { top: 10px; right: 10px; }
   }
   @media (orientation: landscape) {
@@ -136,7 +136,6 @@
     </div>
     <div class="m-toolbar">
       <button class="btn m-fold-hide" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
-      <button class="btn m-fold-hide" type="button" id="pcReset" title="复位视角">复位</button>
       <button class="btn" type="button" id="mFold" title="收起控件，专心看图">收起</button>
     </div>
     <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
@@ -719,19 +718,6 @@ document.getElementById("pcDir").addEventListener("click", () => {
   btn.title = routeState.dir === "v" ? "当前竖向，点击切回横向" : "当前横向，点击切换竖向";
   if (routeState.target) renderRouteGraph(routeState.target);
 });
-function resetView() {
-  const svgEl = document.getElementById("routeSvg");
-  routeState.scale = 1;
-  if (routeState.dir === "v") {
-    routeState.tx = (svgEl.clientWidth || 400) / 2;
-    routeState.ty = 64;
-  } else {
-    routeState.tx = 40;
-    routeState.ty = (svgEl.clientHeight || 600) / 2;
-  }
-  applyTransform();
-}
-document.getElementById("pcReset").addEventListener("click", resetView);
 document.getElementById("mFold").addEventListener("click", () => {
   const folded = document.body.classList.toggle("ui-folded");
   const btn = document.getElementById("mFold");
