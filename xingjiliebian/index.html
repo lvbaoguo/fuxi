@@ -49,6 +49,15 @@
     flex-shrink: 0; border: 0; background: var(--accent); color: #fff; border-radius: 8px;
     padding: 8px 12px; font-size: .85rem; font-weight: 600; cursor: pointer;
   }
+  /* 仅电脑显示；手机横/竖屏都不出现 */
+  .pc-only { display: none !important; }
+  .pc-reset {
+    position: absolute; z-index: 40; top: 12px; right: 12px;
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 10px; padding: 8px 14px; font-size: .85rem; font-weight: 600;
+    cursor: pointer; box-shadow: 0 4px 16px rgba(40,50,70,.14);
+  }
+  .pc-reset:hover { border-color: var(--accent); color: var(--accent); }
   .suggest {
     display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
     border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
@@ -98,6 +107,10 @@
     .float-search input { padding: 7px 9px; font-size: 15px; }
     .float-search .go { padding: 7px 12px; }
   }
+  /* 宽屏 + 精细指针 ≈ 电脑；手机横屏也不会命中 */
+  @media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+    .pc-only { display: inline-flex !important; }
+  }
 </style>
 </head>
 <body>
@@ -110,6 +123,7 @@
       </div>
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
+    <button class="pc-reset pc-only" type="button" id="pcReset" title="复位视角">复位</button>
     <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -652,6 +666,13 @@ routeQ.addEventListener("keydown", (e) => {
 });
 document.getElementById("routeGo").addEventListener("click", () => {
   goSearch(document.getElementById("routeQ").value);
+});
+document.getElementById("pcReset").addEventListener("click", () => {
+  const svgEl = document.getElementById("routeSvg");
+  routeState.scale = 1;
+  routeState.tx = 60;
+  routeState.ty = (svgEl.clientHeight || 600) / 2;
+  applyTransform();
 });
 /* preferBase stays true */
 
