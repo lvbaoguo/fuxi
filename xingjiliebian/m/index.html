@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>星际裂变 · 合成路线（手机）</title>
+<style>
+  :root {
+    --line: #c5ccd6;
+    --text: #2a3038;
+    --muted: #6b7585;
+    --accent: #2f9d84;
+    --raw: #f3e9d8;
+    --font: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; width: 100%; max-width: 100%; height: 100%; overflow: hidden;
+    font-family: var(--font); color: var(--text); background: #edf0f4;
+    -webkit-text-size-adjust: 100%; touch-action: manipulation; overscroll-behavior: none;
+  }
+  .route-layout { position: fixed; inset: 0; width: 100vw; height: 100dvh; height: 100vh; }
+  .route-canvas-wrap {
+    position: relative; width: 100%; height: 100%; background: #fff; overflow: hidden;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  .route-canvas-wrap svg {
+    width: 100%; height: 100%; cursor: grab; touch-action: none;
+    background:
+      linear-gradient(#eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, #eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
+      #f8f9fb;
+  }
+  .route-canvas-wrap svg.dragging { cursor: grabbing; }
+  .float-search {
+    position: absolute; z-index: 40; display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(40,50,70,.18); padding: 6px;
+  }
+  .float-search .suggest-wrap { position: relative; flex: 1; min-width: 0; }
+  .float-search input {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    font-size: 16px; outline: none; background: #fff; color: var(--text);
+  }
+  .float-search input:focus { border-color: var(--accent); }
+  .float-search .go {
+    flex-shrink: 0; border: 0; background: var(--accent); color: #fff; border-radius: 8px;
+    padding: 8px 12px; font-size: .85rem; font-weight: 600; cursor: pointer;
+  }
+  .suggest {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
+    overflow: auto; box-shadow: 0 10px 28px rgba(40,50,70,.14);
+  }
+  .suggest.show { display: block; }
+  .suggest .sg-sec { padding: 6px 12px 2px; font-size: .72rem; color: var(--muted); }
+  .suggest button {
+    display: flex; width: 100%; text-align: left; align-items: center; gap: 8px;
+    border: 0; background: transparent; padding: 8px 12px; cursor: pointer; color: var(--text); font-size: .9rem;
+  }
+  .suggest button:hover, .suggest button.active { background: #eef6f3; }
+  .suggest .tag {
+    margin-left: auto; font-size: .72rem; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 1px 7px;
+  }
+  .suggest .tag.hist { color: #a66a18; border-color: #e0c49a; background: #fff8ee; }
+  .route-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: .95rem; pointer-events: none;
+  }
+  .route-empty.hide { display: none; }
+  .node-raw rect { fill: var(--raw); stroke: #d2b48c; }
+  .node-mid rect { fill: #fff; stroke: #9db0c2; }
+  .node-target rect { fill: #d8f0ea; stroke: var(--accent); stroke-width: 2.2; }
+  .node-cycle rect { fill: #fce8e8; stroke: #d88; }
+  .node text.name { font-size: 13px; font-weight: 700; fill: var(--text); }
+  .node text.meta { font-size: 11px; fill: var(--muted); }
+  .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; }
+  .route-world.is-hl .edge { opacity: .14; stroke: #b7c3d0; }
+  .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowHl); }
+  .route-world.is-hl .node { opacity: .22; }
+  .route-world.is-hl .node.hl { opacity: 1; }
+  .route-world.is-hl .node.hl-focus rect { stroke: #e07a2f; stroke-width: 3; filter: drop-shadow(0 0 4px rgba(224,122,47,.45)); }
+  .route-world.is-hl .node.hl-up rect { stroke: #d4892a; stroke-width: 2.2; }
+  .route-world.is-hl .node.hl-down rect { stroke: #2f9d84; stroke-width: 2.2; }
+
+  @media (orientation: portrait) {
+    .float-search { left: 10px; right: 10px; top: 10px; }
+  }
+  @media (orientation: landscape) {
+    .float-search {
+      left: max(8px, env(safe-area-inset-left));
+      top: max(8px, env(safe-area-inset-top));
+      right: auto; width: min(320px, 46vw); padding: 5px;
+    }
+    .float-search input { padding: 7px 9px; font-size: 15px; }
+    .float-search .go { padding: 7px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="route-layout" id="routeLayout">
+  <div class="route-canvas-wrap">
+    <div class="float-search">
+      <div class="suggest-wrap">
+        <input id="routeQ" type="search" placeholder="搜索产品…" autocomplete="off" enterkeyhint="search" />
+        <div class="suggest" id="routeSuggest"></div>
+      </div>
+      <button class="go" type="button" id="routeGo">确定</button>
+    </div>
+    <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
+    <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8aa0b5"></path>
+        </marker>
+        <marker id="arrowHl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#e07a2f"></path>
+        </marker>
+      </defs>
+      <g id="routeWorld" class="route-world"></g>
+    </svg>
+  </div>
+</div>
+<script>
+const RECIPES = [{"level": 1, "product": "钨条", "machine": "冶炼厂", "materials": ["钨矿石"]}, {"level": 1, "product": "钛条", "machine": "冶炼厂", "materials": ["钛矿石"]}, {"level": 1, "product": "钙块", "machine": "冶炼厂", "materials": ["钙矿石"]}, {"level": 1, "product": "基础建筑材料", "machine": "制造厂", "materials": ["钨矿石", "钛矿石"]}, {"level": 1, "product": "中级建筑材料", "machine": "大型冲压机", "materials": ["基础建筑材料", "电感器", "玻璃", "钛金属外壳"]}, {"level": 2, "product": "钛棒", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂", "materials": ["钨条"]}, {"level": 2, "product": "方解石板", "machine": "制造厂", "materials": ["钙块"]}, {"level": 2, "product": "钛梁", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨粉", "machine": "熔炉", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉", "materials": ["钙块"]}, {"level": 2, "product": "钛棒", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂 v.2", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉 v.2", "materials": ["钙块"]}, {"level": 2, "product": "钨粉", "machine": "熔炉 v.2", "materials": ["钨条"]}, {"level": 3, "product": "钨板", "machine": "制造厂", "materials": ["钨条"]}, {"level": 3, "product": "转子", "machine": "制造厂", "materials": ["钛棒", "钨丝"]}, {"level": 3, "product": "管材", "machine": "制造厂", "materials": ["钛棒", "钛板"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉", "materials": ["方解石板", "钨粉"]}, {"level": 3, "product": "钛金属外壳", "machine": "熔炉", "materials": ["钛梁", "钛板"]}, {"level": 3, "product": "玻璃", "machine": "熔炉", "materials": ["氦-3", "钙粉"]}, {"level": 3, "product": "钨板", "machine": "制造厂 v.2", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂 v.2", "materials": ["钛棒", "钨丝", "钨板"]}, {"level": 3, "product": "管材", "machine": "制造厂 v.2", "materials": ["针铁矿锭", "钛板", "钨粉"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉 v.2", "materials": ["方解石板", "氦-3", "钨粉"]}, {"level": 3, "product": "玻璃", "machine": "熔炉 v.2", "materials": ["加压氦气", "方解石板", "针铁矿锭"]}, {"level": 4, "product": "稳定器", "machine": "制造厂", "materials": ["转子", "钛棒"]}, {"level": 4, "product": "定子", "machine": "制造厂", "materials": ["钛金属外壳", "钨丝"]}, {"level": 4, "product": "耐热板", "machine": "熔炉", "materials": ["钨板", "钛板", "玻璃"]}, {"level": 4, "product": "合成硅", "machine": "熔炉", "materials": ["钙粉", "氦-3", "陶瓷"]}, {"level": 4, "product": "化学品", "machine": "熔炉", "materials": ["合成硅", "钨粉", "氦-3"]}, {"level": 4, "product": "定子", "machine": "制造厂 v.2", "materials": ["钛金属外壳", "钨丝", "钛板"]}, {"level": 4, "product": "化学品", "machine": "熔炉 v.2", "materials": ["钙粉", "钨粉", "氦-3", "针铁矿锭"]}, {"level": 4, "product": "耐热板", "machine": "熔炉 v.2", "materials": ["钛铁合金锭", "钨钢锭", "氦-3"]}, {"level": 5, "product": "给药器", "machine": "制造厂", "materials": ["管材", "玻璃"]}, {"level": 5, "product": "电感器", "machine": "熔炉", "materials": ["管材", "钨丝", "陶瓷"]}, {"level": 5, "product": "电子元件", "machine": "熔炉", "materials": ["合成硅", "电感器", "定子"]}, {"level": 5, "product": "涡轮机", "machine": "大型冲压机", "materials": ["叶轮", "定子", "转子", "硫酸"]}, {"level": 5, "product": "阀门", "machine": "大型冲压机", "materials": ["钛金属外壳", "钛梁", "钛棒", "喷嘴"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉", "materials": ["硫酸", "合成硅", "给药器"]}, {"level": 6, "product": "超磁体", "machine": "熔炉", "materials": ["硫酸", "钨板", "化学品"]}, {"level": 6, "product": "叶轮", "machine": "大型冲压机", "materials": ["钛棒", "耐热板", "钨板", "稳定器"]}, {"level": 6, "product": "喷嘴", "machine": "大型冲压机", "materials": ["耐热板", "氦-3", "稳定器"]}, {"level": 6, "product": "电池", "machine": "大型冲压机", "materials": ["电感器", "电子元件", "硫酸"]}, {"level": 6, "product": "加压氦气", "machine": "加压器", "materials": ["氦-3", "硫矿石"]}, {"level": 6, "product": "硫酸", "machine": "加压器", "materials": ["硫矿石", "化学品"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉 v.2", "materials": ["硫酸", "合成硅", "给药器", "加压氦气"]}, {"level": 6, "product": "加压氦气", "machine": "化合反应炉 v.2", "materials": ["氦-3", "硫矿石", "钙粉"]}, {"level": 6, "product": "硫酸", "machine": "化合反应炉 v.2", "materials": ["硫矿石", "化学品", "钨粉"]}, {"level": 7, "product": "电磁线圈", "machine": "大型冲压机", "materials": ["电感器", "加压氦气", "钨板", "超磁体"]}, {"level": 7, "product": "蓄电池", "machine": "装配厂", "materials": ["电子元件", "定子", "电池"]}, {"level": 7, "product": "发电机", "machine": "装配厂", "materials": ["涡轮机", "电池", "喷嘴"]}, {"level": 7, "product": "压力罐", "machine": "装配厂", "materials": ["耐热板", "阀门", "泵"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉", "materials": ["加压氦气", "硬化剂"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉 v.2", "materials": ["加压氦气", "硬化剂", "化学品"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉 v.2", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 8, "product": "泵", "machine": "大型冲压机", "materials": ["阀门", "涡轮机", "叶轮", "硫酸"]}, {"level": 8, "product": "谐振器", "machine": "装配厂", "materials": ["蓄电池", "发电机", "液态氦"]}, {"level": 8, "product": "透镜", "machine": "化合反应炉", "materials": ["玻璃", "硬化剂", "合成树脂"]}, {"level": 8, "product": "超导体", "machine": "化合反应炉", "materials": ["合成树脂", "电磁铁", "超磁体"]}, {"level": 8, "product": "针铁矿锭", "machine": "锻造炉", "materials": ["针铁矿"]}, {"level": 8, "product": "钛铁合金锭", "machine": "锻造炉", "materials": ["钛矿石", "针铁矿"]}, {"level": 8, "product": "钨钢锭", "machine": "锻造炉", "materials": ["钨矿石", "针铁矿"]}, {"level": 8, "product": "针铁矿粉", "machine": "化合反应炉", "materials": ["针铁矿锭", "加压氦气", "钙粉"]}, {"level": 8, "product": "针铁矿晶格", "machine": "大型冲压机", "materials": ["针铁矿锭", "钛铁合金锭", "钨钢锭"]}, {"level": 8, "product": "超导体", "machine": "加工厂 v.2", "materials": ["合成树脂", "电磁铁", "超磁体", "气凝胶", "隔热罩"]}, {"level": 9, "product": "电磁铁", "machine": "装配厂", "materials": ["电磁线圈", "合成树脂", "蓄电池"]}, {"level": 9, "product": "激光发射器", "machine": "装配厂", "materials": ["透镜", "谐振器", "电磁线圈"]}, {"level": 9, "product": "扫描仪", "machine": "装配厂", "materials": ["透镜", "发电机", "稳定器"]}, {"level": 9, "product": "纳米纤维", "machine": "化合反应炉", "materials": ["管材", "液态氦", "钨丝"]}, {"level": 9, "product": "离子注入器", "machine": "化合反应炉", "materials": ["给药器", "电磁铁", "压力罐"]}, {"level": 9, "product": "环氧树脂", "machine": "化合反应炉", "materials": ["液态氦", "针铁矿粉", "合成树脂"]}, {"level": 9, "product": "基础燃料", "machine": "化合反应炉", "materials": ["钨粉", "针铁矿粉", "液态氦"]}, {"level": 9, "product": "精炼油", "machine": "精炼厂", "materials": ["能源矿", "钙矿石", "钛矿石"]}, {"level": 9, "product": "气凝胶", "machine": "化合反应炉", "materials": ["针铁矿粉", "钙粉", "液态氦"]}, {"level": 9, "product": "强化框架", "machine": "大型冲压机", "materials": ["管材", "钛铁合金锭", "钛梁"]}, {"level": 9, "product": "强化外壳", "machine": "大型冲压机", "materials": ["钛金属外壳", "钨钢锭", "钨板"]}, {"level": 9, "product": "塑料", "machine": "化合反应炉", "materials": ["精炼油", "硫酸", "化学品"]}, {"level": 9, "product": "有机化合物", "machine": "化合反应炉", "materials": ["硫酸", "精炼油", "环氧树脂"]}, {"level": 9, "product": "离子注入器", "machine": "加工厂 v.2", "materials": ["给药器", "电磁铁", "压力罐", "针铁矿晶格", "塑料"]}, {"level": 9, "product": "激光发射器", "machine": "加工厂 v.2", "materials": ["透镜", "谐振器", "电磁线圈", "炸药", "环氧树脂"]}, {"level": 9, "product": "扫描仪", "machine": "加工厂 v.2", "materials": ["透镜", "发电机", "稳定器", "超级纤维", "拟橡胶绝缘体"]}, {"level": 10, "product": "冷凝器", "machine": "装配厂", "materials": ["谐振器", "泵", "纳米纤维"]}, {"level": 10, "product": "穹顶", "machine": "弹药加工厂", "materials": ["超级纤维", "冷凝器", "气闸舱", "脚手架", "转换器"]}, {"level": 10, "product": "火箭引擎", "machine": "弹药加工厂", "materials": ["喷嘴", "涡轮机", "泵", "火箭燃料", "冷凝器"]}, {"level": 10, "product": "炸药", "machine": "装配厂", "materials": ["强化外壳", "环氧树脂"]}, {"level": 10, "product": "离子推进器", "machine": "加工厂", "materials": ["阀门", "隔热罩", "压力罐", "火箭燃料"]}, {"level": 10, "product": "离子稳定器", "machine": "大型冲压机", "materials": ["环氧树脂", "液态氦", "船载仪器", "炸药"]}, {"level": 10, "product": "塑料粉尘", "machine": "装配厂", "materials": ["有机化合物", "基础燃料", "塑料"]}, {"level": 10, "product": "拟橡胶绝缘体", "machine": "装配厂", "materials": ["塑料", "环氧树脂", "针铁矿晶格"]}, {"level": 10, "product": "物质#FHS-135-493", "machine": "化合反应炉", "materials": ["硫酸", "针铁矿粉", "液态氦"]}, {"level": 10, "product": "合成蛋白", "machine": "化合反应炉", "materials": ["有机化合物", "物质#FHS-135-493", "硫酸"]}, {"level": 10, "product": "冷凝器", "machine": "加工厂 v.2", "materials": ["谐振器", "泵", "纳米纤维", "强化外壳", "基础燃料"]}, {"level": 11, "product": "抗辐射罩", "machine": "加工厂", "materials": ["强化外壳", "强化框架", "拟橡胶绝缘体", "环氧树脂"]}, {"level": 11, "product": "纳米注射器", "machine": "加工厂", "materials": ["硬化剂", "给药器", "纳米纤维", "物质#FHS-135-493"]}, {"level": 11, "product": "卫星主体", "machine": "弹药加工厂", "materials": ["船载仪器", "扫描仪", "离子推进器", "火箭引擎", "隔热罩"]}, {"level": 11, "product": "脚手架", "machine": "加工厂", "materials": ["超级纤维", "强化框架", "针铁矿晶格", "塑料粉尘"]}, {"level": 11, "product": "船载仪器", "machine": "装配厂", "materials": ["电子元件", "稳定器", "强化外壳"]}, {"level": 11, "product": "RNA稳定剂", "machine": "加工厂", "materials": ["有机化合物", "纳米注射器", "合成蛋白", "塑料"]}, {"level": 11, "product": "RTSC（室温超导体）", "machine": "加工厂", "materials": ["抗辐射罩", "隔热罩", "气凝胶", "拟橡胶绝缘体"]}, {"level": 11, "product": "超级纤维", "machine": "装配厂", "materials": ["钙粉", "针铁矿晶格", "环氧树脂"]}, {"level": 12, "product": "气闸舱", "machine": "加工厂", "materials": ["脚手架", "压力罐", "超级纤维", "拟橡胶绝缘体"]}, {"level": 12, "product": "回旋加速器", "machine": "弹药加工厂", "materials": ["气凝胶", "电磁铁", "离子注入器", "强化外壳", "塑料粉尘"]}, {"level": 12, "product": "隔热罩", "machine": "大型冲压机", "materials": ["环氧树脂", "气凝胶", "超级纤维", "强化框架"]}, {"level": 12, "product": "生物纤维", "machine": "弹药加工厂", "materials": ["合成蛋白", "RNA稳定剂", "物质#FHS-135-493", "纳米纤维", "超导体"]}, {"level": 12, "product": "碳声呐", "machine": "加工厂", "materials": ["离子稳定器", "量子镇定剂", "蓄电池", "船载仪器"]}, {"level": 12, "product": "量子镇定剂", "machine": "加工厂", "materials": ["离子稳定器", "超磁体", "塑料粉尘", "硫酸"]}, {"level": 12, "product": "火箭燃料", "machine": "加工厂", "materials": ["液态氦", "基础燃料", "硫酸", "精炼油"]}, {"level": 12, "product": "合成DNA", "machine": "弹药加工厂", "materials": ["合成蛋白", "物质#FHS-135-493", "纳米注射器", "塑料", "生物纤维"]}, {"level": 13, "product": "转换器", "machine": "弹药加工厂", "materials": ["激光发射器", "蓄电池", "电磁线圈", "塑料", "RTSC（室温超导体）"]}, {"level": 13, "product": "RTSC发电机", "machine": "弹药加工厂", "materials": ["RTSC（室温超导体）", "发电机", "激光发射器", "抗辐射罩", "回旋加速器"]}, {"level": 13, "product": "追踪装置", "machine": "弹药加工厂", "materials": ["碳声呐", "量子镇定剂", "透镜", "船载仪器", "扫描仪"]}, {"level": 13, "product": "离子炸弹", "machine": "弹药加工厂", "materials": ["离子注入器", "离子稳定器", "炸药", "追踪装置", "谐振器"]}];
+
+function isV2(machine) {
+  return /v\.?2|V\.?2/.test(machine);
+}
+
+const routeState = {
+  preferBase: true,
+  target: "",
+  highlight: null,
+  graph: null,
+  scale: 1,
+  tx: 40,
+  ty: 40,
+  dragging: false,
+  lastX: 0,
+  lastY: 0,
+};
+
+const recipeIndex = (() => {
+  const map = new Map();
+  for (const r of RECIPES) {
+    if (!map.has(r.product)) map.set(r.product, []);
+    map.get(r.product).push(r);
+  }
+  return map;
+})();
+
+const allItemNames = (() => {
+  const s = new Set();
+  for (const r of RECIPES) {
+    s.add(r.product);
+    r.materials.forEach(m => s.add(m));
+  }
+  return [...s].sort((a,b)=>a.localeCompare(b, "zh"));
+})();
+
+function pickRecipe(product) {
+  const list = recipeIndex.get(product) || [];
+  if (!list.length) return null;
+  if (routeState.preferBase) {
+    const base = list.find(r => !isV2(r.machine));
+    return base || list[0];
+  }
+  // prefer v2 if exists else base
+  const v2 = list.find(r => isV2(r.machine));
+  return v2 || list[0];
+}
+
+function buildRoute(target) {
+  const nodes = new Map(); // name -> {name, recipe|null, raw, cycle, depth}
+  const edges = []; // {from, to, machine}
+  const stack = new Set();
+
+  function walk(name) {
+    if (stack.has(name)) {
+      const hit = nodes.get(name);
+      if (hit) { hit.cycle = true; return hit; }
+      const stub = { name, recipe: null, raw: true, cycle: true, depth: 0 };
+      nodes.set(name, stub);
+      return stub;
+    }
+    if (nodes.has(name)) return nodes.get(name);
+
+    const node = { name, recipe: null, raw: false, cycle: false, depth: 0 };
+    nodes.set(name, node);
+
+    const recipe = pickRecipe(name);
+    if (!recipe) {
+      node.raw = true;
+      node.depth = 0;
+      return node;
+    }
+
+    stack.add(name);
+    node.recipe = recipe;
+    let maxD = 0;
+    for (const mat of recipe.materials) {
+      // skip self-edge loops
+      if (mat === name) continue;
+      // if material is already on stack, mark cycle and still show edge once
+      const onStack = stack.has(mat);
+      const child = walk(mat);
+      if (onStack) child.cycle = true;
+      edges.push({ from: mat, to: name, machine: recipe.machine });
+      if (!onStack) maxD = Math.max(maxD, child.depth);
+    }
+    stack.delete(name);
+    node.depth = maxD + 1;
+    return node;
+  }
+
+  walk(target);
+
+  // recompute depths in topological fashion (longest path from raw)
+  let changed = true;
+  let guard = 0;
+  while (changed && guard++ < 50) {
+    changed = false;
+    for (const e of edges) {
+      const a = nodes.get(e.from);
+      const b = nodes.get(e.to);
+      if (!a || !b) continue;
+      const nd = a.depth + 1;
+      if (nd > b.depth) { b.depth = nd; changed = true; }
+    }
+  }
+
+  return { nodes, edges, target };
+}
+
+function layoutRoute(graph) {
+  const { nodes, edges, target } = graph;
+  const byDepth = new Map();
+  for (const n of nodes.values()) {
+    if (!byDepth.has(n.depth)) byDepth.set(n.depth, []);
+    byDepth.get(n.depth).push(n);
+  }
+  const depths = [...byDepth.keys()].sort((a,b)=>a-b);
+  const nodeW = 128, nodeH = 54, gapX = 170, gapY = 78;
+  const positions = new Map();
+
+  depths.forEach((d, di) => {
+    const col = byDepth.get(d);
+    col.sort((a,b) => a.name.localeCompare(b.name, "zh"));
+    const totalH = col.length * gapY;
+    col.forEach((n, i) => {
+      positions.set(n.name, {
+        x: di * gapX,
+        y: i * gapY - totalH / 2 + gapY / 2,
+        w: nodeW,
+        h: nodeH,
+      });
+    });
+  });
+
+  // center vertically around 0 already; shift later in view
+  return { positions, nodeW, nodeH, gapX, depths, byDepth };
+}
+
+function collectReachable(start, adj) {
+  const set = new Set([start]);
+  const q = [start];
+  while (q.length) {
+    const cur = q.shift();
+    for (const nxt of (adj.get(cur) || [])) {
+      if (!set.has(nxt)) { set.add(nxt); q.push(nxt); }
+    }
+  }
+  return set;
+}
+
+function pathSets(focus, edges) {
+  const fwd = new Map();
+  const rev = new Map();
+  for (const e of edges) {
+    if (!fwd.has(e.from)) fwd.set(e.from, []);
+    fwd.get(e.from).push(e.to);
+    if (!rev.has(e.to)) rev.set(e.to, []);
+    rev.get(e.to).push(e.from);
+  }
+  const up = collectReachable(focus, rev);   // ancestors + self
+  const down = collectReachable(focus, fwd); // self + descendants
+  const nodes = new Set([...up, ...down]);
+  const edgeKeys = new Set();
+  for (const e of edges) {
+    if (nodes.has(e.from) && nodes.has(e.to)) {
+      // keep only edges inside upstream cone or downstream cone
+      const inUp = up.has(e.from) && up.has(e.to);
+      const inDown = down.has(e.from) && down.has(e.to);
+      if (inUp || inDown) edgeKeys.add(e.from + "->" + e.to);
+    }
+  }
+  return { up, down, nodes, edgeKeys };
+}
+
+function applyHighlight(focus) {
+  const world = document.getElementById("routeWorld");
+
+  if (!focus || !routeState.graph) {
+    routeState.highlight = null;
+    world.classList.remove("is-hl");
+    world.querySelectorAll(".edge.hl").forEach(el => el.classList.remove("hl"));
+    world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-up, .node.hl-down").forEach(el => {
+      el.classList.remove("hl", "hl-focus", "hl-up", "hl-down");
+    });
+    return;
+  }
+
+  if (routeState.highlight === focus) {
+    applyHighlight(null);
+    return;
+  }
+
+  routeState.highlight = focus;
+  const { up, down, nodes, edgeKeys } = pathSets(focus, routeState.graph.edges);
+  world.classList.add("is-hl");
+
+  world.querySelectorAll(".edge").forEach(el => {
+    const key = el.dataset.from + "->" + el.dataset.to;
+    el.classList.toggle("hl", edgeKeys.has(key));
+  });
+  world.querySelectorAll(".node").forEach(el => {
+    const name = el.dataset.name;
+    el.classList.remove("hl", "hl-focus", "hl-up", "hl-down");
+    if (!nodes.has(name)) return;
+    el.classList.add("hl");
+    if (name === focus) el.classList.add("hl-focus");
+    else if (up.has(name) && name !== focus) el.classList.add("hl-up");
+    else if (down.has(name) && name !== focus) el.classList.add("hl-down");
+  });
+}
+
+function renderRouteGraph(target, opts = {}) {
+  const keepView = !!opts.keepView;
+  const world = document.getElementById("routeWorld");
+  const emptyEl = document.getElementById("routeEmpty");
+  world.innerHTML = "";
+  routeState.highlight = null;
+  routeState.graph = null;
+  world.classList.remove("is-hl");
+
+  if (!target) {
+    emptyEl.classList.remove("hide");
+    emptyEl.textContent = "输入产品名后点确定";
+    applyTransform();
+    return;
+  }
+  if (!recipeIndex.has(target) && !allItemNames.includes(target)) {
+    emptyEl.classList.remove("hide");
+    emptyEl.textContent = `未找到「${target}」`;
+    applyTransform();
+    return;
+  }
+
+  const graph = buildRoute(target);
+  const layout = layoutRoute(graph);
+  routeState.graph = graph;
+  routeState.target = target;
+  emptyEl.classList.add("hide");
+  pushSearchHistory(target);
+
+  for (const e of graph.edges) {
+    const a = layout.positions.get(e.from);
+    const b = layout.positions.get(e.to);
+    if (!a || !b) continue;
+    const x1 = a.x + a.w;
+    const y1 = a.y + a.h / 2;
+    const x2 = b.x;
+    const y2 = b.y + b.h / 2;
+    const mx = (x1 + x2) / 2;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "edge");
+    path.dataset.from = e.from;
+    path.dataset.to = e.to;
+    path.setAttribute("d", `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+    world.appendChild(path);
+  }
+
+  for (const n of graph.nodes.values()) {
+    const p = layout.positions.get(n.name);
+    if (!p) continue;
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    let cls = "node node-mid";
+    if (n.name === target) cls = "node node-target";
+    else if (n.cycle) cls = "node node-cycle";
+    else if (n.raw) cls = "node node-raw";
+    g.setAttribute("class", cls);
+    g.dataset.name = n.name;
+    g.style.cursor = "pointer";
+
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", p.x);
+    rect.setAttribute("y", p.y);
+    rect.setAttribute("rx", 10);
+    rect.setAttribute("ry", 10);
+    rect.setAttribute("width", p.w);
+    rect.setAttribute("height", p.h);
+    g.appendChild(rect);
+
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t1.setAttribute("class", "name");
+    t1.setAttribute("x", p.x + p.w / 2);
+    t1.setAttribute("y", p.y + 22);
+    t1.setAttribute("text-anchor", "middle");
+    t1.textContent = n.name.length > 9 ? n.name.slice(0, 8) + "…" : n.name;
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = n.name + "（单击高亮线路）";
+    g.appendChild(title);
+    g.appendChild(t1);
+
+    const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t2.setAttribute("class", "meta");
+    t2.setAttribute("x", p.x + p.w / 2);
+    t2.setAttribute("y", p.y + 40);
+    t2.setAttribute("text-anchor", "middle");
+    if (n.cycle) t2.textContent = "循环截断";
+    else if (n.raw) t2.textContent = "原料 / 采集";
+    else t2.textContent = n.recipe.machine;
+    g.appendChild(t2);
+
+    g.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      applyHighlight(n.name);
+    });
+    world.appendChild(g);
+  }
+
+  if (!keepView) {
+    routeState.scale = 1;
+    routeState.tx = 60;
+    routeState.ty = (document.getElementById("routeSvg").clientHeight || 600) / 2;
+  }
+  applyTransform();
+}
+
+function applyTransform() {
+  const world = document.getElementById("routeWorld");
+  world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
+}
+
+function panByClientDelta(fromX, fromY, toX, toY) {
+  routeState.tx += toX - fromX;
+  routeState.ty += toY - fromY;
+}
+
+function zoomAtClient(clientX, clientY, nextScale) {
+  const rect = document.getElementById("routeSvg").getBoundingClientRect();
+  const c = { x: clientX - rect.left, y: clientY - rect.top };
+  const next = Math.min(3.5, Math.max(0.3, nextScale));
+  const k = next / routeState.scale;
+  routeState.tx = c.x - (c.x - routeState.tx) * k;
+  routeState.ty = c.y - (c.y - routeState.ty) * k;
+  routeState.scale = next;
+}
+
+const HIST_KEY = "starrupture_search_hist";
+const HIST_MAX = 12;
+let suggestIndex = -1;
+
+function loadHistory() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(HIST_KEY) || "[]");
+    return Array.isArray(arr) ? arr.filter(x => typeof x === "string") : [];
+  } catch (_) { return []; }
+}
+function pushSearchHistory(name) {
+  if (!name) return;
+  const list = loadHistory().filter(x => x !== name);
+  list.unshift(name);
+  localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, HIST_MAX)));
+}
+function clearSearchHistory() {
+  localStorage.removeItem(HIST_KEY);
+}
+
+function rankMatch(name, qq) {
+  const n = name.toLowerCase();
+  if (n === qq) return 0;
+  if (n.startsWith(qq)) return 1;
+  const idx = n.indexOf(qq);
+  if (idx >= 0) return 2 + idx;
+  return 99;
+}
+
+function resolveTarget(raw) {
+  const name = (raw || "").trim();
+  if (!name) return "";
+  if (allItemNames.includes(name)) return name;
+  const products = [...recipeIndex.keys()];
+  const exactP = products.find(n => n === name);
+  if (exactP) return exactP;
+  const ranked = products
+    .map(n => ({ n, r: rankMatch(n, name.toLowerCase()) }))
+    .filter(x => x.r < 99)
+    .sort((a,b) => a.r - b.r || a.n.localeCompare(b.n, "zh"));
+  if (ranked.length) return ranked[0].n;
+  const rankedAll = allItemNames
+    .map(n => ({ n, r: rankMatch(n, name.toLowerCase()) }))
+    .filter(x => x.r < 99)
+    .sort((a,b) => a.r - b.r || a.n.localeCompare(b.n, "zh"));
+  return rankedAll[0]?.n || name;
+}
+
+function goSearch(name) {
+  const target = resolveTarget(name);
+  if (!target) return;
+  document.getElementById("routeQ").value = target;
+  hideSuggest();
+  routeState.target = target;
+  renderRouteGraph(target);
+}
+
+function hideSuggest() {
+  const box = document.getElementById("routeSuggest");
+  box.classList.remove("show");
+  box.innerHTML = "";
+  suggestIndex = -1;
+}
+
+function showSuggest(q, opts = {}) {
+  const box = document.getElementById("routeSuggest");
+  const qq = (q || "").trim().toLowerCase();
+  const forceHist = !!opts.forceHist;
+  box.innerHTML = "";
+  suggestIndex = -1;
+
+  const hist = loadHistory();
+  const entries = [];
+
+  if (!qq || forceHist) {
+    const histShow = qq ? hist.filter(h => h.toLowerCase().includes(qq)) : hist;
+    if (histShow.length) {
+      const sec = document.createElement("div");
+      sec.className = "sg-sec";
+      sec.textContent = "最近搜索";
+      box.appendChild(sec);
+      histShow.slice(0, 8).forEach(name => entries.push({ name, kind: "hist" }));
+    }
+  }
+
+  if (qq) {
+    const products = [...recipeIndex.keys()]
+      .map(n => ({ n, r: rankMatch(n, qq) }))
+      .filter(x => x.r < 99)
+      .sort((a,b) => a.r - b.r || a.n.localeCompare(b.n, "zh"))
+      .map(x => x.n);
+    const others = allItemNames
+      .filter(n => !recipeIndex.has(n))
+      .map(n => ({ n, r: rankMatch(n, qq) }))
+      .filter(x => x.r < 99)
+      .sort((a,b) => a.r - b.r || a.n.localeCompare(b.n, "zh"))
+      .map(x => x.n);
+    const seen = new Set(entries.map(e => e.name));
+    const matched = [...products, ...others].filter(n => !seen.has(n)).slice(0, 12);
+    if (matched.length) {
+      const sec = document.createElement("div");
+      sec.className = "sg-sec";
+      sec.textContent = "联想匹配";
+      box.appendChild(sec);
+      matched.forEach(name => {
+        entries.push({
+          name,
+          kind: recipeIndex.has(name) ? "prod" : "raw",
+        });
+      });
+    }
+  }
+
+  if (!entries.length) {
+    if (!qq && hist.length === 0) {
+      const sec = document.createElement("div");
+      sec.className = "sg-sec";
+      sec.textContent = "暂无历史，输入名称开始联想";
+      box.appendChild(sec);
+      box.classList.add("show");
+      return;
+    }
+    box.classList.remove("show");
+    return;
+  }
+
+  entries.forEach((item, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.idx = String(i);
+    const label = document.createElement("span");
+    label.textContent = item.name;
+    b.appendChild(label);
+    const tag = document.createElement("span");
+    tag.className = "tag" + (item.kind === "hist" ? " hist" : item.kind === "raw" ? " raw" : "");
+    tag.textContent = item.kind === "hist" ? "历史" : item.kind === "raw" ? "原料" : "产品";
+    b.appendChild(tag);
+    b.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // keep focus logic simple
+      goSearch(item.name);
+    });
+    box.appendChild(b);
+  });
+
+  if (hist.length && (!qq || forceHist)) {
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.textContent = "清空搜索历史";
+    clearBtn.style.color = "#a66a18";
+    clearBtn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      clearSearchHistory();
+      showSuggest(document.getElementById("routeQ").value, { forceHist: true });
+    });
+    box.appendChild(clearBtn);
+  }
+
+  box.classList.add("show");
+}
+
+function moveSuggest(delta) {
+  const box = document.getElementById("routeSuggest");
+  if (!box.classList.contains("show")) return;
+  const buttons = [...box.querySelectorAll("button[data-idx]")];
+  if (!buttons.length) return;
+  suggestIndex = (suggestIndex + delta + buttons.length) % buttons.length;
+  buttons.forEach((b, i) => b.classList.toggle("active", i === suggestIndex));
+  buttons[suggestIndex].scrollIntoView({ block: "nearest" });
+}
+
+const routeQ = document.getElementById("routeQ");
+routeQ.addEventListener("input", (e) => showSuggest(e.target.value));
+routeQ.addEventListener("focus", (e) => showSuggest(e.target.value, { forceHist: true }));
+routeQ.addEventListener("blur", () => setTimeout(hideSuggest, 150));
+routeQ.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); moveSuggest(1); return; }
+  if (e.key === "ArrowUp") { e.preventDefault(); moveSuggest(-1); return; }
+  if (e.key === "Escape") { hideSuggest(); return; }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const box = document.getElementById("routeSuggest");
+    const buttons = [...box.querySelectorAll("button[data-idx]")];
+    if (box.classList.contains("show") && suggestIndex >= 0 && buttons[suggestIndex]) {
+      goSearch(buttons[suggestIndex].querySelector("span").textContent);
+      return;
+    }
+    goSearch(e.target.value);
+  }
+});
+document.getElementById("routeGo").addEventListener("click", () => {
+  goSearch(document.getElementById("routeQ").value);
+});
+/* preferBase stays true */
+
+const svg = document.getElementById("routeSvg");
+svg.addEventListener("mousedown", (e) => {
+  if (e.target.closest(".node")) return;
+  routeState.dragging = true;
+  routeState.lastX = e.clientX;
+  routeState.lastY = e.clientY;
+  svg.classList.add("dragging");
+});
+window.addEventListener("mousemove", (e) => {
+  if (!routeState.dragging) return;
+  panByClientDelta(routeState.lastX, routeState.lastY, e.clientX, e.clientY);
+  routeState.lastX = e.clientX;
+  routeState.lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener("mouseup", () => {
+  routeState.dragging = false;
+  svg.classList.remove("dragging");
+});
+svg.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  zoomAtClient(e.clientX, e.clientY, routeState.scale * delta);
+  applyTransform();
+}, { passive: false });
+
+const touchCtl = { mode: null, lastDist: 0 };
+function touchDist(a, b) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return Math.hypot(dx, dy);
+}
+function touchCenter(a, b) {
+  return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+}
+svg.addEventListener("touchstart", (e) => {
+  if (e.target.closest(".node") && e.touches.length === 1) return;
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    touchCtl.mode = "pan";
+    routeState.dragging = true;
+    routeState.lastX = t.clientX;
+    routeState.lastY = t.clientY;
+    svg.classList.add("dragging");
+  } else if (e.touches.length >= 2) {
+    e.preventDefault();
+    touchCtl.mode = "pinch";
+    routeState.dragging = false;
+    touchCtl.lastDist = touchDist(e.touches[0], e.touches[1]);
+    svg.classList.remove("dragging");
+  }
+}, { passive: false });
+svg.addEventListener("touchmove", (e) => {
+  if (touchCtl.mode === "pan" && e.touches.length === 1) {
+    e.preventDefault();
+    const t = e.touches[0];
+    panByClientDelta(routeState.lastX, routeState.lastY, t.clientX, t.clientY);
+    routeState.lastX = t.clientX;
+    routeState.lastY = t.clientY;
+    applyTransform();
+  } else if (e.touches.length >= 2) {
+    e.preventDefault();
+    touchCtl.mode = "pinch";
+    const dist = touchDist(e.touches[0], e.touches[1]);
+    if (touchCtl.lastDist > 0) {
+      const factor = dist / touchCtl.lastDist;
+      const c = touchCenter(e.touches[0], e.touches[1]);
+      zoomAtClient(c.x, c.y, routeState.scale * factor);
+      applyTransform();
+    }
+    touchCtl.lastDist = dist;
+  }
+}, { passive: false });
+function endTouch() {
+  touchCtl.mode = null;
+  touchCtl.lastDist = 0;
+  routeState.dragging = false;
+  svg.classList.remove("dragging");
+}
+svg.addEventListener("touchend", endTouch);
+svg.addEventListener("touchcancel", endTouch);
+
+
+(function lockPageViewport() {
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("gestureend", (e) => e.preventDefault(), { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 280) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+})();
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => {
+    routeState.ty = (document.getElementById("routeSvg").clientHeight || 360) / 2;
+    applyTransform();
+  }, 200);
+});
+</script>
+</body>
+</html>
