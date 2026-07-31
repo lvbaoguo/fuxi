@@ -49,14 +49,18 @@
     flex-shrink: 0; border: 0; background: var(--accent); color: #fff; border-radius: 8px;
     padding: 8px 12px; font-size: .85rem; font-weight: 600; cursor: pointer;
   }
-  .pc-reset {
+  .pc-toolbar {
     position: absolute; z-index: 40; top: 12px; right: 12px;
+    display: flex; gap: 8px;
+  }
+  .pc-toolbar .btn {
     display: inline-flex; align-items: center;
     border: 1px solid var(--line); background: #fff; color: var(--text);
     border-radius: 10px; padding: 8px 14px; font-size: .85rem; font-weight: 600;
     cursor: pointer; box-shadow: 0 4px 16px rgba(40,50,70,.14);
   }
-  .pc-reset:hover { border-color: var(--accent); color: var(--accent); }
+  .pc-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .pc-toolbar .btn.active { border-color: var(--accent); background: #e8f6f2; color: var(--accent); }
   .suggest {
     display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
     border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
@@ -109,7 +113,10 @@
       </div>
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
-    <button class="pc-reset" type="button" id="pcReset" title="复位视角">复位</button>
+    <div class="pc-toolbar">
+      <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
+      <button class="btn" type="button" id="pcReset" title="复位视角">复位</button>
+    </div>
     <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -133,6 +140,7 @@ function isV2(machine) {
 
 const routeState = {
   preferBase: true,
+  dir: "h", // h=横向 left→right; v=竖向 top→bottom（原料上、成品下）
   target: "",
   highlight: null,
   graph: null,
@@ -237,32 +245,45 @@ function buildRoute(target) {
 }
 
 function layoutRoute(graph) {
-  const { nodes, edges, target } = graph;
+  const { nodes } = graph;
   const byDepth = new Map();
   for (const n of nodes.values()) {
     if (!byDepth.has(n.depth)) byDepth.set(n.depth, []);
     byDepth.get(n.depth).push(n);
   }
-  const depths = [...byDepth.keys()].sort((a,b)=>a-b);
+  const depths = [...byDepth.keys()].sort((a, b) => a - b);
   const nodeW = 128, nodeH = 54, gapX = 170, gapY = 78;
   const positions = new Map();
+  const vertical = routeState.dir === "v";
 
   depths.forEach((d, di) => {
     const col = byDepth.get(d);
-    col.sort((a,b) => a.name.localeCompare(b.name, "zh"));
-    const totalH = col.length * gapY;
-    col.forEach((n, i) => {
-      positions.set(n.name, {
-        x: di * gapX,
-        y: i * gapY - totalH / 2 + gapY / 2,
-        w: nodeW,
-        h: nodeH,
+    col.sort((a, b) => a.name.localeCompare(b.name, "zh"));
+    if (vertical) {
+      // 竖向：深度向下；同层横向居中铺开。原料(depth小)在上，成品在下
+      const totalW = col.length * gapX;
+      col.forEach((n, i) => {
+        positions.set(n.name, {
+          x: i * gapX - totalW / 2 + gapX / 2,
+          y: di * gapY,
+          w: nodeW,
+          h: nodeH,
+        });
       });
-    });
+    } else {
+      const totalH = col.length * gapY;
+      col.forEach((n, i) => {
+        positions.set(n.name, {
+          x: di * gapX,
+          y: i * gapY - totalH / 2 + gapY / 2,
+          w: nodeW,
+          h: nodeH,
+        });
+      });
+    }
   });
 
-  // center vertically around 0 already; shift later in view
-  return { positions, nodeW, nodeH, gapX, depths, byDepth };
+  return { positions, nodeW, nodeH, gapX, gapY, depths, byDepth, vertical };
 }
 
 function collectReachable(start, adj) {
@@ -371,16 +392,27 @@ function renderRouteGraph(target, opts = {}) {
     const a = layout.positions.get(e.from);
     const b = layout.positions.get(e.to);
     if (!a || !b) continue;
-    const x1 = a.x + a.w;
-    const y1 = a.y + a.h / 2;
-    const x2 = b.x;
-    const y2 = b.y + b.h / 2;
-    const mx = (x1 + x2) / 2;
+    let d;
+    if (layout.vertical) {
+      const x1 = a.x + a.w / 2;
+      const y1 = a.y + a.h;
+      const x2 = b.x + b.w / 2;
+      const y2 = b.y;
+      const my = (y1 + y2) / 2;
+      d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+    } else {
+      const x1 = a.x + a.w;
+      const y1 = a.y + a.h / 2;
+      const x2 = b.x;
+      const y2 = b.y + b.h / 2;
+      const mx = (x1 + x2) / 2;
+      d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    }
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("class", "edge");
     path.dataset.from = e.from;
     path.dataset.to = e.to;
-    path.setAttribute("d", `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute("d", d);
     world.appendChild(path);
   }
 
@@ -435,8 +467,14 @@ function renderRouteGraph(target, opts = {}) {
 
   if (!keepView) {
     routeState.scale = 1;
-    routeState.tx = 60;
-    routeState.ty = (document.getElementById("routeSvg").clientHeight || 600) / 2;
+    const svgEl = document.getElementById("routeSvg");
+    if (routeState.dir === "v") {
+      routeState.tx = (svgEl.clientWidth || 800) / 2;
+      routeState.ty = 56;
+    } else {
+      routeState.tx = 60;
+      routeState.ty = (svgEl.clientHeight || 600) / 2;
+    }
   }
   applyTransform();
 }
@@ -653,11 +691,23 @@ routeQ.addEventListener("keydown", (e) => {
 document.getElementById("routeGo").addEventListener("click", () => {
   goSearch(document.getElementById("routeQ").value);
 });
+document.getElementById("pcDir").addEventListener("click", () => {
+  routeState.dir = routeState.dir === "h" ? "v" : "h";
+  const btn = document.getElementById("pcDir");
+  btn.classList.toggle("active", routeState.dir === "v");
+  btn.title = routeState.dir === "v" ? "当前竖向，点击切回横向" : "当前横向，点击切换竖向";
+  if (routeState.target) renderRouteGraph(routeState.target);
+});
 document.getElementById("pcReset").addEventListener("click", () => {
   const svgEl = document.getElementById("routeSvg");
   routeState.scale = 1;
-  routeState.tx = 60;
-  routeState.ty = (svgEl.clientHeight || 600) / 2;
+  if (routeState.dir === "v") {
+    routeState.tx = (svgEl.clientWidth || 800) / 2;
+    routeState.ty = 56;
+  } else {
+    routeState.tx = 60;
+    routeState.ty = (svgEl.clientHeight || 600) / 2;
+  }
   applyTransform();
 });
 /* preferBase stays true */
