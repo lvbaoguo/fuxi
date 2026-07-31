@@ -152,6 +152,7 @@
     </div>
     <div class="pc-toolbar">
       <a class="btn" href="../pc/" style="text-decoration:none">合成路线</a>
+      <a class="btn" href="../sandbox/" style="text-decoration:none">方格沙盘</a>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="pcReset" title="复位视角">复位</button>
     </div>
@@ -606,46 +607,59 @@ function analyzeRailPlan(graph, layout) {
     }
   }
 
-  // 交叉：相邻深度边，按 from 的 y 序与 to 的 y 序检测倒置
-  const depthOf = (name) => (nodes.get(name) ? nodes.get(name).depth : 0);
-  const posY = (name) => {
-    const p = layout.positions.get(name);
-    return p ? p.y : 0;
-  };
-  const posX = (name) => {
-    const p = layout.positions.get(name);
-    return p ? p.x : 0;
-  };
-
-  // group edges by fromDepth -> toDepth band
-  const bands = new Map();
-  for (const e of edges) {
-    const fd = depthOf(e.from);
-    const td = depthOf(e.to);
-    if (td <= fd) continue;
-    const key = fd + "->" + td;
-    if (!bands.has(key)) bands.set(key, []);
-    bands.get(key).push(e);
+  // 交叉：用与画面一致的线段做真几何相交（平行不打架、仅顺序倒置不算）
+  const vertical = !!layout.vertical;
+  function edgeEndpoints(e) {
+    const a = layout.positions.get(e.from);
+    const b = layout.positions.get(e.to);
+    if (!a || !b) return null;
+    if (vertical) {
+      return {
+        p1: { x: a.x + a.w / 2, y: a.y + a.h },
+        p2: { x: b.x + b.w / 2, y: b.y },
+      };
+    }
+    return {
+      p1: { x: a.x + a.w, y: a.y + a.h / 2 },
+      p2: { x: b.x, y: b.y + b.h / 2 },
+    };
   }
-  for (const [band, list] of bands) {
-    const sorted = list.slice().sort((a, b) => posY(a.from) - posY(b.from) || a.from.localeCompare(b.from, "zh"));
-    for (let i = 0; i < sorted.length; i++) {
-      for (let j = i + 1; j < sorted.length; j++) {
-        const a = sorted[i], b = sorted[j];
-        const ay = posY(a.to), by = posY(b.to);
-        if (ay > by + 1) {
-          // crossing
-          crosses.push({
-            a: a.from + "→" + a.to,
-            b: b.from + "→" + b.to,
-            band,
-          });
-          edgeClass.set(a.from + "->" + a.to, "rail-cross");
-          edgeClass.set(b.from + "->" + b.to, "rail-cross");
-        }
-      }
+  function nearPt(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y) < 1.5;
+  }
+  /** 真交叉：内部相交；共端点/平行/仅共线不算打架 */
+  function segmentsCross(A, B) {
+    if (!A || !B) return false;
+    const { p1, p2 } = A;
+    const { p1: q1, p2: q2 } = B;
+    if (nearPt(p1, q1) || nearPt(p1, q2) || nearPt(p2, q1) || nearPt(p2, q2)) return false;
+    const dx1 = p2.x - p1.x, dy1 = p2.y - p1.y;
+    const dx2 = q2.x - q1.x, dy2 = q2.y - q1.y;
+    const cross = dx1 * dy2 - dy1 * dx2;
+    if (Math.abs(cross) < 1e-6) return false; // 平行或共线
+    const t = ((q1.x - p1.x) * dy2 - (q1.y - p1.y) * dx2) / cross;
+    const u = ((q1.x - p1.x) * dy1 - (q1.y - p1.y) * dx1) / cross;
+    const eps = 0.02; // 略收口，避免贴着节点口误判
+    return t > eps && t < 1 - eps && u > eps && u < 1 - eps;
+  }
+
+  const segs = edges.map((e) => ({ e, seg: edgeEndpoints(e) })).filter((x) => x.seg);
+  const crossedKeys = new Set();
+  for (let i = 0; i < segs.length; i++) {
+    for (let j = i + 1; j < segs.length; j++) {
+      const a = segs[i], b = segs[j];
+      // 共节点的边在接口汇合，不算堵路交叉
+      if (a.e.from === b.e.from || a.e.from === b.e.to || a.e.to === b.e.from || a.e.to === b.e.to) continue;
+      if (!segmentsCross(a.seg, b.seg)) continue;
+      crosses.push({
+        a: a.e.from + "→" + a.e.to,
+        b: b.e.from + "→" + b.e.to,
+      });
+      crossedKeys.add(a.e.from + "->" + a.e.to);
+      crossedKeys.add(b.e.from + "->" + b.e.to);
     }
   }
+  for (const k of crossedKeys) edgeClass.set(k, "rail-cross");
 
   // 建议摘要
   const tips = [];
@@ -653,6 +667,11 @@ function analyzeRailPlan(graph, layout) {
     level: "ok",
     title: "轨道基础规则",
     body: "绿口(输出)→黄口(输入)，单向。轨道可导电。卡流时先查有没有需求拉取（本作为 pull 物流）。",
+  });
+  tips.push({
+    level: "ok",
+    title: "交叉判定说明",
+    body: "红虚线 = 两条轨道线段在图上真相交。平行并排、只是上下错开但不穿过，不算打架。",
   });
   if (splits.length) {
     tips.push({
@@ -675,14 +694,14 @@ function analyzeRailPlan(graph, layout) {
   if (crosses.length) {
     tips.push({
       level: "hot",
-      title: `布局上约 ${crosses.length} 对线路交叉`,
-      body: "同层对穿易实体打架。优先：①十字路口/环形轨道连接器（一横一竖）；②工厂左右重排减少交叉；③抬高一层绕行。红虚线标出的边优先处理。示例：" +
+      title: `真交叉 ${crosses.length} 对（会堵路风险）`,
+      body: "优先：①十字路口/环形连接器（一横一竖）；②重排工厂减少对穿；③抬高一层绕行。示例：" +
         crosses.slice(0, 5).map((c) => `${c.a} × ${c.b}`).join("； "),
     });
   } else {
     tips.push({
       level: "ok",
-      title: "当前布局交叉较少",
+      title: "当前图上无线段真交叉",
       body: "仍建议按深度分廊道摆厂：原料廊→中间件廊→成品，主干少交叉。",
     });
   }

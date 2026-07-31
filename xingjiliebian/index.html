@@ -33,8 +33,9 @@
     border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line); color: var(--text);
   }
   a.m { background: var(--accent); color: #fff; border-color: var(--accent); }
-  a.pc:hover, a.full:hover { border-color: var(--accent); color: var(--accent); }
+  a.pc:hover, a.full:hover, a.sandbox:hover { border-color: var(--accent); color: var(--accent); }
   a.full { border-color: #93c5fd; background: #eff6ff; }
+  a.sandbox { border-color: #f0c48a; background: #fff8ee; }
   .tip { margin-top: 14px; font-size: .8rem; color: var(--muted); }
 </style>
 <script>
@@ -50,11 +51,12 @@
 <body>
   <div class="card">
     <h1>星际裂变 · 路线工具</h1>
-    <p>手机走简洁合成路线；电脑可选合成路线或全链路（工厂+轨道建议）。</p>
+    <p>手机走简洁合成路线；电脑可选合成路线、全链路，或方格沙盘试摆。</p>
     <div class="links">
       <a class="m" href="./m/">手机 · 合成路线</a>
       <a class="pc" href="./pc/">电脑 · 合成路线</a>
-      <a class="full" href="./full/">电脑 · 全链路路线（试做）</a>
+      <a class="full" href="./full/">电脑 · 全链路路线</a>
+      <a class="sandbox" href="./sandbox/">电脑 · 方格沙盘（初版）</a>
     </div>
     <p class="tip">强制留在本页：加 <code>?stay=1</code></p>
   </div>
