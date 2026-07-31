@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>星际裂变 · 合成路线（电脑）</title>
+<title>星际裂变 · 全链路路线（电脑）</title>
 <style>
   :root {
     --line: #c5ccd6;
@@ -101,6 +101,43 @@
   .float-search {
     left: 12px; top: 12px; right: auto; width: min(420px, 46vw);
   }
+
+  .edge.rail-1to1 { stroke: #8aa0b5; }
+  .edge.rail-split { stroke: #3b82f6; stroke-width: 2.2; }
+  .edge.rail-feed { stroke: #16a34a; stroke-width: 2; }
+  .edge.rail-cross { stroke: #dc2626; stroke-width: 2.4; stroke-dasharray: 6 4; }
+  .pc-toolbar { right: 12px; }
+  .link-panel {
+    position: absolute; z-index: 40; left: 12px; top: 64px; bottom: 12px;
+    width: min(340px, 34vw); overflow: auto;
+    background: rgba(255,255,255,.96); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: 0 8px 28px rgba(40,50,70,.12);
+    padding: 12px 14px; font-size: .82rem; line-height: 1.45; color: var(--text);
+  }
+  .link-panel h2 { margin: 0 0 6px; font-size: .95rem; }
+  .link-panel .sub { color: var(--muted); margin: 0 0 10px; font-size: .75rem; }
+  .link-panel .legend { display: grid; gap: 4px; margin: 0 0 12px; }
+  .link-panel .lg { display: flex; align-items: center; gap: 8px; }
+  .link-panel .sw { width: 22px; height: 3px; border-radius: 2px; }
+  .link-panel .sw.s1 { background: #8aa0b5; }
+  .link-panel .sw.ss { background: #3b82f6; height: 4px; }
+  .link-panel .sw.sf { background: #16a34a; height: 4px; }
+  .link-panel .sw.sc { background: #dc2626; height: 4px; border-top: 1px dashed #fff; }
+  .link-panel section { margin: 0 0 12px; }
+  .link-panel h3 { margin: 0 0 6px; font-size: .84rem; color: var(--accent); }
+  .link-panel ul { margin: 0; padding-left: 1.1em; }
+  .link-panel li { margin: 0 0 6px; }
+  .link-panel .tag {
+    display: inline-block; font-size: .7rem; border-radius: 999px;
+    padding: 1px 7px; border: 1px solid var(--line); color: var(--muted); margin-right: 4px;
+  }
+  .link-panel .tag.warn { color: #b45309; border-color: #f0c48a; background: #fff8ee; }
+  .link-panel .tag.hot { color: #b91c1c; border-color: #f1a8a8; background: #fef2f2; }
+  .link-panel .tag.ok { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
+  .link-panel.empty-hint { color: var(--muted); }
+  .float-search { width: min(360px, 38vw); }
+  body.has-plan .route-canvas-wrap svg { /* leave room visually */ }
+
 </style>
 </head>
 <body>
@@ -114,11 +151,22 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../full/" style="text-decoration:none">全链路路线</a>
+      <a class="btn" href="../pc/" style="text-decoration:none">合成路线</a>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="pcReset" title="复位视角">复位</button>
     </div>
-    <div class="route-empty" id="routeEmpty">输入产品名后点确定</div>
+    <aside class="link-panel" id="linkPanel">
+      <h2>全链路 · 轨道建议</h2>
+      <p class="sub">先搜目标产物。图上线色 = 建议轨道类型；右侧/本栏给打架点与器件建议。这是 v1 参谋，不是一键蓝图。</p>
+      <div class="legend">
+        <div class="lg"><span class="sw s1"></span>直连 1→1</div>
+        <div class="lg"><span class="sw ss"></span>分流 1→N（调制器3 等）</div>
+        <div class="lg"><span class="sw sf"></span>多口进机（各原料独立进黄口）</div>
+        <div class="lg"><span class="sw sc"></span>布局交叉风险（十字路口/绕行）</div>
+      </div>
+      <div id="linkBody" class="empty-hint">搜索后生成工厂步骤与轨道建议</div>
+    </aside>
+    <div class="route-empty" id="routeEmpty">搜索产物后查看全链路工厂 + 轨道建议</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -384,10 +432,14 @@ function renderRouteGraph(target, opts = {}) {
 
   const graph = buildRoute(target);
   const layout = layoutRoute(graph);
+  const railPlan = analyzeRailPlan(graph, layout);
   routeState.graph = graph;
+  routeState.railPlan = railPlan;
   routeState.target = target;
   emptyEl.classList.add("hide");
   pushSearchHistory(target);
+  document.body.classList.add("has-plan");
+  renderLinkPanel(railPlan);
 
   for (const e of graph.edges) {
     const a = layout.positions.get(e.from);
@@ -410,10 +462,14 @@ function renderRouteGraph(target, opts = {}) {
       d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
     }
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("class", "edge");
+    const railCls = (railPlan.edgeClass.get(e.from + "->" + e.to) || "rail-1to1");
+    path.setAttribute("class", "edge " + railCls);
     path.dataset.from = e.from;
     path.dataset.to = e.to;
     path.setAttribute("d", d);
+    const et = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    et.textContent = (RAIL_HELP[railCls.replace("rail-", "")] || RAIL_HELP["1to1"]) + "｜" + e.from + " → " + e.to;
+    path.appendChild(et);
     world.appendChild(path);
   }
 
@@ -473,11 +529,200 @@ function renderRouteGraph(target, opts = {}) {
       routeState.tx = (svgEl.clientWidth || 800) / 2;
       routeState.ty = 56;
     } else {
-      routeState.tx = 60;
+      routeState.tx = Math.max(360, (svgEl.clientWidth || 800) * 0.38);
       routeState.ty = (svgEl.clientHeight || 600) / 2;
     }
   }
   applyTransform();
+}
+
+
+/* ===== 全链路：工厂 + 轨道建议 ===== */
+const RAIL_HELP = {
+  "1to1": "直连轨道：绿口→黄口，单向",
+  "split": "分流：同一产物供多台下游，用轨道调制器3（1分2/1分3）或环形连接器",
+  "feed": "多口进机：一台机器多种原料 = 多条独立直连进各自黄口，一般不是把不同物品合到一条轨",
+  "cross": "交叉打架：同层线路左右对穿，优先十字路口/环形连接器（一横一竖），或抬高绕行分层",
+};
+
+function analyzeRailPlan(graph, layout) {
+  const { nodes, edges, target } = graph;
+  const outMap = new Map();
+  const inMap = new Map();
+  for (const e of edges) {
+    if (!outMap.has(e.from)) outMap.set(e.from, []);
+    outMap.get(e.from).push(e.to);
+    if (!inMap.has(e.to)) inMap.set(e.to, []);
+    inMap.get(e.to).push(e.from);
+  }
+
+  const edgeClass = new Map(); // key from->to
+  const splits = [];
+  const feeds = [];
+  const crosses = [];
+  const steps = [];
+
+  // 工厂步骤：按 depth
+  const byDepth = new Map();
+  for (const n of nodes.values()) {
+    if (!byDepth.has(n.depth)) byDepth.set(n.depth, []);
+    byDepth.get(n.depth).push(n);
+  }
+  [...byDepth.keys()].sort((a,b)=>a-b).forEach((d) => {
+    const list = byDepth.get(d).slice().sort((a,b)=>a.name.localeCompare(b.name,"zh"));
+    steps.push({
+      depth: d,
+      items: list.map((n) => ({
+        name: n.name,
+        machine: n.raw ? "原料/采集" : (n.recipe ? n.recipe.machine : "?"),
+        raw: !!n.raw,
+        mats: n.recipe ? n.recipe.materials.filter((m) => m !== n.name) : [],
+      })),
+    });
+  });
+
+  // 默认全 1to1
+  for (const e of edges) edgeClass.set(e.from + "->" + e.to, "rail-1to1");
+
+  // 分流：一源多下游
+  for (const [from, tos] of outMap) {
+    const uniq = [...new Set(tos)];
+    if (uniq.length >= 2) {
+      splits.push({ from, tos: uniq, n: uniq.length });
+      for (const t of uniq) edgeClass.set(from + "->" + t, "rail-split");
+    }
+  }
+
+  // 多口进机
+  for (const n of nodes.values()) {
+    if (!n.recipe) continue;
+    const mats = n.recipe.materials.filter((m) => m !== n.name);
+    if (mats.length >= 2) {
+      feeds.push({ to: n.name, mats, machine: n.recipe.machine, n: mats.length });
+      for (const m of mats) {
+        const k = m + "->" + n.name;
+        if (edgeClass.get(k) !== "rail-split") edgeClass.set(k, "rail-feed");
+      }
+    }
+  }
+
+  // 交叉：相邻深度边，按 from 的 y 序与 to 的 y 序检测倒置
+  const depthOf = (name) => (nodes.get(name) ? nodes.get(name).depth : 0);
+  const posY = (name) => {
+    const p = layout.positions.get(name);
+    return p ? p.y : 0;
+  };
+  const posX = (name) => {
+    const p = layout.positions.get(name);
+    return p ? p.x : 0;
+  };
+
+  // group edges by fromDepth -> toDepth band
+  const bands = new Map();
+  for (const e of edges) {
+    const fd = depthOf(e.from);
+    const td = depthOf(e.to);
+    if (td <= fd) continue;
+    const key = fd + "->" + td;
+    if (!bands.has(key)) bands.set(key, []);
+    bands.get(key).push(e);
+  }
+  for (const [band, list] of bands) {
+    const sorted = list.slice().sort((a, b) => posY(a.from) - posY(b.from) || a.from.localeCompare(b.from, "zh"));
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const a = sorted[i], b = sorted[j];
+        const ay = posY(a.to), by = posY(b.to);
+        if (ay > by + 1) {
+          // crossing
+          crosses.push({
+            a: a.from + "→" + a.to,
+            b: b.from + "→" + b.to,
+            band,
+          });
+          edgeClass.set(a.from + "->" + a.to, "rail-cross");
+          edgeClass.set(b.from + "->" + b.to, "rail-cross");
+        }
+      }
+    }
+  }
+
+  // 建议摘要
+  const tips = [];
+  tips.push({
+    level: "ok",
+    title: "轨道基础规则",
+    body: "绿口(输出)→黄口(输入)，单向。轨道可导电。卡流时先查有没有需求拉取（本作为 pull 物流）。",
+  });
+  if (splits.length) {
+    tips.push({
+      level: "warn",
+      title: `检测到 ${splits.length} 处分流（1→N）`,
+      body: splits.slice(0, 8).map((s) =>
+        `「${s.from}」→ ${s.tos.join("、")}：建议轨道调制器3 / 环形连接器做 1分${Math.min(3, s.n)}` + (s.n > 3 ? "（超过3路可级联或先入仓储再分）" : "")
+      ).join("； "),
+    });
+  }
+  if (feeds.length) {
+    tips.push({
+      level: "ok",
+      title: `检测到 ${feeds.length} 台多原料机（进N出1）`,
+      body: feeds.slice(0, 8).map((f) =>
+        `「${f.to}」(${f.machine}) 吃 ${f.mats.join("+")}：给每个黄口各拉一条直连，不要把不同物品并到同一条轨`
+      ).join("； "),
+    });
+  }
+  if (crosses.length) {
+    tips.push({
+      level: "hot",
+      title: `布局上约 ${crosses.length} 对线路交叉`,
+      body: "同层对穿易实体打架。优先：①十字路口/环形轨道连接器（一横一竖）；②工厂左右重排减少交叉；③抬高一层绕行。红虚线标出的边优先处理。示例：" +
+        crosses.slice(0, 5).map((c) => `${c.a} × ${c.b}`).join("； "),
+    });
+  } else {
+    tips.push({
+      level: "ok",
+      title: "当前布局交叉较少",
+      body: "仍建议按深度分廊道摆厂：原料廊→中间件廊→成品，主干少交叉。",
+    });
+  }
+  tips.push({
+    level: "warn",
+    title: "摆厂经验（电子元件类）",
+    body: "同一中间件（如钛条）若分出板/棒/梁，出口先分流再进下游；多机抢同一原料时先入缓冲仓储再分，比硬并轨稳。3x/5x 并轨段容易出怪问题，复杂段优先单轨+调制器。",
+  });
+
+  return { edgeClass, splits, feeds, crosses, steps, tips, target };
+}
+
+function renderLinkPanel(plan) {
+  const box = document.getElementById("linkBody");
+  if (!plan) {
+    box.className = "empty-hint";
+    box.textContent = "搜索后生成工厂步骤与轨道建议";
+    return;
+  }
+  box.className = "";
+  const parts = [];
+  parts.push(`<section><h3>目标 · ${plan.target}</h3><ul>`);
+  parts.push(`<li><span class="tag ok">工厂</span>${plan.steps.reduce((n,s)=>n+s.items.length,0)} 个节点 · ${plan.splits.length} 处分流 · ${plan.feeds.length} 台多口机 · ${plan.crosses.length} 对交叉</li>`);
+  parts.push(`</ul></section>`);
+
+  for (const tip of plan.tips) {
+    parts.push(`<section><h3><span class="tag ${tip.level}">建议</span>${tip.title}</h3><p style="margin:0;color:var(--muted)">${tip.body}</p></section>`);
+  }
+
+  parts.push(`<section><h3>按层摆厂清单</h3><ul>`);
+  for (const st of plan.steps) {
+    const label = st.depth === 0 ? "源头层" : `第 ${st.depth} 层`;
+    const lines = st.items.map((it) => {
+      if (it.raw) return `${it.name}（采集）`;
+      return `${it.name} ← ${it.mats.join("+") || "?"} @ ${it.machine}`;
+    });
+    parts.push(`<li><strong>${label}</strong>：${lines.join("； ")}</li>`);
+  }
+  parts.push(`</ul></section>`);
+  box.innerHTML = parts.join("");
 }
 
 function applyTransform() {
@@ -706,7 +951,7 @@ document.getElementById("pcReset").addEventListener("click", () => {
     routeState.tx = (svgEl.clientWidth || 800) / 2;
     routeState.ty = 56;
   } else {
-    routeState.tx = 60;
+    routeState.tx = Math.max(360, (svgEl.clientWidth || 800) * 0.38);
     routeState.ty = (svgEl.clientHeight || 600) / 2;
   }
   applyTransform();
