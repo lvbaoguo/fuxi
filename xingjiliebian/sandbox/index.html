@@ -1799,7 +1799,7 @@ window.addEventListener("keyup", (e) => {
     { id: "b" + (bid++), type: "raw", gx: 2, gy: 4, w: 2, h: 2, rot: 0 },
     { id: "b" + (bid++), type: "raw", gx: 2, gy: 12, w: 2, h: 2, rot: 0 },
     { id: "b" + (bid++), type: "furnace", gx: 14, gy: 3, w: 3, h: 4, rot: 0 },
-    { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 3, rot: 0 },
+    { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 4, rot: 0 },
   );
   state.rails.push(
     { id: "r" + (rid++), fromId: state.buildings[0].id, toId: state.buildings[3].id },
@@ -1809,6 +1809,7 @@ window.addEventListener("keyup", (e) => {
 
 renderKeysPanel();
 renderPalette();
+state.catalog.forEach((c) => getArtImage(c, () => {}));
 syncModes();
 resize();
 </script>
