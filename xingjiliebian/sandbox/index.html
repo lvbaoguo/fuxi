@@ -13,7 +13,6 @@
     --text: #2a3038;
     --muted: #6b7585;
     --accent: #2f9d84;
-    --cell: 28px;
     --font: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
   * { box-sizing: border-box; }
@@ -34,7 +33,6 @@
   }
   .nav a:hover, .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn.active { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
-  .btn.danger:hover { border-color: #dc2626; color: #dc2626; }
   .modes { display: flex; flex-wrap: wrap; gap: 6px; }
   .palette { display: grid; gap: 6px; }
   .pal {
@@ -54,14 +52,14 @@
   }
   .status strong { color: #b91c1c; }
   .main { position: relative; overflow: hidden; }
-  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; background: #f3f5f8; }
+  canvas { display: block; width: 100%; height: 100%; cursor: default; background: #f3f5f8; }
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">俯视格子摆厂 + 拉轨道。红线 = 真交叉堵路。建筑是简化色块（非游戏原模），方便先验证沙盘思路。</p>
+    <p class="sub">无默认选中。放置：先点左侧建筑。旋转：R 或点「旋转」。连轨：只能点绿口→黄口。</p>
     <div class="nav">
       <a href="../pc/">合成路线</a>
       <a href="../full/">全链路</a>
@@ -70,20 +68,18 @@
     <div>
       <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">模式</div>
       <div class="modes">
-        <button class="btn active" type="button" data-mode="place" id="modePlace">放置</button>
-        <button class="btn" type="button" data-mode="link" id="modeLink">连轨</button>
+        <button class="btn" type="button" data-mode="place" id="modePlace">放置</button>
+        <button class="btn active" type="button" data-mode="link" id="modeLink">连轨</button>
         <button class="btn" type="button" data-mode="erase" id="modeErase">擦除</button>
+        <button class="btn" type="button" id="btnRot" title="旋转选中的幽灵/点中的建筑">旋转 R</button>
         <button class="btn" type="button" id="btnClear">清空</button>
       </div>
     </div>
     <div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">建筑（点击选中后点格子放下）</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">建筑（点选后才可放置，再点可选消）</div>
       <div class="palette" id="palette"></div>
     </div>
-    <div class="status" id="status">
-      交叉：0 对 · 建筑 0 · 轨道 0<br>
-      提示：连轨时先点「输出建筑」，再点「输入建筑」。
-    </div>
+    <div class="status" id="status">就绪</div>
   </aside>
   <main class="main">
     <canvas id="cv"></canvas>
@@ -93,8 +89,9 @@
 const CELL = 28;
 const COLS = 48;
 const ROWS = 32;
+const PORT_R = 7;
+const PORT_HIT = 12;
 
-/** 简化占地（格），接近公开资料量级，非精确碰撞 */
 const CATALOG = [
   { id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a" },
   { id: "smelter", name: "冶炼厂", w: 3, h: 3, color: "#8b5a2b", top: "#b8834a" },
@@ -105,12 +102,14 @@ const CATALOG = [
 ];
 
 const state = {
-  mode: "place",
-  selected: "furnace",
-  buildings: [], // {id, type, gx, gy, w, h}
+  mode: "link",
+  selected: null, // 无默认
+  placeRot: 0, // 0..3
+  buildings: [], // {id,type,gx,gy,w,h,rot}
   rails: [], // {id, fromId, toId}
-  linkFrom: null,
-  hover: null, // {gx, gy}
+  linkFrom: null, // { buildingId } 仅绿口
+  hover: null,
+  mouseWorld: null,
   panX: 40,
   panY: 40,
   dragging: false,
@@ -139,18 +138,35 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
+function cat(type) { return CATALOG.find((c) => c.id === type); }
+
+function dimsFor(type, rot) {
+  const c = cat(type);
+  const swap = (rot % 2) === 1;
+  return { w: swap ? c.h : c.w, h: swap ? c.w : c.h };
+}
+
+function syncPalette() {
+  [...paletteEl.children].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
+}
+
 CATALOG.forEach((c) => {
   const el = document.createElement("div");
-  el.className = "pal" + (c.id === state.selected ? " on" : "");
+  el.className = "pal";
   el.dataset.id = c.id;
   el.innerHTML = `<div class="ico" style="background:linear-gradient(145deg,${c.top},${c.color})"></div>
     <div><div class="name">${c.name}</div><div class="sz">${c.w}×${c.h} 格</div></div>
     <div class="sz">选</div>`;
   el.addEventListener("click", () => {
-    state.selected = c.id;
-    state.mode = "place";
-    syncModes();
-    [...paletteEl.children].forEach((x) => x.classList.toggle("on", x.dataset.id === c.id));
+    if (state.selected === c.id) {
+      state.selected = null;
+    } else {
+      state.selected = c.id;
+      state.mode = "place";
+      syncModes();
+    }
+    syncPalette();
+    draw();
   });
   paletteEl.appendChild(el);
 });
@@ -160,6 +176,10 @@ function syncModes() {
     b.classList.toggle("active", b.dataset.mode === state.mode);
   });
   state.linkFrom = null;
+  if (state.mode !== "place") {
+    // 离开放置不必清选中，但默认不幽灵除非 place+selected
+  }
+  cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
 }
 document.querySelectorAll(".modes .btn[data-mode]").forEach((b) => {
   b.addEventListener("click", () => {
@@ -175,13 +195,52 @@ document.getElementById("btnClear").addEventListener("click", () => {
   state.linkFrom = null;
   draw();
 });
+document.getElementById("btnRot").addEventListener("click", () => rotateAction());
 
-function cat(type) { return CATALOG.find((c) => c.id === type); }
+function rotateAction() {
+  if (state.mode === "place" && state.selected) {
+    state.placeRot = (state.placeRot + 1) % 4;
+    draw();
+    return;
+  }
+  if (state.hover) {
+    const hit = buildingAt(state.hover.gx, state.hover.gy);
+    if (hit) rotateBuilding(hit);
+  }
+}
+
+function rotateBuilding(b) {
+  const next = (b.rot + 1) % 4;
+  const d = dimsFor(b.type, next);
+  // 尝试原地旋转；若越界/碰撞则取消
+  const old = { ...b };
+  b.rot = next;
+  b.w = d.w;
+  b.h = d.h;
+  if (b.gx + b.w > COLS || b.gy + b.h > ROWS || collides(b, b.id)) {
+    Object.assign(b, old);
+    return false;
+  }
+  draw();
+  return true;
+}
+
+function collides(nb, ignoreId) {
+  for (const b of state.buildings) {
+    if (b.id === ignoreId) continue;
+    if (nb.gx < b.gx + b.w && nb.gx + nb.w > b.gx && nb.gy < b.gy + b.h && nb.gy + nb.h > b.gy) return true;
+  }
+  return false;
+}
 
 function screenToGrid(sx, sy) {
-  const gx = Math.floor((sx - state.panX) / CELL);
-  const gy = Math.floor((sy - state.panY) / CELL);
-  return { gx, gy };
+  return {
+    gx: Math.floor((sx - state.panX) / CELL),
+    gy: Math.floor((sy - state.panY) / CELL),
+  };
+}
+function toWorld(sx, sy) {
+  return { x: sx - state.panX, y: sy - state.panY };
 }
 
 function buildingAt(gx, gy) {
@@ -192,21 +251,45 @@ function buildingAt(gx, gy) {
   return null;
 }
 
-function canPlace(type, gx, gy) {
-  const c = cat(type);
-  if (!c) return false;
-  if (gx < 0 || gy < 0 || gx + c.w > COLS || gy + c.h > ROWS) return false;
-  for (const b of state.buildings) {
-    if (gx < b.gx + b.w && gx + c.w > b.gx && gy < b.gy + b.h && gy + c.h > b.gy) return false;
-  }
-  return true;
+function canPlace(type, gx, gy, rot) {
+  if (!type) return false;
+  const d = dimsFor(type, rot);
+  if (gx < 0 || gy < 0 || gx + d.w > COLS || gy + d.h > ROWS) return false;
+  return !collides({ gx, gy, w: d.w, h: d.h }, null);
 }
 
+/** rot: 0右出左进 1下出上进 2左出右进 3上出下进 */
 function portOut(b) {
-  return { x: (b.gx + b.w) * CELL, y: (b.gy + b.h / 2) * CELL };
+  const cx = (b.gx + b.w / 2) * CELL;
+  const cy = (b.gy + b.h / 2) * CELL;
+  const rot = b.rot || 0;
+  if (rot === 0) return { x: (b.gx + b.w) * CELL, y: cy };
+  if (rot === 1) return { x: cx, y: (b.gy + b.h) * CELL };
+  if (rot === 2) return { x: b.gx * CELL, y: cy };
+  return { x: cx, y: b.gy * CELL };
 }
 function portIn(b) {
-  return { x: b.gx * CELL, y: (b.gy + b.h / 2) * CELL };
+  const cx = (b.gx + b.w / 2) * CELL;
+  const cy = (b.gy + b.h / 2) * CELL;
+  const rot = b.rot || 0;
+  if (rot === 0) return { x: b.gx * CELL, y: cy };
+  if (rot === 1) return { x: cx, y: b.gy * CELL };
+  if (rot === 2) return { x: (b.gx + b.w) * CELL, y: cy };
+  return { x: cx, y: (b.gy + b.h) * CELL };
+}
+
+function hitPort(wx, wy) {
+  let best = null;
+  let bestD = PORT_HIT;
+  for (const b of state.buildings) {
+    const o = portOut(b);
+    const i = portIn(b);
+    const do_ = Math.hypot(wx - o.x, wy - o.y);
+    const di = Math.hypot(wx - i.x, wy - i.y);
+    if (do_ < bestD) { bestD = do_; best = { building: b, kind: "out", pos: o }; }
+    if (di < bestD) { bestD = di; best = { building: b, kind: "in", pos: i }; }
+  }
+  return best;
 }
 
 function nearPt(a, b) {
@@ -253,7 +336,6 @@ function drawIsoBlock(gx, gy, w, h, color, top) {
   const y = gy * CELL;
   const pw = w * CELL;
   const ph = h * CELL;
-  // 轻微 2.5D：顶面 + 侧面
   ctx.fillStyle = color;
   ctx.fillRect(x, y + 4, pw, ph - 4);
   ctx.fillStyle = top;
@@ -270,57 +352,68 @@ function drawIsoBlock(gx, gy, w, h, color, top) {
   ctx.strokeRect(x, y + 4, pw, ph - 4);
 }
 
+function drawPort(pos, kind, highlight) {
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, highlight ? PORT_R + 2 : PORT_R, 0, Math.PI * 2);
+  ctx.fillStyle = kind === "out" ? "#22c55e" : "#eab308";
+  ctx.fill();
+  ctx.strokeStyle = highlight ? "#111" : "rgba(0,0,0,.35)";
+  ctx.lineWidth = highlight ? 2 : 1;
+  ctx.stroke();
+}
+
 function draw() {
   const w = cv.clientWidth;
   const h = cv.clientHeight;
   ctx.clearRect(0, 0, w, h);
-
   ctx.save();
   ctx.translate(state.panX, state.panY);
 
-  // grid
   ctx.strokeStyle = "#d9dee6";
   ctx.lineWidth = 1;
   for (let x = 0; x <= COLS; x++) {
-    ctx.beginPath();
-    ctx.moveTo(x * CELL, 0);
-    ctx.lineTo(x * CELL, ROWS * CELL);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, ROWS * CELL); ctx.stroke();
   }
   for (let y = 0; y <= ROWS; y++) {
-    ctx.beginPath();
-    ctx.moveTo(0, y * CELL);
-    ctx.lineTo(COLS * CELL, y * CELL);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(COLS * CELL, y * CELL); ctx.stroke();
   }
 
   const { pairs, bad } = findCrossings();
 
-  // rails
   for (const r of state.rails) {
     const seg = railSeg(r);
     if (!seg) continue;
     const crossed = bad.has(r.id);
     ctx.strokeStyle = crossed ? "#dc2626" : "#4b6a88";
     ctx.lineWidth = crossed ? 3 : 2;
-    if (crossed) ctx.setLineDash([7, 4]);
-    else ctx.setLineDash([]);
+    ctx.setLineDash(crossed ? [7, 4] : []);
     ctx.beginPath();
     ctx.moveTo(seg.p1.x, seg.p1.y);
     const mx = (seg.p1.x + seg.p2.x) / 2;
+    const my = (seg.p1.y + seg.p2.y) / 2;
     ctx.bezierCurveTo(mx, seg.p1.y, mx, seg.p2.y, seg.p2.x, seg.p2.y);
     ctx.stroke();
     ctx.setLineDash([]);
-    // arrow
-    ctx.fillStyle = crossed ? "#dc2626" : "#4b6a88";
-    ctx.beginPath();
-    ctx.moveTo(seg.p2.x, seg.p2.y);
-    ctx.lineTo(seg.p2.x - 8, seg.p2.y - 4);
-    ctx.lineTo(seg.p2.x - 8, seg.p2.y + 4);
-    ctx.fill();
   }
 
-  // buildings
+  // preview link
+  if (state.linkFrom && state.mouseWorld) {
+    const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
+    if (b) {
+      const o = portOut(b);
+      ctx.strokeStyle = "#2f9d84";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.lineTo(state.mouseWorld.x, state.mouseWorld.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  const hoverPort = state.mouseWorld ? hitPort(state.mouseWorld.x, state.mouseWorld.y) : null;
+
   for (const b of state.buildings) {
     const c = cat(b.type);
     drawIsoBlock(b.gx, b.gy, b.w, b.h, c.color, c.top);
@@ -328,37 +421,38 @@ function draw() {
     ctx.font = "600 11px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(c.name, (b.gx + b.w / 2) * CELL, (b.gy + b.h / 2) * CELL + 6);
-    // ports
     const o = portOut(b), i = portIn(b);
-    ctx.fillStyle = "#22c55e";
-    ctx.beginPath(); ctx.arc(o.x, o.y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#eab308";
-    ctx.beginPath(); ctx.arc(i.x, i.y, 4, 0, Math.PI * 2); ctx.fill();
-    if (state.linkFrom === b.id) {
-      ctx.strokeStyle = varAccent();
-      ctx.lineWidth = 2;
-      ctx.strokeRect(b.gx * CELL - 2, b.gy * CELL + 2, b.w * CELL + 4, b.h * CELL);
-    }
+    const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "out";
+    const hi = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "in";
+    const selOut = state.linkFrom && state.linkFrom.buildingId === b.id;
+    drawPort(o, "out", ho || selOut);
+    drawPort(i, "in", hi);
   }
 
-  // ghost
-  if (state.mode === "place" && state.hover) {
+  // ghost only when user picked a building
+  if (state.mode === "place" && state.selected && state.hover) {
+    const d = dimsFor(state.selected, state.placeRot);
     const c = cat(state.selected);
-    const ok = canPlace(state.selected, state.hover.gx, state.hover.gy);
+    const ok = canPlace(state.selected, state.hover.gx, state.hover.gy, state.placeRot);
     ctx.globalAlpha = 0.45;
-    drawIsoBlock(state.hover.gx, state.hover.gy, c.w, c.h, ok ? c.color : "#dc2626", ok ? c.top : "#f87171");
+    drawIsoBlock(state.hover.gx, state.hover.gy, d.w, d.h, ok ? c.color : "#dc2626", ok ? c.top : "#f87171");
     ctx.globalAlpha = 1;
+    // ghost ports
+    const ghost = { gx: state.hover.gx, gy: state.hover.gy, w: d.w, h: d.h, rot: state.placeRot };
+    drawPort(portOut(ghost), "out", false);
+    drawPort(portIn(ghost), "in", false);
   }
 
   ctx.restore();
 
+  const rotTip = state.selected ? `放置朝向 ${state.placeRot * 90}°（R 旋转）` : "未选建筑";
   statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length}<br>` +
-    (state.mode === "place" ? "放置：选建筑 → 点空地。中键/空格拖动画布。" :
-     state.mode === "link" ? (state.linkFrom ? "已选输出，再点输入建筑。" : "连轨：先点绿色输出侧建筑。") :
-     "擦除：点建筑删建筑（连带轨道），点轨道附近可删轨。");
+    (state.mode === "place"
+      ? (state.selected ? `放置中 · ${rotTip} · 点空地放下，再点左侧可取消选择` : "请先在左侧点击建筑，才会出现放置预览")
+      : state.mode === "link"
+        ? (state.linkFrom ? "已点绿口，请再点另一建筑的黄口" : "连轨：只点绿色输出 → 黄色输入，点别处无效")
+        : "擦除：点建筑或轨道");
 }
-
-function varAccent() { return "#2f9d84"; }
 
 function clientPos(e) {
   const r = cv.getBoundingClientRect();
@@ -367,7 +461,7 @@ function clientPos(e) {
 
 cv.addEventListener("mousemove", (e) => {
   const p = clientPos(e);
-  if (state.dragging || state.spacePan && e.buttons === 1) {
+  if (state.dragging || (state.spacePan && e.buttons === 1)) {
     state.panX += e.clientX - state.lastX;
     state.panY += e.clientY - state.lastY;
     state.lastX = e.clientX;
@@ -375,8 +469,13 @@ cv.addEventListener("mousemove", (e) => {
     draw();
     return;
   }
-  const g = screenToGrid(p.x, p.y);
-  state.hover = g;
+  state.hover = screenToGrid(p.x, p.y);
+  state.mouseWorld = toWorld(p.x, p.y);
+  // cursor hint on ports in link mode
+  if (state.mode === "link") {
+    const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
+    cv.style.cursor = hp ? "pointer" : "default";
+  }
   draw();
 });
 
@@ -394,41 +493,64 @@ cv.addEventListener("click", (e) => {
   if (state.spacePan) return;
   const p = clientPos(e);
   const g = screenToGrid(p.x, p.y);
+  const world = toWorld(p.x, p.y);
 
   if (state.mode === "place") {
-    if (!canPlace(state.selected, g.gx, g.gy)) return;
-    const c = cat(state.selected);
-    state.buildings.push({ id: "b" + (bid++), type: c.id, gx: g.gx, gy: g.gy, w: c.w, h: c.h });
+    if (!state.selected) return;
+    if (!canPlace(state.selected, g.gx, g.gy, state.placeRot)) return;
+    const d = dimsFor(state.selected, state.placeRot);
+    state.buildings.push({
+      id: "b" + (bid++),
+      type: state.selected,
+      gx: g.gx,
+      gy: g.gy,
+      w: d.w,
+      h: d.h,
+      rot: state.placeRot,
+    });
     draw();
     return;
   }
 
   if (state.mode === "link") {
-    const hit = buildingAt(g.gx, g.gy);
-    if (!hit) return;
-    if (!state.linkFrom) {
-      state.linkFrom = hit.id;
+    const hp = hitPort(world.x, world.y);
+    if (!hp) {
+      // 点别处：取消当前半截连线
+      state.linkFrom = null;
       draw();
       return;
     }
-    if (state.linkFrom === hit.id) { state.linkFrom = null; draw(); return; }
-    const exists = state.rails.some((r) => r.fromId === state.linkFrom && r.toId === hit.id);
-    if (!exists) state.rails.push({ id: "r" + (rid++), fromId: state.linkFrom, toId: hit.id });
+    if (!state.linkFrom) {
+      if (hp.kind !== "out") return; // 只能从绿口开始
+      state.linkFrom = { buildingId: hp.building.id };
+      draw();
+      return;
+    }
+    if (hp.kind !== "in") return; // 第二下必须黄口
+    if (hp.building.id === state.linkFrom.buildingId) {
+      state.linkFrom = null;
+      draw();
+      return;
+    }
+    const exists = state.rails.some(
+      (r) => r.fromId === state.linkFrom.buildingId && r.toId === hp.building.id
+    );
+    if (!exists) {
+      state.rails.push({
+        id: "r" + (rid++),
+        fromId: state.linkFrom.buildingId,
+        toId: hp.building.id,
+      });
+    }
     state.linkFrom = null;
     draw();
     return;
   }
 
   if (state.mode === "erase") {
-    const hit = buildingAt(g.gx, g.gy);
-    if (hit) {
-      state.buildings = state.buildings.filter((b) => b.id !== hit.id);
-      state.rails = state.rails.filter((r) => r.fromId !== hit.id && r.toId !== hit.id);
-      draw();
-      return;
-    }
-    // erase nearest rail
-    const wx = p.x - state.panX, wy = p.y - state.panY;
+    const hp = hitPort(world.x, world.y);
+    // prefer erase rail near click
+    const wx = world.x, wy = world.y;
     let best = null, bestD = 14;
     for (const r of state.rails) {
       const s = railSeg(r);
@@ -438,6 +560,13 @@ cv.addEventListener("click", (e) => {
     }
     if (best) {
       state.rails = state.rails.filter((r) => r.id !== best);
+      draw();
+      return;
+    }
+    const hit = buildingAt(g.gx, g.gy);
+    if (hit) {
+      state.buildings = state.buildings.filter((b) => b.id !== hit.id);
+      state.rails = state.rails.filter((r) => r.fromId !== hit.id && r.toId !== hit.id);
       draw();
     }
   }
@@ -453,26 +582,39 @@ function distToSeg(px, py, a, b) {
 
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") { state.spacePan = true; cv.style.cursor = "grab"; }
+  if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    rotateAction();
+  }
+  if (e.key === "Escape") {
+    state.selected = null;
+    state.linkFrom = null;
+    syncPalette();
+    draw();
+  }
 });
 window.addEventListener("keyup", (e) => {
-  if (e.code === "Space") { state.spacePan = false; cv.style.cursor = "crosshair"; }
+  if (e.code === "Space") {
+    state.spacePan = false;
+    cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
+  }
 });
 
-// seed demo: two crossing rails to show detection
+// 示范：带朝向，交叉两条轨（绿→黄）
 (function seed() {
   state.buildings.push(
-    { id: "b" + (bid++), type: "raw", gx: 2, gy: 4, w: 2, h: 2 },
-    { id: "b" + (bid++), type: "raw", gx: 2, gy: 12, w: 2, h: 2 },
-    { id: "b" + (bid++), type: "furnace", gx: 14, gy: 3, w: 3, h: 4 },
-    { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 3 },
+    { id: "b" + (bid++), type: "raw", gx: 2, gy: 4, w: 2, h: 2, rot: 0 },
+    { id: "b" + (bid++), type: "raw", gx: 2, gy: 12, w: 2, h: 2, rot: 0 },
+    { id: "b" + (bid++), type: "furnace", gx: 14, gy: 3, w: 3, h: 4, rot: 0 },
+    { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 3, rot: 0 },
   );
-  // intentionally crossed
   state.rails.push(
     { id: "r" + (rid++), fromId: state.buildings[0].id, toId: state.buildings[3].id },
     { id: "r" + (rid++), fromId: state.buildings[1].id, toId: state.buildings[2].id },
   );
 })();
 
+syncModes();
 resize();
 </script>
 </body>
