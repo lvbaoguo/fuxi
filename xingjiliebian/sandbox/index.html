@@ -36,7 +36,7 @@
   .modes { display: flex; flex-wrap: wrap; gap: 6px; }
   .palette { display: grid; gap: 6px; }
   .pal {
-    display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: center;
+    display: grid; grid-template-columns: 36px 1fr auto auto; gap: 6px; align-items: center;
     border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; background: #fafbfc;
   }
   .pal:hover, .pal.on { border-color: var(--accent); background: #eef8f5; }
@@ -46,6 +46,35 @@
   }
   .pal .name { font-size: .82rem; font-weight: 600; }
   .pal .sz { font-size: .72rem; color: var(--muted); }
+  .pal .del {
+    border: 0; background: transparent; color: #b91c1c; cursor: pointer;
+    font-size: .75rem; font-weight: 700; padding: 4px 6px; border-radius: 6px;
+  }
+  .pal .del:hover { background: #fef2f2; }
+  .modal-mask {
+    display: none; position: fixed; inset: 0; z-index: 60;
+    background: rgba(30,40,55,.35); align-items: center; justify-content: center;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    width: min(360px, 92vw); background: #fff; border-radius: 14px;
+    border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(40,50,70,.2);
+    padding: 16px 18px;
+  }
+  .modal h2 { margin: 0 0 12px; font-size: 1rem; }
+  .modal label { display: block; font-size: .78rem; color: var(--muted); margin: 0 0 4px; }
+  .modal .field { margin: 0 0 12px; }
+  .modal input[type="text"], .modal input[type="number"] {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: .9rem;
+  }
+  .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal .color-row { display: flex; align-items: center; gap: 10px; }
+  .modal input[type="color"] { width: 48px; height: 36px; border: 0; padding: 0; background: transparent; cursor: pointer; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .modal .preview {
+    height: 40px; border-radius: 8px; border: 1px solid var(--line);
+    box-shadow: 2px 2px 0 rgba(0,0,0,.1);
+  }
   .keys {
     border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
     background: #fafbfc; font-size: .75rem;
@@ -105,8 +134,12 @@
       </div>
     </div>
     <div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">建筑（点选后才可放置）</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>建筑（点选后才可放置）</span>
+      </div>
+      <button class="btn" type="button" id="btnCustom" style="width:100%;margin-bottom:8px">+ 自定义建筑</button>
       <div class="palette" id="palette"></div>
+      <button class="btn" type="button" id="btnRestoreCatalog" style="width:100%;margin-top:8px">恢复默认建筑列表</button>
     </div>
     <div class="keys" id="keysPanel">
       <h3>快捷键（点右侧改键）</h3>
@@ -126,6 +159,36 @@
   <div class="sep"></div>
   <button type="button" data-act="cancel">取消</button>
 </div>
+<div class="modal-mask" id="customModal">
+  <div class="modal" role="dialog" aria-labelledby="customTitle">
+    <h2 id="customTitle">自定义建筑</h2>
+    <div class="field">
+      <label for="customName">名称</label>
+      <input id="customName" type="text" maxlength="12" placeholder="例如：缓冲仓" value="自定义" />
+    </div>
+    <div class="field">
+      <label>建筑颜色</label>
+      <div class="color-row">
+        <input id="customColor" type="color" value="#7c5cff" />
+        <div class="preview" id="customPreview" style="flex:1;background:#7c5cff"></div>
+      </div>
+    </div>
+    <div class="field row2">
+      <div>
+        <label for="customW">宽（格）</label>
+        <input id="customW" type="number" min="1" max="12" value="3" />
+      </div>
+      <div>
+        <label for="customH">高（格）</label>
+        <input id="customH" type="number" min="1" max="12" value="3" />
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" id="customCancel">取消</button>
+      <button class="btn active" type="button" id="customOk">生效并选用</button>
+    </div>
+  </div>
+</div>
 <script>
 const CELL = 28;
 const COLS = 48;
@@ -133,8 +196,9 @@ const ROWS = 32;
 const PORT_R = 7;
 const PORT_HIT = 12;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
+const CATALOG_LS = "starrupture_sandbox_catalog_v1";
 
-const CATALOG = [
+const DEFAULT_CATALOG = [
   { id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a" },
   { id: "smelter", name: "冶炼厂", w: 3, h: 3, color: "#8b5a2b", top: "#b8834a" },
   { id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8" },
@@ -142,6 +206,46 @@ const CATALOG = [
   { id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a" },
   { id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0" },
 ];
+
+function lightenHex(hex, amt) {
+  const h = (hex || "#888888").replace("#", "");
+  if (h.length !== 6) return "#bbbbbb";
+  const n = parseInt(h, 16);
+  let r = (n >> 16) + amt;
+  let g = ((n >> 8) & 0xff) + amt;
+  let b = (n & 0xff) + amt;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function normalizeCatalogItem(c) {
+  const w = Math.max(1, Math.min(12, Number(c.w) || 2));
+  const h = Math.max(1, Math.min(12, Number(c.h) || 2));
+  const color = /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : "#7c5cff";
+  return {
+    id: String(c.id || ("custom_" + Date.now())),
+    name: String(c.name || "自定义").slice(0, 12),
+    w, h,
+    color,
+    top: c.top && /^#[0-9a-fA-F]{6}$/.test(c.top) ? c.top : lightenHex(color, 36),
+    custom: !!c.custom,
+  };
+}
+
+function loadCatalog() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CATALOG_LS) || "null");
+    if (!Array.isArray(raw) || !raw.length) return DEFAULT_CATALOG.map((c) => ({ ...c }));
+    return raw.map(normalizeCatalogItem);
+  } catch (_) {
+    return DEFAULT_CATALOG.map((c) => ({ ...c }));
+  }
+}
+function saveCatalog() {
+  localStorage.setItem(CATALOG_LS, JSON.stringify(state.catalog));
+}
 
 const DEFAULT_HOTKEYS = {
   rotate: "KeyR",
@@ -168,6 +272,7 @@ const state = {
   selected: null,
   placeRot: 0,
   focusId: null,
+  catalog: loadCatalog(),
   buildings: [],
   rails: [],
   linkFrom: null,
@@ -176,7 +281,7 @@ const state = {
   panX: 40,
   panY: 40,
   panning: false,
-  moving: null, // { id, ox, oy, startGx, startGy }
+  moving: null,
   lastX: 0,
   lastY: 0,
   spacePan: false,
@@ -262,34 +367,132 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 
-function cat(type) { return CATALOG.find((c) => c.id === type); }
+function cat(type) { return state.catalog.find((c) => c.id === type); }
 function dimsFor(type, rot) {
   const c = cat(type);
+  if (!c) return { w: 2, h: 2 };
   const swap = (rot % 2) === 1;
   return { w: swap ? c.h : c.w, h: swap ? c.w : c.h };
 }
 function syncPalette() {
-  [...paletteEl.children].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
+  [...paletteEl.querySelectorAll(".pal")].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
 }
 
-CATALOG.forEach((c) => {
-  const el = document.createElement("div");
-  el.className = "pal";
-  el.dataset.id = c.id;
-  el.innerHTML = `<div class="ico" style="background:linear-gradient(145deg,${c.top},${c.color})"></div>
-    <div><div class="name">${c.name}</div><div class="sz">${c.w}×${c.h} 格</div></div>
-    <div class="sz">选</div>`;
-  el.addEventListener("click", () => {
-    if (state.selected === c.id) state.selected = null;
-    else {
-      state.selected = c.id;
-      state.mode = "place";
-      syncModes();
-    }
-    syncPalette();
-    draw();
+function renderPalette() {
+  paletteEl.innerHTML = "";
+  state.catalog.forEach((c) => {
+    const el = document.createElement("div");
+    el.className = "pal" + (c.id === state.selected ? " on" : "");
+    el.dataset.id = c.id;
+    el.innerHTML = `<div class="ico" style="background:linear-gradient(145deg,${c.top},${c.color})"></div>
+      <div><div class="name">${c.name}</div><div class="sz">${c.w}×${c.h} 格</div></div>
+      <div class="sz">选</div>
+      <button class="del" type="button" title="从列表删除" data-del="${c.id}">删</button>`;
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-del]")) return;
+      if (state.selected === c.id) state.selected = null;
+      else {
+        state.selected = c.id;
+        state.mode = "place";
+        syncModes();
+      }
+      syncPalette();
+      draw();
+    });
+    el.querySelector("[data-del]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeCatalogItem(c.id);
+    });
+    paletteEl.appendChild(el);
   });
-  paletteEl.appendChild(el);
+}
+
+function removeCatalogItem(id) {
+  if (state.catalog.length <= 1) {
+    alert("至少保留一种建筑");
+    return;
+  }
+  const item = cat(id);
+  const onMap = state.buildings.filter((b) => b.type === id).length;
+  const msg = onMap
+    ? `从列表删除「${item ? item.name : id}」？沙盘上已放置的 ${onMap} 个也会一起清除。`
+    : `从列表删除「${item ? item.name : id}」？`;
+  if (!confirm(msg)) return;
+  state.catalog = state.catalog.filter((c) => c.id !== id);
+  saveCatalog();
+  if (state.selected === id) state.selected = null;
+  state.buildings = state.buildings.filter((b) => b.type !== id);
+  state.rails = state.rails.filter((r) => {
+    const a = state.buildings.find((b) => b.id === r.fromId);
+    const bb = state.buildings.find((b) => b.id === r.toId);
+    return a && bb;
+  });
+  if (state.focusId && !state.buildings.some((b) => b.id === state.focusId)) state.focusId = null;
+  renderPalette();
+  draw();
+}
+
+const customModal = document.getElementById("customModal");
+const customName = document.getElementById("customName");
+const customColor = document.getElementById("customColor");
+const customW = document.getElementById("customW");
+const customH = document.getElementById("customH");
+const customPreview = document.getElementById("customPreview");
+
+function openCustomModal() {
+  customName.value = "自定义";
+  customColor.value = "#7c5cff";
+  customW.value = "3";
+  customH.value = "3";
+  customPreview.style.background = customColor.value;
+  customModal.classList.add("show");
+  customName.focus();
+}
+function closeCustomModal() {
+  customModal.classList.remove("show");
+}
+function applyCustomBuilding() {
+  const name = (customName.value || "自定义").trim().slice(0, 12) || "自定义";
+  const w = Math.max(1, Math.min(12, parseInt(customW.value, 10) || 1));
+  const h = Math.max(1, Math.min(12, parseInt(customH.value, 10) || 1));
+  const color = customColor.value || "#7c5cff";
+  const item = normalizeCatalogItem({
+    id: "custom_" + Date.now().toString(36),
+    name, w, h, color, custom: true,
+  });
+  state.catalog.push(item);
+  saveCatalog();
+  state.selected = item.id;
+  state.mode = "place";
+  syncModes();
+  renderPalette();
+  closeCustomModal();
+  draw();
+}
+
+document.getElementById("btnCustom").addEventListener("click", openCustomModal);
+document.getElementById("customCancel").addEventListener("click", closeCustomModal);
+document.getElementById("customOk").addEventListener("click", applyCustomBuilding);
+customColor.addEventListener("input", () => {
+  customPreview.style.background = customColor.value;
+});
+customModal.addEventListener("click", (e) => {
+  if (e.target === customModal) closeCustomModal();
+});
+document.getElementById("btnRestoreCatalog").addEventListener("click", () => {
+  if (!confirm("恢复默认建筑列表？自定义建筑会从列表移除（沙盘上已放的自定义块也会清掉）。")) return;
+  const keepIds = new Set(DEFAULT_CATALOG.map((c) => c.id));
+  state.catalog = DEFAULT_CATALOG.map((c) => ({ ...c }));
+  saveCatalog();
+  state.buildings = state.buildings.filter((b) => keepIds.has(b.type));
+  state.rails = state.rails.filter((r) => {
+    const a = state.buildings.find((b) => b.id === r.fromId);
+    const bb = state.buildings.find((b) => b.id === r.toId);
+    return a && bb;
+  });
+  if (state.selected && !cat(state.selected)) state.selected = null;
+  renderPalette();
+  draw();
 });
 
 function syncModes() {
@@ -879,6 +1082,7 @@ window.addEventListener("keyup", (e) => {
 })();
 
 renderKeysPanel();
+renderPalette();
 syncModes();
 resize();
 </script>
