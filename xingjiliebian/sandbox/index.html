@@ -62,18 +62,26 @@
   .pal .del { color: #b91c1c; }
   .pal .del:hover { background: #fef2f2; }
   .shape-grid {
-    display: inline-grid; gap: 3px; padding: 8px; background: #f3f5f8;
-    border-radius: 8px; border: 1px solid var(--line); max-width: 100%;
+    display: none;
   }
-  .shape-grid .cell {
-    width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line);
-    background: #fff; cursor: pointer; padding: 0;
+  .paint-wrap {
+    position: relative; display: inline-block; max-width: 100%;
+    border: 1px solid var(--line); border-radius: 10px; overflow: auto;
+    background: #f3f5f8; touch-action: none;
   }
-  .shape-grid .cell.on { background: var(--accent); border-color: #1f7a68; }
-  .shape-grid .cell:hover { outline: 2px solid rgba(47,157,132,.35); }
+  .paint-wrap canvas {
+    display: block; cursor: crosshair; background:
+      linear-gradient(#d9dee6 1px, transparent 1px) 0 0 / var(--pc, 28px) var(--pc, 28px),
+      linear-gradient(90deg, #d9dee6 1px, transparent 1px) 0 0 / var(--pc, 28px) var(--pc, 28px),
+      #fff;
+  }
+  .paint-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .paint-tools .btn.on { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
+  .paint-tools label { font-size: .72rem; color: var(--muted); margin: 0; }
+  .paint-tools input[type="range"] { width: 88px; }
   .port-fields label.mini { margin: 0 0 4px; }
   .port-fields select, .port-fields input[type="range"] { width: 100%; }
-  .modal { max-height: 92vh; overflow: auto; }
+  .modal { max-height: 92vh; overflow: auto; width: min(420px, 94vw); }
   .modal-mask {
     display: none; position: fixed; inset: 0; z-index: 60;
     background: rgba(30,40,55,.35); align-items: center; justify-content: center;
@@ -140,7 +148,7 @@
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">右键删建筑；拖建筑可移动。点「改」可调不规则占地与进出口方向。</p>
+    <p class="sub">点「改」打开画像画板：按沙盘格画曲线外形；进出口也可改。</p>
     <div class="nav">
       <a href="../pc/">合成路线</a>
       <a href="../full/">全链路</a>
@@ -207,11 +215,17 @@
       </div>
     </div>
     <div class="field">
-      <label>占地形状（点格切换 · 空格可穿线）</label>
-      <div id="shapeGrid" class="shape-grid"></div>
-      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn" type="button" id="shapeFill">填满</button>
-        <button class="btn" type="button" id="shapeClear">清空角</button>
+      <label>建筑画像（画板=沙盘格 · 用笔画曲线外形）</label>
+      <div class="paint-wrap" id="paintWrap">
+        <canvas id="paintCv" width="84" height="84"></canvas>
+      </div>
+      <div class="paint-tools">
+        <button class="btn on" type="button" id="paintBrush">画笔</button>
+        <button class="btn" type="button" id="paintEraser">橡皮</button>
+        <label>粗细</label>
+        <input id="paintSize" type="range" min="4" max="48" value="16" />
+        <button class="btn" type="button" id="paintClear">清空</button>
+        <button class="btn" type="button" id="paintBlob">一键圆润</button>
       </div>
     </div>
     <div class="field row2 port-fields">
@@ -251,55 +265,141 @@ const ROWS = 32;
 const PORT_R = 7;
 const PORT_HIT = 12;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
-const CATALOG_LS = "starrupture_sandbox_catalog_v2";
-const CATALOG_LS_OLD = "starrupture_sandbox_catalog_v1";
+const CATALOG_LS = "starrupture_sandbox_catalog_v3";
+const CATALOG_LS_OLD = ["starrupture_sandbox_catalog_v2", "starrupture_sandbox_catalog_v1"];
+const HIT_SUB = 4; // 每格细分，碰撞按画像采样
 
 function fullMask(w, h) { return "1".repeat(w * h); }
-function cutCornersMask(w, h) {
+function fullHit(w, h) { return "1".repeat(w * h * HIT_SUB * HIT_SUB); }
+
+function makePaintCanvas(w, h) {
+  const cnv = document.createElement("canvas");
+  cnv.width = Math.max(1, w) * CELL;
+  cnv.height = Math.max(1, h) * CELL;
+  return cnv;
+}
+function roundRectPath(g, x, y, rw, rh, r) {
+  const rr = Math.min(r, rw / 2, rh / 2);
+  g.beginPath();
+  g.moveTo(x + rr, y);
+  g.arcTo(x + rw, y, x + rw, y + rh, rr);
+  g.arcTo(x + rw, y + rh, x, y + rh, rr);
+  g.arcTo(x, y + rh, x, y, rr);
+  g.arcTo(x, y, x + rw, y, rr);
+  g.closePath();
+}
+function paintDefaultSilhouette(g, w, h, recipe) {
+  const W = w * CELL, H = h * CELL;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "#111";
+  if (recipe === "circle" || (recipe === "fabricator")) {
+    g.beginPath();
+    g.ellipse(W / 2, H / 2, W * 0.36, H * 0.36, 0, 0, Math.PI * 2);
+    g.fill();
+    return;
+  }
+  if (recipe === "smelter") {
+    // 阶梯：后柱 + 前主体（圆角）
+    roundRectPath(g, W * 0.28, H * 0.06, W * 0.44, H * 0.42, 10);
+    g.fill();
+    roundRectPath(g, W * 0.12, H * 0.32, W * 0.76, H * 0.58, 14);
+    g.fill();
+    return;
+  }
+  if (recipe === "furnace") {
+    roundRectPath(g, W * 0.1, H * 0.08, W * 0.8, H * 0.55, 12);
+    g.fill();
+    roundRectPath(g, W * 0.22, H * 0.48, W * 0.56, H * 0.42, 10);
+    g.fill();
+    return;
+  }
+  // 默认圆角矩形，略缩边，方便穿线
+  roundRectPath(g, W * 0.08, H * 0.08, W * 0.84, H * 0.84, Math.min(W, H) * 0.18);
+  g.fill();
+}
+function canvasToHit(cnv, w, h) {
+  const hw = w * HIT_SUB, hh = h * HIT_SUB;
+  const tmp = document.createElement("canvas");
+  tmp.width = hw;
+  tmp.height = hh;
+  const tg = tmp.getContext("2d");
+  tg.clearRect(0, 0, hw, hh);
+  tg.drawImage(cnv, 0, 0, hw, hh);
+  const data = tg.getImageData(0, 0, hw, hh).data;
   let s = "";
+  for (let i = 0; i < hw * hh; i++) s += data[i * 4 + 3] > 24 ? "1" : "0";
+  if (![...s].some((ch) => ch === "1")) return fullHit(w, h);
+  return s;
+}
+function canvasToArt(cnv) {
+  return cnv.toDataURL("image/png");
+}
+function maskToArtAndHit(mask, w, h) {
+  const cnv = makePaintCanvas(w, h);
+  const g = cnv.getContext("2d");
+  g.clearRect(0, 0, cnv.width, cnv.height);
+  g.fillStyle = "#111";
+  const m = (mask && mask.length === w * h) ? mask : fullMask(w, h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const corner = (x === 0 || x === w - 1) && (y === 0 || y === h - 1);
-      s += corner && w >= 3 && h >= 3 ? "0" : "1";
+      if (m[y * w + x] !== "1") continue;
+      roundRectPath(g, x * CELL + 2, y * CELL + 2, CELL - 4, CELL - 4, 6);
+      g.fill();
     }
   }
-  return s;
+  return { art: canvasToArt(cnv), hit: canvasToHit(cnv, w, h), mask: m };
+}
+function bakeRecipe(recipe, w, h) {
+  const cnv = makePaintCanvas(w, h);
+  paintDefaultSilhouette(cnv.getContext("2d"), w, h, recipe);
+  const art = canvasToArt(cnv);
+  const hit = canvasToHit(cnv, w, h);
+  // 粗 mask：子格有墨则整格算占（仅兼容旧逻辑/标签）
+  let mask = "";
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let on = false;
+      for (let sy = 0; sy < HIT_SUB && !on; sy++) {
+        for (let sx = 0; sx < HIT_SUB; sx++) {
+          if (hit[(y * HIT_SUB + sy) * (w * HIT_SUB) + (x * HIT_SUB + sx)] === "1") { on = true; break; }
+        }
+      }
+      mask += on ? "1" : "0";
+    }
+  }
+  if (![...mask].some((ch) => ch === "1")) mask = fullMask(w, h);
+  return { art, hit, mask };
 }
 
 const DEFAULT_CATALOG = [
   {
     id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a",
-    // 111 / 111 / 110 / 110
-    mask: "111111110110",
+    recipe: "furnace",
     ports: { out: { side: "E", t: 0.62 }, in: { side: "W", t: 0.62 } },
   },
   {
     id: "smelter", name: "冶炼厂", w: 3, h: 4, color: "#5b9fd4", top: "#7eb8e8",
-    // 近似实况阶梯/L：后部高柱 + 前部主体，边角可穿线
-    // .11 / 111 / 111 / 11.
-    mask: "011111111110",
+    recipe: "smelter",
     ports: { out: { side: "S", t: 0.5 }, in: { side: "W", t: 0.38 } },
   },
   {
     id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8",
-    // 圆柱感：十字占地，四角可穿线
-    // .1. / 111 / .1.
-    mask: "010111010",
+    recipe: "fabricator",
     ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
   },
   {
     id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d",
-    mask: "1111",
+    recipe: "box",
     ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
   },
   {
     id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a",
-    mask: "1111",
+    recipe: "box",
     ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
   },
   {
     id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0",
-    mask: "1111",
+    recipe: "circle",
     ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
   },
 ];
@@ -323,6 +423,13 @@ function normalizeMask(mask, w, h, fallback) {
   if (![...mask].some((ch) => ch === "1")) return fb;
   return [...mask].map((ch) => (ch === "1" ? "1" : "0")).join("");
 }
+function normalizeHit(hit, w, h, fallback) {
+  const need = w * h * HIT_SUB * HIT_SUB;
+  const fb = fallback && fallback.length === need ? fallback : fullHit(w, h);
+  if (typeof hit !== "string" || hit.length !== need) return fb;
+  if (![...hit].some((ch) => ch === "1")) return fb;
+  return [...hit].map((ch) => (ch === "1" ? "1" : "0")).join("");
+}
 
 function normalizePort(p, fallback) {
   const fb = fallback || { side: "E", t: 0.5 };
@@ -338,16 +445,40 @@ function normalizeCatalogItem(c) {
   const w = Math.max(1, Math.min(12, Number(c.w) || (base && base.w) || 2));
   const h = Math.max(1, Math.min(12, Number(c.h) || (base && base.h) || 2));
   const color = /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : (base ? base.color : "#7c5cff");
-  const maskFallback = base && base.w === w && base.h === h ? base.mask : fullMask(w, h);
   const portsIn = (c.ports && c.ports.in) || (base && base.ports && base.ports.in);
   const portsOut = (c.ports && c.ports.out) || (base && base.ports && base.ports.out);
+
+  let art = typeof c.art === "string" && c.art.startsWith("data:image") ? c.art : null;
+  let hit = c.hit;
+  let mask = c.mask;
+  if (!art) {
+    if (base && base.recipe && base.w === w && base.h === h && !c.custom) {
+      const baked = bakeRecipe(base.recipe, w, h);
+      art = baked.art; hit = baked.hit; mask = baked.mask;
+    } else if (mask && mask.length === w * h) {
+      const baked = maskToArtAndHit(mask, w, h);
+      art = baked.art; hit = baked.hit; mask = baked.mask;
+    } else {
+      const baked = bakeRecipe((base && base.recipe) || "box", w, h);
+      art = baked.art; hit = baked.hit; mask = baked.mask;
+    }
+  } else if (!hit || hit.length !== w * h * HIT_SUB * HIT_SUB) {
+    // 有画像无 hit：离线重采样
+    const img = new Image();
+    // 同步不了 Image，用临时 canvas + 若失败则 full
+    hit = fullHit(w, h);
+    mask = normalizeMask(mask, w, h, fullMask(w, h));
+  }
+
   return {
     id: String(c.id || ("custom_" + Date.now())),
     name: String(c.name || "自定义").slice(0, 12),
     w, h,
     color,
     top: c.top && /^#[0-9a-fA-F]{6}$/.test(c.top) ? c.top : lightenHex(color, 36),
-    mask: normalizeMask(c.mask, w, h, maskFallback),
+    mask: normalizeMask(mask, w, h, fullMask(w, h)),
+    hit: normalizeHit(hit, w, h, fullHit(w, h)),
+    art,
     ports: {
       out: normalizePort(portsOut, (base && base.ports && base.ports.out) || { side: "E", t: 0.5 }),
       in: normalizePort(portsIn, (base && base.ports && base.ports.in) || { side: "W", t: 0.5 }),
@@ -361,18 +492,21 @@ function loadCatalog() {
     let fromOld = false;
     let raw = JSON.parse(localStorage.getItem(CATALOG_LS) || "null");
     if (!Array.isArray(raw) || !raw.length) {
-      raw = JSON.parse(localStorage.getItem(CATALOG_LS_OLD) || "null");
-      fromOld = Array.isArray(raw) && raw.length > 0;
+      for (const k of CATALOG_LS_OLD) {
+        raw = JSON.parse(localStorage.getItem(k) || "null");
+        if (Array.isArray(raw) && raw.length) { fromOld = true; break; }
+      }
     }
     if (!Array.isArray(raw) || !raw.length) return DEFAULT_CATALOG.map((c) => normalizeCatalogItem(c));
     const list = raw.map((c) => {
       const base = DEFAULT_CATALOG.find((d) => d.id === c.id);
-      // 旧版无 mask：内置建筑升级为新外形/端口（保留自定义排序与自定义项）
-      if (base && (c.mask == null || c.mask === undefined)) {
+      // 升级：无 art 的内置项用新圆润画像
+      if (base && !c.art) {
         return normalizeCatalogItem({
           ...base,
           name: c.name || base.name,
           color: /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : base.color,
+          ports: c.ports || base.ports,
           custom: false,
         });
       }
@@ -517,30 +651,43 @@ function dimsFor(type, rot) {
   const swap = (rot % 2) === 1;
   return { w: swap ? c.h : c.w, h: swap ? c.w : c.h };
 }
-function maskCells(c, rot) {
-  const w = c.w, h = c.h;
-  const mask = normalizeMask(c.mask, w, h, fullMask(w, h));
-  const cells = [];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (mask[y * w + x] !== "1") continue;
-      let rx = x, ry = y;
-      if (rot === 1) { rx = h - 1 - y; ry = x; }
-      else if (rot === 2) { rx = w - 1 - x; ry = h - 1 - y; }
-      else if (rot === 3) { rx = y; ry = w - 1 - x; }
-      cells.push({ dx: rx, dy: ry });
+function rotateHitXY(x, y, w, h, rot) {
+  if (rot === 1) return { x: h - 1 - y, y: x };
+  if (rot === 2) return { x: w - 1 - x, y: h - 1 - y };
+  if (rot === 3) return { x: y, y: w - 1 - x };
+  return { x, y };
+}
+function hitKeysOf(b) {
+  const c = cat(b.type);
+  const keys = [];
+  if (!c || !c.hit) {
+    for (let dy = 0; dy < b.h * HIT_SUB; dy++) {
+      for (let dx = 0; dx < b.w * HIT_SUB; dx++) keys.push((b.gx * HIT_SUB + dx) + "," + (b.gy * HIT_SUB + dy));
+    }
+    return keys;
+  }
+  const uw = c.w * HIT_SUB, uh = c.h * HIT_SUB;
+  const rot = b.rot || 0;
+  const hit = c.hit;
+  for (let y = 0; y < uh; y++) {
+    for (let x = 0; x < uw; x++) {
+      if (hit[y * uw + x] !== "1") continue;
+      const r = rotateHitXY(x, y, uw, uh, rot);
+      keys.push((b.gx * HIT_SUB + r.x) + "," + (b.gy * HIT_SUB + r.y));
     }
   }
-  return cells;
+  return keys;
 }
 function worldCellsOf(b) {
-  const c = cat(b.type);
-  if (!c) {
-    const cells = [];
-    for (let dy = 0; dy < b.h; dy++) for (let dx = 0; dx < b.w; dx++) cells.push({ x: b.gx + dx, y: b.gy + dy });
-    return cells;
+  const set = new Set();
+  for (const k of hitKeysOf(b)) {
+    const [sx, sy] = k.split(",").map(Number);
+    set.add(Math.floor(sx / HIT_SUB) + "," + Math.floor(sy / HIT_SUB));
   }
-  return maskCells(c, b.rot || 0).map(({ dx, dy }) => ({ x: b.gx + dx, y: b.gy + dy }));
+  return [...set].map((s) => {
+    const [x, y] = s.split(",").map(Number);
+    return { x, y };
+  });
 }
 function portWorld(b, kind) {
   const c = cat(b.type);
@@ -563,6 +710,17 @@ function portWorld(b, kind) {
 }
 function syncPalette() {
   [...paletteEl.querySelectorAll(".pal")].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
+}
+
+const artImageCache = new Map();
+function getArtImage(c, cb) {
+  if (!c || !c.art) { cb(null); return; }
+  const key = c.id + ":" + c.art.slice(-48);
+  const cached = artImageCache.get(key);
+  if (cached && cached.complete) { cb(cached); return; }
+  const img = new Image();
+  img.onload = () => { artImageCache.set(key, img); cb(img); draw(); };
+  img.src = c.art;
 }
 
 const LONG_PRESS_MS = 380;
@@ -727,13 +885,17 @@ const customColor = document.getElementById("customColor");
 const customW = document.getElementById("customW");
 const customH = document.getElementById("customH");
 const customPreview = document.getElementById("customPreview");
-const shapeGridEl = document.getElementById("shapeGrid");
+const paintCv = document.getElementById("paintCv");
+const paintCtx = paintCv.getContext("2d");
+const paintWrap = document.getElementById("paintWrap");
 const portOutSide = document.getElementById("portOutSide");
 const portInSide = document.getElementById("portInSide");
 const portOutT = document.getElementById("portOutT");
 const portInT = document.getElementById("portInT");
 let editingId = null;
-let draftMask = "";
+let paintTool = "brush";
+let paintDrawing = false;
+let paintLast = null;
 
 function readModalSize() {
   return {
@@ -741,36 +903,88 @@ function readModalSize() {
     h: Math.max(1, Math.min(12, parseInt(customH.value, 10) || 1)),
   };
 }
-function resizeDraftMask(nextW, nextH, prevW, prevH, prevMask) {
-  let s = "";
-  for (let y = 0; y < nextH; y++) {
-    for (let x = 0; x < nextW; x++) {
-      if (prevMask && x < prevW && y < prevH) s += prevMask[y * prevW + x] === "1" ? "1" : "0";
-      else s += "1";
+function paintPos(e) {
+  const r = paintCv.getBoundingClientRect();
+  const scaleX = paintCv.width / r.width;
+  const scaleY = paintCv.height / r.height;
+  return {
+    x: (e.clientX - r.left) * scaleX,
+    y: (e.clientY - r.top) * scaleY,
+  };
+}
+function strokePaint(from, to) {
+  const size = Number(document.getElementById("paintSize").value) || 16;
+  paintCtx.lineCap = "round";
+  paintCtx.lineJoin = "round";
+  paintCtx.lineWidth = size;
+  if (paintTool === "eraser") {
+    paintCtx.globalCompositeOperation = "destination-out";
+    paintCtx.strokeStyle = "rgba(0,0,0,1)";
+  } else {
+    paintCtx.globalCompositeOperation = "source-over";
+    paintCtx.strokeStyle = "#1a1a1a";
+  }
+  paintCtx.beginPath();
+  paintCtx.moveTo(from.x, from.y);
+  paintCtx.lineTo(to.x, to.y);
+  paintCtx.stroke();
+  paintCtx.globalCompositeOperation = "source-over";
+}
+function resizePaintBoard(keepContent) {
+  const { w, h } = readModalSize();
+  const nw = w * CELL, nh = h * CELL;
+  let backup = null;
+  if (keepContent && paintCv.width && paintCv.height) {
+    backup = document.createElement("canvas");
+    backup.width = paintCv.width;
+    backup.height = paintCv.height;
+    backup.getContext("2d").drawImage(paintCv, 0, 0);
+  }
+  paintCv.width = nw;
+  paintCv.height = nh;
+  paintWrap.style.setProperty("--pc", CELL + "px");
+  paintCtx.clearRect(0, 0, nw, nh);
+  if (backup) {
+    paintCtx.drawImage(backup, 0, 0, backup.width, backup.height, 0, 0, nw, nh);
+  }
+}
+function loadArtToPaint(art, w, h) {
+  paintCv.width = w * CELL;
+  paintCv.height = h * CELL;
+  paintWrap.style.setProperty("--pc", CELL + "px");
+  paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+  if (!art) {
+    paintDefaultSilhouette(paintCtx, w, h, "box");
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+    paintCtx.drawImage(img, 0, 0, paintCv.width, paintCv.height);
+  };
+  img.src = art;
+}
+function exportPaintPayload(w, h) {
+  const art = canvasToArt(paintCv);
+  const hit = canvasToHit(paintCv, w, h);
+  let mask = "";
+  const hw = w * HIT_SUB;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let on = false;
+      for (let sy = 0; sy < HIT_SUB && !on; sy++) {
+        for (let sx = 0; sx < HIT_SUB; sx++) {
+          if (hit[(y * HIT_SUB + sy) * hw + (x * HIT_SUB + sx)] === "1") { on = true; break; }
+        }
+      }
+      mask += on ? "1" : "0";
     }
   }
-  if (![...s].some((ch) => ch === "1")) s = fullMask(nextW, nextH);
-  return s;
-}
-function renderShapeGrid() {
-  const { w, h } = readModalSize();
-  if (!draftMask || draftMask.length !== w * h) draftMask = fullMask(w, h);
-  shapeGridEl.style.gridTemplateColumns = `repeat(${w}, 22px)`;
-  shapeGridEl.innerHTML = "";
-  for (let i = 0; i < w * h; i++) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "cell" + (draftMask[i] === "1" ? " on" : "");
-    btn.title = draftMask[i] === "1" ? "实心（再点挖空）" : "空心（再点填实）";
-    btn.addEventListener("click", () => {
-      const arr = [...draftMask];
-      arr[i] = arr[i] === "1" ? "0" : "1";
-      if (!arr.some((ch) => ch === "1")) arr[i] = "1";
-      draftMask = arr.join("");
-      renderShapeGrid();
-    });
-    shapeGridEl.appendChild(btn);
+  if (![...mask].some((ch) => ch === "1")) {
+    alert("画像是空的，先用画笔画一下外形");
+    return null;
   }
+  return { art, hit, mask };
 }
 function fillModalFromItem(item) {
   customName.value = item.name;
@@ -778,22 +992,22 @@ function fillModalFromItem(item) {
   customW.value = String(item.w);
   customH.value = String(item.h);
   customPreview.style.background = item.color;
-  draftMask = normalizeMask(item.mask, item.w, item.h, fullMask(item.w, item.h));
   portOutSide.value = item.ports.out.side;
   portInSide.value = item.ports.in.side;
   portOutT.value = String(Math.round(item.ports.out.t * 100));
   portInT.value = String(Math.round(item.ports.in.t * 100));
   customW.dataset.prevW = String(item.w);
   customH.dataset.prevH = String(item.h);
-  renderShapeGrid();
+  loadArtToPaint(item.art, item.w, item.h);
 }
 function openCustomModal() {
   editingId = null;
   customTitle.textContent = "自定义建筑";
   document.getElementById("customOk").textContent = "生效并选用";
+  const baked = bakeRecipe("box", 3, 3);
   fillModalFromItem(normalizeCatalogItem({
     id: "tmp", name: "自定义", w: 3, h: 3, color: "#7c5cff",
-    mask: cutCornersMask(3, 3),
+    art: baked.art, hit: baked.hit, mask: baked.mask,
     ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
     custom: true,
   }));
@@ -824,28 +1038,28 @@ function applyCustomBuilding() {
   const name = (customName.value || "自定义").trim().slice(0, 12) || "自定义";
   const { w, h } = readModalSize();
   const color = customColor.value || "#7c5cff";
-  const mask = normalizeMask(draftMask, w, h, fullMask(w, h));
   const ports = readModalPorts();
+  const painted = exportPaintPayload(w, h);
+  if (!painted) return;
   if (editingId) {
     const idx = state.catalog.findIndex((c) => c.id === editingId);
     if (idx < 0) return;
     const prev = state.catalog[idx];
     const item = normalizeCatalogItem({
-      ...prev, name, w, h, color, mask, ports, custom: prev.custom || !DEFAULT_CATALOG.some((d) => d.id === prev.id),
+      ...prev, name, w, h, color, ports,
+      art: painted.art, hit: painted.hit, mask: painted.mask,
+      custom: prev.custom || !DEFAULT_CATALOG.some((d) => d.id === prev.id),
     });
     item.id = prev.id;
     state.catalog[idx] = item;
-    // 刷新已放置实例尺寸（朝向保留）
+    artImageCache.clear();
     for (const b of state.buildings) {
       if (b.type !== item.id) continue;
       const d = dimsFor(item.id, b.rot || 0);
       b.w = d.w;
       b.h = d.h;
-      if (b.gx + b.w > COLS || b.gy + b.h > ROWS || collides(b, b.id)) {
-        // 越界则尽量钳制
-        b.gx = Math.max(0, Math.min(COLS - b.w, b.gx));
-        b.gy = Math.max(0, Math.min(ROWS - b.h, b.gy));
-      }
+      b.gx = Math.max(0, Math.min(COLS - b.w, b.gx));
+      b.gy = Math.max(0, Math.min(ROWS - b.h, b.gy));
     }
     saveCatalog();
     state.selected = item.id;
@@ -858,7 +1072,9 @@ function applyCustomBuilding() {
   }
   const item = normalizeCatalogItem({
     id: "custom_" + Date.now().toString(36),
-    name, w, h, color, mask, ports, custom: true,
+    name, w, h, color, ports,
+    art: painted.art, hit: painted.hit, mask: painted.mask,
+    custom: true,
   });
   state.catalog.push(item);
   saveCatalog();
@@ -876,42 +1092,54 @@ document.getElementById("customOk").addEventListener("click", applyCustomBuildin
 customColor.addEventListener("input", () => {
   customPreview.style.background = customColor.value;
 });
-function onSizeChange() {
+customW.addEventListener("change", () => resizePaintBoard(true));
+customH.addEventListener("change", () => resizePaintBoard(true));
+document.getElementById("paintBrush").addEventListener("click", () => {
+  paintTool = "brush";
+  document.getElementById("paintBrush").classList.add("on");
+  document.getElementById("paintEraser").classList.remove("on");
+});
+document.getElementById("paintEraser").addEventListener("click", () => {
+  paintTool = "eraser";
+  document.getElementById("paintEraser").classList.add("on");
+  document.getElementById("paintBrush").classList.remove("on");
+});
+document.getElementById("paintClear").addEventListener("click", () => {
+  paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+});
+document.getElementById("paintBlob").addEventListener("click", () => {
   const { w, h } = readModalSize();
-  const prevLen = draftMask.length;
-  let prevW = Number(customW.dataset.prevW) || w;
-  let prevH = Number(customH.dataset.prevH) || Math.round(prevLen / (prevW || 1)) || h;
-  if (prevW * prevH !== prevLen) {
-    prevW = w;
-    prevH = h;
-  }
-  draftMask = resizeDraftMask(w, h, prevW, prevH, draftMask);
-  customW.dataset.prevW = String(w);
-  customH.dataset.prevH = String(h);
-  renderShapeGrid();
+  paintDefaultSilhouette(paintCtx, w, h, "box");
+});
+paintCv.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  paintDrawing = true;
+  paintLast = paintPos(e);
+  try { paintCv.setPointerCapture(e.pointerId); } catch (_) {}
+  strokePaint(paintLast, paintLast);
+});
+paintCv.addEventListener("pointermove", (e) => {
+  if (!paintDrawing || !paintLast) return;
+  const p = paintPos(e);
+  strokePaint(paintLast, p);
+  paintLast = p;
+});
+function endPaint() {
+  paintDrawing = false;
+  paintLast = null;
 }
-customW.addEventListener("change", onSizeChange);
-customH.addEventListener("change", onSizeChange);
-document.getElementById("shapeFill").addEventListener("click", () => {
-  const { w, h } = readModalSize();
-  draftMask = fullMask(w, h);
-  renderShapeGrid();
-});
-document.getElementById("shapeClear").addEventListener("click", () => {
-  const { w, h } = readModalSize();
-  draftMask = cutCornersMask(w, h);
-  renderShapeGrid();
-});
+paintCv.addEventListener("pointerup", endPaint);
+paintCv.addEventListener("pointercancel", endPaint);
 customModal.addEventListener("click", (e) => {
   if (e.target === customModal) closeCustomModal();
 });
 document.getElementById("btnRestoreCatalog").addEventListener("click", () => {
   if (!confirm("恢复默认建筑列表？自定义建筑会从列表移除（沙盘上已放的自定义块也会清掉）。")) return;
   const keepIds = new Set(DEFAULT_CATALOG.map((c) => c.id));
+  artImageCache.clear();
   state.catalog = DEFAULT_CATALOG.map((c) => normalizeCatalogItem(c));
   saveCatalog();
   state.buildings = state.buildings.filter((b) => keepIds.has(b.type));
-  // 同步默认尺寸/朝向外框
   for (const b of state.buildings) {
     const d = dimsFor(b.type, b.rot || 0);
     b.w = d.w;
@@ -991,12 +1219,12 @@ function deleteBuilding(id) {
   draw();
 }
 function collides(nb, ignoreId) {
-  const setA = new Set(worldCellsOf(nb).map((c) => c.x + "," + c.y));
+  const setA = new Set(hitKeysOf(nb));
   for (const b of state.buildings) {
     if (b.id === ignoreId) continue;
     if (nb.gx >= b.gx + b.w || nb.gx + nb.w <= b.gx || nb.gy >= b.gy + b.h || nb.gy + nb.h <= b.gy) continue;
-    for (const c of worldCellsOf(b)) {
-      if (setA.has(c.x + "," + c.y)) return true;
+    for (const k of hitKeysOf(b)) {
+      if (setA.has(k)) return true;
     }
   }
   return false;
@@ -1015,7 +1243,16 @@ function buildingAt(gx, gy) {
   for (let i = state.buildings.length - 1; i >= 0; i--) {
     const b = state.buildings[i];
     if (gx < b.gx || gy < b.gy || gx >= b.gx + b.w || gy >= b.gy + b.h) continue;
-    if (worldCellsOf(b).some((c) => c.x === gx && c.y === gy)) return b;
+    // 子格命中才算点到建筑（空角可点穿）
+    const sx0 = gx * HIT_SUB, sy0 = gy * HIT_SUB;
+    const keys = new Set(hitKeysOf(b));
+    let hit = false;
+    for (let sy = 0; sy < HIT_SUB && !hit; sy++) {
+      for (let sx = 0; sx < HIT_SUB; sx++) {
+        if (keys.has((sx0 + sx) + "," + (sy0 + sy))) { hit = true; break; }
+      }
+    }
+    if (hit) return b;
   }
   return null;
 }
@@ -1080,42 +1317,81 @@ function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
   const gx = bOrGhost.gx, gy = bOrGhost.gy;
   const c = cat(bOrGhost.type);
   const rot = bOrGhost.rot || 0;
-  const cells = c
-    ? maskCells(c, rot)
-    : (() => {
-        const list = [];
-        for (let dy = 0; dy < bOrGhost.h; dy++) for (let dx = 0; dx < bOrGhost.w; dx++) list.push({ dx, dy });
-        return list;
-      })();
   if (showBBox) {
-    ctx.strokeStyle = "rgba(47,157,132,.28)";
+    ctx.strokeStyle = "rgba(47,157,132,.25)";
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);
     ctx.strokeRect(gx * CELL + 0.5, gy * CELL + 0.5, bOrGhost.w * CELL - 1, bOrGhost.h * CELL - 1);
     ctx.setLineDash([]);
   }
-  for (const { dx, dy } of cells) {
-    const x = (gx + dx) * CELL;
-    const y = (gy + dy) * CELL;
-    const pad = 1;
-    ctx.fillStyle = color;
-    ctx.fillRect(x + pad, y + pad + 3, CELL - pad * 2, CELL - pad * 2 - 3);
-    ctx.fillStyle = top;
-    ctx.fillRect(x + pad, y + pad, CELL - pad * 2, 5);
-    ctx.fillStyle = "rgba(0,0,0,.1)";
-    ctx.fillRect(x + CELL - 4, y + pad + 3, 3, CELL - pad * 2 - 3);
-  }
-  // 外轮廓：对每个实心格描边
-  ctx.strokeStyle = focused ? "#2f9d84" : "rgba(0,0,0,.28)";
-  ctx.lineWidth = focused ? 2.2 : 1;
-  const set = new Set(cells.map((p) => p.dx + "," + p.dy));
-  for (const { dx, dy } of cells) {
-    const x = (gx + dx) * CELL;
-    const y = (gy + dy) * CELL;
-    if (!set.has(dx + "," + (dy - 1))) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + CELL, y); ctx.stroke(); }
-    if (!set.has(dx + "," + (dy + 1))) { ctx.beginPath(); ctx.moveTo(x, y + CELL); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
-    if (!set.has((dx - 1) + "," + dy)) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + CELL); ctx.stroke(); }
-    if (!set.has((dx + 1) + "," + dy)) { ctx.beginPath(); ctx.moveTo(x + CELL, y); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
+  const bw = bOrGhost.w * CELL;
+  const bh = bOrGhost.h * CELL;
+  const cx = gx * CELL + bw / 2;
+  const cy = gy * CELL + bh / 2;
+
+  const drawTinted = (img) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot * Math.PI / 2);
+    const iw = (c ? c.w : bOrGhost.w) * CELL;
+    const ih = (c ? c.h : bOrGhost.h) * CELL;
+    ctx.translate(-iw / 2, -ih / 2);
+    // 阴影
+    ctx.fillStyle = "rgba(0,0,0,.12)";
+    ctx.beginPath();
+    ctx.rect(3, 4, iw, ih);
+    // 用画像裁剪着色
+    const off = document.createElement("canvas");
+    off.width = iw;
+    off.height = ih;
+    const og = off.getContext("2d");
+    if (img) {
+      og.drawImage(img, 0, 0, iw, ih);
+      og.globalCompositeOperation = "source-in";
+      const grd = og.createLinearGradient(0, 0, 0, ih);
+      grd.addColorStop(0, top || lightenHex(color, 30));
+      grd.addColorStop(1, color);
+      og.fillStyle = grd;
+      og.fillRect(0, 0, iw, ih);
+    } else {
+      og.fillStyle = color;
+      roundRectPath(og, 4, 4, iw - 8, ih - 8, 10);
+      og.fill();
+    }
+    ctx.drawImage(off, 0, 0);
+    if (focused) {
+      ctx.strokeStyle = "#2f9d84";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(1, 1, iw - 2, ih - 2);
+    }
+    ctx.restore();
+  };
+
+  if (c && c.art) {
+    const key = c.id + ":" + c.art.slice(-48);
+    const cached = artImageCache.get(key);
+    if (cached && cached.complete) {
+      drawTinted(cached);
+    } else {
+      getArtImage(c, () => {});
+      // 加载前先用 hit 粗略填色，避免空白闪烁
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot * Math.PI / 2);
+      const iw = c.w * CELL, ih = c.h * CELL;
+      ctx.translate(-iw / 2, -ih / 2);
+      ctx.fillStyle = color;
+      const hw = c.w * HIT_SUB;
+      for (let y = 0; y < c.h * HIT_SUB; y++) {
+        for (let x = 0; x < hw; x++) {
+          if (c.hit[y * hw + x] !== "1") continue;
+          ctx.fillRect(x * (CELL / HIT_SUB), y * (CELL / HIT_SUB), CELL / HIT_SUB + 0.5, CELL / HIT_SUB + 0.5);
+        }
+      }
+      ctx.restore();
+    }
+  } else {
+    drawTinted(null);
   }
 }
 function drawPort(pos, kind, highlight) {
