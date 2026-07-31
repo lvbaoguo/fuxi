@@ -17,7 +17,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; font-family: var(--font); color: var(--text); background: var(--bg); overflow: hidden; }
-  .app { display: grid; grid-template-columns: 260px 1fr; height: 100%; }
+  .app { display: grid; grid-template-columns: 280px 1fr; height: 100%; }
   .side {
     background: var(--panel); border-right: 1px solid var(--line);
     padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 12px;
@@ -46,6 +46,21 @@
   }
   .pal .name { font-size: .82rem; font-weight: 600; }
   .pal .sz { font-size: .72rem; color: var(--muted); }
+  .keys {
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+    background: #fafbfc; font-size: .75rem;
+  }
+  .keys h3 { margin: 0 0 6px; font-size: .8rem; }
+  .keys .row {
+    display: grid; grid-template-columns: 1fr 72px; gap: 6px; align-items: center;
+    margin: 0 0 4px; color: var(--muted);
+  }
+  .keys button.keycap {
+    border: 1px solid var(--line); background: #fff; border-radius: 6px;
+    padding: 4px 6px; font-size: .72rem; font-weight: 700; cursor: pointer; color: var(--text);
+  }
+  .keys button.keycap.listening { border-color: var(--accent); color: var(--accent); background: #e8f6f2; }
+  .keys .hint { color: var(--muted); font-size: .7rem; margin-top: 4px; }
   .status {
     margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);
     font-size: .78rem; color: var(--muted); line-height: 1.45;
@@ -53,13 +68,27 @@
   .status strong { color: #b91c1c; }
   .main { position: relative; overflow: hidden; }
   canvas { display: block; width: 100%; height: 100%; cursor: default; background: #f3f5f8; }
+  .ctx {
+    display: none; position: fixed; z-index: 50; min-width: 150px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(40,50,70,.18); padding: 4px; overflow: hidden;
+  }
+  .ctx.show { display: block; }
+  .ctx button {
+    display: block; width: 100%; text-align: left; border: 0; background: transparent;
+    padding: 9px 12px; font-size: .85rem; cursor: pointer; color: var(--text); border-radius: 8px;
+  }
+  .ctx button:hover { background: #eef6f3; }
+  .ctx button.danger { color: #b91c1c; }
+  .ctx button.danger:hover { background: #fef2f2; }
+  .ctx .sep { height: 1px; background: var(--line); margin: 4px 0; }
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">无默认选中。放置：先点左侧建筑。旋转：R 或点「旋转」。连轨：只能点绿口→黄口。</p>
+    <p class="sub">右键菜单删建筑；拖建筑可移动，轨道跟着走。快捷键可点下面改键自定义。</p>
     <div class="nav">
       <a href="../pc/">合成路线</a>
       <a href="../full/">全链路</a>
@@ -71,13 +100,19 @@
         <button class="btn" type="button" data-mode="place" id="modePlace">放置</button>
         <button class="btn active" type="button" data-mode="link" id="modeLink">连轨</button>
         <button class="btn" type="button" data-mode="erase" id="modeErase">擦除</button>
-        <button class="btn" type="button" id="btnRot" title="旋转选中的幽灵/点中的建筑">旋转 R</button>
+        <button class="btn" type="button" id="btnRot">旋转</button>
         <button class="btn" type="button" id="btnClear">清空</button>
       </div>
     </div>
     <div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">建筑（点选后才可放置，再点可选消）</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">建筑（点选后才可放置）</div>
       <div class="palette" id="palette"></div>
+    </div>
+    <div class="keys" id="keysPanel">
+      <h3>快捷键（点右侧改键）</h3>
+      <div id="keysList"></div>
+      <div class="hint">拖动画布：按住空格拖，或中键拖。删除：右键菜单 / Delete。</div>
+      <button class="btn" type="button" id="btnResetKeys" style="margin-top:8px;width:100%">恢复默认快捷键</button>
     </div>
     <div class="status" id="status">就绪</div>
   </aside>
@@ -85,12 +120,19 @@
     <canvas id="cv"></canvas>
   </main>
 </div>
+<div class="ctx" id="ctxMenu" role="menu">
+  <button type="button" data-act="rotate">旋转</button>
+  <button type="button" data-act="delete" class="danger">清除建筑</button>
+  <div class="sep"></div>
+  <button type="button" data-act="cancel">取消</button>
+</div>
 <script>
 const CELL = 28;
 const COLS = 48;
 const ROWS = 32;
 const PORT_R = 7;
 const PORT_HIT = 12;
+const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
 
 const CATALOG = [
   { id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a" },
@@ -101,21 +143,46 @@ const CATALOG = [
   { id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0" },
 ];
 
+const DEFAULT_HOTKEYS = {
+  rotate: "KeyR",
+  modePlace: "Digit1",
+  modeLink: "Digit2",
+  modeErase: "Digit3",
+  delete: "Delete",
+  cancel: "Escape",
+  pan: "Space",
+};
+
+const HOTKEY_LABELS = {
+  rotate: "旋转",
+  modePlace: "放置模式",
+  modeLink: "连轨模式",
+  modeErase: "擦除模式",
+  delete: "删除焦点建筑",
+  cancel: "取消/关菜单",
+  pan: "按住拖动画布",
+};
+
 const state = {
   mode: "link",
-  selected: null, // 无默认
-  placeRot: 0, // 0..3
-  buildings: [], // {id,type,gx,gy,w,h,rot}
-  rails: [], // {id, fromId, toId}
-  linkFrom: null, // { buildingId } 仅绿口
+  selected: null,
+  placeRot: 0,
+  focusId: null,
+  buildings: [],
+  rails: [],
+  linkFrom: null,
   hover: null,
   mouseWorld: null,
   panX: 40,
   panY: 40,
-  dragging: false,
+  panning: false,
+  moving: null, // { id, ox, oy, startGx, startGy }
   lastX: 0,
   lastY: 0,
   spacePan: false,
+  hotkeys: loadHotkeys(),
+  listeningKey: null,
+  ctxTargetId: null,
 };
 
 let bid = 1;
@@ -125,6 +192,63 @@ const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 const paletteEl = document.getElementById("palette");
 const statusEl = document.getElementById("status");
+const ctxMenu = document.getElementById("ctxMenu");
+const keysList = document.getElementById("keysList");
+
+function loadHotkeys() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEYS_LS) || "{}");
+    return { ...DEFAULT_HOTKEYS, ...raw };
+  } catch (_) {
+    return { ...DEFAULT_HOTKEYS };
+  }
+}
+function saveHotkeys() {
+  localStorage.setItem(KEYS_LS, JSON.stringify(state.hotkeys));
+}
+function codeLabel(code) {
+  if (!code) return "—";
+  if (code === "Space") return "Space";
+  if (code === "Escape") return "Esc";
+  if (code === "Delete") return "Del";
+  if (code === "Backspace") return "Backspace";
+  if (code.startsWith("Key")) return code.slice(3);
+  if (code.startsWith("Digit")) return code.slice(5);
+  return code;
+}
+function renderKeysPanel() {
+  keysList.innerHTML = "";
+  Object.keys(HOTKEY_LABELS).forEach((action) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    const lab = document.createElement("span");
+    lab.textContent = HOTKEY_LABELS[action];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "keycap" + (state.listeningKey === action ? " listening" : "");
+    btn.textContent = state.listeningKey === action ? "按下…" : codeLabel(state.hotkeys[action]);
+    btn.addEventListener("click", () => {
+      state.listeningKey = action;
+      renderKeysPanel();
+      syncModeButtons();
+    });
+    row.appendChild(lab);
+    row.appendChild(btn);
+    keysList.appendChild(row);
+  });
+  syncModeButtons();
+}
+function syncModeButtons() {
+  const map = {
+    modePlace: "放置 " + codeLabel(state.hotkeys.modePlace),
+    modeLink: "连轨 " + codeLabel(state.hotkeys.modeLink),
+    modeErase: "擦除 " + codeLabel(state.hotkeys.modeErase),
+  };
+  document.getElementById("modePlace").textContent = map.modePlace;
+  document.getElementById("modeLink").textContent = map.modeLink;
+  document.getElementById("modeErase").textContent = map.modeErase;
+  document.getElementById("btnRot").textContent = "旋转 " + codeLabel(state.hotkeys.rotate);
+}
 
 function resize() {
   const r = cv.parentElement.getBoundingClientRect();
@@ -139,13 +263,11 @@ function resize() {
 window.addEventListener("resize", resize);
 
 function cat(type) { return CATALOG.find((c) => c.id === type); }
-
 function dimsFor(type, rot) {
   const c = cat(type);
   const swap = (rot % 2) === 1;
   return { w: swap ? c.h : c.w, h: swap ? c.w : c.h };
 }
-
 function syncPalette() {
   [...paletteEl.children].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
 }
@@ -158,9 +280,8 @@ CATALOG.forEach((c) => {
     <div><div class="name">${c.name}</div><div class="sz">${c.w}×${c.h} 格</div></div>
     <div class="sz">选</div>`;
   el.addEventListener("click", () => {
-    if (state.selected === c.id) {
-      state.selected = null;
-    } else {
+    if (state.selected === c.id) state.selected = null;
+    else {
       state.selected = c.id;
       state.mode = "place";
       syncModes();
@@ -176,10 +297,6 @@ function syncModes() {
     b.classList.toggle("active", b.dataset.mode === state.mode);
   });
   state.linkFrom = null;
-  if (state.mode !== "place") {
-    // 离开放置不必清选中，但默认不幽灵除非 place+selected
-  }
-  cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
 }
 document.querySelectorAll(".modes .btn[data-mode]").forEach((b) => {
   b.addEventListener("click", () => {
@@ -193,9 +310,17 @@ document.getElementById("btnClear").addEventListener("click", () => {
   state.buildings = [];
   state.rails = [];
   state.linkFrom = null;
+  state.focusId = null;
+  hideCtx();
   draw();
 });
 document.getElementById("btnRot").addEventListener("click", () => rotateAction());
+document.getElementById("btnResetKeys").addEventListener("click", () => {
+  state.hotkeys = { ...DEFAULT_HOTKEYS };
+  saveHotkeys();
+  state.listeningKey = null;
+  renderKeysPanel();
+});
 
 function rotateAction() {
   if (state.mode === "place" && state.selected) {
@@ -203,17 +328,16 @@ function rotateAction() {
     draw();
     return;
   }
-  if (state.hover) {
-    const hit = buildingAt(state.hover.gx, state.hover.gy);
-    if (hit) rotateBuilding(hit);
-  }
+  const b = getFocusBuilding() || (state.hover && buildingAt(state.hover.gx, state.hover.gy));
+  if (b) rotateBuilding(b);
 }
-
+function getFocusBuilding() {
+  return state.buildings.find((b) => b.id === state.focusId) || null;
+}
 function rotateBuilding(b) {
   const next = (b.rot + 1) % 4;
   const d = dimsFor(b.type, next);
-  // 尝试原地旋转；若越界/碰撞则取消
-  const old = { ...b };
+  const old = { rot: b.rot, w: b.w, h: b.h };
   b.rot = next;
   b.w = d.w;
   b.h = d.h;
@@ -224,7 +348,13 @@ function rotateBuilding(b) {
   draw();
   return true;
 }
-
+function deleteBuilding(id) {
+  state.buildings = state.buildings.filter((b) => b.id !== id);
+  state.rails = state.rails.filter((r) => r.fromId !== id && r.toId !== id);
+  if (state.focusId === id) state.focusId = null;
+  if (state.linkFrom && state.linkFrom.buildingId === id) state.linkFrom = null;
+  draw();
+}
 function collides(nb, ignoreId) {
   for (const b of state.buildings) {
     if (b.id === ignoreId) continue;
@@ -232,17 +362,16 @@ function collides(nb, ignoreId) {
   }
   return false;
 }
-
+function canMoveTo(b, gx, gy) {
+  if (gx < 0 || gy < 0 || gx + b.w > COLS || gy + b.h > ROWS) return false;
+  return !collides({ gx, gy, w: b.w, h: b.h }, b.id);
+}
 function screenToGrid(sx, sy) {
-  return {
-    gx: Math.floor((sx - state.panX) / CELL),
-    gy: Math.floor((sy - state.panY) / CELL),
-  };
+  return { gx: Math.floor((sx - state.panX) / CELL), gy: Math.floor((sy - state.panY) / CELL) };
 }
 function toWorld(sx, sy) {
   return { x: sx - state.panX, y: sy - state.panY };
 }
-
 function buildingAt(gx, gy) {
   for (let i = state.buildings.length - 1; i >= 0; i--) {
     const b = state.buildings[i];
@@ -250,15 +379,12 @@ function buildingAt(gx, gy) {
   }
   return null;
 }
-
 function canPlace(type, gx, gy, rot) {
   if (!type) return false;
   const d = dimsFor(type, rot);
   if (gx < 0 || gy < 0 || gx + d.w > COLS || gy + d.h > ROWS) return false;
   return !collides({ gx, gy, w: d.w, h: d.h }, null);
 }
-
-/** rot: 0右出左进 1下出上进 2左出右进 3上出下进 */
 function portOut(b) {
   const cx = (b.gx + b.w / 2) * CELL;
   const cy = (b.gy + b.h / 2) * CELL;
@@ -277,7 +403,6 @@ function portIn(b) {
   if (rot === 2) return { x: (b.gx + b.w) * CELL, y: cy };
   return { x: cx, y: (b.gy + b.h) * CELL };
 }
-
 function hitPort(wx, wy) {
   let best = null;
   let bestD = PORT_HIT;
@@ -291,7 +416,6 @@ function hitPort(wx, wy) {
   }
   return best;
 }
-
 function nearPt(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y) < 1.5;
 }
@@ -306,14 +430,12 @@ function segmentsCross(p1, p2, q1, q2) {
   const eps = 0.02;
   return t > eps && t < 1 - eps && u > eps && u < 1 - eps;
 }
-
 function railSeg(r) {
   const a = state.buildings.find((b) => b.id === r.fromId);
   const b = state.buildings.find((b) => b.id === r.toId);
   if (!a || !b) return null;
   return { p1: portOut(a), p2: portIn(b), a, b, r };
 }
-
 function findCrossings() {
   const segs = state.rails.map(railSeg).filter(Boolean);
   const bad = new Set();
@@ -330,8 +452,7 @@ function findCrossings() {
   }
   return { pairs, bad };
 }
-
-function drawIsoBlock(gx, gy, w, h, color, top) {
+function drawIsoBlock(gx, gy, w, h, color, top, focused) {
   const x = gx * CELL;
   const y = gy * CELL;
   const pw = w * CELL;
@@ -348,10 +469,10 @@ function drawIsoBlock(gx, gy, w, h, color, top) {
   ctx.fill();
   ctx.fillStyle = "rgba(0,0,0,.12)";
   ctx.fillRect(x + pw, y + 4, 6, ph - 4);
-  ctx.strokeStyle = "rgba(0,0,0,.25)";
+  ctx.strokeStyle = focused ? "#2f9d84" : "rgba(0,0,0,.25)";
+  ctx.lineWidth = focused ? 2.5 : 1;
   ctx.strokeRect(x, y + 4, pw, ph - 4);
 }
-
 function drawPort(pos, kind, highlight) {
   ctx.beginPath();
   ctx.arc(pos.x, pos.y, highlight ? PORT_R + 2 : PORT_R, 0, Math.PI * 2);
@@ -379,7 +500,6 @@ function draw() {
   }
 
   const { pairs, bad } = findCrossings();
-
   for (const r of state.rails) {
     const seg = railSeg(r);
     if (!seg) continue;
@@ -390,13 +510,11 @@ function draw() {
     ctx.beginPath();
     ctx.moveTo(seg.p1.x, seg.p1.y);
     const mx = (seg.p1.x + seg.p2.x) / 2;
-    const my = (seg.p1.y + seg.p2.y) / 2;
     ctx.bezierCurveTo(mx, seg.p1.y, mx, seg.p2.y, seg.p2.x, seg.p2.y);
     ctx.stroke();
     ctx.setLineDash([]);
   }
 
-  // preview link
   if (state.linkFrom && state.mouseWorld) {
     const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
     if (b) {
@@ -413,10 +531,9 @@ function draw() {
   }
 
   const hoverPort = state.mouseWorld ? hitPort(state.mouseWorld.x, state.mouseWorld.y) : null;
-
   for (const b of state.buildings) {
     const c = cat(b.type);
-    drawIsoBlock(b.gx, b.gy, b.w, b.h, c.color, c.top);
+    drawIsoBlock(b.gx, b.gy, b.w, b.h, c.color, c.top, b.id === state.focusId);
     ctx.fillStyle = "#fff";
     ctx.font = "600 11px sans-serif";
     ctx.textAlign = "center";
@@ -429,15 +546,13 @@ function draw() {
     drawPort(i, "in", hi);
   }
 
-  // ghost only when user picked a building
-  if (state.mode === "place" && state.selected && state.hover) {
+  if (state.mode === "place" && state.selected && state.hover && !state.moving) {
     const d = dimsFor(state.selected, state.placeRot);
     const c = cat(state.selected);
     const ok = canPlace(state.selected, state.hover.gx, state.hover.gy, state.placeRot);
     ctx.globalAlpha = 0.45;
-    drawIsoBlock(state.hover.gx, state.hover.gy, d.w, d.h, ok ? c.color : "#dc2626", ok ? c.top : "#f87171");
+    drawIsoBlock(state.hover.gx, state.hover.gy, d.w, d.h, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false);
     ctx.globalAlpha = 1;
-    // ghost ports
     const ghost = { gx: state.hover.gx, gy: state.hover.gy, w: d.w, h: d.h, rot: state.placeRot };
     drawPort(portOut(ghost), "out", false);
     drawPort(portIn(ghost), "in", false);
@@ -445,23 +560,72 @@ function draw() {
 
   ctx.restore();
 
-  const rotTip = state.selected ? `放置朝向 ${state.placeRot * 90}°（R 旋转）` : "未选建筑";
-  statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length}<br>` +
+  const focus = getFocusBuilding();
+  statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length}` +
+    (focus ? ` · 焦点：${cat(focus.type).name}` : "") + "<br>" +
     (state.mode === "place"
-      ? (state.selected ? `放置中 · ${rotTip} · 点空地放下，再点左侧可取消选择` : "请先在左侧点击建筑，才会出现放置预览")
+      ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}° · 拖已有建筑可移动` : "请先点左侧建筑；拖已有建筑可移动")
       : state.mode === "link"
-        ? (state.linkFrom ? "已点绿口，请再点另一建筑的黄口" : "连轨：只点绿色输出 → 黄色输入，点别处无效")
-        : "擦除：点建筑或轨道");
+        ? (state.linkFrom ? "已点绿口，再点黄口；或拖建筑移动" : "连轨：绿→黄；拖建筑本体可移动，轨道跟随")
+        : "擦除：点建筑/轨道；也可用右键清除");
 }
 
 function clientPos(e) {
   const r = cv.getBoundingClientRect();
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
+function hideCtx() {
+  ctxMenu.classList.remove("show");
+  state.ctxTargetId = null;
+}
+function showCtx(clientX, clientY, buildingId) {
+  state.ctxTargetId = buildingId;
+  state.focusId = buildingId;
+  ctxMenu.classList.add("show");
+  const pad = 8;
+  const mw = ctxMenu.offsetWidth || 160;
+  const mh = ctxMenu.offsetHeight || 120;
+  let x = clientX;
+  let y = clientY;
+  if (x + mw > window.innerWidth - pad) x = window.innerWidth - mw - pad;
+  if (y + mh > window.innerHeight - pad) y = window.innerHeight - mh - pad;
+  ctxMenu.style.left = x + "px";
+  ctxMenu.style.top = y + "px";
+  draw();
+}
+
+ctxMenu.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const act = btn.dataset.act;
+  const id = state.ctxTargetId;
+  hideCtx();
+  if (!id) return;
+  if (act === "delete") deleteBuilding(id);
+  if (act === "rotate") {
+    const b = state.buildings.find((x) => x.id === id);
+    if (b) rotateBuilding(b);
+  }
+});
+document.addEventListener("click", (e) => {
+  if (!ctxMenu.contains(e.target)) hideCtx();
+});
+
+cv.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  const p = clientPos(e);
+  const g = screenToGrid(p.x, p.y);
+  const hit = buildingAt(g.gx, g.gy);
+  if (hit) showCtx(e.clientX, e.clientY, hit.id);
+  else hideCtx();
+});
 
 cv.addEventListener("mousemove", (e) => {
   const p = clientPos(e);
-  if (state.dragging || (state.spacePan && e.buttons === 1)) {
+  state.hover = screenToGrid(p.x, p.y);
+  state.mouseWorld = toWorld(p.x, p.y);
+
+  if (state.panning) {
     state.panX += e.clientX - state.lastX;
     state.panY += e.clientY - state.lastY;
     state.lastX = e.clientX;
@@ -469,37 +633,91 @@ cv.addEventListener("mousemove", (e) => {
     draw();
     return;
   }
-  state.hover = screenToGrid(p.x, p.y);
-  state.mouseWorld = toWorld(p.x, p.y);
-  // cursor hint on ports in link mode
-  if (state.mode === "link") {
-    const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
-    cv.style.cursor = hp ? "pointer" : "default";
+
+  if (state.moving) {
+    const b = state.buildings.find((x) => x.id === state.moving.id);
+    if (b) {
+      const dx = e.clientX - state.moving.startX;
+      const dy = e.clientY - state.moving.startY;
+      if (Math.hypot(dx, dy) > 4) state.moving.dragged = true;
+      const gx = state.hover.gx - state.moving.ox;
+      const gy = state.hover.gy - state.moving.oy;
+      if (canMoveTo(b, gx, gy)) {
+        b.gx = gx;
+        b.gy = gy;
+      }
+    }
+    cv.style.cursor = "grabbing";
+    draw();
+    return;
   }
+
+  const hp = state.mouseWorld ? hitPort(state.mouseWorld.x, state.mouseWorld.y) : null;
+  const onBuild = state.hover && buildingAt(state.hover.gx, state.hover.gy);
+  if (state.mode === "link" && hp) cv.style.cursor = "pointer";
+  else if (onBuild && !hp) cv.style.cursor = "grab";
+  else cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   draw();
 });
 
+let skipClick = false;
+
 cv.addEventListener("mousedown", (e) => {
   if (e.button === 1 || (e.button === 0 && state.spacePan)) {
-    state.dragging = true;
+    state.panning = true;
     state.lastX = e.clientX;
     state.lastY = e.clientY;
     e.preventDefault();
+    return;
+  }
+  if (e.button !== 0) return;
+  hideCtx();
+  const p = clientPos(e);
+  const world = toWorld(p.x, p.y);
+  const g = screenToGrid(p.x, p.y);
+  const hp = hitPort(world.x, world.y);
+  if (hp && state.mode === "link") return;
+  const hit = buildingAt(g.gx, g.gy);
+  if (hit && !hp) {
+    state.focusId = hit.id;
+    state.moving = {
+      id: hit.id,
+      ox: g.gx - hit.gx,
+      oy: g.gy - hit.gy,
+      startX: e.clientX,
+      startY: e.clientY,
+      dragged: false,
+    };
+    e.preventDefault();
   }
 });
-window.addEventListener("mouseup", () => { state.dragging = false; });
+
+window.addEventListener("mouseup", () => {
+  if (state.moving) {
+    if (state.moving.dragged) skipClick = true;
+    state.moving = null;
+    draw();
+  }
+  state.panning = false;
+});
 
 cv.addEventListener("click", (e) => {
   if (state.spacePan) return;
+  if (skipClick) {
+    skipClick = false;
+    return;
+  }
   const p = clientPos(e);
   const g = screenToGrid(p.x, p.y);
   const world = toWorld(p.x, p.y);
 
   if (state.mode === "place") {
     if (!state.selected) return;
+    // 点在已有建筑上：只聚焦，不叠放
+    if (buildingAt(g.gx, g.gy)) return;
     if (!canPlace(state.selected, g.gx, g.gy, state.placeRot)) return;
     const d = dimsFor(state.selected, state.placeRot);
-    state.buildings.push({
+    const nb = {
       id: "b" + (bid++),
       type: state.selected,
       gx: g.gx,
@@ -507,7 +725,9 @@ cv.addEventListener("click", (e) => {
       w: d.w,
       h: d.h,
       rot: state.placeRot,
-    });
+    };
+    state.buildings.push(nb);
+    state.focusId = nb.id;
     draw();
     return;
   }
@@ -515,18 +735,18 @@ cv.addEventListener("click", (e) => {
   if (state.mode === "link") {
     const hp = hitPort(world.x, world.y);
     if (!hp) {
-      // 点别处：取消当前半截连线
       state.linkFrom = null;
       draw();
       return;
     }
     if (!state.linkFrom) {
-      if (hp.kind !== "out") return; // 只能从绿口开始
+      if (hp.kind !== "out") return;
       state.linkFrom = { buildingId: hp.building.id };
+      state.focusId = hp.building.id;
       draw();
       return;
     }
-    if (hp.kind !== "in") return; // 第二下必须黄口
+    if (hp.kind !== "in") return;
     if (hp.building.id === state.linkFrom.buildingId) {
       state.linkFrom = null;
       draw();
@@ -548,8 +768,6 @@ cv.addEventListener("click", (e) => {
   }
 
   if (state.mode === "erase") {
-    const hp = hitPort(world.x, world.y);
-    // prefer erase rail near click
     const wx = world.x, wy = world.y;
     let best = null, bestD = 14;
     for (const r of state.rails) {
@@ -564,11 +782,7 @@ cv.addEventListener("click", (e) => {
       return;
     }
     const hit = buildingAt(g.gx, g.gy);
-    if (hit) {
-      state.buildings = state.buildings.filter((b) => b.id !== hit.id);
-      state.rails = state.rails.filter((r) => r.fromId !== hit.id && r.toId !== hit.id);
-      draw();
-    }
+    if (hit) deleteBuilding(hit.id);
   }
 });
 
@@ -580,27 +794,77 @@ function distToSeg(px, py, a, b) {
   return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
 }
 
+function matchHotkey(e, action) {
+  return e.code === state.hotkeys[action];
+}
+
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Space") { state.spacePan = true; cv.style.cursor = "grab"; }
-  if (e.key === "r" || e.key === "R") {
+  if (state.listeningKey) {
+    e.preventDefault();
+    // 忽略纯修饰键
+    if (["ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"].includes(e.code)) return;
+    state.hotkeys[state.listeningKey] = e.code;
+    saveHotkeys();
+    state.listeningKey = null;
+    renderKeysPanel();
+    return;
+  }
+
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+
+  if (matchHotkey(e, "pan")) {
+    state.spacePan = true;
+    cv.style.cursor = "grab";
+    return;
+  }
+  if (matchHotkey(e, "rotate")) {
     e.preventDefault();
     rotateAction();
+    return;
   }
-  if (e.key === "Escape") {
+  if (matchHotkey(e, "modePlace")) {
+    e.preventDefault();
+    state.mode = "place";
+    syncModes();
+    draw();
+    return;
+  }
+  if (matchHotkey(e, "modeLink")) {
+    e.preventDefault();
+    state.mode = "link";
+    syncModes();
+    draw();
+    return;
+  }
+  if (matchHotkey(e, "modeErase")) {
+    e.preventDefault();
+    state.mode = "erase";
+    syncModes();
+    draw();
+    return;
+  }
+  if (matchHotkey(e, "delete") || e.code === "Backspace") {
+    e.preventDefault();
+    if (state.focusId) deleteBuilding(state.focusId);
+    return;
+  }
+  if (matchHotkey(e, "cancel")) {
+    e.preventDefault();
+    hideCtx();
     state.selected = null;
     state.linkFrom = null;
+    state.listeningKey = null;
     syncPalette();
     draw();
   }
 });
 window.addEventListener("keyup", (e) => {
-  if (e.code === "Space") {
+  if (e.code === state.hotkeys.pan || e.code === "Space") {
     state.spacePan = false;
     cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   }
 });
 
-// 示范：带朝向，交叉两条轨（绿→黄）
 (function seed() {
   state.buildings.push(
     { id: "b" + (bid++), type: "raw", gx: 2, gy: 4, w: 2, h: 2, rot: 0 },
@@ -614,6 +878,7 @@ window.addEventListener("keyup", (e) => {
   );
 })();
 
+renderKeysPanel();
 syncModes();
 resize();
 </script>
