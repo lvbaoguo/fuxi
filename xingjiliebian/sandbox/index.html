@@ -736,6 +736,7 @@ function draw() {
   const hoverPort = state.mouseWorld ? hitPort(state.mouseWorld.x, state.mouseWorld.y) : null;
   for (const b of state.buildings) {
     const c = cat(b.type);
+    if (!c) continue;
     drawIsoBlock(b.gx, b.gy, b.w, b.h, c.color, c.top, b.id === state.focusId);
     ctx.fillStyle = "#fff";
     ctx.font = "600 11px sans-serif";
