@@ -2496,14 +2496,15 @@ window.addEventListener("mouseup", () => {
     const world = state.mouseWorld;
     const r = state.rails.find((x) => x.id === drag.id);
     if (r && world) {
-      const hp = hitPort(world.x, world.y);
-      if (drag.end === "from" && hp && hp.kind === "out") {
-        if (hp.building.id !== r.toId) {
+      if (drag.end === "from") {
+        const hp = hitPort(world.x, world.y, { kind: "out", excludeBuildingId: r.toId });
+        if (hp) {
           r.fromId = hp.building.id;
           r.fromPort = hp.index;
         }
-      } else if (drag.end === "to" && hp && hp.kind === "in") {
-        if (hp.building.id !== r.fromId) {
+      } else {
+        const hp = hitPort(world.x, world.y, { kind: "in", excludeBuildingId: r.fromId });
+        if (hp) {
           r.toId = hp.building.id;
           r.toPort = hp.index;
         }
