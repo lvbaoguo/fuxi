@@ -233,13 +233,14 @@
         <button class="btn" type="button" id="paintEraser">橡皮</button>
         <button class="btn" type="button" id="paintPortOut">绿·出口</button>
         <button class="btn" type="button" id="paintPortIn">黄·入口</button>
+        <button class="btn" type="button" id="paintPortDel">删选中口</button>
         <label>粗细</label>
         <input id="paintSize" type="range" min="4" max="48" value="16" />
         <button class="btn" type="button" id="paintClear">清空画像</button>
         <button class="btn" type="button" id="paintBlob">一键圆润</button>
         <button class="btn" type="button" id="paintScale">缩放</button>
       </div>
-      <p class="port-hint">「一键圆润」后会进入缩放：拖四角放大缩小（可拖框内平移）。绿/黄工具在画像上点放进出口。</p>
+      <p class="port-hint">绿/黄：空白处点击加口，拖动已有口移动；「删选中口」删除。口为细长条，可自由摆在画像任意位置。</p>
     </div>
     <div class="actions">
       <button class="btn" type="button" id="customCancel">取消</button>
@@ -252,7 +253,8 @@ const CELL = 28;
 const COLS = 48;
 const ROWS = 32;
 const PORT_R = 7;
-const PORT_HIT = 12;
+const PORT_HIT = 14;
+const PORT_MAX = 8;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
 const CATALOG_LS = "starrupture_sandbox_catalog_v3";
 const CATALOG_LS_OLD = ["starrupture_sandbox_catalog_v2", "starrupture_sandbox_catalog_v1"];
@@ -364,32 +366,32 @@ const DEFAULT_CATALOG = [
   {
     id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a",
     recipe: "furnace",
-    ports: { out: { x: 1, y: 0.62 }, in: { x: 0, y: 0.62 } },
+    ports: { out: [{ x: 1, y: 0.62 }], in: [{ x: 0, y: 0.62 }] },
   },
   {
     id: "smelter", name: "冶炼厂", w: 3, h: 4, color: "#5b9fd4", top: "#7eb8e8",
     recipe: "smelter",
-    ports: { out: { x: 0.5, y: 1 }, in: { x: 0, y: 0.38 } },
+    ports: { out: [{ x: 0.5, y: 1 }], in: [{ x: 0, y: 0.38 }] },
   },
   {
     id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8",
     recipe: "fabricator",
-    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
+    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
   },
   {
     id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d",
     recipe: "box",
-    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
+    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
   },
   {
     id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a",
     recipe: "box",
-    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
+    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
   },
   {
     id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0",
     recipe: "circle",
-    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
+    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
   },
 ];
 
@@ -448,6 +450,22 @@ function normalizePort(p, fallback) {
   const fromFbSide = sidePortToXY(fb);
   return fromFbSide || { x: 0.5, y: 0.5 };
 }
+function defaultPort(kind) {
+  return kind === "in" ? { x: 0, y: 0.5 } : { x: 1, y: 0.5 };
+}
+/** 兼容旧版单点 {x,y}/{side,t} → 数组 */
+function normalizePortList(raw, kind) {
+  const def = defaultPort(kind);
+  if (Array.isArray(raw)) {
+    return raw
+      .map((p) => normalizePort(p, def))
+      .slice(0, PORT_MAX);
+  }
+  if (raw && (Number.isFinite(Number(raw.x)) || raw.side)) {
+    return [normalizePort(raw, def)];
+  }
+  return [normalizePort(null, def)];
+}
 
 function normalizeCatalogItem(c) {
   const base = DEFAULT_CATALOG.find((d) => d.id === c.id);
@@ -489,8 +507,8 @@ function normalizeCatalogItem(c) {
     hit: normalizeHit(hit, w, h, fullHit(w, h)),
     art,
     ports: {
-      out: normalizePort(portsOut, (base && base.ports && base.ports.out) || { x: 1, y: 0.5 }),
-      in: normalizePort(portsIn, (base && base.ports && base.ports.in) || { x: 0, y: 0.5 }),
+      out: normalizePortList(portsOut, "out"),
+      in: normalizePortList(portsIn, "in"),
     },
     custom: !!c.custom,
   };
@@ -698,10 +716,11 @@ function worldCellsOf(b) {
     return { x, y };
   });
 }
-function portWorld(b, kind) {
+function portWorld(b, kind, index) {
   const c = cat(b.type);
-  const def = { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } };
-  const p = normalizePort(c && c.ports && c.ports[kind], def[kind]);
+  const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [defaultPort(kind)];
+  const idx = Math.max(0, Math.min(list.length - 1, Number(index) || 0));
+  const p = list.length ? list[idx] : defaultPort(kind);
   const uw = c ? c.w : b.w;
   const uh = c ? c.h : b.h;
   const lx = p.x * uw;
@@ -712,6 +731,43 @@ function portWorld(b, kind) {
   else if (rot === 2) { rx = uw - lx; ry = uh - ly; }
   else if (rot === 3) { rx = ly; ry = uw - lx; }
   return { x: (b.gx + rx) * CELL, y: (b.gy + ry) * CELL };
+}
+function portsOfBuilding(b, kind) {
+  const c = cat(b.type);
+  const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [];
+  return list.map((_, i) => ({ index: i, pos: portWorld(b, kind, i) }));
+}
+/** 细长条：靠左右→竖条，靠上下→横条 */
+function portBarSize(nx, ny, scale) {
+  const s = scale || 1;
+  const dL = nx, dR = 1 - nx, dT = ny, dB = 1 - ny;
+  const m = Math.min(dL, dR, dT, dB);
+  const thick = Math.max(3, 4 * s);
+  const len = Math.max(10, 14 * s);
+  if (m === dT || m === dB) return { w: len, h: thick }; // 横条
+  return { w: thick, h: len }; // 竖条
+}
+function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
+  const { w, h } = portBarSize(nx, ny, scale);
+  const fill = kind === "out" ? "#22c55e" : "#eab308";
+  const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
+  ctx2.save();
+  ctx2.translate(cx, cy);
+  const hw = w / 2, hh = h / 2;
+  const r = Math.min(2.5, hw, hh);
+  ctx2.beginPath();
+  ctx2.moveTo(-hw + r, -hh);
+  ctx2.arcTo(hw, -hh, hw, hh, r);
+  ctx2.arcTo(hw, hh, -hw, hh, r);
+  ctx2.arcTo(-hw, hh, -hw, -hh, r);
+  ctx2.arcTo(-hw, -hh, hw, -hh, r);
+  ctx2.closePath();
+  ctx2.fillStyle = fill;
+  ctx2.fill();
+  ctx2.lineWidth = highlight ? 2 : 1;
+  ctx2.strokeStyle = stroke;
+  ctx2.stroke();
+  ctx2.restore();
 }
 function syncPalette() {
   [...paletteEl.querySelectorAll(".pal")].forEach((x) => x.classList.toggle("on", x.dataset.id === state.selected));
@@ -899,7 +955,9 @@ let editingId = null;
 let paintTool = "brush";
 let paintDrawing = false;
 let paintLast = null;
-let draftPorts = { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } };
+let draftPorts = { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] };
+let draftPortSel = null; // { kind, index }
+let portDrag = null; // { kind, index, grabDx, grabDy }
 let scaleBox = null; // {x,y,w,h} 画像像素框
 let scaleDrag = null; // 拖角/平移中
 
@@ -1037,20 +1095,15 @@ function drawDraftPorts() {
     }
     portCtx.restore();
   }
-  const r = Math.max(5, Math.min(w, h) * 0.06);
-  const drawOne = (p, fill, stroke) => {
-    if (!p) return;
-    const x = p.x * w, y = p.y * h;
-    portCtx.beginPath();
-    portCtx.arc(x, y, r, 0, Math.PI * 2);
-    portCtx.fillStyle = fill;
-    portCtx.fill();
-    portCtx.lineWidth = 2;
-    portCtx.strokeStyle = stroke;
-    portCtx.stroke();
+  const scale = Math.min(w, h) / 84;
+  const drawList = (list, kind) => {
+    (list || []).forEach((p, i) => {
+      const sel = draftPortSel && draftPortSel.kind === kind && draftPortSel.index === i;
+      drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, !!sel, scale);
+    });
   };
-  drawOne(draftPorts.out, "#22c55e", "#14532d");
-  drawOne(draftPorts.in, "#fbbf24", "#92400e");
+  drawList(draftPorts.out, "out");
+  drawList(draftPorts.in, "in");
 }
 function enterScaleMode() {
   paintTool = "scale";
@@ -1162,9 +1215,11 @@ function fillModalFromItem(item) {
   customH.value = String(item.h);
   customPreview.style.background = item.color;
   draftPorts = {
-    out: normalizePort(item.ports && item.ports.out, { x: 1, y: 0.5 }),
-    in: normalizePort(item.ports && item.ports.in, { x: 0, y: 0.5 }),
+    out: normalizePortList(item.ports && item.ports.out, "out"),
+    in: normalizePortList(item.ports && item.ports.in, "in"),
   };
+  draftPortSel = null;
+  portDrag = null;
   paintTool = "brush";
   scaleBox = null;
   scaleDrag = null;
@@ -1181,7 +1236,7 @@ function openCustomModal() {
   fillModalFromItem(normalizeCatalogItem({
     id: "tmp", name: "自定义", w: 3, h: 3, color: "#7c5cff",
     art: baked.art, hit: baked.hit, mask: baked.mask,
-    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
+    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
     custom: true,
   }));
   customModal.classList.add("show");
@@ -1203,12 +1258,14 @@ function closeCustomModal() {
   paintTool = "brush";
   scaleBox = null;
   scaleDrag = null;
+  draftPortSel = null;
+  portDrag = null;
   syncPaintToolUi();
 }
 function readModalPorts() {
   return {
-    out: normalizePort(draftPorts.out, { x: 1, y: 0.5 }),
-    in: normalizePort(draftPorts.in, { x: 0, y: 0.5 }),
+    out: normalizePortList(draftPorts.out, "out"),
+    in: normalizePortList(draftPorts.in, "in"),
   };
 }
 function applyCustomBuilding() {
@@ -1295,6 +1352,17 @@ document.getElementById("paintPortIn").addEventListener("click", () => {
   syncPaintToolUi();
   drawDraftPorts();
 });
+document.getElementById("paintPortDel").addEventListener("click", () => {
+  if (!draftPortSel) {
+    alert("先点选一个绿/黄口，再删除");
+    return;
+  }
+  const { kind, index } = draftPortSel;
+  draftPorts[kind] = (draftPorts[kind] || []).filter((_, i) => i !== index);
+  draftPortSel = null;
+  portDrag = null;
+  drawDraftPorts();
+});
 document.getElementById("paintScale").addEventListener("click", () => {
   enterScaleMode();
 });
@@ -1309,15 +1377,6 @@ document.getElementById("paintBlob").addEventListener("click", () => {
   paintDefaultSilhouette(paintCtx, w, h, "box");
   enterScaleMode();
 });
-function placeDraftPortAtEvent(e) {
-  const r = portCv.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-  const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-  if (paintTool === "portOut") draftPorts.out = { x, y };
-  else if (paintTool === "portIn") draftPorts.in = { x, y };
-  drawDraftPorts();
-}
 function paintPointerPos(e) {
   const r = paintCv.getBoundingClientRect();
   if (!r.width || !r.height) return { x: 0, y: 0 };
@@ -1367,6 +1426,76 @@ function endScaleDrag() {
   refreshScaleBox();
   drawDraftPorts();
 }
+function portKindFromTool() {
+  if (paintTool === "portOut") return "out";
+  if (paintTool === "portIn") return "in";
+  return null;
+}
+function hitDraftPort(nx, ny, preferKind) {
+  const w = portCv.width || 1, h = portCv.height || 1;
+  const px = nx * w, py = ny * h;
+  let best = null, bestD = 16;
+  const scan = (kind) => {
+    (draftPorts[kind] || []).forEach((p, i) => {
+      const { w: bw, h: bh } = portBarSize(p.x, p.y, Math.min(w, h) / 84);
+      const dx = Math.abs(px - p.x * w) - bw / 2;
+      const dy = Math.abs(py - p.y * h) - bh / 2;
+      const d = Math.hypot(Math.max(0, dx), Math.max(0, dy));
+      const score = d + (preferKind && preferKind !== kind ? 4 : 0);
+      if (score < bestD) {
+        bestD = score;
+        best = { kind, index: i };
+      }
+    });
+  };
+  if (preferKind) scan(preferKind);
+  scan("out");
+  scan("in");
+  return bestD <= 10 ? best : null;
+}
+function placeOrDragPortAtEvent(e, isDown) {
+  const kind = portKindFromTool();
+  if (!kind) return;
+  const r = portCv.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+  if (isDown) {
+    const hit = hitDraftPort(x, y, kind);
+    if (hit) {
+      draftPortSel = hit;
+      const p = draftPorts[hit.kind][hit.index];
+      portDrag = { kind: hit.kind, index: hit.index, ox: x - p.x, oy: y - p.y };
+      try { portCv.setPointerCapture(e.pointerId); } catch (_) {}
+      drawDraftPorts();
+      return;
+    }
+    // 点空白：新增当前工具颜色的口
+    if ((draftPorts[kind] || []).length >= PORT_MAX) {
+      alert((kind === "out" ? "出口" : "入口") + "最多 " + PORT_MAX + " 个");
+      return;
+    }
+    draftPorts[kind] = draftPorts[kind] || [];
+    draftPorts[kind].push({ x, y });
+    draftPortSel = { kind, index: draftPorts[kind].length - 1 };
+    portDrag = { kind, index: draftPortSel.index, ox: 0, oy: 0 };
+    try { portCv.setPointerCapture(e.pointerId); } catch (_) {}
+    drawDraftPorts();
+    return;
+  }
+  if (portDrag) {
+    const list = draftPorts[portDrag.kind];
+    if (!list || !list[portDrag.index]) return;
+    list[portDrag.index] = {
+      x: Math.max(0, Math.min(1, x - portDrag.ox)),
+      y: Math.max(0, Math.min(1, y - portDrag.oy)),
+    };
+    drawDraftPorts();
+  }
+}
+function endPortDrag() {
+  portDrag = null;
+}
 portCv.addEventListener("pointerdown", (e) => {
   if (paintTool === "scale") {
     e.preventDefault();
@@ -1375,7 +1504,7 @@ portCv.addEventListener("pointerdown", (e) => {
   }
   if (paintTool !== "portOut" && paintTool !== "portIn") return;
   e.preventDefault();
-  placeDraftPortAtEvent(e);
+  placeOrDragPortAtEvent(e, true);
 });
 portCv.addEventListener("pointermove", (e) => {
   if (paintTool === "scale" && scaleDrag) {
@@ -1383,16 +1512,26 @@ portCv.addEventListener("pointermove", (e) => {
     moveScaleDrag(e);
     return;
   }
-  if (paintTool !== "scale" || !scaleBox) return;
-  const p = paintPointerPos(e);
-  const hit = hitScaleHandle(p);
-  const cursors = {
-    nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize", move: "move",
-  };
-  portCv.style.cursor = hit ? cursors[hit] : "default";
+  if ((paintTool === "portOut" || paintTool === "portIn") && portDrag) {
+    e.preventDefault();
+    placeOrDragPortAtEvent(e, false);
+    return;
+  }
+  if (paintTool === "scale" && scaleBox) {
+    const p = paintPointerPos(e);
+    const hit = hitScaleHandle(p);
+    const cursors = {
+      nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize", move: "move",
+    };
+    portCv.style.cursor = hit ? cursors[hit] : "default";
+    return;
+  }
+  if (paintTool === "portOut" || paintTool === "portIn") {
+    portCv.style.cursor = "crosshair";
+  }
 });
-portCv.addEventListener("pointerup", endScaleDrag);
-portCv.addEventListener("pointercancel", endScaleDrag);
+portCv.addEventListener("pointerup", () => { endScaleDrag(); endPortDrag(); });
+portCv.addEventListener("pointercancel", () => { endScaleDrag(); endPortDrag(); });
 paintCv.addEventListener("pointerdown", (e) => {
   if (paintTool === "scale") {
     e.preventDefault();
@@ -1401,7 +1540,7 @@ paintCv.addEventListener("pointerdown", (e) => {
   }
   if (paintTool === "portOut" || paintTool === "portIn") {
     e.preventDefault();
-    placeDraftPortAtEvent(e);
+    placeOrDragPortAtEvent(e, true);
     return;
   }
   e.preventDefault();
@@ -1415,6 +1554,10 @@ paintCv.addEventListener("pointermove", (e) => {
     moveScaleDrag(e);
     return;
   }
+  if ((paintTool === "portOut" || paintTool === "portIn") && portDrag) {
+    placeOrDragPortAtEvent(e, false);
+    return;
+  }
   if (!paintDrawing || !paintLast) return;
   const p = paintPos(e);
   strokePaint(paintLast, p);
@@ -1424,6 +1567,7 @@ function endPaint() {
   paintDrawing = false;
   paintLast = null;
   if (paintTool === "scale") endScaleDrag();
+  endPortDrag();
 }
 paintCv.addEventListener("pointerup", endPaint);
 paintCv.addEventListener("pointercancel", endPaint);
@@ -1559,18 +1703,28 @@ function canPlace(type, gx, gy, rot) {
   if (gx < 0 || gy < 0 || gx + d.w > COLS || gy + d.h > ROWS) return false;
   return !collides({ gx, gy, w: d.w, h: d.h, type, rot }, null);
 }
-function portOut(b) { return portWorld(b, "out"); }
-function portIn(b) { return portWorld(b, "in"); }
+function portOut(b, index) { return portWorld(b, "out", index || 0); }
+function portIn(b, index) { return portWorld(b, "in", index || 0); }
 function hitPort(wx, wy) {
   let best = null;
   let bestD = PORT_HIT;
   for (const b of state.buildings) {
-    const o = portOut(b);
-    const i = portIn(b);
-    const do_ = Math.hypot(wx - o.x, wy - o.y);
-    const di = Math.hypot(wx - i.x, wy - i.y);
-    if (do_ < bestD) { bestD = do_; best = { building: b, kind: "out", pos: o }; }
-    if (di < bestD) { bestD = di; best = { building: b, kind: "in", pos: i }; }
+    const c = cat(b.type);
+    if (!c) continue;
+    for (const kind of ["out", "in"]) {
+      const list = normalizePortList(c.ports && c.ports[kind], kind);
+      list.forEach((p, index) => {
+        const pos = portWorld(b, kind, index);
+        const { w: bw, h: bh } = portBarSize(p.x, p.y, 1);
+        const dx = Math.abs(wx - pos.x) - bw / 2;
+        const dy = Math.abs(wy - pos.y) - bh / 2;
+        const d = Math.hypot(Math.max(0, dx), Math.max(0, dy));
+        if (d < bestD) {
+          bestD = d;
+          best = { building: b, kind, index, pos, nx: p.x, ny: p.y };
+        }
+      });
+    }
   }
   return best;
 }
@@ -1592,7 +1746,9 @@ function railSeg(r) {
   const a = state.buildings.find((b) => b.id === r.fromId);
   const b = state.buildings.find((b) => b.id === r.toId);
   if (!a || !b) return null;
-  return { p1: portOut(a), p2: portIn(b), a, b, r };
+  const fi = Number.isFinite(r.fromPort) ? r.fromPort : 0;
+  const ti = Number.isFinite(r.toPort) ? r.toPort : 0;
+  return { p1: portWorld(a, "out", fi), p2: portWorld(b, "in", ti), a, b, r };
 }
 function findCrossings() {
   const segs = state.rails.map(railSeg).filter(Boolean);
@@ -1691,14 +1847,8 @@ function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
     drawTinted(null);
   }
 }
-function drawPort(pos, kind, highlight) {
-  ctx.beginPath();
-  ctx.arc(pos.x, pos.y, highlight ? PORT_R + 2 : PORT_R, 0, Math.PI * 2);
-  ctx.fillStyle = kind === "out" ? "#22c55e" : "#eab308";
-  ctx.fill();
-  ctx.strokeStyle = highlight ? "#111" : "rgba(0,0,0,.35)";
-  ctx.lineWidth = highlight ? 2 : 1;
-  ctx.stroke();
+function drawPort(pos, kind, highlight, nx, ny) {
+  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1);
 }
 
 function draw() {
@@ -1736,7 +1886,7 @@ function draw() {
   if (state.linkFrom && state.mouseWorld) {
     const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
     if (b) {
-      const o = portOut(b);
+      const o = portWorld(b, "out", state.linkFrom.portIndex || 0);
       ctx.strokeStyle = "#2f9d84";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
@@ -1761,12 +1911,16 @@ function draw() {
     const ax = cells.reduce((s, p) => s + p.x, 0) / (cells.length || 1);
     const ay = cells.reduce((s, p) => s + p.y, 0) / (cells.length || 1);
     ctx.fillText(c.name, (ax + 0.5) * CELL, (ay + 0.5) * CELL);
-    const o = portOut(b), i = portIn(b);
-    const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "out";
-    const hi = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === "in";
-    const selOut = state.linkFrom && state.linkFrom.buildingId === b.id;
-    drawPort(o, "out", ho || selOut);
-    drawPort(i, "in", hi);
+    for (const kind of ["out", "in"]) {
+      const list = normalizePortList(c.ports && c.ports[kind], kind);
+      list.forEach((p, index) => {
+        const pos = portWorld(b, kind, index);
+        const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === kind && hoverPort.index === index;
+        const selOut = state.linkFrom && state.linkFrom.buildingId === b.id
+          && kind === "out" && (state.linkFrom.portIndex || 0) === index;
+        drawPort(pos, kind, ho || selOut, p.x, p.y);
+      });
+    }
   }
 
   if (state.mode === "place" && state.selected && state.hover && !state.moving) {
@@ -1780,8 +1934,14 @@ function draw() {
     ctx.globalAlpha = 0.5;
     drawBuildingBody(ghost, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false, true);
     ctx.globalAlpha = 1;
-    drawPort(portOut(ghost), "out", false);
-    drawPort(portIn(ghost), "in", false);
+    if (c) {
+      for (const kind of ["out", "in"]) {
+        const list = normalizePortList(c.ports && c.ports[kind], kind);
+        list.forEach((p, index) => {
+          drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y);
+        });
+      }
+    }
   }
 
   ctx.restore();
@@ -1967,7 +2127,7 @@ cv.addEventListener("click", (e) => {
     }
     if (!state.linkFrom) {
       if (hp.kind !== "out") return;
-      state.linkFrom = { buildingId: hp.building.id };
+      state.linkFrom = { buildingId: hp.building.id, portIndex: hp.index };
       state.focusId = hp.building.id;
       draw();
       return;
@@ -1978,14 +2138,20 @@ cv.addEventListener("click", (e) => {
       draw();
       return;
     }
+    const fromPort = state.linkFrom.portIndex || 0;
+    const toPort = hp.index;
     const exists = state.rails.some(
       (r) => r.fromId === state.linkFrom.buildingId && r.toId === hp.building.id
+        && (Number.isFinite(r.fromPort) ? r.fromPort : 0) === fromPort
+        && (Number.isFinite(r.toPort) ? r.toPort : 0) === toPort
     );
     if (!exists) {
       state.rails.push({
         id: "r" + (rid++),
         fromId: state.linkFrom.buildingId,
         toId: hp.building.id,
+        fromPort,
+        toPort,
       });
     }
     state.linkFrom = null;
