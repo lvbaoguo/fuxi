@@ -118,6 +118,12 @@
     fill: #fff1e0; stroke: #e07a2f; stroke-width: 2.6;
     filter: drop-shadow(0 0 5px rgba(224,122,47,.35));
   }
+  .node { touch-action: none; }
+  .node.dragging-node {
+    cursor: grabbing;
+    filter: drop-shadow(0 6px 12px rgba(40,50,70,.28));
+  }
+  .node.dragging-node > rect { stroke: var(--accent); stroke-width: 2.4; }
 
   @media (orientation: portrait) {
     .float-search { left: 10px; right: 128px; top: 10px; }
@@ -153,7 +159,7 @@
       <button class="btn m-fold-hide" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="mFold" title="收起控件，专心看图">收起</button>
     </div>
-    <div class="route-empty" id="routeEmpty">搜索后出图。角标：橙=出N·分轨，灰=出1·单轨；青=进N·多口</div>
+    <div class="route-empty" id="routeEmpty">搜索后出图。长按拖节点可并排；角标看出/进几路</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -180,6 +186,10 @@ const routeState = {
   target: "",
   highlight: null,
   graph: null,
+  layout: null,
+  posOverride: {},
+  overrideKey: "",
+  nodeDrag: null,
   scale: 1,
   tx: 40,
   ty: 40,
@@ -421,16 +431,18 @@ function applyHighlight(focus) {
 
 function renderRouteGraph(target, opts = {}) {
   const keepView = !!opts.keepView;
+  const keepHighlight = opts.keepHighlight || null;
   const world = document.getElementById("routeWorld");
   const emptyEl = document.getElementById("routeEmpty");
   world.innerHTML = "";
   routeState.highlight = null;
   routeState.graph = null;
+  routeState.nodeDrag = null;
   world.classList.remove("is-hl");
 
   if (!target) {
     emptyEl.classList.remove("hide");
-    emptyEl.textContent = "搜索后出图。角标：橙=出N·分轨，灰=出1·单轨；青=进N·多口";
+    emptyEl.textContent = "搜索后出图。长按拖节点可并排；角标看出/进几路";
     applyTransform();
     return;
   }
@@ -443,37 +455,24 @@ function renderRouteGraph(target, opts = {}) {
 
   const graph = buildRoute(target);
   const layout = layoutRoute(graph);
+  applyStoredOverrides(layout, target);
+  routeState.layout = layout;
   const ports = portStats(graph);
   routeState.graph = graph;
   routeState.target = target;
   emptyEl.classList.add("hide");
   pushSearchHistory(target);
 
+  const vertical = !!layout.vertical;
   for (const e of graph.edges) {
     const a = layout.positions.get(e.from);
     const b = layout.positions.get(e.to);
     if (!a || !b) continue;
-    let d;
-    if (layout.vertical) {
-      const x1 = a.x + a.w / 2;
-      const y1 = a.y + a.h;
-      const x2 = b.x + b.w / 2;
-      const y2 = b.y;
-      const my = (y1 + y2) / 2;
-      d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
-    } else {
-      const x1 = a.x + a.w;
-      const y1 = a.y + a.h / 2;
-      const x2 = b.x;
-      const y2 = b.y + b.h / 2;
-      const mx = (x1 + x2) / 2;
-      d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
-    }
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("class", "edge");
     path.dataset.from = e.from;
     path.dataset.to = e.to;
-    path.setAttribute("d", d);
+    path.setAttribute("d", edgePathD(a, b, vertical));
     world.appendChild(path);
   }
 
@@ -488,7 +487,6 @@ function renderRouteGraph(target, opts = {}) {
     else if (n.raw) cls = "node node-raw";
     g.setAttribute("class", cls);
     g.dataset.name = n.name;
-    g.style.cursor = "pointer";
 
     const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     rect.setAttribute("x", p.x);
@@ -508,7 +506,7 @@ function renderRouteGraph(target, opts = {}) {
     const outHint = st.out >= 2 ? `输出分 ${st.out} 路，建议调制器/分轨` : (st.out === 1 ? "输出单轨即可" : "终点，无下游输出");
     const inHint = st.in >= 2 ? `进料 ${st.in} 口，各原料独立进黄口` : (st.in === 1 ? "进料 1 口" : "原料点，无进料");
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = `${n.name}｜${outHint}；${inHint}｜单击高亮上一层`;
+    title.textContent = `${n.name}｜${outHint}；${inHint}｜单击高亮｜长按拖动`;
     g.appendChild(title);
     g.appendChild(t1);
 
@@ -526,8 +524,13 @@ function renderRouteGraph(target, opts = {}) {
 
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
+      if (g.dataset.skipClick === "1") {
+        delete g.dataset.skipClick;
+        return;
+      }
       applyHighlight(n.name);
     });
+    bindNodeDrag(g, n.name);
     world.appendChild(g);
   }
 
@@ -543,11 +546,148 @@ function renderRouteGraph(target, opts = {}) {
     }
   }
   applyTransform();
+  if (keepHighlight) applyHighlight(keepHighlight);
 }
 
 function applyTransform() {
   const world = document.getElementById("routeWorld");
   world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
+}
+
+function edgePathD(a, b, vertical) {
+  if (vertical) {
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h;
+    const x2 = b.x + b.w / 2, y2 = b.y;
+    const my = (y1 + y2) / 2;
+    return `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+  }
+  const x1 = a.x + a.w, y1 = a.y + a.h / 2;
+  const x2 = b.x, y2 = b.y + b.h / 2;
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+
+function effectivePos(name) {
+  const p = routeState.layout && routeState.layout.positions.get(name);
+  if (!p) return null;
+  const drag = routeState.nodeDrag;
+  if (drag && drag.active && drag.name === name) {
+    return { x: drag.curX, y: drag.curY, w: p.w, h: p.h };
+  }
+  return p;
+}
+
+function refreshEdgePaths() {
+  if (!routeState.layout) return;
+  const vertical = routeState.dir === "v";
+  const world = document.getElementById("routeWorld");
+  world.querySelectorAll(".edge").forEach((path) => {
+    const a = effectivePos(path.dataset.from);
+    const b = effectivePos(path.dataset.to);
+    if (!a || !b) return;
+    path.setAttribute("d", edgePathD(a, b, vertical));
+  });
+}
+
+function clientToWorld(clientX, clientY) {
+  const svgEl = document.getElementById("routeSvg");
+  const rect = svgEl.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - routeState.tx) / routeState.scale,
+    y: (clientY - rect.top - routeState.ty) / routeState.scale,
+  };
+}
+
+function clearPosOverrides() {
+  routeState.posOverride = {};
+  routeState.overrideKey = "";
+}
+
+function applyStoredOverrides(layout, target) {
+  const key = target + "|" + routeState.dir;
+  if (routeState.overrideKey !== key) {
+    routeState.posOverride = {};
+    routeState.overrideKey = key;
+  }
+  for (const [name, pos] of Object.entries(routeState.posOverride)) {
+    const p = layout.positions.get(name);
+    if (!p) continue;
+    p.x = pos.x;
+    p.y = pos.y;
+  }
+}
+
+const NODE_LONG_MS = 380;
+
+function bindNodeDrag(g, name) {
+  g.style.cursor = "grab";
+  g.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.stopPropagation();
+    const p = routeState.layout && routeState.layout.positions.get(name);
+    if (!p) return;
+    const startClient = { x: e.clientX, y: e.clientY };
+    const startPos = { x: p.x, y: p.y };
+    let timer = setTimeout(() => {
+      routeState.nodeDrag = {
+        name, el: g, active: true, moved: false,
+        startClient, startPos,
+        curX: startPos.x, curY: startPos.y,
+      };
+      g.classList.add("dragging-node");
+      g.style.cursor = "grabbing";
+      try { g.setPointerCapture(e.pointerId); } catch (_) {}
+    }, NODE_LONG_MS);
+
+    const onMove = (ev) => {
+      if (!routeState.nodeDrag || routeState.nodeDrag.name !== name || !routeState.nodeDrag.active) {
+        if (Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > 9) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        return;
+      }
+      ev.preventDefault();
+      const w0 = clientToWorld(startClient.x, startClient.y);
+      const w1 = clientToWorld(ev.clientX, ev.clientY);
+      const dx = w1.x - w0.x;
+      const dy = w1.y - w0.y;
+      if (Math.hypot(dx, dy) > 2) routeState.nodeDrag.moved = true;
+      routeState.nodeDrag.curX = startPos.x + dx;
+      routeState.nodeDrag.curY = startPos.y + dy;
+      g.setAttribute("transform", `translate(${dx},${dy})`);
+      refreshEdgePaths();
+    };
+
+    const onUp = () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      const drag = routeState.nodeDrag;
+      if (!drag || drag.name !== name) return;
+      g.classList.remove("dragging-node");
+      g.style.cursor = "grab";
+      g.removeAttribute("transform");
+      const moved = drag.moved;
+      if (moved) {
+        p.x = drag.curX;
+        p.y = drag.curY;
+        routeState.posOverride[name] = { x: p.x, y: p.y };
+        g.dataset.skipClick = "1";
+      }
+      routeState.nodeDrag = null;
+      if (moved) {
+        const hl = routeState.highlight;
+        renderRouteGraph(routeState.target, { keepView: true, keepHighlight: hl });
+      }
+      refreshEdgePaths();
+    };
+
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  });
 }
 
 function panByClientDelta(fromX, fromY, toX, toY) {
@@ -759,6 +899,7 @@ document.getElementById("routeGo").addEventListener("click", () => {
 });
 document.getElementById("pcDir").addEventListener("click", () => {
   routeState.dir = routeState.dir === "h" ? "v" : "h";
+  clearPosOverrides();
   const btn = document.getElementById("pcDir");
   btn.classList.toggle("active", routeState.dir === "v");
   btn.title = routeState.dir === "v" ? "当前竖向，点击切回横向" : "当前横向，点击切换竖向";
@@ -776,12 +917,14 @@ document.getElementById("mFold").addEventListener("click", () => {
 const svg = document.getElementById("routeSvg");
 svg.addEventListener("mousedown", (e) => {
   if (e.target.closest(".node")) return;
+  if (routeState.nodeDrag) return;
   routeState.dragging = true;
   routeState.lastX = e.clientX;
   routeState.lastY = e.clientY;
   svg.classList.add("dragging");
 });
 window.addEventListener("mousemove", (e) => {
+  if (routeState.nodeDrag) return;
   if (!routeState.dragging) return;
   panByClientDelta(routeState.lastX, routeState.lastY, e.clientX, e.clientY);
   routeState.lastX = e.clientX;
