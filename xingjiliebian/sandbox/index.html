@@ -81,6 +81,9 @@
   }
   .paint-wrap.port-mode #portCv { pointer-events: auto; }
   .paint-wrap.port-mode #paintCv { cursor: default; }
+  .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; }
+  .paint-wrap.scale-mode #paintCv { cursor: default; }
+  .paint-tools .btn.on.scale { background: #eef2ff; border-color: #6366f1; color: #4338ca; }
   .port-hint { font-size: .72rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
   .paint-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
   .paint-tools .btn.on { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
@@ -234,8 +237,9 @@
         <input id="paintSize" type="range" min="4" max="48" value="16" />
         <button class="btn" type="button" id="paintClear">清空画像</button>
         <button class="btn" type="button" id="paintBlob">一键圆润</button>
+        <button class="btn" type="button" id="paintScale">缩放</button>
       </div>
-      <p class="port-hint">选「绿·出口 / 黄·入口」后，在画像上点击放置。点可落在外形内部，不限于外框边。</p>
+      <p class="port-hint">「一键圆润」后会进入缩放：拖四角放大缩小（可拖框内平移）。绿/黄工具在画像上点放进出口。</p>
     </div>
     <div class="actions">
       <button class="btn" type="button" id="customCancel">取消</button>
@@ -896,23 +900,143 @@ let paintTool = "brush";
 let paintDrawing = false;
 let paintLast = null;
 let draftPorts = { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } };
+let scaleBox = null; // {x,y,w,h} 画像像素框
+let scaleDrag = null; // 拖角/平移中
+
+const SCALE_HANDLE = 7;
+const SCALE_MIN = 16;
 
 function syncPaintToolUi() {
   const brush = document.getElementById("paintBrush");
   const eraser = document.getElementById("paintEraser");
   const outBtn = document.getElementById("paintPortOut");
   const inBtn = document.getElementById("paintPortIn");
+  const scaleBtn = document.getElementById("paintScale");
   brush.classList.toggle("on", paintTool === "brush");
   eraser.classList.toggle("on", paintTool === "eraser");
   outBtn.classList.toggle("on", paintTool === "portOut");
   outBtn.classList.toggle("out", paintTool === "portOut");
   inBtn.classList.toggle("on", paintTool === "portIn");
   inBtn.classList.toggle("in", paintTool === "portIn");
+  scaleBtn.classList.toggle("on", paintTool === "scale");
+  scaleBtn.classList.toggle("scale", paintTool === "scale");
   paintWrap.classList.toggle("port-mode", paintTool === "portOut" || paintTool === "portIn");
+  paintWrap.classList.toggle("scale-mode", paintTool === "scale");
+}
+function getPaintContentBBox() {
+  const w = paintCv.width, h = paintCv.height;
+  if (!w || !h) return null;
+  let data;
+  try { data = paintCtx.getImageData(0, 0, w, h).data; } catch (_) { return null; }
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 24) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+function refreshScaleBox() {
+  scaleBox = getPaintContentBBox();
+}
+function clampScaleBox(box) {
+  const cw = paintCv.width, ch = paintCv.height;
+  let { x, y, w, h } = box;
+  w = Math.max(SCALE_MIN, Math.min(cw, w));
+  h = Math.max(SCALE_MIN, Math.min(ch, h));
+  x = Math.max(0, Math.min(cw - w, x));
+  y = Math.max(0, Math.min(ch - h, y));
+  return { x, y, w, h };
+}
+function extractPaintRegion(box) {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(box.w));
+  c.height = Math.max(1, Math.round(box.h));
+  c.getContext("2d").drawImage(
+    paintCv,
+    box.x, box.y, box.w, box.h,
+    0, 0, c.width, c.height
+  );
+  return c;
+}
+function paintScaledContent(content, box) {
+  paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+  paintCtx.drawImage(content, 0, 0, content.width, content.height, box.x, box.y, box.w, box.h);
+}
+function scaleHandlePoints(box) {
+  if (!box) return [];
+  const x0 = box.x, y0 = box.y, x1 = box.x + box.w, y1 = box.y + box.h;
+  return [
+    { id: "nw", x: x0, y: y0, cursor: "nwse-resize" },
+    { id: "ne", x: x1, y: y0, cursor: "nesw-resize" },
+    { id: "sw", x: x0, y: y1, cursor: "nesw-resize" },
+    { id: "se", x: x1, y: y1, cursor: "nwse-resize" },
+  ];
+}
+function hitScaleHandle(p) {
+  if (!scaleBox) return null;
+  const hitR = SCALE_HANDLE + 6;
+  for (const h of scaleHandlePoints(scaleBox)) {
+    if (Math.hypot(p.x - h.x, p.y - h.y) <= hitR) return h.id;
+  }
+  if (
+    p.x >= scaleBox.x && p.x <= scaleBox.x + scaleBox.w &&
+    p.y >= scaleBox.y && p.y <= scaleBox.y + scaleBox.h
+  ) return "move";
+  return null;
+}
+function boxFromCornerDrag(startBox, corner, px, py) {
+  const x0 = startBox.x, y0 = startBox.y;
+  const x1 = startBox.x + startBox.w, y1 = startBox.y + startBox.h;
+  let L = x0, T = y0, R = x1, B = y1;
+  if (corner === "nw") { L = px; T = py; }
+  else if (corner === "ne") { R = px; T = py; }
+  else if (corner === "sw") { L = px; B = py; }
+  else if (corner === "se") { R = px; B = py; }
+  if (R - L < SCALE_MIN) {
+    if (corner === "nw" || corner === "sw") L = R - SCALE_MIN;
+    else R = L + SCALE_MIN;
+  }
+  if (B - T < SCALE_MIN) {
+    if (corner === "nw" || corner === "ne") T = B - SCALE_MIN;
+    else B = T + SCALE_MIN;
+  }
+  return clampScaleBox({ x: L, y: T, w: R - L, h: B - T });
 }
 function drawDraftPorts() {
   const w = portCv.width, h = portCv.height;
   portCtx.clearRect(0, 0, w, h);
+  if (paintTool === "scale" && scaleBox) {
+    const b = scaleBox;
+    portCtx.save();
+    portCtx.strokeStyle = "rgba(99,102,241,.95)";
+    portCtx.lineWidth = 1.5;
+    portCtx.setLineDash([5, 4]);
+    portCtx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+    portCtx.setLineDash([]);
+    // 半透明遮罩框外（微信裁剪感）
+    portCtx.fillStyle = "rgba(30,40,55,.18)";
+    portCtx.fillRect(0, 0, w, b.y);
+    portCtx.fillRect(0, b.y + b.h, w, h - (b.y + b.h));
+    portCtx.fillRect(0, b.y, b.x, b.h);
+    portCtx.fillRect(b.x + b.w, b.y, w - (b.x + b.w), b.h);
+    for (const hp of scaleHandlePoints(b)) {
+      portCtx.beginPath();
+      portCtx.rect(hp.x - SCALE_HANDLE / 2, hp.y - SCALE_HANDLE / 2, SCALE_HANDLE, SCALE_HANDLE);
+      portCtx.fillStyle = "#fff";
+      portCtx.fill();
+      portCtx.lineWidth = 1.5;
+      portCtx.strokeStyle = "#6366f1";
+      portCtx.stroke();
+    }
+    portCtx.restore();
+  }
   const r = Math.max(5, Math.min(w, h) * 0.06);
   const drawOne = (p, fill, stroke) => {
     if (!p) return;
@@ -927,6 +1051,12 @@ function drawDraftPorts() {
   };
   drawOne(draftPorts.out, "#22c55e", "#14532d");
   drawOne(draftPorts.in, "#fbbf24", "#92400e");
+}
+function enterScaleMode() {
+  paintTool = "scale";
+  refreshScaleBox();
+  syncPaintToolUi();
+  drawDraftPorts();
 }
 function syncPortCanvasSize() {
   portCv.width = paintCv.width;
@@ -1036,6 +1166,8 @@ function fillModalFromItem(item) {
     in: normalizePort(item.ports && item.ports.in, { x: 0, y: 0.5 }),
   };
   paintTool = "brush";
+  scaleBox = null;
+  scaleDrag = null;
   syncPaintToolUi();
   customW.dataset.prevW = String(item.w);
   customH.dataset.prevH = String(item.h);
@@ -1069,6 +1201,8 @@ function closeCustomModal() {
   customModal.classList.remove("show");
   editingId = null;
   paintTool = "brush";
+  scaleBox = null;
+  scaleDrag = null;
   syncPaintToolUi();
 }
 function readModalPorts() {
@@ -1139,26 +1273,41 @@ customW.addEventListener("change", () => resizePaintBoard(true));
 customH.addEventListener("change", () => resizePaintBoard(true));
 document.getElementById("paintBrush").addEventListener("click", () => {
   paintTool = "brush";
+  scaleDrag = null;
   syncPaintToolUi();
+  drawDraftPorts();
 });
 document.getElementById("paintEraser").addEventListener("click", () => {
   paintTool = "eraser";
+  scaleDrag = null;
   syncPaintToolUi();
+  drawDraftPorts();
 });
 document.getElementById("paintPortOut").addEventListener("click", () => {
   paintTool = "portOut";
+  scaleDrag = null;
   syncPaintToolUi();
+  drawDraftPorts();
 });
 document.getElementById("paintPortIn").addEventListener("click", () => {
   paintTool = "portIn";
+  scaleDrag = null;
   syncPaintToolUi();
+  drawDraftPorts();
+});
+document.getElementById("paintScale").addEventListener("click", () => {
+  enterScaleMode();
 });
 document.getElementById("paintClear").addEventListener("click", () => {
   paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+  scaleBox = null;
+  scaleDrag = null;
+  drawDraftPorts();
 });
 document.getElementById("paintBlob").addEventListener("click", () => {
   const { w, h } = readModalSize();
   paintDefaultSilhouette(paintCtx, w, h, "box");
+  enterScaleMode();
 });
 function placeDraftPortAtEvent(e) {
   const r = portCv.getBoundingClientRect();
@@ -1169,12 +1318,87 @@ function placeDraftPortAtEvent(e) {
   else if (paintTool === "portIn") draftPorts.in = { x, y };
   drawDraftPorts();
 }
+function paintPointerPos(e) {
+  const r = paintCv.getBoundingClientRect();
+  if (!r.width || !r.height) return { x: 0, y: 0 };
+  return {
+    x: (e.clientX - r.left) * (paintCv.width / r.width),
+    y: (e.clientY - r.top) * (paintCv.height / r.height),
+  };
+}
+function startScaleDrag(e) {
+  if (!scaleBox) refreshScaleBox();
+  if (!scaleBox) return false;
+  const p = paintPointerPos(e);
+  const hit = hitScaleHandle(p);
+  if (!hit) return false;
+  scaleDrag = {
+    kind: hit,
+    startBox: { ...scaleBox },
+    origin: p,
+    content: extractPaintRegion(scaleBox),
+  };
+  try { portCv.setPointerCapture(e.pointerId); } catch (_) {}
+  return true;
+}
+function moveScaleDrag(e) {
+  if (!scaleDrag) return;
+  const p = paintPointerPos(e);
+  let next;
+  if (scaleDrag.kind === "move") {
+    const dx = p.x - scaleDrag.origin.x;
+    const dy = p.y - scaleDrag.origin.y;
+    next = clampScaleBox({
+      x: scaleDrag.startBox.x + dx,
+      y: scaleDrag.startBox.y + dy,
+      w: scaleDrag.startBox.w,
+      h: scaleDrag.startBox.h,
+    });
+  } else {
+    next = boxFromCornerDrag(scaleDrag.startBox, scaleDrag.kind, p.x, p.y);
+  }
+  paintScaledContent(scaleDrag.content, next);
+  scaleBox = next;
+  drawDraftPorts();
+}
+function endScaleDrag() {
+  if (!scaleDrag) return;
+  scaleDrag = null;
+  refreshScaleBox();
+  drawDraftPorts();
+}
 portCv.addEventListener("pointerdown", (e) => {
+  if (paintTool === "scale") {
+    e.preventDefault();
+    startScaleDrag(e);
+    return;
+  }
   if (paintTool !== "portOut" && paintTool !== "portIn") return;
   e.preventDefault();
   placeDraftPortAtEvent(e);
 });
+portCv.addEventListener("pointermove", (e) => {
+  if (paintTool === "scale" && scaleDrag) {
+    e.preventDefault();
+    moveScaleDrag(e);
+    return;
+  }
+  if (paintTool !== "scale" || !scaleBox) return;
+  const p = paintPointerPos(e);
+  const hit = hitScaleHandle(p);
+  const cursors = {
+    nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize", move: "move",
+  };
+  portCv.style.cursor = hit ? cursors[hit] : "default";
+});
+portCv.addEventListener("pointerup", endScaleDrag);
+portCv.addEventListener("pointercancel", endScaleDrag);
 paintCv.addEventListener("pointerdown", (e) => {
+  if (paintTool === "scale") {
+    e.preventDefault();
+    startScaleDrag(e);
+    return;
+  }
   if (paintTool === "portOut" || paintTool === "portIn") {
     e.preventDefault();
     placeDraftPortAtEvent(e);
@@ -1187,6 +1411,10 @@ paintCv.addEventListener("pointerdown", (e) => {
   strokePaint(paintLast, paintLast);
 });
 paintCv.addEventListener("pointermove", (e) => {
+  if (paintTool === "scale" && scaleDrag) {
+    moveScaleDrag(e);
+    return;
+  }
   if (!paintDrawing || !paintLast) return;
   const p = paintPos(e);
   strokePaint(paintLast, p);
@@ -1195,6 +1423,7 @@ paintCv.addEventListener("pointermove", (e) => {
 function endPaint() {
   paintDrawing = false;
   paintLast = null;
+  if (paintTool === "scale") endScaleDrag();
 }
 paintCv.addEventListener("pointerup", endPaint);
 paintCv.addEventListener("pointercancel", endPaint);
