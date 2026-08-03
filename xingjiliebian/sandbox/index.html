@@ -300,7 +300,7 @@
         <div class="paint-tools">
           <button class="btn" type="button" id="paintBlob">一键圆润</button>
         </div>
-        <p class="port-hint">拖四角缩放，拖左右边中点可左右拉伸；点「一键圆润」重生外形。进出口请点「② 安进出口」。</p>
+        <p class="port-hint">拖四角缩放；拖左右/上下边中点可单方向拉伸。点「一键圆润」重生外形。进出口请点「② 安进出口」。</p>
       </div>
       <p class="port-hint" id="paintPreviewHint" style="display:none">进出口请点「放大编辑进出口」在大画布上安口，确定后回预览。</p>
     </div>
@@ -1290,7 +1290,7 @@ function paintScaledContent(content, box) {
 function scaleHandlePoints(box) {
   if (!box) return [];
   const x0 = box.x, y0 = box.y, x1 = box.x + box.w, y1 = box.y + box.h;
-  const ym = (y0 + y1) / 2;
+  const xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
   return [
     { id: "nw", x: x0, y: y0, cursor: "nwse-resize", shape: "corner" },
     { id: "ne", x: x1, y: y0, cursor: "nesw-resize", shape: "corner" },
@@ -1298,19 +1298,24 @@ function scaleHandlePoints(box) {
     { id: "se", x: x1, y: y1, cursor: "nwse-resize", shape: "corner" },
     { id: "w", x: x0, y: ym, cursor: "ew-resize", shape: "vbar" },
     { id: "e", x: x1, y: ym, cursor: "ew-resize", shape: "vbar" },
+    { id: "n", x: xm, y: y0, cursor: "ns-resize", shape: "hbar" },
+    { id: "s", x: xm, y: y1, cursor: "ns-resize", shape: "hbar" },
   ];
 }
 function hitScaleHandle(p) {
   if (!scaleBox) return null;
   const hitR = SCALE_HANDLE + 8;
-  // 左右边优先：方便左右拉伸
+  // 边中点优先：方便单方向拉伸
   const pts = scaleHandlePoints(scaleBox);
   for (const h of pts) {
-    if (h.shape !== "vbar") continue;
-    if (Math.abs(p.x - h.x) <= hitR && Math.abs(p.y - h.y) <= hitR * 2.2) return h.id;
+    if (h.shape === "vbar") {
+      if (Math.abs(p.x - h.x) <= hitR && Math.abs(p.y - h.y) <= hitR * 2.2) return h.id;
+    } else if (h.shape === "hbar") {
+      if (Math.abs(p.y - h.y) <= hitR && Math.abs(p.x - h.x) <= hitR * 2.2) return h.id;
+    }
   }
   for (const h of pts) {
-    if (h.shape === "vbar") continue;
+    if (h.shape !== "corner") continue;
     if (Math.hypot(p.x - h.x, p.y - h.y) <= hitR) return h.id;
   }
   if (
@@ -1329,13 +1334,15 @@ function boxFromHandleDrag(startBox, handle, px, py) {
   else if (handle === "se") { R = px; B = py; }
   else if (handle === "w") { L = px; }
   else if (handle === "e") { R = px; }
+  else if (handle === "n") { T = py; }
+  else if (handle === "s") { B = py; }
   if (R - L < SCALE_MIN) {
     if (handle === "nw" || handle === "sw" || handle === "w") L = R - SCALE_MIN;
     else R = L + SCALE_MIN;
   }
   if (B - T < SCALE_MIN) {
-    if (handle === "nw" || handle === "ne") T = B - SCALE_MIN;
-    else if (handle === "sw" || handle === "se") B = T + SCALE_MIN;
+    if (handle === "nw" || handle === "ne" || handle === "n") T = B - SCALE_MIN;
+    else B = T + SCALE_MIN;
   }
   return clampScaleBox({ x: L, y: T, w: R - L, h: B - T });
 }
@@ -1363,10 +1370,15 @@ function drawDraftPorts() {
         const hx = hp.x - bw / 2, hy = hp.y - bh / 2;
         if (portCtx.roundRect) portCtx.roundRect(hx, hy, bw, bh, 2);
         else portCtx.rect(hx, hy, bw, bh);
+      } else if (hp.shape === "hbar") {
+        const bw = Math.max(18, Math.min(36, b.w * 0.28)), bh = 5;
+        const hx = hp.x - bw / 2, hy = hp.y - bh / 2;
+        if (portCtx.roundRect) portCtx.roundRect(hx, hy, bw, bh, 2);
+        else portCtx.rect(hx, hy, bw, bh);
       } else {
         portCtx.rect(hp.x - SCALE_HANDLE / 2, hp.y - SCALE_HANDLE / 2, SCALE_HANDLE, SCALE_HANDLE);
       }
-      portCtx.fillStyle = hp.shape === "vbar" ? "#eef2ff" : "#fff";
+      portCtx.fillStyle = (hp.shape === "vbar" || hp.shape === "hbar") ? "#eef2ff" : "#fff";
       portCtx.fill();
       portCtx.lineWidth = 1.5;
       portCtx.strokeStyle = "#6366f1";
@@ -1828,7 +1840,7 @@ portCv.addEventListener("pointermove", (e) => {
     const hit = hitScaleHandle(p);
     const cursors = {
       nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize",
-      w: "ew-resize", e: "ew-resize", move: "move",
+      w: "ew-resize", e: "ew-resize", n: "ns-resize", s: "ns-resize", move: "move",
     };
     portCv.style.cursor = hit ? cursors[hit] : "default";
     return;
@@ -1864,7 +1876,7 @@ paintCv.addEventListener("pointermove", (e) => {
     const hit = hitScaleHandle(p);
     const cursors = {
       nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize",
-      w: "ew-resize", e: "ew-resize", move: "move",
+      w: "ew-resize", e: "ew-resize", n: "ns-resize", s: "ns-resize", move: "move",
     };
     paintCv.style.cursor = hit ? cursors[hit] : "default";
   }
