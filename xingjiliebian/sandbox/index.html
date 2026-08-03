@@ -347,6 +347,7 @@ const RAIL_HOLD_MS = 380;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
 const CATALOG_LS = "starrupture_sandbox_catalog_v3";
 const CATALOG_LS_OLD = ["starrupture_sandbox_catalog_v2", "starrupture_sandbox_catalog_v1"];
+const LAYOUT_LS = "starrupture_sandbox_layout_v1";
 const HIT_SUB = 4; // 每格细分，碰撞按画像采样
 
 function fullMask(w, h) { return "1".repeat(w * h); }
@@ -687,6 +688,81 @@ const state = {
 
 let bid = 1;
 let rid = 1;
+
+function saveLayout() {
+  try {
+    localStorage.setItem(LAYOUT_LS, JSON.stringify({
+      v: 1,
+      buildings: state.buildings,
+      rails: state.rails,
+      panX: state.panX,
+      panY: state.panY,
+      bid,
+      rid,
+      focusId: state.focusId,
+      selected: state.selected,
+      mode: state.mode,
+    }));
+  } catch (_) {}
+}
+function loadLayout() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LAYOUT_LS) || "null");
+    if (!raw || raw.v !== 1 || !Array.isArray(raw.buildings) || !Array.isArray(raw.rails)) return false;
+    const buildings = [];
+    for (const b of raw.buildings) {
+      if (!b || !b.id || !b.type || !cat(b.type)) continue;
+      const rot = ((Number(b.rot) || 0) % 4 + 4) % 4;
+      const d = dimsFor(b.type, rot);
+      buildings.push({
+        id: String(b.id),
+        type: String(b.type),
+        gx: Math.max(0, Math.min(COLS - 1, Number(b.gx) || 0)),
+        gy: Math.max(0, Math.min(ROWS - 1, Number(b.gy) || 0)),
+        w: d.w,
+        h: d.h,
+        rot,
+      });
+    }
+    const ids = new Set(buildings.map((b) => b.id));
+    const rails = [];
+    for (const r of raw.rails) {
+      if (!r || !ids.has(r.fromId) || !ids.has(r.toId)) continue;
+      rails.push({
+        id: String(r.id || ("r" + (rid++))),
+        fromId: r.fromId,
+        toId: r.toId,
+        fromPort: Number.isFinite(r.fromPort) ? r.fromPort : 0,
+        toPort: Number.isFinite(r.toPort) ? r.toPort : 0,
+      });
+    }
+    state.buildings = buildings;
+    state.rails = rails;
+    if (Number.isFinite(raw.panX)) state.panX = raw.panX;
+    if (Number.isFinite(raw.panY)) state.panY = raw.panY;
+    if (Number.isFinite(raw.bid)) bid = Math.max(bid, raw.bid);
+    if (Number.isFinite(raw.rid)) rid = Math.max(rid, raw.rid);
+    for (const b of buildings) {
+      const n = parseInt(String(b.id).replace(/\D/g, ""), 10);
+      if (Number.isFinite(n)) bid = Math.max(bid, n + 1);
+    }
+    for (const r of rails) {
+      const n = parseInt(String(r.id).replace(/\D/g, ""), 10);
+      if (Number.isFinite(n)) rid = Math.max(rid, n + 1);
+    }
+    state.focusId = raw.focusId && ids.has(raw.focusId) ? raw.focusId : null;
+    if (raw.selected && cat(raw.selected)) state.selected = raw.selected;
+    if (raw.mode === "place" || raw.mode === "link" || raw.mode === "erase") state.mode = raw.mode;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function seedDefaultLayout() {
+  /* 首次无存档：空画布，不再强制塞演示建筑 */
+  state.buildings = [];
+  state.rails = [];
+}
 
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
@@ -1069,6 +1145,7 @@ function removeCatalogItem(id) {
   });
   if (state.focusId && !state.buildings.some((b) => b.id === state.focusId)) state.focusId = null;
   renderPalette();
+  saveLayout();
   draw();
 }
 
@@ -1512,6 +1589,7 @@ function applyCustomBuilding() {
       b.gy = Math.max(0, Math.min(ROWS - b.h, b.gy));
     }
     saveCatalog();
+    saveLayout();
     state.selected = item.id;
     state.mode = "place";
     syncModes();
@@ -1869,6 +1947,7 @@ document.getElementById("btnRestoreCatalog").addEventListener("click", () => {
   });
   if (state.selected && !cat(state.selected)) state.selected = null;
   renderPalette();
+  saveLayout();
   draw();
 });
 
@@ -1894,6 +1973,7 @@ document.getElementById("btnClear").addEventListener("click", () => {
   state.linkFrom = null;
   state.focusId = null;
   hideCtx();
+  saveLayout();
   draw();
 });
 document.getElementById("btnRot").addEventListener("click", () => rotateAction());
@@ -1927,6 +2007,7 @@ function rotateBuilding(b) {
     Object.assign(b, old);
     return false;
   }
+  saveLayout();
   draw();
   return true;
 }
@@ -1935,6 +2016,7 @@ function deleteBuilding(id) {
   state.rails = state.rails.filter((r) => r.fromId !== id && r.toId !== id);
   if (state.focusId === id) state.focusId = null;
   if (state.linkFrom && state.linkFrom.buildingId === id) state.linkFrom = null;
+  saveLayout();
   draw();
 }
 function collides(nb, ignoreId) {
@@ -2526,10 +2608,14 @@ window.addEventListener("mouseup", () => {
       }
     }
     if (rewired || drag.moved) skipClick = true;
+    if (rewired) saveLayout();
     draw();
   }
   if (state.moving) {
-    if (state.moving.dragged) skipClick = true;
+    if (state.moving.dragged) {
+      skipClick = true;
+      saveLayout();
+    }
     state.moving = null;
     draw();
   }
@@ -2563,6 +2649,7 @@ cv.addEventListener("click", (e) => {
     };
     state.buildings.push(nb);
     state.focusId = nb.id;
+    saveLayout();
     draw();
     return;
   }
@@ -2604,6 +2691,7 @@ cv.addEventListener("click", (e) => {
         fromPort,
         toPort,
       });
+      saveLayout();
     }
     state.linkFrom = null;
     draw();
@@ -2621,6 +2709,7 @@ cv.addEventListener("click", (e) => {
     }
     if (best) {
       state.rails = state.rails.filter((r) => r.id !== best);
+      saveLayout();
       draw();
       return;
     }
@@ -2708,17 +2797,11 @@ window.addEventListener("keyup", (e) => {
   }
 });
 
-(function seed() {
-  state.buildings.push(
-    { id: "b" + (bid++), type: "raw", gx: 2, gy: 4, w: 2, h: 2, rot: 0 },
-    { id: "b" + (bid++), type: "raw", gx: 2, gy: 12, w: 2, h: 2, rot: 0 },
-    { id: "b" + (bid++), type: "furnace", gx: 14, gy: 3, w: 3, h: 4, rot: 0 },
-    { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 4, rot: 0 },
-  );
-  state.rails.push(
-    { id: "r" + (rid++), fromId: state.buildings[0].id, toId: state.buildings[3].id, fromPort: 0, toPort: 0 },
-    { id: "r" + (rid++), fromId: state.buildings[1].id, toId: state.buildings[2].id, fromPort: 0, toPort: 0 },
-  );
+(function initLayout() {
+  if (!loadLayout()) {
+    seedDefaultLayout();
+    saveLayout();
+  }
 })();
 
 renderKeysPanel();
