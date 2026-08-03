@@ -340,9 +340,9 @@ const CELL = 28;
 const COLS = 48;
 const ROWS = 32;
 const PORT_R = 7;
-const PORT_HIT = 28; // 主画布连轨命中半径（竖条偏瘦，需更大）
+const PORT_HIT = 20; // 基础命中；近邻口会再按间距收紧
 const PORT_MAX = 8;
-const RAIL_END_HIT = 18;
+const RAIL_END_HIT = 16;
 const RAIL_HOLD_MS = 380;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
 const CATALOG_LS = "starrupture_sandbox_catalog_v3";
@@ -810,7 +810,8 @@ function worldCellsOf(b) {
 function portWorld(b, kind, index) {
   const c = cat(b.type);
   const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [defaultPort(kind)];
-  const idx = Math.max(0, Math.min(list.length - 1, Number(index) || 0));
+  const rawIdx = Number(index);
+  const idx = Math.max(0, Math.min(list.length - 1, Number.isFinite(rawIdx) ? rawIdx : 0));
   const p = list.length ? list[idx] : defaultPort(kind);
   const uw = c ? c.w : b.w;
   const uh = c ? c.h : b.h;
@@ -827,6 +828,50 @@ function portsOfBuilding(b, kind) {
   const c = cat(b.type);
   const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [];
   return list.map((_, i) => ({ index: i, pos: portWorld(b, kind, i) }));
+}
+/** 口朝外的单位方向（用于导线贴口） */
+function portOutwardDir(b, kind, index) {
+  const c = cat(b.type);
+  const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [defaultPort(kind)];
+  const rawIdx = Number(index);
+  const idx = Math.max(0, Math.min(list.length - 1, Number.isFinite(rawIdx) ? rawIdx : 0));
+  const p = list[idx] || defaultPort(kind);
+  const dL = p.x, dR = 1 - p.x, dT = p.y, dB = 1 - p.y;
+  const m = Math.min(dL, dR, dT, dB);
+  let lx = 0, ly = -1;
+  if (m === dB) { lx = 0; ly = 1; }
+  else if (m === dL) { lx = -1; ly = 0; }
+  else if (m === dR) { lx = 1; ly = 0; }
+  else { lx = 0; ly = -1; }
+  const rot = b.rot || 0;
+  if (rot === 1) return { x: -ly, y: lx };
+  if (rot === 2) return { x: -lx, y: -ly };
+  if (rot === 3) return { x: ly, y: -lx };
+  return { x: lx, y: ly };
+}
+/** 导线：从两端各自沿口法线离开，终点严格落在口心，避免中点汇聚造成「接到邻口」错觉 */
+function strokeRailCurve(g, p1, p2, dir1, dir2) {
+  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  const pull = Math.max(16, Math.min(56, dist * 0.35));
+  const d1 = dir1 || { x: 0, y: Math.sign(p2.y - p1.y) || 1 };
+  const d2 = dir2 || { x: 0, y: Math.sign(p1.y - p2.y) || -1 };
+  g.beginPath();
+  g.moveTo(p1.x, p1.y);
+  g.bezierCurveTo(
+    p1.x + d1.x * pull,
+    p1.y + d1.y * pull,
+    p2.x + d2.x * pull,
+    p2.y + d2.y * pull,
+    p2.x,
+    p2.y
+  );
+  g.stroke();
+}
+function railDirs(seg) {
+  return {
+    d1: portOutwardDir(seg.a, "out", seg.fromPort),
+    d2: portOutwardDir(seg.b, "in", seg.toPort),
+  };
 }
 /** 进出口永远竖条（偏瘦）；主画布 scale 略放大便于点选 */
 function portBarSize(nx, ny, scale) {
@@ -1936,28 +1981,41 @@ function canPlace(type, gx, gy, rot) {
   if (gx < 0 || gy < 0 || gx + d.w > COLS || gy + d.h > ROWS) return false;
   return !collides({ gx, gy, w: d.w, h: d.h, type, rot }, null);
 }
-function portOut(b, index) { return portWorld(b, "out", index || 0); }
-function portIn(b, index) { return portWorld(b, "in", index || 0); }
-function hitPort(wx, wy) {
-  let best = null;
-  let bestD = PORT_HIT;
+function portOut(b, index) { return portWorld(b, "out", index); }
+function portIn(b, index) { return portWorld(b, "in", index); }
+function hitPort(wx, wy, opts) {
+  const needKind = opts && opts.kind;
+  const excludeBuildingId = opts && opts.excludeBuildingId;
+  const candidates = [];
   for (const b of state.buildings) {
+    if (excludeBuildingId && b.id === excludeBuildingId) continue;
     const c = cat(b.type);
     if (!c) continue;
     for (const kind of ["out", "in"]) {
+      if (needKind && kind !== needKind) continue;
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
-        // 用中心距离，竖条也容易点中
         const d = Math.hypot(wx - pos.x, wy - pos.y);
-        if (d < bestD) {
-          bestD = d;
-          best = { building: b, kind, index, pos, nx: p.x, ny: p.y };
-        }
+        candidates.push({ building: b, kind, index, pos, nx: p.x, ny: p.y, d });
       });
     }
   }
-  return best;
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.d - b.d);
+  const cand = candidates[0];
+  let maxR = PORT_HIT;
+  let minSibling = Infinity;
+  for (const o of candidates) {
+    if (o === cand) continue;
+    if (o.building.id !== cand.building.id || o.kind !== cand.kind) continue;
+    minSibling = Math.min(minSibling, Math.hypot(o.pos.x - cand.pos.x, o.pos.y - cand.pos.y));
+  }
+  if (Number.isFinite(minSibling) && minSibling < Infinity) {
+    // 邻口很近时，只有更靠近目标口才算命中（约半间距）
+    maxR = Math.min(maxR, Math.max(9, minSibling * 0.45));
+  }
+  return cand.d <= maxR ? cand : null;
 }
 function hitRailEnd(wx, wy) {
   let best = null;
@@ -2145,20 +2203,19 @@ function draw() {
     const seg = railSeg(r);
     if (!seg) continue;
     const crossed = bad.has(r.id);
+    const { d1, d2 } = railDirs(seg);
     ctx.strokeStyle = crossed ? "#dc2626" : "#4b6a88";
     ctx.lineWidth = crossed ? 3 : 2.5;
     ctx.setLineDash(crossed ? [7, 4] : []);
-    ctx.beginPath();
-    ctx.moveTo(seg.p1.x, seg.p1.y);
-    const mx = (seg.p1.x + seg.p2.x) / 2;
-    ctx.bezierCurveTo(mx, seg.p1.y, mx, seg.p2.y, seg.p2.x, seg.p2.y);
-    ctx.stroke();
+    strokeRailCurve(ctx, seg.p1, seg.p2, d1, d2);
     ctx.setLineDash([]);
-    // 端点小圆，表示已接到口上
     ctx.beginPath();
-    ctx.arc(seg.p1.x, seg.p1.y, 3.5, 0, Math.PI * 2);
-    ctx.arc(seg.p2.x, seg.p2.y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = crossed ? "#dc2626" : "#4b6a88";
+    ctx.arc(seg.p1.x, seg.p1.y, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#22c55e";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(seg.p2.x, seg.p2.y, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#eab308";
     ctx.fill();
   }
 
@@ -2167,18 +2224,20 @@ function draw() {
     const seg = r ? railSeg(r) : null;
     if (seg) {
       const fixed = state.railDrag.end === "from" ? seg.p2 : seg.p1;
-      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
-      const tip = (state.railDrag.end === "from" && hp && hp.kind === "out") ? hp.pos
-        : (state.railDrag.end === "to" && hp && hp.kind === "in") ? hp.pos
-        : state.mouseWorld;
+      const fixedDir = state.railDrag.end === "from"
+        ? portOutwardDir(seg.b, "in", seg.toPort)
+        : portOutwardDir(seg.a, "out", seg.fromPort);
+      const wantKind = state.railDrag.end === "from" ? "out" : "in";
+      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y, {
+        kind: wantKind,
+        excludeBuildingId: state.railDrag.end === "from" ? r.toId : r.fromId,
+      });
+      const tip = hp ? hp.pos : state.mouseWorld;
+      const tipDir = hp ? portOutwardDir(hp.building, hp.kind, hp.index) : { x: 0, y: 0 };
       ctx.strokeStyle = "#2f9d84";
       ctx.lineWidth = 2.5;
       ctx.setLineDash([5, 4]);
-      ctx.beginPath();
-      ctx.moveTo(fixed.x, fixed.y);
-      const mx = (fixed.x + tip.x) / 2;
-      ctx.bezierCurveTo(mx, fixed.y, mx, tip.y, tip.x, tip.y);
-      ctx.stroke();
+      strokeRailCurve(ctx, fixed, tip, fixedDir, tipDir);
       ctx.setLineDash([]);
     }
   }
@@ -2186,16 +2245,19 @@ function draw() {
   if (state.linkFrom && state.mouseWorld) {
     const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
     if (b) {
-      const o = portWorld(b, "out", state.linkFrom.portIndex || 0);
-      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
-      const tip = (hp && hp.kind === "in") ? hp.pos : state.mouseWorld;
+      const fromIdx = Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0;
+      const o = portWorld(b, "out", fromIdx);
+      const d1 = portOutwardDir(b, "out", fromIdx);
+      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y, {
+        kind: "in",
+        excludeBuildingId: b.id,
+      });
+      const tip = hp ? hp.pos : state.mouseWorld;
+      const d2 = hp ? portOutwardDir(hp.building, "in", hp.index) : { x: 0, y: 0 };
       ctx.strokeStyle = "#2f9d84";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(o.x, o.y);
-      ctx.lineTo(tip.x, tip.y);
-      ctx.stroke();
+      strokeRailCurve(ctx, o, tip, d1, d2);
       ctx.setLineDash([]);
     }
   }
@@ -2219,7 +2281,7 @@ function draw() {
         const pos = portWorld(b, kind, index);
         const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === kind && hoverPort.index === index;
         const selOut = state.linkFrom && state.linkFrom.buildingId === b.id
-          && kind === "out" && (state.linkFrom.portIndex || 0) === index;
+          && kind === "out" && (Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0) === index;
         drawPort(pos, kind, ho || selOut, p.x, p.y);
       });
     }
@@ -2489,26 +2551,28 @@ cv.addEventListener("click", (e) => {
   }
 
   if (state.mode === "link") {
-    const hp = hitPort(world.x, world.y);
-    if (!hp) {
-      state.linkFrom = null;
-      draw();
-      return;
-    }
     if (!state.linkFrom) {
-      if (hp.kind !== "out") return;
+      const hp = hitPort(world.x, world.y, { kind: "out" });
+      if (!hp) {
+        state.linkFrom = null;
+        draw();
+        return;
+      }
       state.linkFrom = { buildingId: hp.building.id, portIndex: hp.index };
       state.focusId = hp.building.id;
       draw();
       return;
     }
-    if (hp.kind !== "in") return;
-    if (hp.building.id === state.linkFrom.buildingId) {
+    const hp = hitPort(world.x, world.y, {
+      kind: "in",
+      excludeBuildingId: state.linkFrom.buildingId,
+    });
+    if (!hp) {
       state.linkFrom = null;
       draw();
       return;
     }
-    const fromPort = state.linkFrom.portIndex || 0;
+    const fromPort = Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0;
     const toPort = hp.index;
     const exists = state.rails.some(
       (r) => r.fromId === state.linkFrom.buildingId && r.toId === hp.building.id
