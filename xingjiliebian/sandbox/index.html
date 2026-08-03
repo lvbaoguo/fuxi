@@ -319,12 +319,12 @@
     </div>
     <div class="edit-panel" id="panelPort">
       <div class="paint-tools">
-        <button class="btn on out" type="button" id="paintPortOut">绿·出口</button>
+        <button class="btn" type="button" id="paintPortOut">绿·出口</button>
         <button class="btn" type="button" id="paintPortIn">黄·入口</button>
         <button class="btn" type="button" id="paintPortAdd">增加新口</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">先点绿或黄，再「增加新口」（可多个）；拖竖条调整。「删选中口」删除。调完点确定回预览。</p>
+      <p class="port-hint">点绿/黄选中（再点一次取消）。选中后可点空白或「增加新口」加口；未选中时点空白不会加口，仍可拖已有竖条。「删选中口」删除。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -1073,7 +1073,8 @@ function syncEditStepUi() {
   } else {
     scaleDrag = null;
     scaleBox = null;
-    if (paintTool !== "portOut" && paintTool !== "portIn") paintTool = "portOut";
+    // 进入安口步默认不选绿/黄，避免点空白误加口；需主动点选或用「增加新口」
+    if (paintTool !== "portOut" && paintTool !== "portIn") paintTool = null;
   }
   syncPaintToolUi();
   drawDraftPorts();
@@ -1114,7 +1115,7 @@ function syncPaintToolUi() {
   inBtn.classList.toggle("in", paintTool === "portIn");
   scaleBtn.classList.toggle("on", paintTool === "scale");
   scaleBtn.classList.toggle("scale", paintTool === "scale");
-  const portMode = paintExpanded && editStep === 2 && (paintTool === "portOut" || paintTool === "portIn");
+  const portMode = paintExpanded && editStep === 2;
   const scaleMode = paintExpanded && editStep === 1 && paintTool === "scale";
   paintWrap.classList.toggle("port-mode", portMode);
   paintWrap.classList.toggle("scale-mode", scaleMode);
@@ -1517,14 +1518,15 @@ document.getElementById("paintEraser").addEventListener("click", () => {
 });
 document.getElementById("paintPortOut").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
-  paintTool = "portOut";
+  // 再点一次取消选中，避免无意点空白又加一口
+  paintTool = paintTool === "portOut" ? null : "portOut";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
 });
 document.getElementById("paintPortIn").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
-  paintTool = "portIn";
+  paintTool = paintTool === "portIn" ? null : "portIn";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
@@ -1548,7 +1550,11 @@ function addDraftPort(kind) {
 }
 document.getElementById("paintPortAdd").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
-  const kind = paintTool === "portIn" ? "in" : "out";
+  const kind = portKindFromTool();
+  if (!kind) {
+    alert("先点选「绿·出口」或「黄·入口」");
+    return;
+  }
   addDraftPort(kind);
 });
 document.getElementById("paintPortDel").addEventListener("click", () => {
@@ -1660,7 +1666,6 @@ function hitDraftPort(nx, ny, preferKind) {
 function placeOrDragPortAtEvent(e, isDown) {
   if (!paintExpanded || editStep !== 2) return;
   const kind = portKindFromTool();
-  if (!kind) return;
   const r = portCv.getBoundingClientRect();
   if (!r.width || !r.height) return;
   const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -1675,6 +1680,8 @@ function placeOrDragPortAtEvent(e, isDown) {
       drawDraftPorts();
       return;
     }
+    // 未选绿/黄时点空白不新增，避免误触
+    if (!kind) return;
     // 点空白：新增当前工具颜色的口
     if ((draftPorts[kind] || []).length >= PORT_MAX) {
       alert((kind === "out" ? "出口" : "入口") + "最多 " + PORT_MAX + " 个");
@@ -1709,7 +1716,7 @@ portCv.addEventListener("pointerdown", (e) => {
     startScaleDrag(e);
     return;
   }
-  if (paintTool !== "portOut" && paintTool !== "portIn") return;
+  // 进出口步：未选绿/黄也可点选/拖已有口；选中工具时点空白才新增
   e.preventDefault();
   placeOrDragPortAtEvent(e, true);
 });
@@ -1720,7 +1727,7 @@ portCv.addEventListener("pointermove", (e) => {
     moveScaleDrag(e);
     return;
   }
-  if (editStep === 2 && (paintTool === "portOut" || paintTool === "portIn") && portDrag) {
+  if (editStep === 2 && portDrag) {
     e.preventDefault();
     placeOrDragPortAtEvent(e, false);
     return;
