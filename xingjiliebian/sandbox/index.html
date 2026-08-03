@@ -262,9 +262,10 @@
         <div class="paint-tools">
           <button class="btn on out" type="button" id="paintPortOut">绿·出口</button>
           <button class="btn" type="button" id="paintPortIn">黄·入口</button>
+          <button class="btn" type="button" id="paintPortAdd">增加新口</button>
           <button class="btn" type="button" id="paintPortDel">删选中口</button>
         </div>
-        <p class="port-hint">本步画像已锁定。空白处点击加口，拖动移动；「删选中口」删除。不会再带动画像。</p>
+        <p class="port-hint">先点绿或黄，再点「增加新口」（可多个）。也可点画像空白处加口；拖动竖条调整位置。「删选中口」删除。</p>
       </div>
     </div>
     <div class="actions">
@@ -763,15 +764,12 @@ function portsOfBuilding(b, kind) {
   const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [];
   return list.map((_, i) => ({ index: i, pos: portWorld(b, kind, i) }));
 }
-/** 细长条：靠左右→竖条，靠上下→横条 */
+/** 进出口永远竖条（偏瘦） */
 function portBarSize(nx, ny, scale) {
   const s = scale || 1;
-  const dL = nx, dR = 1 - nx, dT = ny, dB = 1 - ny;
-  const m = Math.min(dL, dR, dT, dB);
-  const thick = Math.max(3, 4 * s);
-  const len = Math.max(10, 14 * s);
-  if (m === dT || m === dB) return { w: len, h: thick }; // 横条
-  return { w: thick, h: len }; // 竖条
+  const thick = Math.max(3, 3.2 * s);
+  const len = Math.max(12, 15 * s);
+  return { w: thick, h: len };
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
   const { w, h } = portBarSize(nx, ny, scale);
@@ -1437,6 +1435,28 @@ document.getElementById("paintPortIn").addEventListener("click", () => {
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
+});
+function addDraftPort(kind) {
+  if (editStep !== 2) return;
+  kind = kind === "in" ? "in" : "out";
+  draftPorts[kind] = draftPorts[kind] || [];
+  if (draftPorts[kind].length >= PORT_MAX) {
+    alert((kind === "out" ? "出口" : "入口") + "最多 " + PORT_MAX + " 个");
+    return;
+  }
+  const n = draftPorts[kind].length;
+  const x = kind === "out" ? 0.82 : 0.18;
+  const y = Math.min(0.88, 0.18 + (n % 6) * 0.12);
+  draftPorts[kind].push({ x, y });
+  draftPortSel = { kind, index: draftPorts[kind].length - 1 };
+  paintTool = kind === "out" ? "portOut" : "portIn";
+  syncPaintToolUi();
+  drawDraftPorts();
+}
+document.getElementById("paintPortAdd").addEventListener("click", () => {
+  if (editStep !== 2) return;
+  const kind = paintTool === "portIn" ? "in" : "out";
+  addDraftPort(kind);
 });
 document.getElementById("paintPortDel").addEventListener("click", () => {
   if (editStep !== 2) return;
