@@ -340,8 +340,10 @@ const CELL = 28;
 const COLS = 48;
 const ROWS = 32;
 const PORT_R = 7;
-const PORT_HIT = 14;
+const PORT_HIT = 28; // 主画布连轨命中半径（竖条偏瘦，需更大）
 const PORT_MAX = 8;
+const RAIL_END_HIT = 18;
+const RAIL_HOLD_MS = 380;
 const KEYS_LS = "starrupture_sandbox_hotkeys_v1";
 const CATALOG_LS = "starrupture_sandbox_catalog_v3";
 const CATALOG_LS_OLD = ["starrupture_sandbox_catalog_v2", "starrupture_sandbox_catalog_v1"];
@@ -667,6 +669,8 @@ const state = {
   buildings: [],
   rails: [],
   linkFrom: null,
+  railDrag: null, // { id, end: 'from'|'to' } 拖线改接
+  railHold: null, // 长按轨道准备拖端点
   hover: null,
   mouseWorld: null,
   panX: 40,
@@ -824,11 +828,11 @@ function portsOfBuilding(b, kind) {
   const list = (c && c.ports && normalizePortList(c.ports[kind], kind)) || [];
   return list.map((_, i) => ({ index: i, pos: portWorld(b, kind, i) }));
 }
-/** 进出口永远竖条（偏瘦） */
+/** 进出口永远竖条（偏瘦）；主画布 scale 略放大便于点选 */
 function portBarSize(nx, ny, scale) {
   const s = scale || 1;
-  const thick = Math.max(3, 3.2 * s);
-  const len = Math.max(12, 15 * s);
+  const thick = Math.max(3, 3.5 * s);
+  const len = Math.max(12, 16 * s);
   return { w: thick, h: len };
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
@@ -1828,6 +1832,8 @@ function syncModes() {
     b.classList.toggle("active", b.dataset.mode === state.mode);
   });
   state.linkFrom = null;
+  state.railDrag = null;
+  clearRailHold();
 }
 document.querySelectorAll(".modes .btn[data-mode]").forEach((b) => {
   b.addEventListener("click", () => {
@@ -1942,10 +1948,8 @@ function hitPort(wx, wy) {
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
-        const { w: bw, h: bh } = portBarSize(p.x, p.y, 1);
-        const dx = Math.abs(wx - pos.x) - bw / 2;
-        const dy = Math.abs(wy - pos.y) - bh / 2;
-        const d = Math.hypot(Math.max(0, dx), Math.max(0, dy));
+        // 用中心距离，竖条也容易点中
+        const d = Math.hypot(wx - pos.x, wy - pos.y);
         if (d < bestD) {
           bestD = d;
           best = { building: b, kind, index, pos, nx: p.x, ny: p.y };
@@ -1954,6 +1958,38 @@ function hitPort(wx, wy) {
     }
   }
   return best;
+}
+function hitRailEnd(wx, wy) {
+  let best = null;
+  let bestD = RAIL_END_HIT;
+  for (const r of state.rails) {
+    const s = railSeg(r);
+    if (!s) continue;
+    const d1 = Math.hypot(wx - s.p1.x, wy - s.p1.y);
+    const d2 = Math.hypot(wx - s.p2.x, wy - s.p2.y);
+    if (d1 < bestD) { bestD = d1; best = { rail: r, end: "from", pos: s.p1, other: s.p2 }; }
+    if (d2 < bestD) { bestD = d2; best = { rail: r, end: "to", pos: s.p2, other: s.p1 }; }
+  }
+  return best;
+}
+function hitRailBody(wx, wy) {
+  let best = null, bestD = 14;
+  for (const r of state.rails) {
+    const s = railSeg(r);
+    if (!s) continue;
+    const d = distToSeg(wx, wy, s.p1, s.p2);
+    if (d < bestD) {
+      bestD = d;
+      const d1 = Math.hypot(wx - s.p1.x, wy - s.p1.y);
+      const d2 = Math.hypot(wx - s.p2.x, wy - s.p2.y);
+      best = { rail: r, end: d1 <= d2 ? "from" : "to", seg: s };
+    }
+  }
+  return best;
+}
+function clearRailHold() {
+  if (state.railHold && state.railHold.timer) clearTimeout(state.railHold.timer);
+  state.railHold = null;
 }
 function nearPt(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y) < 1.5;
@@ -1975,7 +2011,16 @@ function railSeg(r) {
   if (!a || !b) return null;
   const fi = Number.isFinite(r.fromPort) ? r.fromPort : 0;
   const ti = Number.isFinite(r.toPort) ? r.toPort : 0;
-  return { p1: portWorld(a, "out", fi), p2: portWorld(b, "in", ti), a, b, r };
+  const cA = cat(a.type), cB = cat(b.type);
+  const outN = cA ? normalizePortList(cA.ports && cA.ports.out, "out").length : 1;
+  const inN = cB ? normalizePortList(cB.ports && cB.ports.in, "in").length : 1;
+  const fromPort = Math.max(0, Math.min(Math.max(0, outN - 1), fi));
+  const toPort = Math.max(0, Math.min(Math.max(0, inN - 1), ti));
+  return {
+    p1: portWorld(a, "out", fromPort),
+    p2: portWorld(b, "in", toPort),
+    a, b, r, fromPort, toPort,
+  };
 }
 function findCrossings() {
   const segs = state.rails.map(railSeg).filter(Boolean);
@@ -2075,7 +2120,7 @@ function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
   }
 }
 function drawPort(pos, kind, highlight, nx, ny) {
-  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1);
+  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1.35);
 }
 
 function draw() {
@@ -2096,11 +2141,12 @@ function draw() {
 
   const { pairs, bad } = findCrossings();
   for (const r of state.rails) {
+    if (state.railDrag && state.railDrag.id === r.id) continue;
     const seg = railSeg(r);
     if (!seg) continue;
     const crossed = bad.has(r.id);
     ctx.strokeStyle = crossed ? "#dc2626" : "#4b6a88";
-    ctx.lineWidth = crossed ? 3 : 2;
+    ctx.lineWidth = crossed ? 3 : 2.5;
     ctx.setLineDash(crossed ? [7, 4] : []);
     ctx.beginPath();
     ctx.moveTo(seg.p1.x, seg.p1.y);
@@ -2108,18 +2154,47 @@ function draw() {
     ctx.bezierCurveTo(mx, seg.p1.y, mx, seg.p2.y, seg.p2.x, seg.p2.y);
     ctx.stroke();
     ctx.setLineDash([]);
+    // 端点小圆，表示已接到口上
+    ctx.beginPath();
+    ctx.arc(seg.p1.x, seg.p1.y, 3.5, 0, Math.PI * 2);
+    ctx.arc(seg.p2.x, seg.p2.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = crossed ? "#dc2626" : "#4b6a88";
+    ctx.fill();
+  }
+
+  if (state.railDrag && state.mouseWorld) {
+    const r = state.rails.find((x) => x.id === state.railDrag.id);
+    const seg = r ? railSeg(r) : null;
+    if (seg) {
+      const fixed = state.railDrag.end === "from" ? seg.p2 : seg.p1;
+      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
+      const tip = (state.railDrag.end === "from" && hp && hp.kind === "out") ? hp.pos
+        : (state.railDrag.end === "to" && hp && hp.kind === "in") ? hp.pos
+        : state.mouseWorld;
+      ctx.strokeStyle = "#2f9d84";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(fixed.x, fixed.y);
+      const mx = (fixed.x + tip.x) / 2;
+      ctx.bezierCurveTo(mx, fixed.y, mx, tip.y, tip.x, tip.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
   if (state.linkFrom && state.mouseWorld) {
     const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
     if (b) {
       const o = portWorld(b, "out", state.linkFrom.portIndex || 0);
+      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y);
+      const tip = (hp && hp.kind === "in") ? hp.pos : state.mouseWorld;
       ctx.strokeStyle = "#2f9d84";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(o.x, o.y);
-      ctx.lineTo(state.mouseWorld.x, state.mouseWorld.y);
+      ctx.lineTo(tip.x, tip.y);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -2179,7 +2254,9 @@ function draw() {
     (state.mode === "place"
       ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}° · 拖已有建筑可移动` : "请先点左侧建筑；拖已有建筑可移动")
       : state.mode === "link"
-        ? (state.linkFrom ? "已点绿口，再点黄口；或拖建筑移动" : "连轨：绿→黄；拖建筑本体可移动，轨道跟随")
+        ? (state.railDrag
+          ? (state.railDrag.end === "from" ? "拖线中：接到绿色出口" : "拖线中：接到黄色入口")
+          : (state.linkFrom ? "已点绿口，再点黄口（可点具体某一个口）；长按轨道可拖端改接" : "连轨：绿出口→黄入口；点具体口；端点可拖/长按轨道改接"))
         : "擦除：点建筑/轨道；也可用右键清除");
 }
 
@@ -2247,6 +2324,16 @@ cv.addEventListener("mousemove", (e) => {
     return;
   }
 
+  if (state.railHold && Math.hypot(e.clientX - state.railHold.cx, e.clientY - state.railHold.cy) > 6) {
+    clearRailHold();
+  }
+
+  if (state.railDrag) {
+    cv.style.cursor = "grabbing";
+    draw();
+    return;
+  }
+
   if (state.moving) {
     const b = state.buildings.find((x) => x.id === state.moving.id);
     if (b) {
@@ -2266,8 +2353,9 @@ cv.addEventListener("mousemove", (e) => {
   }
 
   const hp = state.mouseWorld ? hitPort(state.mouseWorld.x, state.mouseWorld.y) : null;
+  const re = state.mouseWorld ? hitRailEnd(state.mouseWorld.x, state.mouseWorld.y) : null;
   const onBuild = state.hover && buildingAt(state.hover.gx, state.hover.gy);
-  if (state.mode === "link" && hp) cv.style.cursor = "pointer";
+  if (state.mode === "link" && (hp || re)) cv.style.cursor = "pointer";
   else if (onBuild && !hp) cv.style.cursor = "grab";
   else cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   draw();
@@ -2285,11 +2373,43 @@ cv.addEventListener("mousedown", (e) => {
   }
   if (e.button !== 0) return;
   hideCtx();
+  clearRailHold();
   const p = clientPos(e);
   const world = toWorld(p.x, p.y);
   const g = screenToGrid(p.x, p.y);
   const hp = hitPort(world.x, world.y);
-  if (hp && state.mode === "link") return;
+
+  if (state.mode === "link") {
+    // 端点可直接拖改接
+    const re = hitRailEnd(world.x, world.y);
+    if (re) {
+      state.linkFrom = null;
+      state.railDrag = { id: re.rail.id, end: re.end };
+      e.preventDefault();
+      draw();
+      return;
+    }
+    // 长按轨道中段 → 拖较近端点改接
+    const body = hitRailBody(world.x, world.y);
+    if (body && !hp) {
+      state.railHold = {
+        cx: e.clientX,
+        cy: e.clientY,
+        timer: setTimeout(() => {
+          if (!state.railHold) return;
+          state.railDrag = { id: body.rail.id, end: body.end };
+          state.railHold = null;
+          state.linkFrom = null;
+          skipClick = true;
+          draw();
+        }, RAIL_HOLD_MS),
+      };
+      e.preventDefault();
+      return;
+    }
+    if (hp) return; // 交给 click 连轨，不拖建筑
+  }
+
   const hit = buildingAt(g.gx, g.gy);
   if (hit && !hp) {
     state.focusId = hit.id;
@@ -2306,6 +2426,29 @@ cv.addEventListener("mousedown", (e) => {
 });
 
 window.addEventListener("mouseup", () => {
+  clearRailHold();
+  if (state.railDrag) {
+    const drag = state.railDrag;
+    state.railDrag = null;
+    skipClick = true;
+    const world = state.mouseWorld;
+    const r = state.rails.find((x) => x.id === drag.id);
+    if (r && world) {
+      const hp = hitPort(world.x, world.y);
+      if (drag.end === "from" && hp && hp.kind === "out") {
+        if (hp.building.id !== r.toId) {
+          r.fromId = hp.building.id;
+          r.fromPort = hp.index;
+        }
+      } else if (drag.end === "to" && hp && hp.kind === "in") {
+        if (hp.building.id !== r.fromId) {
+          r.toId = hp.building.id;
+          r.toPort = hp.index;
+        }
+      }
+    }
+    draw();
+  }
   if (state.moving) {
     if (state.moving.dragged) skipClick = true;
     state.moving = null;
@@ -2492,8 +2635,8 @@ window.addEventListener("keyup", (e) => {
     { id: "b" + (bid++), type: "smelter", gx: 14, gy: 12, w: 3, h: 4, rot: 0 },
   );
   state.rails.push(
-    { id: "r" + (rid++), fromId: state.buildings[0].id, toId: state.buildings[3].id },
-    { id: "r" + (rid++), fromId: state.buildings[1].id, toId: state.buildings[2].id },
+    { id: "r" + (rid++), fromId: state.buildings[0].id, toId: state.buildings[3].id, fromPort: 0, toPort: 0 },
+    { id: "r" + (rid++), fromId: state.buildings[1].id, toId: state.buildings[2].id, fromPort: 0, toPort: 0 },
   );
 })();
 
