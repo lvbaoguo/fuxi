@@ -90,13 +90,18 @@
   .node text.name { font-size: 13px; font-weight: 700; fill: var(--text); }
   .node text.meta { font-size: 11px; fill: var(--muted); }
   .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; }
-  .route-world.is-hl .edge { opacity: .14; stroke: #b7c3d0; }
-  .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowHl); }
-  .route-world.is-hl .node { opacity: .22; }
+  .route-world.is-hl .edge { opacity: .08; stroke: #c5ccd6; }
+  .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowPrev); }
+  .route-world.is-hl .node { opacity: .12; }
   .route-world.is-hl .node.hl { opacity: 1; }
-  .route-world.is-hl .node.hl-focus rect { stroke: #e07a2f; stroke-width: 3; filter: drop-shadow(0 0 4px rgba(224,122,47,.45)); }
-  .route-world.is-hl .node.hl-up rect { stroke: #d4892a; stroke-width: 2.2; }
-  .route-world.is-hl .node.hl-down rect { stroke: #2f9d84; stroke-width: 2.2; }
+  .route-world.is-hl .node.hl-focus rect {
+    fill: #d8f0ea; stroke: #2f9d84; stroke-width: 3;
+    filter: drop-shadow(0 0 6px rgba(47,157,132,.4));
+  }
+  .route-world.is-hl .node.hl-prev rect {
+    fill: #fff1e0; stroke: #e07a2f; stroke-width: 2.6;
+    filter: drop-shadow(0 0 5px rgba(224,122,47,.35));
+  }
 
   .float-search {
     left: 12px; top: 12px; right: auto; width: min(420px, 46vw);
@@ -125,7 +130,7 @@
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#8aa0b5"></path>
         </marker>
-        <marker id="arrowHl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <marker id="arrowPrev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#e07a2f"></path>
         </marker>
       </defs>
@@ -288,40 +293,15 @@ function layoutRoute(graph) {
   return { positions, nodeW, nodeH, gapX, gapY, depths, byDepth, vertical };
 }
 
-function collectReachable(start, adj) {
-  const set = new Set([start]);
-  const q = [start];
-  while (q.length) {
-    const cur = q.shift();
-    for (const nxt of (adj.get(cur) || [])) {
-      if (!set.has(nxt)) { set.add(nxt); q.push(nxt); }
-    }
-  }
-  return set;
-}
-
-function pathSets(focus, edges) {
-  const fwd = new Map();
-  const rev = new Map();
-  for (const e of edges) {
-    if (!fwd.has(e.from)) fwd.set(e.from, []);
-    fwd.get(e.from).push(e.to);
-    if (!rev.has(e.to)) rev.set(e.to, []);
-    rev.get(e.to).push(e.from);
-  }
-  const up = collectReachable(focus, rev);   // ancestors + self
-  const down = collectReachable(focus, fwd); // self + descendants
-  const nodes = new Set([...up, ...down]);
+function prevLayerSets(focus, edges) {
+  const prev = new Set();
   const edgeKeys = new Set();
   for (const e of edges) {
-    if (nodes.has(e.from) && nodes.has(e.to)) {
-      // keep only edges inside upstream cone or downstream cone
-      const inUp = up.has(e.from) && up.has(e.to);
-      const inDown = down.has(e.from) && down.has(e.to);
-      if (inUp || inDown) edgeKeys.add(e.from + "->" + e.to);
-    }
+    if (e.to !== focus) continue;
+    prev.add(e.from);
+    edgeKeys.add(e.from + "->" + e.to);
   }
-  return { up, down, nodes, edgeKeys };
+  return { prev, nodes: new Set([focus, ...prev]), edgeKeys };
 }
 
 function applyHighlight(focus) {
@@ -331,8 +311,8 @@ function applyHighlight(focus) {
     routeState.highlight = null;
     world.classList.remove("is-hl");
     world.querySelectorAll(".edge.hl").forEach(el => el.classList.remove("hl"));
-    world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-up, .node.hl-down").forEach(el => {
-      el.classList.remove("hl", "hl-focus", "hl-up", "hl-down");
+    world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-prev").forEach(el => {
+      el.classList.remove("hl", "hl-focus", "hl-prev");
     });
     return;
   }
@@ -343,7 +323,7 @@ function applyHighlight(focus) {
   }
 
   routeState.highlight = focus;
-  const { up, down, nodes, edgeKeys } = pathSets(focus, routeState.graph.edges);
+  const { prev, nodes, edgeKeys } = prevLayerSets(focus, routeState.graph.edges);
   world.classList.add("is-hl");
 
   world.querySelectorAll(".edge").forEach(el => {
@@ -352,12 +332,11 @@ function applyHighlight(focus) {
   });
   world.querySelectorAll(".node").forEach(el => {
     const name = el.dataset.name;
-    el.classList.remove("hl", "hl-focus", "hl-up", "hl-down");
+    el.classList.remove("hl", "hl-focus", "hl-prev");
     if (!nodes.has(name)) return;
     el.classList.add("hl");
     if (name === focus) el.classList.add("hl-focus");
-    else if (up.has(name) && name !== focus) el.classList.add("hl-up");
-    else if (down.has(name) && name !== focus) el.classList.add("hl-down");
+    else if (prev.has(name)) el.classList.add("hl-prev");
   });
 }
 
@@ -446,7 +425,7 @@ function renderRouteGraph(target, opts = {}) {
     t1.setAttribute("text-anchor", "middle");
     t1.textContent = n.name.length > 9 ? n.name.slice(0, 8) + "…" : n.name;
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = n.name + "（单击高亮线路）";
+    title.textContent = n.name + "（单击：高亮上一层原料）";
     g.appendChild(title);
     g.appendChild(t1);
 
