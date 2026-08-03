@@ -76,13 +76,29 @@
       #fff;
   }
   .paint-wrap #portCv {
-    position: absolute; left: 0; top: 0;
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
     background: transparent; pointer-events: none; cursor: crosshair;
   }
   .paint-wrap.port-mode #portCv { pointer-events: auto; }
   .paint-wrap.port-mode #paintCv { cursor: default; }
   .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; }
   .paint-wrap.scale-mode #paintCv { cursor: default; }
+  .paint-preview-row {
+    display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  }
+  .paint-preview-slot {
+    flex: 0 0 auto;
+  }
+  .paint-preview-slot .paint-wrap {
+    width: 148px;
+    pointer-events: none;
+    user-select: none;
+  }
+  .paint-preview-slot .paint-wrap canvas {
+    width: 100% !important;
+    height: auto !important;
+    cursor: default;
+  }
   .paint-tools .btn.on.scale { background: #eef2ff; border-color: #6366f1; color: #4338ca; }
   .port-hint { font-size: .72rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
   .paint-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
@@ -105,6 +121,31 @@
   .edit-panel.on { display: block; }
   .paint-wrap.art-locked #paintCv { cursor: default; }
   .paint-wrap.port-step #portCv { pointer-events: auto; cursor: crosshair; }
+  .paint-zoom-mask {
+    display: none; position: fixed; inset: 0; z-index: 80;
+    background: rgba(20,28,40,.55); align-items: center; justify-content: center;
+    padding: 12px;
+  }
+  .paint-zoom-mask.show { display: flex; }
+  .paint-zoom-modal {
+    width: min(720px, 96vw); max-height: 94vh; overflow: auto;
+    background: #fff; border-radius: 14px; border: 1px solid var(--line);
+    box-shadow: 0 20px 48px rgba(20,30,45,.35); padding: 16px 18px;
+  }
+  .paint-zoom-modal h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  .paint-zoom-board {
+    display: flex; justify-content: center; margin: 0 0 10px;
+    padding: 10px; background: #eef1f5; border-radius: 12px; border: 1px solid var(--line);
+    overflow: auto; max-height: min(62vh, 560px);
+  }
+  .paint-zoom-board .paint-wrap {
+    width: min(86vw, 560px);
+    pointer-events: auto;
+  }
+  .paint-zoom-board .paint-wrap canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
   .modal {
     width: min(420px, 94vw); background: #fff; border-radius: 14px;
     border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(40,50,70,.2);
@@ -241,37 +282,52 @@
       </div>
     </div>
     <div class="field">
-      <label id="paintAreaLabel">建筑画像</label>
-      <div class="paint-wrap" id="paintWrap">
-        <canvas id="paintCv" width="84" height="84"></canvas>
-        <canvas id="portCv" width="84" height="84"></canvas>
-      </div>
-      <div class="edit-panel on" id="panelArt">
-        <div class="paint-tools">
-          <button class="btn on" type="button" id="paintBrush">画笔</button>
-          <button class="btn" type="button" id="paintEraser">橡皮</button>
-          <label>粗细</label>
-          <input id="paintSize" type="range" min="4" max="48" value="16" />
-          <button class="btn" type="button" id="paintClear">清空画像</button>
-          <button class="btn" type="button" id="paintBlob">一键圆润</button>
-          <button class="btn" type="button" id="paintScale">缩放</button>
+      <label id="paintAreaLabel">画像预览</label>
+      <div class="paint-preview-row">
+        <div class="paint-preview-slot" id="paintPreviewSlot">
+          <div class="paint-wrap" id="paintWrap">
+            <canvas id="paintCv" width="84" height="84"></canvas>
+            <canvas id="portCv" width="84" height="84"></canvas>
+          </div>
         </div>
-        <p class="port-hint">本步只改外形：画笔 / 橡皮 / 缩放。进出口请点上方「② 安进出口」。</p>
+        <button class="btn active" type="button" id="btnExpandPaint">放大编辑</button>
       </div>
-      <div class="edit-panel" id="panelPort">
-        <div class="paint-tools">
-          <button class="btn on out" type="button" id="paintPortOut">绿·出口</button>
-          <button class="btn" type="button" id="paintPortIn">黄·入口</button>
-          <button class="btn" type="button" id="paintPortAdd">增加新口</button>
-          <button class="btn" type="button" id="paintPortDel">删选中口</button>
-        </div>
-        <p class="port-hint">先点绿或黄，再点「增加新口」（可多个）。也可点画像空白处加口；拖动竖条调整位置。「删选中口」删除。</p>
-      </div>
+      <p class="port-hint" id="paintPreviewHint">小图仅预览。点「放大编辑」在大画布上调试，完成后点确定回到预览。</p>
     </div>
     <div class="actions">
       <button class="btn" type="button" id="customCancel">取消</button>
       <button class="btn" type="button" id="customBack" style="display:none">上一步</button>
       <button class="btn active" type="button" id="customOk">下一步 · 安进出口</button>
+    </div>
+  </div>
+</div>
+<div class="paint-zoom-mask" id="paintZoomMask">
+  <div class="paint-zoom-modal" role="dialog" aria-labelledby="paintZoomTitle">
+    <h2 id="paintZoomTitle">放大编辑 · 画像</h2>
+    <div class="paint-zoom-board" id="paintZoomBoard"></div>
+    <div class="edit-panel on" id="panelArt">
+      <div class="paint-tools">
+        <button class="btn on" type="button" id="paintBrush">画笔</button>
+        <button class="btn" type="button" id="paintEraser">橡皮</button>
+        <label>粗细</label>
+        <input id="paintSize" type="range" min="4" max="48" value="16" />
+        <button class="btn" type="button" id="paintClear">清空画像</button>
+        <button class="btn" type="button" id="paintBlob">一键圆润</button>
+        <button class="btn" type="button" id="paintScale">缩放</button>
+      </div>
+      <p class="port-hint">本步只改外形：画笔 / 橡皮 / 缩放。调完点下方确定回预览。</p>
+    </div>
+    <div class="edit-panel" id="panelPort">
+      <div class="paint-tools">
+        <button class="btn on out" type="button" id="paintPortOut">绿·出口</button>
+        <button class="btn" type="button" id="paintPortIn">黄·入口</button>
+        <button class="btn" type="button" id="paintPortAdd">增加新口</button>
+        <button class="btn" type="button" id="paintPortDel">删选中口</button>
+      </div>
+      <p class="port-hint">先点绿或黄，再「增加新口」（可多个）；拖竖条调整。「删选中口」删除。调完点确定回预览。</p>
+    </div>
+    <div class="actions">
+      <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
     </div>
   </div>
 </div>
@@ -975,8 +1031,12 @@ const paintCtx = paintCv.getContext("2d");
 const portCv = document.getElementById("portCv");
 const portCtx = portCv.getContext("2d");
 const paintWrap = document.getElementById("paintWrap");
+const paintPreviewSlot = document.getElementById("paintPreviewSlot");
+const paintZoomMask = document.getElementById("paintZoomMask");
+const paintZoomBoard = document.getElementById("paintZoomBoard");
 let editingId = null;
 let editStep = 1; // 1=画像 2=进出口
+let paintExpanded = false;
 let paintTool = "brush";
 let paintDrawing = false;
 let paintLast = null;
@@ -996,11 +1056,12 @@ function syncEditStepUi() {
   document.getElementById("stepPortBtn").classList.toggle("on", !onArt);
   document.getElementById("panelArt").classList.toggle("on", onArt);
   document.getElementById("panelPort").classList.toggle("on", !onArt);
-  document.getElementById("paintAreaLabel").textContent = onArt ? "① 建筑画像（只改外形）" : "② 进出口（画像已锁定）";
+  document.getElementById("paintAreaLabel").textContent = onArt ? "① 画像预览" : "② 进出口预览";
+  document.getElementById("paintZoomTitle").textContent = onArt ? "放大编辑 · 画像外形" : "放大编辑 · 进出口";
+  document.getElementById("btnExpandPaint").textContent = onArt ? "放大编辑画像" : "放大编辑进出口";
   document.getElementById("customBack").style.display = onArt ? "none" : "";
   const ok = document.getElementById("customOk");
   ok.textContent = onArt ? "下一步 · 安进出口" : modalSaveLabel;
-  // 尺寸/颜色在安口步也可改名称颜色，但宽高改会影响画像——安口步锁定宽高更稳
   customW.disabled = !onArt;
   customH.disabled = !onArt;
   paintWrap.classList.toggle("art-locked", !onArt);
@@ -1014,6 +1075,28 @@ function syncEditStepUi() {
     scaleBox = null;
     if (paintTool !== "portOut" && paintTool !== "portIn") paintTool = "portOut";
   }
+  syncPaintToolUi();
+  drawDraftPorts();
+}
+function openPaintZoom() {
+  if (!customModal.classList.contains("show")) return;
+  if (paintExpanded) return;
+  paintZoomBoard.appendChild(paintWrap);
+  paintZoomMask.classList.add("show");
+  paintExpanded = true;
+  syncPaintToolUi();
+  drawDraftPorts();
+}
+function closePaintZoom() {
+  if (!paintExpanded) return;
+  endScaleDrag();
+  endPortDrag();
+  paintDrawing = false;
+  paintLast = null;
+  paintPreviewSlot.appendChild(paintWrap);
+  paintZoomMask.classList.remove("show");
+  paintExpanded = false;
+  scaleBox = null;
   syncPaintToolUi();
   drawDraftPorts();
 }
@@ -1031,8 +1114,8 @@ function syncPaintToolUi() {
   inBtn.classList.toggle("in", paintTool === "portIn");
   scaleBtn.classList.toggle("on", paintTool === "scale");
   scaleBtn.classList.toggle("scale", paintTool === "scale");
-  const portMode = editStep === 2 && (paintTool === "portOut" || paintTool === "portIn");
-  const scaleMode = editStep === 1 && paintTool === "scale";
+  const portMode = paintExpanded && editStep === 2 && (paintTool === "portOut" || paintTool === "portIn");
+  const scaleMode = paintExpanded && editStep === 1 && paintTool === "scale";
   paintWrap.classList.toggle("port-mode", portMode);
   paintWrap.classList.toggle("scale-mode", scaleMode);
 }
@@ -1168,7 +1251,7 @@ function drawDraftPorts() {
   drawList(draftPorts.in, "in");
 }
 function enterScaleMode() {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   paintTool = "scale";
   refreshScaleBox();
   syncPaintToolUi();
@@ -1321,6 +1404,7 @@ function openEditModal(id) {
   customName.focus();
 }
 function closeCustomModal() {
+  closePaintZoom();
   customModal.classList.remove("show");
   editingId = null;
   paintTool = "brush";
@@ -1393,14 +1477,23 @@ function applyCustomBuilding() {
 
 document.getElementById("btnCustom").addEventListener("click", openCustomModal);
 document.getElementById("customCancel").addEventListener("click", closeCustomModal);
+document.getElementById("btnExpandPaint").addEventListener("click", openPaintZoom);
+document.getElementById("paintZoomOk").addEventListener("click", closePaintZoom);
+paintZoomMask.addEventListener("click", (e) => {
+  if (e.target === paintZoomMask) closePaintZoom();
+});
 document.getElementById("customOk").addEventListener("click", () => {
+  if (paintExpanded) closePaintZoom();
   if (editStep === 1) {
     setEditStep(2);
     return;
   }
   applyCustomBuilding();
 });
-document.getElementById("customBack").addEventListener("click", () => setEditStep(1));
+document.getElementById("customBack").addEventListener("click", () => {
+  if (paintExpanded) closePaintZoom();
+  setEditStep(1);
+});
 document.getElementById("stepArtBtn").addEventListener("click", () => setEditStep(1));
 document.getElementById("stepPortBtn").addEventListener("click", () => setEditStep(2));
 customColor.addEventListener("input", () => {
@@ -1409,35 +1502,35 @@ customColor.addEventListener("input", () => {
 customW.addEventListener("change", () => { if (editStep === 1) resizePaintBoard(true); });
 customH.addEventListener("change", () => { if (editStep === 1) resizePaintBoard(true); });
 document.getElementById("paintBrush").addEventListener("click", () => {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   paintTool = "brush";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
 });
 document.getElementById("paintEraser").addEventListener("click", () => {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   paintTool = "eraser";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
 });
 document.getElementById("paintPortOut").addEventListener("click", () => {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   paintTool = "portOut";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
 });
 document.getElementById("paintPortIn").addEventListener("click", () => {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   paintTool = "portIn";
   scaleDrag = null;
   syncPaintToolUi();
   drawDraftPorts();
 });
 function addDraftPort(kind) {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   kind = kind === "in" ? "in" : "out";
   draftPorts[kind] = draftPorts[kind] || [];
   if (draftPorts[kind].length >= PORT_MAX) {
@@ -1454,12 +1547,12 @@ function addDraftPort(kind) {
   drawDraftPorts();
 }
 document.getElementById("paintPortAdd").addEventListener("click", () => {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   const kind = paintTool === "portIn" ? "in" : "out";
   addDraftPort(kind);
 });
 document.getElementById("paintPortDel").addEventListener("click", () => {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   if (!draftPortSel) {
     alert("先点选一个绿/黄口，再删除");
     return;
@@ -1471,18 +1564,18 @@ document.getElementById("paintPortDel").addEventListener("click", () => {
   drawDraftPorts();
 });
 document.getElementById("paintScale").addEventListener("click", () => {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   enterScaleMode();
 });
 document.getElementById("paintClear").addEventListener("click", () => {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
   scaleBox = null;
   scaleDrag = null;
   drawDraftPorts();
 });
 document.getElementById("paintBlob").addEventListener("click", () => {
-  if (editStep !== 1) return;
+  if (!paintExpanded || editStep !== 1) return;
   const { w, h } = readModalSize();
   paintDefaultSilhouette(paintCtx, w, h, "box");
   enterScaleMode();
@@ -1496,7 +1589,7 @@ function paintPointerPos(e) {
   };
 }
 function startScaleDrag(e) {
-  if (editStep !== 1) return false;
+  if (!paintExpanded || editStep !== 1) return false;
   if (!scaleBox) refreshScaleBox();
   if (!scaleBox) return false;
   const p = paintPointerPos(e);
@@ -1565,7 +1658,7 @@ function hitDraftPort(nx, ny, preferKind) {
   return bestD <= 10 ? best : null;
 }
 function placeOrDragPortAtEvent(e, isDown) {
-  if (editStep !== 2) return;
+  if (!paintExpanded || editStep !== 2) return;
   const kind = portKindFromTool();
   if (!kind) return;
   const r = portCv.getBoundingClientRect();
@@ -1609,6 +1702,7 @@ function endPortDrag() {
   portDrag = null;
 }
 portCv.addEventListener("pointerdown", (e) => {
+  if (!paintExpanded) return;
   if (editStep === 1) {
     if (paintTool !== "scale") return;
     e.preventDefault();
@@ -1620,6 +1714,7 @@ portCv.addEventListener("pointerdown", (e) => {
   placeOrDragPortAtEvent(e, true);
 });
 portCv.addEventListener("pointermove", (e) => {
+  if (!paintExpanded) return;
   if (editStep === 1 && paintTool === "scale" && scaleDrag) {
     e.preventDefault();
     moveScaleDrag(e);
@@ -1646,6 +1741,7 @@ portCv.addEventListener("pointermove", (e) => {
 portCv.addEventListener("pointerup", () => { endScaleDrag(); endPortDrag(); });
 portCv.addEventListener("pointercancel", () => { endScaleDrag(); endPortDrag(); });
 paintCv.addEventListener("pointerdown", (e) => {
+  if (!paintExpanded) return;
   if (editStep === 2) {
     e.preventDefault();
     placeOrDragPortAtEvent(e, true);
@@ -1663,6 +1759,7 @@ paintCv.addEventListener("pointerdown", (e) => {
   strokePaint(paintLast, paintLast);
 });
 paintCv.addEventListener("pointermove", (e) => {
+  if (!paintExpanded) return;
   if (editStep === 1 && paintTool === "scale" && scaleDrag) {
     moveScaleDrag(e);
     return;
