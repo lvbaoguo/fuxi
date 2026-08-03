@@ -2318,7 +2318,7 @@ function draw() {
       : state.mode === "link"
         ? (state.railDrag
           ? (state.railDrag.end === "from" ? "拖线中：接到绿色出口" : "拖线中：接到黄色入口")
-          : (state.linkFrom ? "已点绿口，再点黄口（可点具体某一个口）；长按轨道可拖端改接" : "连轨：绿出口→黄入口；点具体口；端点可拖/长按轨道改接"))
+          : (state.linkFrom ? "已点绿口，再点黄口（可点具体某一个口）" : "连轨：绿出口→黄入口；改接请拖线端或长按轨道"))
         : "擦除：点建筑/轨道；也可用右键清除");
 }
 
@@ -2391,6 +2391,13 @@ cv.addEventListener("mousemove", (e) => {
   }
 
   if (state.railDrag) {
+    if (state.mouseWorld && state.railDrag.ox != null) {
+      if (Math.hypot(state.mouseWorld.x - state.railDrag.ox, state.mouseWorld.y - state.railDrag.oy) > 6) {
+        state.railDrag.moved = true;
+      }
+    } else {
+      state.railDrag.moved = true;
+    }
     cv.style.cursor = "grabbing";
     draw();
     return;
@@ -2442,24 +2449,28 @@ cv.addEventListener("mousedown", (e) => {
   const hp = hitPort(world.x, world.y);
 
   if (state.mode === "link") {
-    // 端点可直接拖改接
+    // 点在口上：只走「新建连轨」click，绝不抢成改旧线
+    // （旧线终点就在黄口上，若先判端点会把原料2连口2误判成拖动原料1的线）
+    if (hp) return;
+
+    // 端点拖改接：仅当没点中口时
     const re = hitRailEnd(world.x, world.y);
     if (re) {
       state.linkFrom = null;
-      state.railDrag = { id: re.rail.id, end: re.end };
+      state.railDrag = { id: re.rail.id, end: re.end, moved: false, ox: world.x, oy: world.y };
       e.preventDefault();
       draw();
       return;
     }
     // 长按轨道中段 → 拖较近端点改接
     const body = hitRailBody(world.x, world.y);
-    if (body && !hp) {
+    if (body) {
       state.railHold = {
         cx: e.clientX,
         cy: e.clientY,
         timer: setTimeout(() => {
           if (!state.railHold) return;
-          state.railDrag = { id: body.rail.id, end: body.end };
+          state.railDrag = { id: body.rail.id, end: body.end, moved: false };
           state.railHold = null;
           state.linkFrom = null;
           skipClick = true;
@@ -2469,7 +2480,6 @@ cv.addEventListener("mousedown", (e) => {
       e.preventDefault();
       return;
     }
-    if (hp) return; // 交给 click 连轨，不拖建筑
   }
 
   const hit = buildingAt(g.gx, g.gy);
@@ -2492,24 +2502,30 @@ window.addEventListener("mouseup", () => {
   if (state.railDrag) {
     const drag = state.railDrag;
     state.railDrag = null;
-    skipClick = true;
     const world = state.mouseWorld;
     const r = state.rails.find((x) => x.id === drag.id);
+    let rewired = false;
     if (r && world) {
-      if (drag.end === "from") {
-        const hp = hitPort(world.x, world.y, { kind: "out", excludeBuildingId: r.toId });
-        if (hp) {
-          r.fromId = hp.building.id;
-          r.fromPort = hp.index;
-        }
-      } else {
-        const hp = hitPort(world.x, world.y, { kind: "in", excludeBuildingId: r.fromId });
-        if (hp) {
-          r.toId = hp.building.id;
-          r.toPort = hp.index;
+      const moved = drag.moved || (drag.ox != null && Math.hypot(world.x - drag.ox, world.y - drag.oy) > 6);
+      if (moved) {
+        if (drag.end === "from") {
+          const hp = hitPort(world.x, world.y, { kind: "out", excludeBuildingId: r.toId });
+          if (hp) {
+            r.fromId = hp.building.id;
+            r.fromPort = hp.index;
+            rewired = true;
+          }
+        } else {
+          const hp = hitPort(world.x, world.y, { kind: "in", excludeBuildingId: r.fromId });
+          if (hp) {
+            r.toId = hp.building.id;
+            r.toPort = hp.index;
+            rewired = true;
+          }
         }
       }
     }
+    if (rewired || drag.moved) skipClick = true;
     draw();
   }
   if (state.moving) {
