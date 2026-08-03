@@ -95,6 +95,16 @@
   .node-cycle rect { fill: #fce8e8; stroke: #d88; }
   .node text.name { font-size: 13px; font-weight: 700; fill: var(--text); }
   .node text.meta { font-size: 11px; fill: var(--muted); }
+  .node .badge { font-size: 10px; font-weight: 700; }
+  .node .badge-bg { rx: 4; ry: 4; }
+  .node .badge-bg.out-multi { fill: #ffedd5; stroke: #ea580c; }
+  .node .badge-bg.out-single { fill: #f1f5f9; stroke: #94a3b8; }
+  .node .badge-bg.in-multi { fill: #ccfbf1; stroke: #0d9488; }
+  .node .badge-bg.in-single { fill: #f1f5f9; stroke: #94a3b8; }
+  .node .badge.out-multi { fill: #c2410c; }
+  .node .badge.out-single { fill: #64748b; }
+  .node .badge.in-multi { fill: #0f766e; }
+  .node .badge.in-single { fill: #64748b; }
   .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; }
   .route-world.is-hl .edge { opacity: .08; stroke: #c5ccd6; }
   .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowPrev); }
@@ -143,7 +153,7 @@
       <button class="btn m-fold-hide" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="mFold" title="收起控件，专心看图">收起</button>
     </div>
-    <div class="route-empty" id="routeEmpty">搜索产物后出图；点击半成品 → 青绿=当前，橙=上一层原料</div>
+    <div class="route-empty" id="routeEmpty">搜索后出图。角标：橙=出N·分轨，灰=出1·单轨；青=进N·多口</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -278,7 +288,7 @@ function layoutRoute(graph) {
     byDepth.get(n.depth).push(n);
   }
   const depths = [...byDepth.keys()].sort((a, b) => a - b);
-  const nodeW = 128, nodeH = 54, gapX = 170, gapY = 78;
+  const nodeW = 136, nodeH = 66, gapX = 178, gapY = 88;
   const positions = new Map();
   const vertical = routeState.dir === "v";
 
@@ -320,6 +330,57 @@ function prevLayerSets(focus, edges) {
     edgeKeys.add(e.from + "->" + e.to);
   }
   return { prev, nodes: new Set([focus, ...prev]), edgeKeys };
+}
+
+/** 本路线内：出=供给几个下游，进=吃几种原料 */
+function portStats(graph) {
+  const outMap = new Map();
+  const inMap = new Map();
+  for (const e of graph.edges) {
+    if (!outMap.has(e.from)) outMap.set(e.from, new Set());
+    outMap.get(e.from).add(e.to);
+    if (!inMap.has(e.to)) inMap.set(e.to, new Set());
+    inMap.get(e.to).add(e.from);
+  }
+  const stats = new Map();
+  for (const name of graph.nodes.keys()) {
+    const o = outMap.has(name) ? outMap.get(name).size : 0;
+    const i = inMap.has(name) ? inMap.get(name).size : 0;
+    stats.set(name, { out: o, in: i });
+  }
+  return stats;
+}
+
+function appendPortBadges(g, p, outN, inN) {
+  const ns = "http://www.w3.org/2000/svg";
+  const y = p.y + p.h - 18;
+  const bw = 52, bh = 14, gap = 6;
+  const total = bw * 2 + gap;
+  let x = p.x + (p.w - total) / 2;
+
+  function pill(label, cls) {
+    const bg = document.createElementNS(ns, "rect");
+    bg.setAttribute("class", "badge-bg " + cls);
+    bg.setAttribute("x", x);
+    bg.setAttribute("y", y);
+    bg.setAttribute("width", bw);
+    bg.setAttribute("height", bh);
+    bg.setAttribute("stroke-width", "1");
+    g.appendChild(bg);
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("class", "badge " + cls);
+    t.setAttribute("x", x + bw / 2);
+    t.setAttribute("y", y + 10.5);
+    t.setAttribute("text-anchor", "middle");
+    t.textContent = label;
+    g.appendChild(t);
+    x += bw + gap;
+  }
+
+  const outCls = outN >= 2 ? "out-multi" : "out-single";
+  const inCls = inN >= 2 ? "in-multi" : "in-single";
+  pill(outN >= 2 ? `出${outN}·分轨` : (outN === 1 ? "出1·单轨" : "出0"), outCls);
+  pill(inN >= 2 ? `进${inN}·多口` : (inN === 1 ? "进1" : "进0"), inCls);
 }
 
 function applyHighlight(focus) {
@@ -369,7 +430,7 @@ function renderRouteGraph(target, opts = {}) {
 
   if (!target) {
     emptyEl.classList.remove("hide");
-    emptyEl.textContent = "搜索产物后出图；点击半成品 → 青绿=当前，橙=上一层原料";
+    emptyEl.textContent = "搜索后出图。角标：橙=出N·分轨，灰=出1·单轨；青=进N·多口";
     applyTransform();
     return;
   }
@@ -382,6 +443,7 @@ function renderRouteGraph(target, opts = {}) {
 
   const graph = buildRoute(target);
   const layout = layoutRoute(graph);
+  const ports = portStats(graph);
   routeState.graph = graph;
   routeState.target = target;
   emptyEl.classList.add("hide");
@@ -418,6 +480,7 @@ function renderRouteGraph(target, opts = {}) {
   for (const n of graph.nodes.values()) {
     const p = layout.positions.get(n.name);
     if (!p) continue;
+    const st = ports.get(n.name) || { out: 0, in: 0 };
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     let cls = "node node-mid";
     if (n.name === target) cls = "node node-target";
@@ -439,23 +502,27 @@ function renderRouteGraph(target, opts = {}) {
     const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t1.setAttribute("class", "name");
     t1.setAttribute("x", p.x + p.w / 2);
-    t1.setAttribute("y", p.y + 22);
+    t1.setAttribute("y", p.y + 18);
     t1.setAttribute("text-anchor", "middle");
     t1.textContent = n.name.length > 9 ? n.name.slice(0, 8) + "…" : n.name;
+    const outHint = st.out >= 2 ? `输出分 ${st.out} 路，建议调制器/分轨` : (st.out === 1 ? "输出单轨即可" : "终点，无下游输出");
+    const inHint = st.in >= 2 ? `进料 ${st.in} 口，各原料独立进黄口` : (st.in === 1 ? "进料 1 口" : "原料点，无进料");
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = n.name + "（单击：高亮上一层原料）";
+    title.textContent = `${n.name}｜${outHint}；${inHint}｜单击高亮上一层`;
     g.appendChild(title);
     g.appendChild(t1);
 
     const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t2.setAttribute("class", "meta");
     t2.setAttribute("x", p.x + p.w / 2);
-    t2.setAttribute("y", p.y + 40);
+    t2.setAttribute("y", p.y + 34);
     t2.setAttribute("text-anchor", "middle");
     if (n.cycle) t2.textContent = "循环截断";
     else if (n.raw) t2.textContent = "原料 / 采集";
     else t2.textContent = n.recipe.machine;
     g.appendChild(t2);
+
+    appendPortBadges(g, p, st.out, st.in);
 
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
