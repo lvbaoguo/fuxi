@@ -298,15 +298,9 @@
       </div>
       <div class="edit-panel on" id="panelArt">
         <div class="paint-tools">
-          <button class="btn on" type="button" id="paintBrush">画笔</button>
-          <button class="btn" type="button" id="paintEraser">橡皮</button>
-          <label>粗细</label>
-          <input id="paintSize" type="range" min="4" max="48" value="16" />
-          <button class="btn" type="button" id="paintClear">清空画像</button>
           <button class="btn" type="button" id="paintBlob">一键圆润</button>
-          <button class="btn" type="button" id="paintScale">缩放</button>
         </div>
-        <p class="port-hint">直接在上方预览里改外形。进出口请点「② 安进出口」后放大编辑。</p>
+        <p class="port-hint">拖四角缩放，拖左右边中点可左右拉伸；点「一键圆润」重生外形。进出口请点「② 安进出口」。</p>
       </div>
       <p class="port-hint" id="paintPreviewHint" style="display:none">进出口请点「放大编辑进出口」在大画布上安口，确定后回预览。</p>
     </div>
@@ -1167,9 +1161,7 @@ const paintZoomBoard = document.getElementById("paintZoomBoard");
 let editingId = null;
 let editStep = 1; // 1=画像 2=进出口
 let paintExpanded = false;
-let paintTool = "brush";
-let paintDrawing = false;
-let paintLast = null;
+let paintTool = "scale";
 let draftPorts = { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] };
 let draftPortSel = null; // { kind, index }
 let portDrag = null; // { kind, index, grabDx, grabDy }
@@ -1202,9 +1194,10 @@ function syncEditStepUi() {
   paintPreviewSlot.classList.toggle("is-preview", !onArt && !paintExpanded);
   if (onArt) {
     if (paintExpanded) closePaintZoom();
-    if (paintTool === "portOut" || paintTool === "portIn" || paintTool == null) paintTool = "brush";
+    paintTool = "scale";
     scaleDrag = null;
     portDrag = null;
+    refreshScaleBox();
   } else {
     scaleDrag = null;
     scaleBox = null;
@@ -1228,8 +1221,6 @@ function closePaintZoom() {
   if (!paintExpanded) return;
   endScaleDrag();
   endPortDrag();
-  paintDrawing = false;
-  paintLast = null;
   paintPreviewSlot.appendChild(paintWrap);
   paintZoomMask.classList.remove("show");
   paintExpanded = false;
@@ -1239,19 +1230,12 @@ function closePaintZoom() {
   drawDraftPorts();
 }
 function syncPaintToolUi() {
-  const brush = document.getElementById("paintBrush");
-  const eraser = document.getElementById("paintEraser");
   const outBtn = document.getElementById("paintPortOut");
   const inBtn = document.getElementById("paintPortIn");
-  const scaleBtn = document.getElementById("paintScale");
-  brush.classList.toggle("on", paintTool === "brush");
-  eraser.classList.toggle("on", paintTool === "eraser");
   outBtn.classList.toggle("on", paintTool === "portOut");
   outBtn.classList.toggle("out", paintTool === "portOut");
   inBtn.classList.toggle("on", paintTool === "portIn");
   inBtn.classList.toggle("in", paintTool === "portIn");
-  scaleBtn.classList.toggle("on", paintTool === "scale");
-  scaleBtn.classList.toggle("scale", paintTool === "scale");
   const portMode = paintExpanded && editStep === 2;
   const scaleMode = editStep === 1 && paintTool === "scale";
   paintWrap.classList.toggle("port-mode", portMode);
@@ -1306,17 +1290,27 @@ function paintScaledContent(content, box) {
 function scaleHandlePoints(box) {
   if (!box) return [];
   const x0 = box.x, y0 = box.y, x1 = box.x + box.w, y1 = box.y + box.h;
+  const ym = (y0 + y1) / 2;
   return [
-    { id: "nw", x: x0, y: y0, cursor: "nwse-resize" },
-    { id: "ne", x: x1, y: y0, cursor: "nesw-resize" },
-    { id: "sw", x: x0, y: y1, cursor: "nesw-resize" },
-    { id: "se", x: x1, y: y1, cursor: "nwse-resize" },
+    { id: "nw", x: x0, y: y0, cursor: "nwse-resize", shape: "corner" },
+    { id: "ne", x: x1, y: y0, cursor: "nesw-resize", shape: "corner" },
+    { id: "sw", x: x0, y: y1, cursor: "nesw-resize", shape: "corner" },
+    { id: "se", x: x1, y: y1, cursor: "nwse-resize", shape: "corner" },
+    { id: "w", x: x0, y: ym, cursor: "ew-resize", shape: "vbar" },
+    { id: "e", x: x1, y: ym, cursor: "ew-resize", shape: "vbar" },
   ];
 }
 function hitScaleHandle(p) {
   if (!scaleBox) return null;
-  const hitR = SCALE_HANDLE + 6;
-  for (const h of scaleHandlePoints(scaleBox)) {
+  const hitR = SCALE_HANDLE + 8;
+  // 左右边优先：方便左右拉伸
+  const pts = scaleHandlePoints(scaleBox);
+  for (const h of pts) {
+    if (h.shape !== "vbar") continue;
+    if (Math.abs(p.x - h.x) <= hitR && Math.abs(p.y - h.y) <= hitR * 2.2) return h.id;
+  }
+  for (const h of pts) {
+    if (h.shape === "vbar") continue;
     if (Math.hypot(p.x - h.x, p.y - h.y) <= hitR) return h.id;
   }
   if (
@@ -1325,21 +1319,23 @@ function hitScaleHandle(p) {
   ) return "move";
   return null;
 }
-function boxFromCornerDrag(startBox, corner, px, py) {
+function boxFromHandleDrag(startBox, handle, px, py) {
   const x0 = startBox.x, y0 = startBox.y;
   const x1 = startBox.x + startBox.w, y1 = startBox.y + startBox.h;
   let L = x0, T = y0, R = x1, B = y1;
-  if (corner === "nw") { L = px; T = py; }
-  else if (corner === "ne") { R = px; T = py; }
-  else if (corner === "sw") { L = px; B = py; }
-  else if (corner === "se") { R = px; B = py; }
+  if (handle === "nw") { L = px; T = py; }
+  else if (handle === "ne") { R = px; T = py; }
+  else if (handle === "sw") { L = px; B = py; }
+  else if (handle === "se") { R = px; B = py; }
+  else if (handle === "w") { L = px; }
+  else if (handle === "e") { R = px; }
   if (R - L < SCALE_MIN) {
-    if (corner === "nw" || corner === "sw") L = R - SCALE_MIN;
+    if (handle === "nw" || handle === "sw" || handle === "w") L = R - SCALE_MIN;
     else R = L + SCALE_MIN;
   }
   if (B - T < SCALE_MIN) {
-    if (corner === "nw" || corner === "ne") T = B - SCALE_MIN;
-    else B = T + SCALE_MIN;
+    if (handle === "nw" || handle === "ne") T = B - SCALE_MIN;
+    else if (handle === "sw" || handle === "se") B = T + SCALE_MIN;
   }
   return clampScaleBox({ x: L, y: T, w: R - L, h: B - T });
 }
@@ -1362,8 +1358,15 @@ function drawDraftPorts() {
     portCtx.fillRect(b.x + b.w, b.y, w - (b.x + b.w), b.h);
     for (const hp of scaleHandlePoints(b)) {
       portCtx.beginPath();
-      portCtx.rect(hp.x - SCALE_HANDLE / 2, hp.y - SCALE_HANDLE / 2, SCALE_HANDLE, SCALE_HANDLE);
-      portCtx.fillStyle = "#fff";
+      if (hp.shape === "vbar") {
+        const bw = 5, bh = Math.max(18, Math.min(36, b.h * 0.28));
+        const hx = hp.x - bw / 2, hy = hp.y - bh / 2;
+        if (portCtx.roundRect) portCtx.roundRect(hx, hy, bw, bh, 2);
+        else portCtx.rect(hx, hy, bw, bh);
+      } else {
+        portCtx.rect(hp.x - SCALE_HANDLE / 2, hp.y - SCALE_HANDLE / 2, SCALE_HANDLE, SCALE_HANDLE);
+      }
+      portCtx.fillStyle = hp.shape === "vbar" ? "#eef2ff" : "#fff";
       portCtx.fill();
       portCtx.lineWidth = 1.5;
       portCtx.strokeStyle = "#6366f1";
@@ -1411,33 +1414,6 @@ function readModalSize() {
     h: Math.max(1, Math.min(12, parseInt(customH.value, 10) || 1)),
   };
 }
-function paintPos(e) {
-  const r = paintCv.getBoundingClientRect();
-  const scaleX = paintCv.width / r.width;
-  const scaleY = paintCv.height / r.height;
-  return {
-    x: (e.clientX - r.left) * scaleX,
-    y: (e.clientY - r.top) * scaleY,
-  };
-}
-function strokePaint(from, to) {
-  const size = Number(document.getElementById("paintSize").value) || 16;
-  paintCtx.lineCap = "round";
-  paintCtx.lineJoin = "round";
-  paintCtx.lineWidth = size;
-  if (paintTool === "eraser") {
-    paintCtx.globalCompositeOperation = "destination-out";
-    paintCtx.strokeStyle = "rgba(0,0,0,1)";
-  } else {
-    paintCtx.globalCompositeOperation = "source-over";
-    paintCtx.strokeStyle = "#1a1a1a";
-  }
-  paintCtx.beginPath();
-  paintCtx.moveTo(from.x, from.y);
-  paintCtx.lineTo(to.x, to.y);
-  paintCtx.stroke();
-  paintCtx.globalCompositeOperation = "source-over";
-}
 function resizePaintBoard(keepContent) {
   const { w, h } = readModalSize();
   const nw = w * CELL, nh = h * CELL;
@@ -1456,6 +1432,7 @@ function resizePaintBoard(keepContent) {
     paintCtx.drawImage(backup, 0, 0, backup.width, backup.height, 0, 0, nw, nh);
   }
   syncPortCanvasSize();
+  if (editStep === 1) enterScaleMode();
 }
 function loadArtToPaint(art, w, h) {
   paintCv.width = w * CELL;
@@ -1465,12 +1442,14 @@ function loadArtToPaint(art, w, h) {
   syncPortCanvasSize();
   if (!art) {
     paintDefaultSilhouette(paintCtx, w, h, "box");
+    if (editStep === 1) enterScaleMode();
     return;
   }
   const img = new Image();
   img.onload = () => {
     paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
     paintCtx.drawImage(img, 0, 0, paintCv.width, paintCv.height);
+    if (editStep === 1) enterScaleMode();
   };
   img.src = art;
 }
@@ -1491,7 +1470,7 @@ function exportPaintPayload(w, h) {
     }
   }
   if (![...mask].some((ch) => ch === "1")) {
-    alert("画像是空的，先用画笔画一下外形");
+    alert("画像是空的，先点「一键圆润」生成外形");
     return null;
   }
   return { art, hit, mask };
@@ -1508,7 +1487,7 @@ function fillModalFromItem(item) {
   };
   draftPortSel = null;
   portDrag = null;
-  paintTool = "brush";
+  paintTool = "scale";
   scaleBox = null;
   scaleDrag = null;
   editStep = 1;
@@ -1545,7 +1524,7 @@ function closeCustomModal() {
   closePaintZoom();
   customModal.classList.remove("show");
   editingId = null;
-  paintTool = "brush";
+  paintTool = "scale";
   scaleBox = null;
   scaleDrag = null;
   draftPortSel = null;
@@ -1640,20 +1619,6 @@ customColor.addEventListener("input", () => {
 });
 customW.addEventListener("change", () => { if (editStep === 1) resizePaintBoard(true); });
 customH.addEventListener("change", () => { if (editStep === 1) resizePaintBoard(true); });
-document.getElementById("paintBrush").addEventListener("click", () => {
-  if (editStep !== 1) return;
-  paintTool = "brush";
-  scaleDrag = null;
-  syncPaintToolUi();
-  drawDraftPorts();
-});
-document.getElementById("paintEraser").addEventListener("click", () => {
-  if (editStep !== 1) return;
-  paintTool = "eraser";
-  scaleDrag = null;
-  syncPaintToolUi();
-  drawDraftPorts();
-});
 document.getElementById("paintPortOut").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
   // 再点一次取消选中，避免无意点空白又加一口
@@ -1707,17 +1672,6 @@ document.getElementById("paintPortDel").addEventListener("click", () => {
   portDrag = null;
   drawDraftPorts();
 });
-document.getElementById("paintScale").addEventListener("click", () => {
-  if (editStep !== 1) return;
-  enterScaleMode();
-});
-document.getElementById("paintClear").addEventListener("click", () => {
-  if (editStep !== 1) return;
-  paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
-  scaleBox = null;
-  scaleDrag = null;
-  drawDraftPorts();
-});
 document.getElementById("paintBlob").addEventListener("click", () => {
   if (editStep !== 1) return;
   const { w, h } = readModalSize();
@@ -1762,7 +1716,7 @@ function moveScaleDrag(e) {
       h: scaleDrag.startBox.h,
     });
   } else {
-    next = boxFromCornerDrag(scaleDrag.startBox, scaleDrag.kind, p.x, p.y);
+    next = boxFromHandleDrag(scaleDrag.startBox, scaleDrag.kind, p.x, p.y);
   }
   paintScaledContent(scaleDrag.content, next);
   scaleBox = next;
@@ -1873,7 +1827,8 @@ portCv.addEventListener("pointermove", (e) => {
     const p = paintPointerPos(e);
     const hit = hitScaleHandle(p);
     const cursors = {
-      nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize", move: "move",
+      nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize",
+      w: "ew-resize", e: "ew-resize", move: "move",
     };
     portCv.style.cursor = hit ? cursors[hit] : "default";
     return;
@@ -1892,16 +1847,8 @@ paintCv.addEventListener("pointerdown", (e) => {
     return;
   }
   if (editStep !== 1) return;
-  if (paintTool === "scale") {
-    e.preventDefault();
-    startScaleDrag(e);
-    return;
-  }
   e.preventDefault();
-  paintDrawing = true;
-  paintLast = paintPos(e);
-  try { paintCv.setPointerCapture(e.pointerId); } catch (_) {}
-  strokePaint(paintLast, paintLast);
+  startScaleDrag(e);
 });
 paintCv.addEventListener("pointermove", (e) => {
   if (editStep === 1 && paintTool === "scale" && scaleDrag) {
@@ -1912,14 +1859,17 @@ paintCv.addEventListener("pointermove", (e) => {
     placeOrDragPortAtEvent(e, false);
     return;
   }
-  if (editStep !== 1 || !paintDrawing || !paintLast) return;
-  const p = paintPos(e);
-  strokePaint(paintLast, p);
-  paintLast = p;
+  if (editStep === 1 && paintTool === "scale" && scaleBox) {
+    const p = paintPointerPos(e);
+    const hit = hitScaleHandle(p);
+    const cursors = {
+      nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize",
+      w: "ew-resize", e: "ew-resize", move: "move",
+    };
+    paintCv.style.cursor = hit ? cursors[hit] : "default";
+  }
 });
 function endPaint() {
-  paintDrawing = false;
-  paintLast = null;
   endScaleDrag();
   endPortDrag();
 }
