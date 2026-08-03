@@ -75,23 +75,29 @@
       linear-gradient(90deg, #d9dee6 1px, transparent 1px) 0 0 / var(--pc, 28px) var(--pc, 28px),
       #fff;
   }
+  .paint-wrap #portCv {
+    position: absolute; left: 0; top: 0;
+    background: transparent; pointer-events: none; cursor: crosshair;
+  }
+  .paint-wrap.port-mode #portCv { pointer-events: auto; }
+  .paint-wrap.port-mode #paintCv { cursor: default; }
+  .port-hint { font-size: .72rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
   .paint-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
   .paint-tools .btn.on { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
+  .paint-tools .btn.on.out { background: #ecfdf5; border-color: #16a34a; color: #15803d; }
+  .paint-tools .btn.on.in { background: #fffbeb; border-color: #d97706; color: #b45309; }
   .paint-tools label { font-size: .72rem; color: var(--muted); margin: 0; }
   .paint-tools input[type="range"] { width: 88px; }
-  .port-fields label.mini { margin: 0 0 4px; }
-  .port-fields select, .port-fields input[type="range"] { width: 100%; }
-  .modal { max-height: 92vh; overflow: auto; width: min(420px, 94vw); }
+  .modal {
+    width: min(420px, 94vw); background: #fff; border-radius: 14px;
+    border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(40,50,70,.2);
+    padding: 16px 18px; max-height: 92vh; overflow: auto;
+  }
   .modal-mask {
     display: none; position: fixed; inset: 0; z-index: 60;
     background: rgba(30,40,55,.35); align-items: center; justify-content: center;
   }
   .modal-mask.show { display: flex; }
-  .modal {
-    width: min(360px, 92vw); background: #fff; border-radius: 14px;
-    border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(40,50,70,.2);
-    padding: 16px 18px;
-  }
   .modal h2 { margin: 0 0 12px; font-size: 1rem; }
   .modal label { display: block; font-size: .78rem; color: var(--muted); margin: 0 0 4px; }
   .modal .field { margin: 0 0 12px; }
@@ -148,7 +154,7 @@
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">点「改」打开画像画板：按沙盘格画曲线外形；进出口也可改。</p>
+    <p class="sub">点「改」打开画像画板：画外形后，用绿/黄工具在画像上点放进出口。</p>
     <div class="nav">
       <a href="../pc/?v=20260803">合成路线</a>
       <a href="../?stay=1">入口</a>
@@ -214,42 +220,22 @@
       </div>
     </div>
     <div class="field">
-      <label>建筑画像（画板=沙盘格 · 用笔画曲线外形）</label>
+      <label>建筑画像（画外形 · 再点放进出口）</label>
       <div class="paint-wrap" id="paintWrap">
         <canvas id="paintCv" width="84" height="84"></canvas>
+        <canvas id="portCv" width="84" height="84"></canvas>
       </div>
       <div class="paint-tools">
         <button class="btn on" type="button" id="paintBrush">画笔</button>
         <button class="btn" type="button" id="paintEraser">橡皮</button>
+        <button class="btn" type="button" id="paintPortOut">绿·出口</button>
+        <button class="btn" type="button" id="paintPortIn">黄·入口</button>
         <label>粗细</label>
         <input id="paintSize" type="range" min="4" max="48" value="16" />
-        <button class="btn" type="button" id="paintClear">清空</button>
+        <button class="btn" type="button" id="paintClear">清空画像</button>
         <button class="btn" type="button" id="paintBlob">一键圆润</button>
       </div>
-    </div>
-    <div class="field row2 port-fields">
-      <div>
-        <label class="mini" for="portOutSide">输出口（绿）</label>
-        <select id="portOutSide">
-          <option value="E">右</option>
-          <option value="S">下</option>
-          <option value="W">左</option>
-          <option value="N">上</option>
-        </select>
-        <label class="mini" for="portOutT" style="margin-top:8px">沿边位置</label>
-        <input id="portOutT" type="range" min="0" max="100" value="50" />
-      </div>
-      <div>
-        <label class="mini" for="portInSide">输入口（黄）</label>
-        <select id="portInSide">
-          <option value="W">左</option>
-          <option value="N">上</option>
-          <option value="E">右</option>
-          <option value="S">下</option>
-        </select>
-        <label class="mini" for="portInT" style="margin-top:8px">沿边位置</label>
-        <input id="portInT" type="range" min="0" max="100" value="50" />
-      </div>
+      <p class="port-hint">选「绿·出口 / 黄·入口」后，在画像上点击放置。点可落在外形内部，不限于外框边。</p>
     </div>
     <div class="actions">
       <button class="btn" type="button" id="customCancel">取消</button>
@@ -374,32 +360,32 @@ const DEFAULT_CATALOG = [
   {
     id: "furnace", name: "熔炉", w: 3, h: 4, color: "#c45c26", top: "#e07a3a",
     recipe: "furnace",
-    ports: { out: { side: "E", t: 0.62 }, in: { side: "W", t: 0.62 } },
+    ports: { out: { x: 1, y: 0.62 }, in: { x: 0, y: 0.62 } },
   },
   {
     id: "smelter", name: "冶炼厂", w: 3, h: 4, color: "#5b9fd4", top: "#7eb8e8",
     recipe: "smelter",
-    ports: { out: { side: "S", t: 0.5 }, in: { side: "W", t: 0.38 } },
+    ports: { out: { x: 0.5, y: 1 }, in: { x: 0, y: 0.38 } },
   },
   {
     id: "fabricator", name: "制造厂", w: 3, h: 3, color: "#3d6ea8", top: "#5b8ec8",
     recipe: "fabricator",
-    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
   },
   {
     id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d",
     recipe: "box",
-    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
   },
   {
     id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a",
     recipe: "box",
-    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
   },
   {
     id: "splitter", name: "调制器3", w: 2, h: 2, color: "#2f9d84", top: "#4db8a0",
     recipe: "circle",
-    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
   },
 ];
 
@@ -430,13 +416,33 @@ function normalizeHit(hit, w, h, fallback) {
   return [...hit].map((ch) => (ch === "1" ? "1" : "0")).join("");
 }
 
+function sidePortToXY(p) {
+  const t = Math.max(0, Math.min(1, Number(p && p.t) || 0.5));
+  const side = p && p.side;
+  if (side === "E") return { x: 1, y: t };
+  if (side === "W") return { x: 0, y: t };
+  if (side === "S") return { x: t, y: 1 };
+  if (side === "N") return { x: t, y: 0 };
+  return null;
+}
 function normalizePort(p, fallback) {
-  const fb = fallback || { side: "E", t: 0.5 };
-  const side = p && ["E", "S", "W", "N"].includes(p.side) ? p.side : fb.side;
-  let t = Number(p && p.t);
-  if (!Number.isFinite(t)) t = fb.t;
-  t = Math.max(0, Math.min(1, t));
-  return { side, t };
+  const fb = fallback || { x: 1, y: 0.5 };
+  if (p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) {
+    return {
+      x: Math.max(0, Math.min(1, Number(p.x))),
+      y: Math.max(0, Math.min(1, Number(p.y))),
+    };
+  }
+  const fromSide = sidePortToXY(p);
+  if (fromSide) return fromSide;
+  if (fb && Number.isFinite(Number(fb.x)) && Number.isFinite(Number(fb.y))) {
+    return {
+      x: Math.max(0, Math.min(1, Number(fb.x))),
+      y: Math.max(0, Math.min(1, Number(fb.y))),
+    };
+  }
+  const fromFbSide = sidePortToXY(fb);
+  return fromFbSide || { x: 0.5, y: 0.5 };
 }
 
 function normalizeCatalogItem(c) {
@@ -479,8 +485,8 @@ function normalizeCatalogItem(c) {
     hit: normalizeHit(hit, w, h, fullHit(w, h)),
     art,
     ports: {
-      out: normalizePort(portsOut, (base && base.ports && base.ports.out) || { side: "E", t: 0.5 }),
-      in: normalizePort(portsIn, (base && base.ports && base.ports.in) || { side: "W", t: 0.5 }),
+      out: normalizePort(portsOut, (base && base.ports && base.ports.out) || { x: 1, y: 0.5 }),
+      in: normalizePort(portsIn, (base && base.ports && base.ports.in) || { x: 0, y: 0.5 }),
     },
     custom: !!c.custom,
   };
@@ -690,16 +696,12 @@ function worldCellsOf(b) {
 }
 function portWorld(b, kind) {
   const c = cat(b.type);
-  const def = { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } };
+  const def = { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } };
   const p = normalizePort(c && c.ports && c.ports[kind], def[kind]);
   const uw = c ? c.w : b.w;
   const uh = c ? c.h : b.h;
-  const t = p.t;
-  let lx, ly;
-  if (p.side === "E") { lx = uw; ly = t * uh; }
-  else if (p.side === "W") { lx = 0; ly = t * uh; }
-  else if (p.side === "S") { lx = t * uw; ly = uh; }
-  else { lx = t * uw; ly = 0; }
+  const lx = p.x * uw;
+  const ly = p.y * uh;
   const rot = b.rot || 0;
   let rx = lx, ry = ly;
   if (rot === 1) { rx = uh - ly; ry = lx; }
@@ -886,15 +888,51 @@ const customH = document.getElementById("customH");
 const customPreview = document.getElementById("customPreview");
 const paintCv = document.getElementById("paintCv");
 const paintCtx = paintCv.getContext("2d");
+const portCv = document.getElementById("portCv");
+const portCtx = portCv.getContext("2d");
 const paintWrap = document.getElementById("paintWrap");
-const portOutSide = document.getElementById("portOutSide");
-const portInSide = document.getElementById("portInSide");
-const portOutT = document.getElementById("portOutT");
-const portInT = document.getElementById("portInT");
 let editingId = null;
 let paintTool = "brush";
 let paintDrawing = false;
 let paintLast = null;
+let draftPorts = { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } };
+
+function syncPaintToolUi() {
+  const brush = document.getElementById("paintBrush");
+  const eraser = document.getElementById("paintEraser");
+  const outBtn = document.getElementById("paintPortOut");
+  const inBtn = document.getElementById("paintPortIn");
+  brush.classList.toggle("on", paintTool === "brush");
+  eraser.classList.toggle("on", paintTool === "eraser");
+  outBtn.classList.toggle("on", paintTool === "portOut");
+  outBtn.classList.toggle("out", paintTool === "portOut");
+  inBtn.classList.toggle("on", paintTool === "portIn");
+  inBtn.classList.toggle("in", paintTool === "portIn");
+  paintWrap.classList.toggle("port-mode", paintTool === "portOut" || paintTool === "portIn");
+}
+function drawDraftPorts() {
+  const w = portCv.width, h = portCv.height;
+  portCtx.clearRect(0, 0, w, h);
+  const r = Math.max(5, Math.min(w, h) * 0.06);
+  const drawOne = (p, fill, stroke) => {
+    if (!p) return;
+    const x = p.x * w, y = p.y * h;
+    portCtx.beginPath();
+    portCtx.arc(x, y, r, 0, Math.PI * 2);
+    portCtx.fillStyle = fill;
+    portCtx.fill();
+    portCtx.lineWidth = 2;
+    portCtx.strokeStyle = stroke;
+    portCtx.stroke();
+  };
+  drawOne(draftPorts.out, "#22c55e", "#14532d");
+  drawOne(draftPorts.in, "#fbbf24", "#92400e");
+}
+function syncPortCanvasSize() {
+  portCv.width = paintCv.width;
+  portCv.height = paintCv.height;
+  drawDraftPorts();
+}
 
 function readModalSize() {
   return {
@@ -946,12 +984,14 @@ function resizePaintBoard(keepContent) {
   if (backup) {
     paintCtx.drawImage(backup, 0, 0, backup.width, backup.height, 0, 0, nw, nh);
   }
+  syncPortCanvasSize();
 }
 function loadArtToPaint(art, w, h) {
   paintCv.width = w * CELL;
   paintCv.height = h * CELL;
   paintWrap.style.setProperty("--pc", CELL + "px");
   paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
+  syncPortCanvasSize();
   if (!art) {
     paintDefaultSilhouette(paintCtx, w, h, "box");
     return;
@@ -991,10 +1031,12 @@ function fillModalFromItem(item) {
   customW.value = String(item.w);
   customH.value = String(item.h);
   customPreview.style.background = item.color;
-  portOutSide.value = item.ports.out.side;
-  portInSide.value = item.ports.in.side;
-  portOutT.value = String(Math.round(item.ports.out.t * 100));
-  portInT.value = String(Math.round(item.ports.in.t * 100));
+  draftPorts = {
+    out: normalizePort(item.ports && item.ports.out, { x: 1, y: 0.5 }),
+    in: normalizePort(item.ports && item.ports.in, { x: 0, y: 0.5 }),
+  };
+  paintTool = "brush";
+  syncPaintToolUi();
   customW.dataset.prevW = String(item.w);
   customH.dataset.prevH = String(item.h);
   loadArtToPaint(item.art, item.w, item.h);
@@ -1007,7 +1049,7 @@ function openCustomModal() {
   fillModalFromItem(normalizeCatalogItem({
     id: "tmp", name: "自定义", w: 3, h: 3, color: "#7c5cff",
     art: baked.art, hit: baked.hit, mask: baked.mask,
-    ports: { out: { side: "E", t: 0.5 }, in: { side: "W", t: 0.5 } },
+    ports: { out: { x: 1, y: 0.5 }, in: { x: 0, y: 0.5 } },
     custom: true,
   }));
   customModal.classList.add("show");
@@ -1026,11 +1068,13 @@ function openEditModal(id) {
 function closeCustomModal() {
   customModal.classList.remove("show");
   editingId = null;
+  paintTool = "brush";
+  syncPaintToolUi();
 }
 function readModalPorts() {
   return {
-    out: { side: portOutSide.value, t: Number(portOutT.value) / 100 },
-    in: { side: portInSide.value, t: Number(portInT.value) / 100 },
+    out: normalizePort(draftPorts.out, { x: 1, y: 0.5 }),
+    in: normalizePort(draftPorts.in, { x: 0, y: 0.5 }),
   };
 }
 function applyCustomBuilding() {
@@ -1095,13 +1139,19 @@ customW.addEventListener("change", () => resizePaintBoard(true));
 customH.addEventListener("change", () => resizePaintBoard(true));
 document.getElementById("paintBrush").addEventListener("click", () => {
   paintTool = "brush";
-  document.getElementById("paintBrush").classList.add("on");
-  document.getElementById("paintEraser").classList.remove("on");
+  syncPaintToolUi();
 });
 document.getElementById("paintEraser").addEventListener("click", () => {
   paintTool = "eraser";
-  document.getElementById("paintEraser").classList.add("on");
-  document.getElementById("paintBrush").classList.remove("on");
+  syncPaintToolUi();
+});
+document.getElementById("paintPortOut").addEventListener("click", () => {
+  paintTool = "portOut";
+  syncPaintToolUi();
+});
+document.getElementById("paintPortIn").addEventListener("click", () => {
+  paintTool = "portIn";
+  syncPaintToolUi();
 });
 document.getElementById("paintClear").addEventListener("click", () => {
   paintCtx.clearRect(0, 0, paintCv.width, paintCv.height);
@@ -1110,7 +1160,26 @@ document.getElementById("paintBlob").addEventListener("click", () => {
   const { w, h } = readModalSize();
   paintDefaultSilhouette(paintCtx, w, h, "box");
 });
+function placeDraftPortAtEvent(e) {
+  const r = portCv.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+  if (paintTool === "portOut") draftPorts.out = { x, y };
+  else if (paintTool === "portIn") draftPorts.in = { x, y };
+  drawDraftPorts();
+}
+portCv.addEventListener("pointerdown", (e) => {
+  if (paintTool !== "portOut" && paintTool !== "portIn") return;
+  e.preventDefault();
+  placeDraftPortAtEvent(e);
+});
 paintCv.addEventListener("pointerdown", (e) => {
+  if (paintTool === "portOut" || paintTool === "portIn") {
+    e.preventDefault();
+    placeDraftPortAtEvent(e);
+    return;
+  }
   e.preventDefault();
   paintDrawing = true;
   paintLast = paintPos(e);
