@@ -990,11 +990,20 @@ function railDirs(seg) {
     d2: portOutwardDir(seg.b, seg.toKind || "in", seg.toPort),
   };
 }
-/** 进出口永远竖条（偏瘦）；主画布 scale 略放大便于点选 */
+/** 按口在建筑上的位置自动横/竖：靠上下边→横条，靠左右边→竖条 */
+function portEdgeAxis(nx, ny) {
+  const x = Math.max(0, Math.min(1, Number(nx) || 0.5));
+  const y = Math.max(0, Math.min(1, Number(ny) || 0.5));
+  const dL = x, dR = 1 - x, dT = y, dB = 1 - y;
+  const m = Math.min(dL, dR, dT, dB);
+  if (m === dT || m === dB) return "h"; // 上下边：横条
+  return "v"; // 左右边：竖条
+}
 function portBarSize(nx, ny, scale) {
   const s = scale || 1;
   const thick = Math.max(3, 3.5 * s);
   const len = Math.max(12, 16 * s);
+  if (portEdgeAxis(nx, ny) === "h") return { w: len, h: thick };
   return { w: thick, h: len };
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
