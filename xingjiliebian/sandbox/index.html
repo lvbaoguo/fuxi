@@ -366,7 +366,7 @@
         <button class="btn" type="button" id="paintPortRot">旋转口 R</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。口条画在建筑外侧；横/竖请点「旋转口 R」切换（不再跟所在边自动变）。选中后点空白或「增加新口」加口。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进。口条跟手拖动，无边吸附；横/竖用「旋转口 R」。可拖到外形外侧一点。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -574,24 +574,26 @@ function normalizePort(p, fallback) {
   const fb = fallback || { x: 1, y: 0.5 };
   let x, y;
   if (p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) {
-    x = Math.max(0, Math.min(1, Number(p.x)));
-    y = Math.max(0, Math.min(1, Number(p.y)));
+    x = Number(p.x);
+    y = Number(p.y);
   } else {
     const fromSide = sidePortToXY(p);
     if (fromSide) { x = fromSide.x; y = fromSide.y; }
     else if (fb && Number.isFinite(Number(fb.x)) && Number.isFinite(Number(fb.y))) {
-      x = Math.max(0, Math.min(1, Number(fb.x)));
-      y = Math.max(0, Math.min(1, Number(fb.y)));
+      x = Number(fb.x);
+      y = Number(fb.y);
     } else {
       const fromFbSide = sidePortToXY(fb);
       x = (fromFbSide && fromFbSide.x) || 0.5;
       y = (fromFbSide && fromFbSide.y) || 0.5;
     }
   }
-  // bar: 手动横/竖；旧数据无字段时按位置推一次默认
+  // 允许略超出 0~1，方便把口摆在外形外侧；不做边吸附
+  x = Math.max(-0.2, Math.min(1.2, x));
+  y = Math.max(-0.2, Math.min(1.2, y));
   let bar = p && (p.bar === "h" || p.bar === "v") ? p.bar : null;
   if (!bar) {
-    const out = portLocalOutward(x, y);
+    const out = portLocalOutward(Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y)));
     bar = Math.abs(out.y) >= Math.abs(out.x) ? "v" : "h";
   }
   return { x, y, bar };
@@ -1107,23 +1109,17 @@ function portBarSizeFromAxis(axis, scale) {
   if (axis === "h") return { w: len, h: thick };
   return { w: thick, h: len };
 }
-/** 口条中心相对边口的外偏（整条在外侧，不伸进建筑内） */
-function portBarOutOffset(out, axis, scale) {
-  const o = out || { x: 0, y: -1 };
-  const { w, h } = portBarSizeFromAxis(axis || "v", scale);
-  const half = Math.abs(o.y) >= Math.abs(o.x) ? h / 2 : w / 2;
-  const gap = 1.25 * (scale || 1);
-  return { x: o.x * (half + gap), y: o.y * (half + gap) };
+/** 口条中心相对边口的外偏：已取消自动外推（避免拖到边时跳边吸附） */
+function portBarOutOffset(_out, _axis, _scale) {
+  return { x: 0, y: 0 };
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale, outward, barAxis) {
-  const out = outward || portLocalOutward(nx, ny);
   const axis = barAxis === "h" || barAxis === "v" ? barAxis : "v";
   const { w, h } = portBarSizeFromAxis(axis, scale);
-  const off = portBarOutOffset(out, axis, scale);
   const fill = kind === "out" ? "#22c55e" : (kind === "in" ? "#eab308" : "#9ca3af");
   const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
   ctx2.save();
-  ctx2.translate(cx + off.x, cy + off.y);
+  ctx2.translate(cx, cy);
   const hw = w / 2, hh = h / 2;
   const r = Math.min(2.5, hw, hh);
   ctx2.beginPath();
@@ -1985,8 +1981,8 @@ function placeOrDragPortAtEvent(e, isDown) {
   const kind = portKindFromTool();
   const r = portCv.getBoundingClientRect();
   if (!r.width || !r.height) return;
-  const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-  const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+  const x = Math.max(-0.2, Math.min(1.2, (e.clientX - r.left) / r.width));
+  const y = Math.max(-0.2, Math.min(1.2, (e.clientY - r.top) / r.height));
   if (isDown) {
     const hit = hitDraftPort(x, y, kind);
     if (hit) {
@@ -2016,8 +2012,8 @@ function placeOrDragPortAtEvent(e, isDown) {
     const list = draftPorts[portDrag.kind];
     if (!list || !list[portDrag.index]) return;
     list[portDrag.index] = {
-      x: Math.max(0, Math.min(1, x - portDrag.ox)),
-      y: Math.max(0, Math.min(1, y - portDrag.oy)),
+      x: Math.max(-0.2, Math.min(1.2, x - portDrag.ox)),
+      y: Math.max(-0.2, Math.min(1.2, y - portDrag.oy)),
       bar: list[portDrag.index].bar === "h" ? "h" : "v",
     };
     drawDraftPorts();
