@@ -87,18 +87,18 @@
   .paint-wrap #portCv {
     position: absolute; left: 0; top: 0; width: 100%; height: 100%;
     background: transparent; pointer-events: none; cursor: crosshair;
-    z-index: 3; /* 口在上层，但用画像抠掉内部，只露外截 */
+    z-index: 1; /* 口在建筑画像下层，内部被挡住只露外截 */
   }
   .paint-wrap #paintCv {
     position: relative;
     z-index: 2;
     background: transparent;
   }
-  .paint-wrap.port-mode #portCv { pointer-events: auto; }
-  .paint-wrap.port-mode #paintCv { pointer-events: none; cursor: default; }
-  .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; }
-  .paint-wrap.scale-mode #paintCv { pointer-events: none; cursor: default; }
-  .paint-wrap.port-step #portCv { pointer-events: auto; cursor: crosshair; }
+  .paint-wrap.port-mode #portCv { pointer-events: auto; z-index: 1; }
+  .paint-wrap.port-mode #paintCv { pointer-events: none; cursor: default; z-index: 2; }
+  .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; z-index: 3; }
+  .paint-wrap.scale-mode #paintCv { pointer-events: none; cursor: default; z-index: 2; }
+  .paint-wrap.port-step #portCv { pointer-events: auto; cursor: crosshair; z-index: 1; }
   .paint-preview-row {
     display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
   }
@@ -337,8 +337,8 @@
       <div class="paint-preview-row">
         <div class="paint-preview-slot" id="paintPreviewSlot">
           <div class="paint-wrap" id="paintWrap">
-            <canvas id="paintCv" width="84" height="84"></canvas>
             <canvas id="portCv" width="84" height="84"></canvas>
+            <canvas id="paintCv" width="84" height="84"></canvas>
           </div>
         </div>
         <button class="btn active" type="button" id="btnExpandPaint" style="display:none">放大编辑进出口</button>
@@ -374,7 +374,7 @@
         <button class="btn" type="button" id="paintPortRot">旋转口 R</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中。口条会被建筑画像抠掉内部，只露外面一点；拖动无吸附；横/竖用「旋转口 R」。把口贴在边缘上效果最好。</p>
+      <p class="port-hint">点绿/黄/灰选中。口在建筑下层，内部被挡住只露外截；拖动无吸附；横/竖用「旋转口 R」。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -1112,9 +1112,8 @@ function portBarAxis(p, buildingRot) {
 }
 function portBarSizeFromAxis(axis, scale) {
   const s = scale || 1;
-  // 短条：露在建筑外只剩「一点」头
-  const thick = Math.max(2.5, 2.8 * s);
-  const len = Math.max(7, 8.5 * s);
+  const thick = Math.max(3, 3.2 * s);
+  const len = Math.max(10, 14 * s);
   if (axis === "h") return { w: len, h: thick };
   return { w: thick, h: len };
 }
@@ -1563,34 +1562,22 @@ function drawDraftPorts() {
     portCtx.restore();
   }
   // 安口步才画可选中态；画像步只淡淡预览口位置
-  // 先画到离屏，再用建筑画像抠掉内部 → 只剩外露一点（像在下层）
   const scale = Math.min(w, h) / 84;
-  const off = document.createElement("canvas");
-  off.width = w;
-  off.height = h;
-  const og = off.getContext("2d");
   const drawList = (list, kind) => {
     (list || []).forEach((p, i) => {
       const sel = editStep === 2 && draftPortSel && draftPortSel.kind === kind && draftPortSel.index === i;
       if (editStep === 1) {
-        og.globalAlpha = 0.45;
-        drawPortBarOn(og, p.x * w, p.y * h, p.x, p.y, kind, false, scale, null, p.bar);
-        og.globalAlpha = 1;
+        portCtx.globalAlpha = 0.45;
+        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, false, scale, null, p.bar);
+        portCtx.globalAlpha = 1;
       } else {
-        drawPortBarOn(og, p.x * w, p.y * h, p.x, p.y, kind, !!sel, scale, null, p.bar);
+        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, !!sel, scale, null, p.bar);
       }
     });
   };
   drawList(draftPorts.out, "out");
   drawList(draftPorts.in, "in");
   drawList(draftPorts.any, "any");
-  try {
-    og.save();
-    og.globalCompositeOperation = "destination-out";
-    og.drawImage(paintCv, 0, 0);
-    og.restore();
-  } catch (_) {}
-  portCtx.drawImage(off, 0, 0);
 }
 function enterScaleMode() {
   if (editStep !== 1) return;
