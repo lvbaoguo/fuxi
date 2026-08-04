@@ -228,6 +228,7 @@
         <button class="btn" type="button" data-mode="place" id="modePlace">放置</button>
         <button class="btn active" type="button" data-mode="link" id="modeLink">连轨</button>
         <button class="btn" type="button" data-mode="erase" id="modeErase">擦除</button>
+        <button class="btn" type="button" data-mode="move" id="modeMove">移动</button>
         <button class="btn" type="button" id="btnRot">旋转</button>
         <button class="btn" type="button" id="btnClear">清空</button>
       </div>
@@ -243,7 +244,7 @@
     <div class="keys" id="keysPanel">
       <h3>快捷键（点右侧改键）</h3>
       <div id="keysList"></div>
-      <div class="hint">拖动画布：按住空格拖，或中键拖。删除：右键菜单 / Delete。</div>
+      <div class="hint">滚轮上下滑动画布；空格/中键拖动画布。删除：右键菜单 / Delete。移动建筑请用「移动 4」。</div>
       <button class="btn" type="button" id="btnResetKeys" style="margin-top:8px;width:100%">恢复默认快捷键</button>
     </div>
     <div class="status" id="status">就绪</div>
@@ -333,8 +334,8 @@
 </div>
 <script>
 const CELL = 28;
-const COLS = 48;
-const ROWS = 32;
+const COLS = 96;
+const ROWS = 72;
 const PORT_R = 7;
 const PORT_HIT = 20; // 基础命中；近邻口会再按间距收紧
 const PORT_MAX = 8;
@@ -685,6 +686,7 @@ const DEFAULT_HOTKEYS = {
   modePlace: "Digit1",
   modeLink: "Digit2",
   modeErase: "Digit3",
+  modeMove: "Digit4",
   delete: "Delete",
   cancel: "Escape",
   pan: "Space",
@@ -695,6 +697,7 @@ const HOTKEY_LABELS = {
   modePlace: "放置模式",
   modeLink: "连轨模式",
   modeErase: "擦除模式",
+  modeMove: "移动模式",
   delete: "删除焦点建筑",
   cancel: "取消/关菜单",
   pan: "按住拖动画布",
@@ -793,7 +796,7 @@ function loadLayout() {
     }
     state.focusId = raw.focusId && ids.has(raw.focusId) ? raw.focusId : null;
     if (raw.selected && cat(raw.selected)) state.selected = raw.selected;
-    if (raw.mode === "place" || raw.mode === "link" || raw.mode === "erase") state.mode = raw.mode;
+    if (raw.mode === "place" || raw.mode === "link" || raw.mode === "erase" || raw.mode === "move") state.mode = raw.mode;
     return true;
   } catch (_) {
     return false;
@@ -860,10 +863,12 @@ function syncModeButtons() {
     modePlace: "放置 " + codeLabel(state.hotkeys.modePlace),
     modeLink: "连轨 " + codeLabel(state.hotkeys.modeLink),
     modeErase: "擦除 " + codeLabel(state.hotkeys.modeErase),
+    modeMove: "移动 " + codeLabel(state.hotkeys.modeMove),
   };
   document.getElementById("modePlace").textContent = map.modePlace;
   document.getElementById("modeLink").textContent = map.modeLink;
   document.getElementById("modeErase").textContent = map.modeErase;
+  document.getElementById("modeMove").textContent = map.modeMove;
   document.getElementById("btnRot").textContent = "旋转 " + codeLabel(state.hotkeys.rotate);
 }
 
@@ -2479,12 +2484,14 @@ function draw() {
   statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length}` +
     (focus ? ` · 焦点：${cat(focus.type).name}` : "") + "<br>" +
     (state.mode === "place"
-      ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}° · 拖已有建筑可移动` : "请先点左侧建筑；拖已有建筑可移动")
+      ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}°` : "请先点左侧建筑")
       : state.mode === "link"
         ? (state.railDrag
           ? "拖线中：接到可互连的口（灰口可接绿/黄）"
           : (state.linkFrom ? "已选起点，再点对端口（灰口可接绿或黄）" : "连轨：绿→黄；灰=任意口可两端；改接请拖线端或长按轨道"))
-        : "擦除：点建筑/轨道；也可用右键清除");
+        : state.mode === "move"
+          ? "移动模式：拖建筑挪位置（不会点到轨道）；滚轮可滑动画布"
+          : "擦除：点建筑/轨道；也可用右键清除");
 }
 
 function clientPos(e) {
@@ -2590,7 +2597,7 @@ cv.addEventListener("mousemove", (e) => {
   const re = state.mouseWorld ? hitRailEnd(state.mouseWorld.x, state.mouseWorld.y) : null;
   const onBuild = state.hover && buildingAt(state.hover.gx, state.hover.gy);
   if (state.mode === "link" && (hp || re)) cv.style.cursor = "pointer";
-  else if (onBuild && !(state.mode === "link" && hp)) cv.style.cursor = "grab";
+  else if (state.mode === "move" && onBuild) cv.style.cursor = "grab";
   else cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   draw();
 });
@@ -2648,8 +2655,8 @@ cv.addEventListener("mousedown", (e) => {
   }
 
   const hit = buildingAt(g.gx, g.gy);
-  // 非连轨模式：口在外侧，点建筑本体应可拖；仅连轨时点口不抢成拖动
-  if (hit && !(state.mode === "link" && hp)) {
+  // 仅「移动」模式拖建筑，避免连轨时误拖或点到线
+  if (hit && state.mode === "move") {
     state.focusId = hit.id;
     state.moving = {
       id: hit.id,
@@ -2660,6 +2667,11 @@ cv.addEventListener("mousedown", (e) => {
       dragged: false,
     };
     e.preventDefault();
+    return;
+  }
+  if (hit && state.mode !== "link") {
+    state.focusId = hit.id;
+    draw();
   }
 });
 
@@ -2872,6 +2884,13 @@ window.addEventListener("keydown", (e) => {
     draw();
     return;
   }
+  if (matchHotkey(e, "modeMove")) {
+    e.preventDefault();
+    state.mode = "move";
+    syncModes();
+    draw();
+    return;
+  }
   if (matchHotkey(e, "delete") || e.code === "Backspace") {
     e.preventDefault();
     if (state.focusId) deleteBuilding(state.focusId);
@@ -2893,6 +2912,19 @@ window.addEventListener("keyup", (e) => {
     cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   }
 });
+
+cv.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const dx = e.deltaX || 0;
+  const dy = e.deltaY || 0;
+  if (e.shiftKey && !dx) {
+    state.panX -= dy;
+  } else {
+    state.panX -= dx;
+    state.panY -= dy;
+  }
+  draw();
+}, { passive: false });
 
 (function initLayout() {
   if (!loadLayout()) {
