@@ -324,7 +324,7 @@
         <button class="btn" type="button" id="paintPortAdd">增加新口</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。口靠上下横边自动竖条、靠左右竖边自动横条（拖到边会跟着转）。选中后点空白或「增加新口」加口；未选中时点空白不加口，仍可拖已有口。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。口条画在建筑外侧（不伸进内部）；靠上下边竖条、靠左右边横条。选中后点空白或「增加新口」加口；未选中时点空白不加口，仍可拖已有口。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -990,28 +990,45 @@ function railDirs(seg) {
     d2: portOutwardDir(seg.b, seg.toKind || "in", seg.toPort),
   };
 }
-/** 口条垂直于所在边：靠上下横边→竖条，靠左右竖边→横条 */
-function portEdgeAxis(nx, ny) {
+/** 口在建筑局部坐标上朝外的单位方向（未旋转） */
+function portLocalOutward(nx, ny) {
   const x = Math.max(0, Math.min(1, Number(nx) || 0.5));
   const y = Math.max(0, Math.min(1, Number(ny) || 0.5));
   const dL = x, dR = 1 - x, dT = y, dB = 1 - y;
   const m = Math.min(dL, dR, dT, dB);
-  if (m === dT || m === dB) return "v"; // 上下横边：竖条
-  return "h"; // 左右竖边：横条
+  if (m === dB) return { x: 0, y: 1 };
+  if (m === dL) return { x: -1, y: 0 };
+  if (m === dR) return { x: 1, y: 0 };
+  return { x: 0, y: -1 };
+}
+/** 口条垂直于所在边：朝外上下→竖条，朝外左右→横条 */
+function portBarSizeFromOutward(out, scale) {
+  const s = scale || 1;
+  const thick = Math.max(3, 3.2 * s);
+  const len = Math.max(10, 14 * s);
+  const o = out || { x: 0, y: -1 };
+  if (Math.abs(o.y) >= Math.abs(o.x)) return { w: thick, h: len }; // 上下边：竖条
+  return { w: len, h: thick }; // 左右边：横条
 }
 function portBarSize(nx, ny, scale) {
-  const s = scale || 1;
-  const thick = Math.max(3, 3.5 * s);
-  const len = Math.max(12, 16 * s);
-  if (portEdgeAxis(nx, ny) === "h") return { w: len, h: thick };
-  return { w: thick, h: len };
+  return portBarSizeFromOutward(portLocalOutward(nx, ny), scale);
 }
-function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
-  const { w, h } = portBarSize(nx, ny, scale);
+/** 口条中心相对边口的外偏（整条在外侧，不伸进建筑内） */
+function portBarOutOffset(out, scale) {
+  const o = out || { x: 0, y: -1 };
+  const { w, h } = portBarSizeFromOutward(o, scale);
+  const half = Math.abs(o.y) >= Math.abs(o.x) ? h / 2 : w / 2;
+  const gap = 1.25 * (scale || 1);
+  return { x: o.x * (half + gap), y: o.y * (half + gap) };
+}
+function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale, outward) {
+  const out = outward || portLocalOutward(nx, ny);
+  const { w, h } = portBarSizeFromOutward(out, scale);
+  const off = portBarOutOffset(out, scale);
   const fill = kind === "out" ? "#22c55e" : (kind === "in" ? "#eab308" : "#9ca3af");
   const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
   ctx2.save();
-  ctx2.translate(cx, cy);
+  ctx2.translate(cx + off.x, cy + off.y);
   const hw = w / 2, hh = h / 2;
   const r = Math.min(2.5, hw, hh);
   ctx2.beginPath();
@@ -1827,12 +1844,17 @@ function portKindFromTool() {
 function hitDraftPort(nx, ny, preferKind) {
   const w = portCv.width || 1, h = portCv.height || 1;
   const px = nx * w, py = ny * h;
+  const scale = Math.min(w, h) / 84;
   let best = null, bestD = 16;
   const scan = (kind) => {
     (draftPorts[kind] || []).forEach((p, i) => {
-      const { w: bw, h: bh } = portBarSize(p.x, p.y, Math.min(w, h) / 84);
-      const dx = Math.abs(px - p.x * w) - bw / 2;
-      const dy = Math.abs(py - p.y * h) - bh / 2;
+      const out = portLocalOutward(p.x, p.y);
+      const off = portBarOutOffset(out, scale);
+      const cx = p.x * w + off.x;
+      const cy = p.y * h + off.y;
+      const { w: bw, h: bh } = portBarSizeFromOutward(out, scale);
+      const dx = Math.abs(px - cx) - bw / 2;
+      const dy = Math.abs(py - cy) - bh / 2;
       const d = Math.hypot(Math.max(0, dx), Math.max(0, dy));
       const score = d + (preferKind && preferKind !== kind ? 4 : 0);
       if (score < bestD) {
@@ -2111,6 +2133,7 @@ function hitPort(wx, wy, opts) {
   const needKind = opts && opts.kind;
   const excludeBuildingId = opts && opts.excludeBuildingId;
   const linkFromKind = opts && opts.linkFromKind;
+  const hitScale = 1.35;
   const candidates = [];
   for (const b of state.buildings) {
     if (excludeBuildingId && b.id === excludeBuildingId) continue;
@@ -2121,9 +2144,12 @@ function hitPort(wx, wy, opts) {
       if (linkFromKind != null && !canLinkPorts(linkFromKind, kind)) continue;
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
-        const pos = portWorld(b, kind, index);
+        const edge = portWorld(b, kind, index);
+        const out = portOutwardDir(b, kind, index);
+        const off = portBarOutOffset(out, hitScale);
+        const pos = { x: edge.x + off.x, y: edge.y + off.y };
         const d = Math.hypot(wx - pos.x, wy - pos.y);
-        candidates.push({ building: b, kind, index, pos, nx: p.x, ny: p.y, d });
+        candidates.push({ building: b, kind, index, pos, edge, nx: p.x, ny: p.y, d });
       });
     }
   }
@@ -2306,8 +2332,8 @@ function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
     drawTinted(null);
   }
 }
-function drawPort(pos, kind, highlight, nx, ny) {
-  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1.35);
+function drawPort(pos, kind, highlight, nx, ny, outward) {
+  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1.35, outward);
 }
 
 function draw() {
@@ -2415,11 +2441,12 @@ function draw() {
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
+        const out = portOutwardDir(b, kind, index);
         const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === kind && hoverPort.index === index;
         const selOut = state.linkFrom && state.linkFrom.buildingId === b.id
           && normalizePortKind(state.linkFrom.portKind, "out") === kind
           && (Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0) === index;
-        drawPort(pos, kind, ho || selOut, p.x, p.y);
+        drawPort(pos, kind, ho || selOut, p.x, p.y, out);
       });
     }
   }
@@ -2439,7 +2466,8 @@ function draw() {
       for (const kind of ["out", "in", "any"]) {
         const list = normalizePortList(c.ports && c.ports[kind], kind);
         list.forEach((p, index) => {
-          drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y);
+          const out = portOutwardDir(ghost, kind, index);
+          drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y, out);
         });
       }
     }
@@ -2562,7 +2590,7 @@ cv.addEventListener("mousemove", (e) => {
   const re = state.mouseWorld ? hitRailEnd(state.mouseWorld.x, state.mouseWorld.y) : null;
   const onBuild = state.hover && buildingAt(state.hover.gx, state.hover.gy);
   if (state.mode === "link" && (hp || re)) cv.style.cursor = "pointer";
-  else if (onBuild && !hp) cv.style.cursor = "grab";
+  else if (onBuild && !(state.mode === "link" && hp)) cv.style.cursor = "grab";
   else cv.style.cursor = state.mode === "link" ? "crosshair" : "default";
   draw();
 });
@@ -2620,7 +2648,8 @@ cv.addEventListener("mousedown", (e) => {
   }
 
   const hit = buildingAt(g.gx, g.gy);
-  if (hit && !hp) {
+  // 非连轨模式：口在外侧，点建筑本体应可拖；仅连轨时点口不抢成拖动
+  if (hit && !(state.mode === "link" && hp)) {
     state.focusId = hit.id;
     state.moving = {
       id: hit.id,
