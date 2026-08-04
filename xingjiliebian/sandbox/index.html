@@ -363,9 +363,10 @@
         <button class="btn" type="button" id="paintPortIn">黄·入口</button>
         <button class="btn" type="button" id="paintPortAny">灰·任意口</button>
         <button class="btn" type="button" id="paintPortAdd">增加新口</button>
+        <button class="btn" type="button" id="paintPortRot">旋转口 R</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。口条画在建筑外侧（不伸进内部）；靠上下边竖条、靠左右边横条。选中后点空白或「增加新口」加口；未选中时点空白不加口，仍可拖已有口。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。口条画在建筑外侧；横/竖请点「旋转口 R」切换（不再跟所在边自动变）。选中后点空白或「增加新口」加口。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -571,27 +572,34 @@ function sidePortToXY(p) {
 }
 function normalizePort(p, fallback) {
   const fb = fallback || { x: 1, y: 0.5 };
+  let x, y;
   if (p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) {
-    return {
-      x: Math.max(0, Math.min(1, Number(p.x))),
-      y: Math.max(0, Math.min(1, Number(p.y))),
-    };
+    x = Math.max(0, Math.min(1, Number(p.x)));
+    y = Math.max(0, Math.min(1, Number(p.y)));
+  } else {
+    const fromSide = sidePortToXY(p);
+    if (fromSide) { x = fromSide.x; y = fromSide.y; }
+    else if (fb && Number.isFinite(Number(fb.x)) && Number.isFinite(Number(fb.y))) {
+      x = Math.max(0, Math.min(1, Number(fb.x)));
+      y = Math.max(0, Math.min(1, Number(fb.y)));
+    } else {
+      const fromFbSide = sidePortToXY(fb);
+      x = (fromFbSide && fromFbSide.x) || 0.5;
+      y = (fromFbSide && fromFbSide.y) || 0.5;
+    }
   }
-  const fromSide = sidePortToXY(p);
-  if (fromSide) return fromSide;
-  if (fb && Number.isFinite(Number(fb.x)) && Number.isFinite(Number(fb.y))) {
-    return {
-      x: Math.max(0, Math.min(1, Number(fb.x))),
-      y: Math.max(0, Math.min(1, Number(fb.y))),
-    };
+  // bar: 手动横/竖；旧数据无字段时按位置推一次默认
+  let bar = p && (p.bar === "h" || p.bar === "v") ? p.bar : null;
+  if (!bar) {
+    const out = portLocalOutward(x, y);
+    bar = Math.abs(out.y) >= Math.abs(out.x) ? "v" : "h";
   }
-  const fromFbSide = sidePortToXY(fb);
-  return fromFbSide || { x: 0.5, y: 0.5 };
+  return { x, y, bar };
 }
 function defaultPort(kind) {
-  if (kind === "in") return { x: 0, y: 0.5 };
-  if (kind === "any") return { x: 0.5, y: 0.5 };
-  return { x: 1, y: 0.5 };
+  if (kind === "in") return { x: 0, y: 0.5, bar: "h" };
+  if (kind === "any") return { x: 0.5, y: 0.5, bar: "v" };
+  return { x: 1, y: 0.5, bar: "h" };
 }
 function portKindLabel(kind) {
   if (kind === "out") return "出口";
@@ -1074,7 +1082,7 @@ function railDirs(seg) {
     d2: portOutwardDir(seg.b, seg.toKind || "in", seg.toPort),
   };
 }
-/** 口在建筑局部坐标上朝外的单位方向（未旋转） */
+/** 口在建筑局部坐标上朝外的单位方向（未旋转）——仅用于把口条推出外侧 */
 function portLocalOutward(nx, ny) {
   const x = Math.max(0, Math.min(1, Number(nx) || 0.5));
   const y = Math.max(0, Math.min(1, Number(ny) || 0.5));
@@ -1085,30 +1093,33 @@ function portLocalOutward(nx, ny) {
   if (m === dR) return { x: 1, y: 0 };
   return { x: 0, y: -1 };
 }
-/** 口条垂直于所在边：朝外上下→竖条，朝外左右→横条 */
-function portBarSizeFromOutward(out, scale) {
+/** 口条横竖：由端口自身 bar 字段决定（可 R 切换），建筑旋转奇数次时世界横竖对调 */
+function portBarAxis(p, buildingRot) {
+  const local = p && p.bar === "h" ? "h" : "v";
+  const rot = buildingRot || 0;
+  if (rot % 2 === 1) return local === "v" ? "h" : "v";
+  return local;
+}
+function portBarSizeFromAxis(axis, scale) {
   const s = scale || 1;
   const thick = Math.max(3, 3.2 * s);
   const len = Math.max(10, 14 * s);
-  const o = out || { x: 0, y: -1 };
-  if (Math.abs(o.y) >= Math.abs(o.x)) return { w: thick, h: len }; // 上下边：竖条
-  return { w: len, h: thick }; // 左右边：横条
-}
-function portBarSize(nx, ny, scale) {
-  return portBarSizeFromOutward(portLocalOutward(nx, ny), scale);
+  if (axis === "h") return { w: len, h: thick };
+  return { w: thick, h: len };
 }
 /** 口条中心相对边口的外偏（整条在外侧，不伸进建筑内） */
-function portBarOutOffset(out, scale) {
+function portBarOutOffset(out, axis, scale) {
   const o = out || { x: 0, y: -1 };
-  const { w, h } = portBarSizeFromOutward(o, scale);
+  const { w, h } = portBarSizeFromAxis(axis || "v", scale);
   const half = Math.abs(o.y) >= Math.abs(o.x) ? h / 2 : w / 2;
   const gap = 1.25 * (scale || 1);
   return { x: o.x * (half + gap), y: o.y * (half + gap) };
 }
-function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale, outward) {
+function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale, outward, barAxis) {
   const out = outward || portLocalOutward(nx, ny);
-  const { w, h } = portBarSizeFromOutward(out, scale);
-  const off = portBarOutOffset(out, scale);
+  const axis = barAxis === "h" || barAxis === "v" ? barAxis : "v";
+  const { w, h } = portBarSizeFromAxis(axis, scale);
+  const off = portBarOutOffset(out, axis, scale);
   const fill = kind === "out" ? "#22c55e" : (kind === "in" ? "#eab308" : "#9ca3af");
   const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
   ctx2.save();
@@ -1553,10 +1564,10 @@ function drawDraftPorts() {
       const sel = editStep === 2 && draftPortSel && draftPortSel.kind === kind && draftPortSel.index === i;
       if (editStep === 1) {
         portCtx.globalAlpha = 0.45;
-        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, false, scale);
+        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, false, scale, null, p.bar);
         portCtx.globalAlpha = 1;
       } else {
-        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, !!sel, scale);
+        drawPortBarOn(portCtx, p.x * w, p.y * h, p.x, p.y, kind, !!sel, scale, null, p.bar);
       }
     });
   };
@@ -1835,7 +1846,7 @@ function addDraftPort(kind) {
     const s = slots[n % slots.length];
     x = s.x; y = s.y;
   }
-  draftPorts[kind].push({ x, y });
+  draftPorts[kind].push({ x, y, bar: "v" });
   draftPortSel = { kind, index: draftPorts[kind].length - 1 };
   paintTool = kind === "out" ? "portOut" : (kind === "in" ? "portIn" : "portAny");
   syncPaintToolUi();
@@ -1849,6 +1860,22 @@ document.getElementById("paintPortAdd").addEventListener("click", () => {
     return;
   }
   addDraftPort(kind);
+});
+function rotateDraftPortBar() {
+  if (!paintExpanded || editStep !== 2) return false;
+  if (!draftPortSel) {
+    alert("先点选一个口，再按 R / 旋转口");
+    return false;
+  }
+  const list = draftPorts[draftPortSel.kind];
+  const p = list && list[draftPortSel.index];
+  if (!p) return false;
+  p.bar = p.bar === "h" ? "v" : "h";
+  drawDraftPorts();
+  return true;
+}
+document.getElementById("paintPortRot").addEventListener("click", () => {
+  rotateDraftPortBar();
 });
 document.getElementById("paintPortDel").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
@@ -1932,10 +1959,11 @@ function hitDraftPort(nx, ny, preferKind) {
   const scan = (kind) => {
     (draftPorts[kind] || []).forEach((p, i) => {
       const out = portLocalOutward(p.x, p.y);
-      const off = portBarOutOffset(out, scale);
+      const axis = p.bar === "h" ? "h" : "v";
+      const off = portBarOutOffset(out, axis, scale);
       const cx = p.x * w + off.x;
       const cy = p.y * h + off.y;
-      const { w: bw, h: bh } = portBarSizeFromOutward(out, scale);
+      const { w: bw, h: bh } = portBarSizeFromAxis(axis, scale);
       const dx = Math.abs(px - cx) - bw / 2;
       const dy = Math.abs(py - cy) - bh / 2;
       const d = Math.hypot(Math.max(0, dx), Math.max(0, dy));
@@ -1977,7 +2005,7 @@ function placeOrDragPortAtEvent(e, isDown) {
       return;
     }
     draftPorts[kind] = draftPorts[kind] || [];
-    draftPorts[kind].push({ x, y });
+    draftPorts[kind].push({ x, y, bar: "v" });
     draftPortSel = { kind, index: draftPorts[kind].length - 1 };
     portDrag = { kind, index: draftPortSel.index, ox: 0, oy: 0 };
     try { portCv.setPointerCapture(e.pointerId); } catch (_) {}
@@ -1990,6 +2018,7 @@ function placeOrDragPortAtEvent(e, isDown) {
     list[portDrag.index] = {
       x: Math.max(0, Math.min(1, x - portDrag.ox)),
       y: Math.max(0, Math.min(1, y - portDrag.oy)),
+      bar: list[portDrag.index].bar === "h" ? "h" : "v",
     };
     drawDraftPorts();
   }
@@ -2240,7 +2269,8 @@ function hitPort(wx, wy, opts) {
       list.forEach((p, index) => {
         const edge = portWorld(b, kind, index);
         const out = portOutwardDir(b, kind, index);
-        const off = portBarOutOffset(out, hitScale);
+        const axis = portBarAxis(p, b.rot || 0);
+        const off = portBarOutOffset(out, axis, hitScale);
         const pos = { x: edge.x + off.x, y: edge.y + off.y };
         const d = Math.hypot(wx - pos.x, wy - pos.y);
         candidates.push({ building: b, kind, index, pos, edge, nx: p.x, ny: p.y, d });
@@ -2426,8 +2456,8 @@ function drawBuildingBody(bOrGhost, color, top, focused, showBBox) {
     drawTinted(null);
   }
 }
-function drawPort(pos, kind, highlight, nx, ny, outward) {
-  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1.35, outward);
+function drawPort(pos, kind, highlight, nx, ny, outward, barAxis) {
+  drawPortBarOn(ctx, pos.x, pos.y, nx != null ? nx : 0.5, ny != null ? ny : 0.5, kind, highlight, 1.35, outward, barAxis);
 }
 
 function draw() {
@@ -2536,11 +2566,12 @@ function draw() {
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
         const out = portOutwardDir(b, kind, index);
+        const axis = portBarAxis(p, b.rot || 0);
         const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === kind && hoverPort.index === index;
         const selOut = state.linkFrom && state.linkFrom.buildingId === b.id
           && normalizePortKind(state.linkFrom.portKind, "out") === kind
           && (Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0) === index;
-        drawPort(pos, kind, ho || selOut, p.x, p.y, out);
+        drawPort(pos, kind, ho || selOut, p.x, p.y, out, axis);
       });
     }
   }
@@ -2561,7 +2592,7 @@ function draw() {
         const list = normalizePortList(c.ports && c.ports[kind], kind);
         list.forEach((p, index) => {
           const out = portOutwardDir(ghost, kind, index);
-          drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y, out);
+          drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y, out, portBarAxis(p, ghost.rot || 0));
         });
       }
     }
@@ -2949,6 +2980,10 @@ window.addEventListener("keydown", (e) => {
   }
   if (matchHotkey(e, "rotate")) {
     e.preventDefault();
+    if (paintExpanded && editStep === 2) {
+      rotateDraftPortBar();
+      return;
+    }
     rotateAction();
     return;
   }
