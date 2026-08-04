@@ -109,6 +109,7 @@
   .paint-tools .btn.on { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
   .paint-tools .btn.on.out { background: #ecfdf5; border-color: #16a34a; color: #15803d; }
   .paint-tools .btn.on.in { background: #fffbeb; border-color: #d97706; color: #b45309; }
+  .paint-tools .btn.on.any { background: #f3f4f6; border-color: #6b7280; color: #374151; }
   .paint-tools label { font-size: .72rem; color: var(--muted); margin: 0; }
   .paint-tools input[type="range"] { width: 88px; }
   .edit-steps {
@@ -216,7 +217,7 @@
 <div class="app">
   <aside class="side">
     <h1>方格沙盘 · 初版</h1>
-    <p class="sub">点「改」打开画像画板：画外形后，用绿/黄工具在画像上点放进出口。</p>
+    <p class="sub">点「改」打开画像画板：画外形后，用绿/黄/灰工具在画像上点放进出口（灰=任意口，可连绿或黄）。</p>
     <div class="nav">
       <a href="../pc/?v=20260803">合成路线</a>
       <a href="../?stay=1">入口</a>
@@ -319,10 +320,11 @@
       <div class="paint-tools">
         <button class="btn" type="button" id="paintPortOut">绿·出口</button>
         <button class="btn" type="button" id="paintPortIn">黄·入口</button>
+        <button class="btn" type="button" id="paintPortAny">灰·任意口</button>
         <button class="btn" type="button" id="paintPortAdd">增加新口</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄选中（再点一次取消）。选中后可点空白或「增加新口」加口；未选中时点空白不会加口，仍可拖已有竖条。「删选中口」删除。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进，连轨时能接绿或黄。选中后点空白或「增加新口」加口；未选中时点空白不加口，仍可拖已有竖条。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -465,7 +467,16 @@ const DEFAULT_CATALOG = [
   {
     id: "storage", name: "仓储", w: 2, h: 2, color: "#5a6b7d", top: "#7a8b9d",
     recipe: "box",
-    ports: { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] },
+    ports: {
+      out: [],
+      in: [],
+      any: [
+        { x: 0.5, y: 0 },
+        { x: 1, y: 0.5 },
+        { x: 0.5, y: 1 },
+        { x: 0, y: 0.5 },
+      ],
+    },
   },
   {
     id: "raw", name: "原料点", w: 2, h: 2, color: "#c4a35a", top: "#e0c07a",
@@ -535,12 +546,34 @@ function normalizePort(p, fallback) {
   return fromFbSide || { x: 0.5, y: 0.5 };
 }
 function defaultPort(kind) {
-  return kind === "in" ? { x: 0, y: 0.5 } : { x: 1, y: 0.5 };
+  if (kind === "in") return { x: 0, y: 0.5 };
+  if (kind === "any") return { x: 0.5, y: 0.5 };
+  return { x: 1, y: 0.5 };
 }
-/** 兼容旧版单点 {x,y}/{side,t} → 数组 */
+function portKindLabel(kind) {
+  if (kind === "out") return "出口";
+  if (kind === "in") return "入口";
+  return "任意口";
+}
+function normalizePortKind(kind, fallback) {
+  if (kind === "out" || kind === "in" || kind === "any") return kind;
+  return fallback || "out";
+}
+/** 有任意口参与时，可与绿/黄任意一端互连；否则仍是绿→黄 */
+function canLinkPorts(fromKind, toKind) {
+  const a = normalizePortKind(fromKind, "out");
+  const b = normalizePortKind(toKind, "in");
+  if (a === "any" || b === "any") return true;
+  return a === "out" && b === "in";
+}
+function canStartLink(kind) {
+  return kind === "out" || kind === "in" || kind === "any";
+}
+/** 兼容旧版单点 {x,y}/{side,t} → 数组；显式 [] 表示无口 */
 function normalizePortList(raw, kind) {
   const def = defaultPort(kind);
   if (Array.isArray(raw)) {
+    if (!raw.length) return [];
     return raw
       .map((p) => normalizePort(p, def))
       .slice(0, PORT_MAX);
@@ -548,6 +581,8 @@ function normalizePortList(raw, kind) {
   if (raw && (Number.isFinite(Number(raw.x)) || raw.side)) {
     return [normalizePort(raw, def)];
   }
+  // any 缺省为空；绿/黄缺省给一个默认口（兼容旧数据）
+  if (kind === "any") return [];
   return [normalizePort(null, def)];
 }
 
@@ -556,8 +591,17 @@ function normalizeCatalogItem(c) {
   const w = Math.max(1, Math.min(12, Number(c.w) || (base && base.w) || 2));
   const h = Math.max(1, Math.min(12, Number(c.h) || (base && base.h) || 2));
   const color = /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : (base ? base.color : "#7c5cff");
-  const portsIn = (c.ports && c.ports.in) || (base && base.ports && base.ports.in);
-  const portsOut = (c.ports && c.ports.out) || (base && base.ports && base.ports.out);
+  let portsIn = (c.ports && c.ports.in) || (base && base.ports && base.ports.in);
+  let portsOut = (c.ports && c.ports.out) || (base && base.ports && base.ports.out);
+  let portsAny = (c.ports && Object.prototype.hasOwnProperty.call(c.ports, "any"))
+    ? c.ports.any
+    : (base && base.ports && base.ports.any);
+  // 仓储旧存档无任意口：升级为四向灰口（游戏里进出不分）
+  if (c.id === "storage" && !c.custom && c.ports && !Object.prototype.hasOwnProperty.call(c.ports, "any") && base && base.ports) {
+    portsOut = base.ports.out;
+    portsIn = base.ports.in;
+    portsAny = base.ports.any;
+  }
 
   let art = typeof c.art === "string" && c.art.startsWith("data:image") ? c.art : null;
   let hit = c.hit;
@@ -593,6 +637,7 @@ function normalizeCatalogItem(c) {
     ports: {
       out: normalizePortList(portsOut, "out"),
       in: normalizePortList(portsIn, "in"),
+      any: normalizePortList(portsAny, "any"),
     },
     custom: !!c.custom,
   };
@@ -728,6 +773,8 @@ function loadLayout() {
         toId: r.toId,
         fromPort: Number.isFinite(r.fromPort) ? r.fromPort : 0,
         toPort: Number.isFinite(r.toPort) ? r.toPort : 0,
+        fromKind: normalizePortKind(r.fromKind, "out"),
+        toKind: normalizePortKind(r.toKind, "in"),
       });
     }
     state.buildings = buildings;
@@ -939,8 +986,8 @@ function strokeRailCurve(g, p1, p2, dir1, dir2) {
 }
 function railDirs(seg) {
   return {
-    d1: portOutwardDir(seg.a, "out", seg.fromPort),
-    d2: portOutwardDir(seg.b, "in", seg.toPort),
+    d1: portOutwardDir(seg.a, seg.fromKind || "out", seg.fromPort),
+    d2: portOutwardDir(seg.b, seg.toKind || "in", seg.toPort),
   };
 }
 /** 进出口永远竖条（偏瘦）；主画布 scale 略放大便于点选 */
@@ -952,7 +999,7 @@ function portBarSize(nx, ny, scale) {
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale) {
   const { w, h } = portBarSize(nx, ny, scale);
-  const fill = kind === "out" ? "#22c55e" : "#eab308";
+  const fill = kind === "out" ? "#22c55e" : (kind === "in" ? "#eab308" : "#9ca3af");
   const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
   ctx2.save();
   ctx2.translate(cx, cy);
@@ -1162,7 +1209,7 @@ let editingId = null;
 let editStep = 1; // 1=画像 2=进出口
 let paintExpanded = false;
 let paintTool = "scale";
-let draftPorts = { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }] };
+let draftPorts = { out: [{ x: 1, y: 0.5 }], in: [{ x: 0, y: 0.5 }], any: [] };
 let draftPortSel = null; // { kind, index }
 let portDrag = null; // { kind, index, grabDx, grabDy }
 let scaleBox = null; // {x,y,w,h} 画像像素框
@@ -1201,7 +1248,7 @@ function syncEditStepUi() {
   } else {
     scaleDrag = null;
     scaleBox = null;
-    if (paintTool !== "portOut" && paintTool !== "portIn") paintTool = null;
+    if (paintTool !== "portOut" && paintTool !== "portIn" && paintTool !== "portAny") paintTool = null;
   }
   syncPaintToolUi();
   drawDraftPorts();
@@ -1232,10 +1279,13 @@ function closePaintZoom() {
 function syncPaintToolUi() {
   const outBtn = document.getElementById("paintPortOut");
   const inBtn = document.getElementById("paintPortIn");
+  const anyBtn = document.getElementById("paintPortAny");
   outBtn.classList.toggle("on", paintTool === "portOut");
   outBtn.classList.toggle("out", paintTool === "portOut");
   inBtn.classList.toggle("on", paintTool === "portIn");
   inBtn.classList.toggle("in", paintTool === "portIn");
+  anyBtn.classList.toggle("on", paintTool === "portAny");
+  anyBtn.classList.toggle("any", paintTool === "portAny");
   const portMode = paintExpanded && editStep === 2;
   const scaleMode = editStep === 1 && paintTool === "scale";
   paintWrap.classList.toggle("port-mode", portMode);
@@ -1402,6 +1452,7 @@ function drawDraftPorts() {
   };
   drawList(draftPorts.out, "out");
   drawList(draftPorts.in, "in");
+  drawList(draftPorts.any, "any");
 }
 function enterScaleMode() {
   if (editStep !== 1) return;
@@ -1496,6 +1547,7 @@ function fillModalFromItem(item) {
   draftPorts = {
     out: normalizePortList(item.ports && item.ports.out, "out"),
     in: normalizePortList(item.ports && item.ports.in, "in"),
+    any: normalizePortList(item.ports && item.ports.any, "any"),
   };
   draftPortSel = null;
   portDrag = null;
@@ -1550,6 +1602,7 @@ function readModalPorts() {
   return {
     out: normalizePortList(draftPorts.out, "out"),
     in: normalizePortList(draftPorts.in, "in"),
+    any: normalizePortList(draftPorts.any, "any"),
   };
 }
 function applyCustomBuilding() {
@@ -1646,20 +1699,36 @@ document.getElementById("paintPortIn").addEventListener("click", () => {
   syncPaintToolUi();
   drawDraftPorts();
 });
+document.getElementById("paintPortAny").addEventListener("click", () => {
+  if (!paintExpanded || editStep !== 2) return;
+  paintTool = paintTool === "portAny" ? null : "portAny";
+  scaleDrag = null;
+  syncPaintToolUi();
+  drawDraftPorts();
+});
 function addDraftPort(kind) {
   if (!paintExpanded || editStep !== 2) return;
-  kind = kind === "in" ? "in" : "out";
+  if (kind !== "in" && kind !== "any") kind = "out";
   draftPorts[kind] = draftPorts[kind] || [];
   if (draftPorts[kind].length >= PORT_MAX) {
-    alert((kind === "out" ? "出口" : "入口") + "最多 " + PORT_MAX + " 个");
+    alert(portKindLabel(kind) + "最多 " + PORT_MAX + " 个");
     return;
   }
   const n = draftPorts[kind].length;
-  const x = kind === "out" ? 0.82 : 0.18;
-  const y = Math.min(0.88, 0.18 + (n % 6) * 0.12);
+  let x = 0.5, y = 0.5;
+  if (kind === "out") { x = 0.82; y = Math.min(0.88, 0.18 + (n % 6) * 0.12); }
+  else if (kind === "in") { x = 0.18; y = Math.min(0.88, 0.18 + (n % 6) * 0.12); }
+  else {
+    const slots = [
+      { x: 0.5, y: 0.08 }, { x: 0.92, y: 0.5 }, { x: 0.5, y: 0.92 }, { x: 0.08, y: 0.5 },
+      { x: 0.78, y: 0.22 }, { x: 0.78, y: 0.78 }, { x: 0.22, y: 0.78 }, { x: 0.22, y: 0.22 },
+    ];
+    const s = slots[n % slots.length];
+    x = s.x; y = s.y;
+  }
   draftPorts[kind].push({ x, y });
   draftPortSel = { kind, index: draftPorts[kind].length - 1 };
-  paintTool = kind === "out" ? "portOut" : "portIn";
+  paintTool = kind === "out" ? "portOut" : (kind === "in" ? "portIn" : "portAny");
   syncPaintToolUi();
   drawDraftPorts();
 }
@@ -1667,7 +1736,7 @@ document.getElementById("paintPortAdd").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
   const kind = portKindFromTool();
   if (!kind) {
-    alert("先点选「绿·出口」或「黄·入口」");
+    alert("先点选「绿·出口」「黄·入口」或「灰·任意口」");
     return;
   }
   addDraftPort(kind);
@@ -1675,7 +1744,7 @@ document.getElementById("paintPortAdd").addEventListener("click", () => {
 document.getElementById("paintPortDel").addEventListener("click", () => {
   if (!paintExpanded || editStep !== 2) return;
   if (!draftPortSel) {
-    alert("先点选一个绿/黄口，再删除");
+    alert("先点选一个口，再删除");
     return;
   }
   const { kind, index } = draftPortSel;
@@ -1743,6 +1812,7 @@ function endScaleDrag() {
 function portKindFromTool() {
   if (paintTool === "portOut") return "out";
   if (paintTool === "portIn") return "in";
+  if (paintTool === "portAny") return "any";
   return null;
 }
 function hitDraftPort(nx, ny, preferKind) {
@@ -1765,6 +1835,7 @@ function hitDraftPort(nx, ny, preferKind) {
   if (preferKind) scan(preferKind);
   scan("out");
   scan("in");
+  scan("any");
   return bestD <= 10 ? best : null;
 }
 function placeOrDragPortAtEvent(e, isDown) {
@@ -1784,11 +1855,11 @@ function placeOrDragPortAtEvent(e, isDown) {
       drawDraftPorts();
       return;
     }
-    // 未选绿/黄时点空白不新增，避免误触
+    // 未选工具时点空白不新增，避免误触
     if (!kind) return;
     // 点空白：新增当前工具颜色的口
     if ((draftPorts[kind] || []).length >= PORT_MAX) {
-      alert((kind === "out" ? "出口" : "入口") + "最多 " + PORT_MAX + " 个");
+      alert(portKindLabel(kind) + "最多 " + PORT_MAX + " 个");
       return;
     }
     draftPorts[kind] = draftPorts[kind] || [];
@@ -2030,13 +2101,15 @@ function portIn(b, index) { return portWorld(b, "in", index); }
 function hitPort(wx, wy, opts) {
   const needKind = opts && opts.kind;
   const excludeBuildingId = opts && opts.excludeBuildingId;
+  const linkFromKind = opts && opts.linkFromKind;
   const candidates = [];
   for (const b of state.buildings) {
     if (excludeBuildingId && b.id === excludeBuildingId) continue;
     const c = cat(b.type);
     if (!c) continue;
-    for (const kind of ["out", "in"]) {
+    for (const kind of ["out", "in", "any"]) {
       if (needKind && kind !== needKind) continue;
+      if (linkFromKind != null && !canLinkPorts(linkFromKind, kind)) continue;
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
@@ -2113,15 +2186,18 @@ function railSeg(r) {
   if (!a || !b) return null;
   const fi = Number.isFinite(r.fromPort) ? r.fromPort : 0;
   const ti = Number.isFinite(r.toPort) ? r.toPort : 0;
+  const fromKind = normalizePortKind(r.fromKind, "out");
+  const toKind = normalizePortKind(r.toKind, "in");
   const cA = cat(a.type), cB = cat(b.type);
-  const outN = cA ? normalizePortList(cA.ports && cA.ports.out, "out").length : 1;
-  const inN = cB ? normalizePortList(cB.ports && cB.ports.in, "in").length : 1;
-  const fromPort = Math.max(0, Math.min(Math.max(0, outN - 1), fi));
-  const toPort = Math.max(0, Math.min(Math.max(0, inN - 1), ti));
+  const fromN = cA ? normalizePortList(cA.ports && cA.ports[fromKind], fromKind).length : 1;
+  const toN = cB ? normalizePortList(cB.ports && cB.ports[toKind], toKind).length : 1;
+  if (fromN <= 0 || toN <= 0) return null;
+  const fromPort = Math.max(0, Math.min(fromN - 1, fi));
+  const toPort = Math.max(0, Math.min(toN - 1, ti));
   return {
-    p1: portWorld(a, "out", fromPort),
-    p2: portWorld(b, "in", toPort),
-    a, b, r, fromPort, toPort,
+    p1: portWorld(a, fromKind, fromPort),
+    p2: portWorld(b, toKind, toPort),
+    a, b, r, fromPort, toPort, fromKind, toKind,
   };
 }
 function findCrossings() {
@@ -2255,11 +2331,11 @@ function draw() {
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.arc(seg.p1.x, seg.p1.y, 3.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#22c55e";
+    ctx.fillStyle = seg.fromKind === "any" ? "#9ca3af" : (seg.fromKind === "in" ? "#eab308" : "#22c55e");
     ctx.fill();
     ctx.beginPath();
     ctx.arc(seg.p2.x, seg.p2.y, 3.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#eab308";
+    ctx.fillStyle = seg.toKind === "any" ? "#9ca3af" : (seg.toKind === "out" ? "#22c55e" : "#eab308");
     ctx.fill();
   }
 
@@ -2269,13 +2345,19 @@ function draw() {
     if (seg) {
       const fixed = state.railDrag.end === "from" ? seg.p2 : seg.p1;
       const fixedDir = state.railDrag.end === "from"
-        ? portOutwardDir(seg.b, "in", seg.toPort)
-        : portOutwardDir(seg.a, "out", seg.fromPort);
-      const wantKind = state.railDrag.end === "from" ? "out" : "in";
-      const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y, {
-        kind: wantKind,
-        excludeBuildingId: state.railDrag.end === "from" ? r.toId : r.fromId,
-      });
+        ? portOutwardDir(seg.b, seg.toKind, seg.toPort)
+        : portOutwardDir(seg.a, seg.fromKind, seg.fromPort);
+      let hp = null;
+      if (state.railDrag.end === "from") {
+        // 改接起点：对端 kind 固定，找能作为 from 的口
+        const all = hitPort(state.mouseWorld.x, state.mouseWorld.y, { excludeBuildingId: r.toId });
+        if (all && canLinkPorts(all.kind, seg.toKind)) hp = all;
+      } else {
+        hp = hitPort(state.mouseWorld.x, state.mouseWorld.y, {
+          excludeBuildingId: r.fromId,
+          linkFromKind: seg.fromKind,
+        });
+      }
       const tip = hp ? hp.pos : state.mouseWorld;
       const tipDir = hp ? portOutwardDir(hp.building, hp.kind, hp.index) : { x: 0, y: 0 };
       ctx.strokeStyle = "#2f9d84";
@@ -2290,14 +2372,15 @@ function draw() {
     const b = state.buildings.find((x) => x.id === state.linkFrom.buildingId);
     if (b) {
       const fromIdx = Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0;
-      const o = portWorld(b, "out", fromIdx);
-      const d1 = portOutwardDir(b, "out", fromIdx);
+      const fromKind = normalizePortKind(state.linkFrom.portKind, "out");
+      const o = portWorld(b, fromKind, fromIdx);
+      const d1 = portOutwardDir(b, fromKind, fromIdx);
       const hp = hitPort(state.mouseWorld.x, state.mouseWorld.y, {
-        kind: "in",
         excludeBuildingId: b.id,
+        linkFromKind: fromKind,
       });
       const tip = hp ? hp.pos : state.mouseWorld;
-      const d2 = hp ? portOutwardDir(hp.building, "in", hp.index) : { x: 0, y: 0 };
+      const d2 = hp ? portOutwardDir(hp.building, hp.kind, hp.index) : { x: 0, y: 0 };
       ctx.strokeStyle = "#2f9d84";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
@@ -2319,13 +2402,14 @@ function draw() {
     const ax = cells.reduce((s, p) => s + p.x, 0) / (cells.length || 1);
     const ay = cells.reduce((s, p) => s + p.y, 0) / (cells.length || 1);
     ctx.fillText(c.name, (ax + 0.5) * CELL, (ay + 0.5) * CELL);
-    for (const kind of ["out", "in"]) {
+    for (const kind of ["out", "in", "any"]) {
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
         const pos = portWorld(b, kind, index);
         const ho = hoverPort && hoverPort.building.id === b.id && hoverPort.kind === kind && hoverPort.index === index;
         const selOut = state.linkFrom && state.linkFrom.buildingId === b.id
-          && kind === "out" && (Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0) === index;
+          && normalizePortKind(state.linkFrom.portKind, "out") === kind
+          && (Number.isFinite(state.linkFrom.portIndex) ? state.linkFrom.portIndex : 0) === index;
         drawPort(pos, kind, ho || selOut, p.x, p.y);
       });
     }
@@ -2343,7 +2427,7 @@ function draw() {
     drawBuildingBody(ghost, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false, true);
     ctx.globalAlpha = 1;
     if (c) {
-      for (const kind of ["out", "in"]) {
+      for (const kind of ["out", "in", "any"]) {
         const list = normalizePortList(c.ports && c.ports[kind], kind);
         list.forEach((p, index) => {
           drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y);
@@ -2361,8 +2445,8 @@ function draw() {
       ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}° · 拖已有建筑可移动` : "请先点左侧建筑；拖已有建筑可移动")
       : state.mode === "link"
         ? (state.railDrag
-          ? (state.railDrag.end === "from" ? "拖线中：接到绿色出口" : "拖线中：接到黄色入口")
-          : (state.linkFrom ? "已点绿口，再点黄口（可点具体某一个口）" : "连轨：绿出口→黄入口；改接请拖线端或长按轨道"))
+          ? "拖线中：接到可互连的口（灰口可接绿/黄）"
+          : (state.linkFrom ? "已选起点，再点对端口（灰口可接绿或黄）" : "连轨：绿→黄；灰=任意口可两端；改接请拖线端或长按轨道"))
         : "擦除：点建筑/轨道；也可用右键清除");
 }
 
@@ -2552,18 +2636,26 @@ window.addEventListener("mouseup", () => {
     if (r && world) {
       const moved = drag.moved || (drag.ox != null && Math.hypot(world.x - drag.ox, world.y - drag.oy) > 6);
       if (moved) {
+        const seg = railSeg(r);
         if (drag.end === "from") {
-          const hp = hitPort(world.x, world.y, { kind: "out", excludeBuildingId: r.toId });
-          if (hp) {
+          const hp = hitPort(world.x, world.y, { excludeBuildingId: r.toId });
+          const toKind = (seg && seg.toKind) || normalizePortKind(r.toKind, "in");
+          if (hp && canLinkPorts(hp.kind, toKind)) {
             r.fromId = hp.building.id;
             r.fromPort = hp.index;
+            r.fromKind = hp.kind;
             rewired = true;
           }
         } else {
-          const hp = hitPort(world.x, world.y, { kind: "in", excludeBuildingId: r.fromId });
+          const fromKind = (seg && seg.fromKind) || normalizePortKind(r.fromKind, "out");
+          const hp = hitPort(world.x, world.y, {
+            excludeBuildingId: r.fromId,
+            linkFromKind: fromKind,
+          });
           if (hp) {
             r.toId = hp.building.id;
             r.toPort = hp.index;
+            r.toKind = hp.kind;
             rewired = true;
           }
         }
@@ -2618,20 +2710,21 @@ cv.addEventListener("click", (e) => {
 
   if (state.mode === "link") {
     if (!state.linkFrom) {
-      const hp = hitPort(world.x, world.y, { kind: "out" });
-      if (!hp) {
+      const hp = hitPort(world.x, world.y);
+      if (!hp || !canStartLink(hp.kind)) {
         state.linkFrom = null;
         draw();
         return;
       }
-      state.linkFrom = { buildingId: hp.building.id, portIndex: hp.index };
+      state.linkFrom = { buildingId: hp.building.id, portIndex: hp.index, portKind: hp.kind };
       state.focusId = hp.building.id;
       draw();
       return;
     }
+    const fromKind = normalizePortKind(state.linkFrom.portKind, "out");
     const hp = hitPort(world.x, world.y, {
-      kind: "in",
       excludeBuildingId: state.linkFrom.buildingId,
+      linkFromKind: fromKind,
     });
     if (!hp) {
       state.linkFrom = null;
@@ -2644,6 +2737,8 @@ cv.addEventListener("click", (e) => {
       (r) => r.fromId === state.linkFrom.buildingId && r.toId === hp.building.id
         && (Number.isFinite(r.fromPort) ? r.fromPort : 0) === fromPort
         && (Number.isFinite(r.toPort) ? r.toPort : 0) === toPort
+        && normalizePortKind(r.fromKind, "out") === fromKind
+        && normalizePortKind(r.toKind, "in") === hp.kind
     );
     if (!exists) {
       state.rails.push({
@@ -2652,6 +2747,8 @@ cv.addEventListener("click", (e) => {
         toId: hp.building.id,
         fromPort,
         toPort,
+        fromKind,
+        toKind: hp.kind,
       });
       saveLayout();
     }
