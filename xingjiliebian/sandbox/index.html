@@ -133,11 +133,13 @@
   }
   .paint-zoom-mask.show { display: flex; }
   .paint-zoom-modal {
+    position: relative;
     width: min(720px, 96vw); max-height: 94vh; overflow: auto;
     background: #fff; border-radius: 14px; border: 1px solid var(--line);
     box-shadow: 0 20px 48px rgba(20,30,45,.35); padding: 16px 18px;
   }
-  .paint-zoom-modal h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  .paint-zoom-modal .modal-head { margin: 0 0 10px; }
+  .paint-zoom-modal .modal-head h2 { font-size: 1.05rem; }
   .paint-zoom-board {
     display: flex; justify-content: center; margin: 0 0 10px;
     padding: 10px; background: #eef1f5; border-radius: 12px; border: 1px solid var(--line);
@@ -152,6 +154,7 @@
     height: auto !important;
   }
   .modal {
+    position: relative;
     width: min(420px, 94vw); background: #fff; border-radius: 14px;
     border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(40,50,70,.2);
     padding: 16px 18px; max-height: 92vh; overflow: auto;
@@ -161,7 +164,19 @@
     background: rgba(30,40,55,.35); align-items: center; justify-content: center;
   }
   .modal-mask.show { display: flex; }
+  .modal-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; margin: 0 0 12px;
+  }
+  .modal-head h2 { margin: 0; font-size: 1rem; flex: 1; padding-right: 8px; }
+  .modal-close {
+    flex: 0 0 auto; width: 32px; height: 32px; margin: -4px -6px 0 0;
+    border: 1px solid var(--line); border-radius: 8px; background: #f5f7fa;
+    font-size: 1.15rem; line-height: 1; color: #64748b; cursor: pointer;
+  }
+  .modal-close:hover { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
   .modal h2 { margin: 0 0 12px; font-size: 1rem; }
+  .modal-head + .edit-steps { margin-top: 0; }
   .modal label { display: block; font-size: .78rem; color: var(--muted); margin: 0 0 4px; }
   .modal .field { margin: 0 0 12px; }
   .modal input[type="text"], .modal input[type="number"] {
@@ -261,7 +276,10 @@
 </div>
 <div class="modal-mask" id="customModal">
   <div class="modal" role="dialog" aria-labelledby="customTitle">
-    <h2 id="customTitle">自定义建筑</h2>
+    <div class="modal-head">
+      <h2 id="customTitle">自定义建筑</h2>
+      <button type="button" class="modal-close" id="customClose" aria-label="关闭">×</button>
+    </div>
     <div class="edit-steps">
       <button type="button" class="on" id="stepArtBtn">① 编辑画像</button>
       <button type="button" id="stepPortBtn">② 安进出口</button>
@@ -315,7 +333,10 @@
 </div>
 <div class="paint-zoom-mask" id="paintZoomMask">
   <div class="paint-zoom-modal" role="dialog" aria-labelledby="paintZoomTitle">
-    <h2 id="paintZoomTitle">放大编辑 · 进出口</h2>
+    <div class="modal-head">
+      <h2 id="paintZoomTitle">放大编辑 · 进出口</h2>
+      <button type="button" class="modal-close" id="paintZoomClose" aria-label="关闭">×</button>
+    </div>
     <div class="paint-zoom-board" id="paintZoomBoard"></div>
     <div class="edit-panel on" id="panelPort">
       <div class="paint-tools">
@@ -1691,11 +1712,10 @@ function applyCustomBuilding() {
 
 document.getElementById("btnCustom").addEventListener("click", openCustomModal);
 document.getElementById("customCancel").addEventListener("click", closeCustomModal);
+document.getElementById("customClose").addEventListener("click", closeCustomModal);
 document.getElementById("btnExpandPaint").addEventListener("click", openPaintZoom);
 document.getElementById("paintZoomOk").addEventListener("click", closePaintZoom);
-paintZoomMask.addEventListener("click", (e) => {
-  if (e.target === paintZoomMask) closePaintZoom();
-});
+document.getElementById("paintZoomClose").addEventListener("click", closePaintZoom);
 document.getElementById("customOk").addEventListener("click", () => {
   if (paintExpanded) closePaintZoom();
   if (editStep === 1) {
@@ -1994,9 +2014,6 @@ function endPaint() {
 }
 paintCv.addEventListener("pointerup", endPaint);
 paintCv.addEventListener("pointercancel", endPaint);
-customModal.addEventListener("click", (e) => {
-  if (e.target === customModal) closeCustomModal();
-});
 document.getElementById("btnRestoreCatalog").addEventListener("click", () => {
   if (!confirm("恢复默认建筑列表？自定义建筑会从列表移除（沙盘上已放的自定义块也会清掉）。")) return;
   const keepIds = new Set(DEFAULT_CATALOG.map((c) => c.id));
