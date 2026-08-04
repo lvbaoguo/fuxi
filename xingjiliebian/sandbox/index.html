@@ -366,7 +366,7 @@
         <button class="btn" type="button" id="paintPortRot">旋转口 R</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进。口条画在建筑外侧；拖动无边吸附；横/竖用「旋转口 R」。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进。口条跟手拖动，无边吸附；横/竖用「旋转口 R」。可拖到外形外侧一点。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -1109,23 +1109,17 @@ function portBarSizeFromAxis(axis, scale) {
   if (axis === "h") return { w: len, h: thick };
   return { w: thick, h: len };
 }
-/** 口条中心相对边口的外偏（整条在外侧，不伸进建筑内） */
-function portBarOutOffset(out, axis, scale) {
-  const o = out || { x: 0, y: -1 };
-  const { w, h } = portBarSizeFromAxis(axis || "v", scale);
-  const half = Math.abs(o.y) >= Math.abs(o.x) ? h / 2 : w / 2;
-  const gap = 1.25 * (scale || 1);
-  return { x: o.x * (half + gap), y: o.y * (half + gap) };
+/** 口条中心相对边口的外偏：已取消自动外推（避免拖到边时跳边吸附） */
+function portBarOutOffset(_out, _axis, _scale) {
+  return { x: 0, y: 0 };
 }
 function drawPortBarOn(ctx2, cx, cy, nx, ny, kind, highlight, scale, outward, barAxis) {
-  const out = outward || portLocalOutward(nx, ny);
   const axis = barAxis === "h" || barAxis === "v" ? barAxis : "v";
   const { w, h } = portBarSizeFromAxis(axis, scale);
-  const off = portBarOutOffset(out, axis, scale);
   const fill = kind === "out" ? "#22c55e" : (kind === "in" ? "#eab308" : "#9ca3af");
   const stroke = highlight ? "#111" : "rgba(0,0,0,.4)";
   ctx2.save();
-  ctx2.translate(cx + off.x, cy + off.y);
+  ctx2.translate(cx, cy);
   const hw = w / 2, hh = h / 2;
   const r = Math.min(2.5, hw, hh);
   ctx2.beginPath();
