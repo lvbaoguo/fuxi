@@ -75,30 +75,22 @@
   .paint-wrap {
     position: relative; display: inline-block; max-width: 100%;
     border: 1px solid var(--line); border-radius: 10px; overflow: auto;
-    background:
+    background: #f3f5f8; touch-action: none;
+  }
+  .paint-wrap canvas {
+    display: block; cursor: crosshair; background:
       linear-gradient(#d9dee6 1px, transparent 1px) 0 0 / var(--pc, 28px) var(--pc, 28px),
       linear-gradient(90deg, #d9dee6 1px, transparent 1px) 0 0 / var(--pc, 28px) var(--pc, 28px),
       #fff;
-    touch-action: none;
-  }
-  .paint-wrap canvas {
-    display: block; cursor: crosshair; background: transparent;
   }
   .paint-wrap #portCv {
     position: absolute; left: 0; top: 0; width: 100%; height: 100%;
     background: transparent; pointer-events: none; cursor: crosshair;
-    z-index: 1; /* 口在建筑画像下层，内部被挡住只露外截 */
   }
-  .paint-wrap #paintCv {
-    position: relative;
-    z-index: 2;
-    background: transparent;
-  }
-  .paint-wrap.port-mode #portCv { pointer-events: auto; z-index: 1; }
-  .paint-wrap.port-mode #paintCv { pointer-events: none; cursor: default; z-index: 2; }
-  .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; z-index: 3; }
-  .paint-wrap.scale-mode #paintCv { pointer-events: none; cursor: default; z-index: 2; }
-  .paint-wrap.port-step #portCv { pointer-events: auto; cursor: crosshair; z-index: 1; }
+  .paint-wrap.port-mode #portCv { pointer-events: auto; }
+  .paint-wrap.port-mode #paintCv { cursor: default; }
+  .paint-wrap.scale-mode #portCv { pointer-events: auto; cursor: default; }
+  .paint-wrap.scale-mode #paintCv { cursor: default; }
   .paint-preview-row {
     display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
   }
@@ -337,8 +329,8 @@
       <div class="paint-preview-row">
         <div class="paint-preview-slot" id="paintPreviewSlot">
           <div class="paint-wrap" id="paintWrap">
-            <canvas id="portCv" width="84" height="84"></canvas>
             <canvas id="paintCv" width="84" height="84"></canvas>
+            <canvas id="portCv" width="84" height="84"></canvas>
           </div>
         </div>
         <button class="btn active" type="button" id="btnExpandPaint" style="display:none">放大编辑进出口</button>
@@ -374,7 +366,7 @@
         <button class="btn" type="button" id="paintPortRot">旋转口 R</button>
         <button class="btn" type="button" id="paintPortDel">删选中口</button>
       </div>
-      <p class="port-hint">点绿/黄/灰选中。口在建筑下层，内部被挡住只露外截；拖动无吸附；横/竖用「旋转口 R」。</p>
+      <p class="port-hint">点绿/黄/灰选中（再点一次取消）。灰口可出可进。口条跟手拖动，无边吸附；横/竖用「旋转口 R」。可拖到外形外侧一点。</p>
     </div>
     <div class="actions">
       <button class="btn active" type="button" id="paintZoomOk">确定 · 回到预览</button>
@@ -2556,7 +2548,15 @@ function draw() {
   for (const b of state.buildings) {
     const c = cat(b.type);
     if (!c) continue;
-    // 先画口（下层），再画建筑挡住内部，只露外截
+    drawBuildingBody(b, c.color, c.top, b.id === state.focusId, true);
+    ctx.fillStyle = "#fff";
+    ctx.font = "600 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cells = worldCellsOf(b);
+    const ax = cells.reduce((s, p) => s + p.x, 0) / (cells.length || 1);
+    const ay = cells.reduce((s, p) => s + p.y, 0) / (cells.length || 1);
+    ctx.fillText(c.name, (ax + 0.5) * CELL, (ay + 0.5) * CELL);
     for (const kind of ["out", "in", "any"]) {
       const list = normalizePortList(c.ports && c.ports[kind], kind);
       list.forEach((p, index) => {
@@ -2570,15 +2570,6 @@ function draw() {
         drawPort(pos, kind, ho || selOut, p.x, p.y, out, axis);
       });
     }
-    drawBuildingBody(b, c.color, c.top, b.id === state.focusId, true);
-    ctx.fillStyle = "#fff";
-    ctx.font = "600 11px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const cells = worldCellsOf(b);
-    const ax = cells.reduce((s, p) => s + p.x, 0) / (cells.length || 1);
-    const ay = cells.reduce((s, p) => s + p.y, 0) / (cells.length || 1);
-    ctx.fillText(c.name, (ax + 0.5) * CELL, (ay + 0.5) * CELL);
   }
 
   if (state.mode === "place" && state.selected && state.hover && !state.moving) {
@@ -2589,8 +2580,10 @@ function draw() {
       gx: state.hover.gx, gy: state.hover.gy, w: d.w, h: d.h,
       rot: state.placeRot, type: state.selected,
     };
+    ctx.globalAlpha = 0.5;
+    drawBuildingBody(ghost, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false, true);
+    ctx.globalAlpha = 1;
     if (c) {
-      ctx.globalAlpha = 0.5;
       for (const kind of ["out", "in", "any"]) {
         const list = normalizePortList(c.ports && c.ports[kind], kind);
         list.forEach((p, index) => {
@@ -2598,8 +2591,6 @@ function draw() {
           drawPort(portWorld(ghost, kind, index), kind, false, p.x, p.y, out, portBarAxis(p, ghost.rot || 0));
         });
       }
-      drawBuildingBody(ghost, ok ? c.color : "#dc2626", ok ? c.top : "#f87171", false, true);
-      ctx.globalAlpha = 1;
     }
   }
 
