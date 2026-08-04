@@ -34,6 +34,14 @@
   .nav a:hover, .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn.active { background: #e8f6f2; border-color: var(--accent); color: var(--accent); }
   .modes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grid-size-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  }
+  .grid-size-row label { font-size: .72rem; color: var(--muted); margin: 0; }
+  .grid-size-row input[type="number"] {
+    width: 64px; border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 8px; font-size: .85rem;
+  }
   .palette { display: grid; gap: 6px; }
   .palette.reordering { touch-action: none; }
   .pal {
@@ -249,6 +257,17 @@
       </div>
     </div>
     <div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">地图大小（格）</div>
+      <div class="grid-size-row">
+        <label for="gridCols">宽</label>
+        <input id="gridCols" type="number" min="24" max="200" value="96" />
+        <label for="gridRows">高</label>
+        <input id="gridRows" type="number" min="24" max="200" value="72" />
+        <button class="btn active" type="button" id="btnGridApply">应用</button>
+      </div>
+      <p class="port-hint" style="margin-top:4px">范围 24–200。改大后滚轮/空格可浏览更多区域。</p>
+    </div>
+    <div>
       <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span>建筑（点选放置 · 长按拖动排序）</span>
       </div>
@@ -355,8 +374,10 @@
 </div>
 <script>
 const CELL = 28;
-const COLS = 96;
-const ROWS = 72;
+let COLS = 96;
+let ROWS = 72;
+const GRID_MIN = 24;
+const GRID_MAX = 200;
 const PORT_R = 7;
 const PORT_HIT = 20; // 基础命中；近邻口会再按间距收紧
 const PORT_MAX = 8;
@@ -752,10 +773,44 @@ const state = {
 let bid = 1;
 let rid = 1;
 
+function clampGridDim(n, fallback) {
+  const v = parseInt(n, 10);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.max(GRID_MIN, Math.min(GRID_MAX, v));
+}
+function syncGridInputs() {
+  const colsEl = document.getElementById("gridCols");
+  const rowsEl = document.getElementById("gridRows");
+  if (colsEl) colsEl.value = String(COLS);
+  if (rowsEl) rowsEl.value = String(ROWS);
+}
+function clampBuildingsToGrid() {
+  for (const b of state.buildings) {
+    const d = dimsFor(b.type, b.rot || 0);
+    b.w = d.w;
+    b.h = d.h;
+    b.gx = Math.max(0, Math.min(Math.max(0, COLS - b.w), b.gx));
+    b.gy = Math.max(0, Math.min(Math.max(0, ROWS - b.h), b.gy));
+  }
+}
+function applyGridSize(cols, rows, opts) {
+  const silent = opts && opts.silent;
+  COLS = clampGridDim(cols, COLS);
+  ROWS = clampGridDim(rows, ROWS);
+  clampBuildingsToGrid();
+  syncGridInputs();
+  if (!silent) {
+    saveLayout();
+    draw();
+  }
+}
+
 function saveLayout() {
   try {
     localStorage.setItem(LAYOUT_LS, JSON.stringify({
       v: 1,
+      cols: COLS,
+      rows: ROWS,
       buildings: state.buildings,
       rails: state.rails,
       panX: state.panX,
@@ -772,6 +827,9 @@ function loadLayout() {
   try {
     const raw = JSON.parse(localStorage.getItem(LAYOUT_LS) || "null");
     if (!raw || raw.v !== 1 || !Array.isArray(raw.buildings) || !Array.isArray(raw.rails)) return false;
+    COLS = clampGridDim(raw.cols, COLS);
+    ROWS = clampGridDim(raw.rows, ROWS);
+    syncGridInputs();
     const buildings = [];
     for (const b of raw.buildings) {
       if (!b || !b.id || !b.type || !cat(b.type)) continue;
@@ -780,8 +838,8 @@ function loadLayout() {
       buildings.push({
         id: String(b.id),
         type: String(b.type),
-        gx: Math.max(0, Math.min(COLS - 1, Number(b.gx) || 0)),
-        gy: Math.max(0, Math.min(ROWS - 1, Number(b.gy) || 0)),
+        gx: Math.max(0, Math.min(Math.max(0, COLS - d.w), Number(b.gx) || 0)),
+        gy: Math.max(0, Math.min(Math.max(0, ROWS - d.h), Number(b.gy) || 0)),
         w: d.w,
         h: d.h,
         rot,
@@ -2062,6 +2120,20 @@ document.getElementById("btnClear").addEventListener("click", () => {
   saveLayout();
   draw();
 });
+function commitGridSizeFromInputs() {
+  const cols = document.getElementById("gridCols").value;
+  const rows = document.getElementById("gridRows").value;
+  applyGridSize(cols, rows);
+}
+document.getElementById("btnGridApply").addEventListener("click", commitGridSizeFromInputs);
+["gridCols", "gridRows"].forEach((id) => {
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitGridSizeFromInputs();
+    }
+  });
+});
 document.getElementById("btnRot").addEventListener("click", () => rotateAction());
 document.getElementById("btnResetKeys").addEventListener("click", () => {
   state.hotkeys = { ...DEFAULT_HOTKEYS };
@@ -2498,7 +2570,7 @@ function draw() {
   ctx.restore();
 
   const focus = getFocusBuilding();
-  statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length}` +
+  statusEl.innerHTML = `交叉：<strong>${pairs}</strong> 对 · 建筑 ${state.buildings.length} · 轨道 ${state.rails.length} · 地图 ${COLS}×${ROWS}` +
     (focus ? ` · 焦点：${cat(focus.type).name}` : "") + "<br>" +
     (state.mode === "place"
       ? (state.selected ? `放置中 · 朝向 ${state.placeRot * 90}°` : "请先点左侧建筑")
@@ -2948,6 +3020,7 @@ cv.addEventListener("wheel", (e) => {
     seedDefaultLayout();
     saveLayout();
   }
+  syncGridInputs();
 })();
 
 renderKeysPanel();
