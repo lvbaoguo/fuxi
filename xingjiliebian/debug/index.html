@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>星际裂变 · 线路规划</title>
+<title>星际裂变 · 合成查看</title>
 <style>
   :root {
     --line: #c5ccd6;
@@ -61,19 +61,6 @@
   }
   .pc-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); }
   .pc-toolbar .btn.active { border-color: var(--accent); background: #e8f6f2; color: var(--accent); }
-  .keys-hint {
-    display: none; position: absolute; z-index: 40; right: 12px; bottom: 12px;
-    background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 10px;
-    padding: 8px 10px; font-size: .72rem; color: var(--muted); line-height: 1.55;
-    box-shadow: 0 4px 16px rgba(40,50,70,.12); pointer-events: none;
-  }
-  .keys-hint.show { display: block; }
-  .keys-hint b { color: var(--text); font-size: .74rem; }
-  .keys-hint kbd {
-    display: inline-block; min-width: 1.4em; text-align: center;
-    border: 1px solid var(--line); border-radius: 4px; padding: 0 4px;
-    font-family: inherit; font-weight: 700; color: var(--text); background: #f4f6f8;
-  }
   .suggest {
     display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
     border: 1px solid var(--line); border-radius: 10px; background: #fff; max-height: 240px;
@@ -96,31 +83,14 @@
     color: var(--muted); font-size: .95rem; pointer-events: none;
   }
   .route-empty.hide { display: none; }
-  .node-raw rect { fill: #f6eee0; stroke: #d2b48c; }
+  .node-raw rect { fill: var(--raw); stroke: #d2b48c; }
   .node-mid rect { fill: #fff; stroke: #9db0c2; }
-  .node.g0 > rect { fill: #f6eee0; stroke: #d2b48c; }
-  .node.g1 > rect { fill: #e8f1fb; stroke: #8aa9c9; }
-  .node.g2 > rect { fill: #e6f5ea; stroke: #7aaa86; }
-  .node.g3 > rect { fill: #eeeaf8; stroke: #9a8ab8; }
-  .node.g4 > rect { fill: #fdeee4; stroke: #d4a07a; }
-  .node.g5 > rect { fill: #f8e8ef; stroke: #c4889e; }
-  .node.g6 > rect { fill: #e4f4f2; stroke: #6aa8a0; }
-  .node.g7 > rect { fill: #f7f0d8; stroke: #c4b06a; }
-  .node.g8 > rect { fill: #e8eaf8; stroke: #8a90c4; }
-  .node.g9 > rect { fill: #eaf6dc; stroke: #8aaa6e; }
-  .node.g10 > rect { fill: #fde8e4; stroke: #d48a7a; }
-  .node.g11 > rect { fill: #e0f3fb; stroke: #6aa8c4; }
-  .node.g12 > rect { fill: #f3e6da; stroke: #c49a78; }
-  .node.g13 > rect { fill: #f3e4f4; stroke: #b888b8; }
-  .node.g14 > rect { fill: #e6ecef; stroke: #7a90a0; }
-  .node.g15 > rect { fill: #f6e8d0; stroke: #c4a060; }
-  .node.gwh > rect { fill: #eef1f5; stroke: #7d8796; }
-  .node-target > rect { stroke: var(--accent); stroke-width: 2.2; }
-  .node-cycle > rect { fill: #fce8e8; stroke: #d88; }
-  .node text.name { font-size: 11px; font-weight: 700; fill: var(--text); }
-  .node text.meta { font-size: 12px; fill: var(--muted); }
-  .node .badge { font-size: 8px; font-weight: 700; }
-  .node .badge-bg { rx: 3; ry: 3; }
+  .node-target rect { fill: #d8f0ea; stroke: var(--accent); stroke-width: 2.2; }
+  .node-cycle rect { fill: #fce8e8; stroke: #d88; }
+  .node text.name { font-size: 13px; font-weight: 700; fill: var(--text); }
+  .node text.meta { font-size: 11px; fill: var(--muted); }
+  .node .badge { font-size: 10px; font-weight: 700; }
+  .node .badge-bg { rx: 4; ry: 4; }
   .node .badge-bg.out-multi { fill: #ffedd5; stroke: #ea580c; }
   .node .badge-bg.out-single { fill: #f1f5f9; stroke: #94a3b8; }
   .node .badge-bg.in-multi { fill: #ccfbf1; stroke: #0d9488; }
@@ -130,9 +100,6 @@
   .node .badge.in-multi { fill: #0f766e; }
   .node .badge.in-single { fill: #64748b; }
   .edge { fill: none; stroke: #8aa0b5; stroke-width: 1.6; marker-end: url(#arrow); opacity: 1; }
-  .edge-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; marker-end: none; }
-  .route-canvas-wrap.unlink-on .edge:not(.edge-hit) { stroke: #c45c5c; }
-  .pc-toolbar .btn.danger.active { border-color: #c45c5c; background: #fdecec; color: #b42318; }
   .route-world.is-hl .edge { opacity: .08; stroke: #c5ccd6; }
   .route-world.is-hl .edge.hl { opacity: 1; stroke: #e07a2f; stroke-width: 2.8; marker-end: url(#arrowPrev); }
   .route-world.is-hl .node { opacity: .12; }
@@ -154,12 +121,13 @@
   .route-canvas-wrap.plan-sidebar .float-search { left: 304px; width: min(280px, 28vw); }
 
   .synth-overlay {
-    display: none; position: absolute; z-index: 36; left: 0; top: 0; bottom: 0;
+    display: flex; position: absolute; z-index: 36; left: 0; top: 0; bottom: 0;
     width: 292px; background: #fff; border-right: 1px solid var(--line);
     overflow: auto; flex-direction: column;
     box-shadow: 8px 0 24px rgba(40,50,70,.08);
   }
   .synth-overlay.show { display: flex; }
+  .route-canvas-wrap .float-search { left: 304px; width: min(280px, 28vw); }
   .synth-head {
     position: sticky; top: 0; z-index: 2;
     background: #fff; padding: 12px 12px 8px;
@@ -172,7 +140,7 @@
     border: 1px solid var(--line); background: #fff; color: var(--text);
     border-radius: 999px; padding: 3px 8px; font-size: .7rem; font-weight: 700; cursor: pointer;
   }
-  .synth-tabs .tab:hover { filter: brightness(0.97); }
+  .synth-tabs .tab:hover { border-color: var(--accent); color: var(--accent); }
   .synth-tabs .tab.g0 { background: #f6eee0; border-color: #d2b48c; }
   .synth-tabs .tab.g1 { background: #e8f1fb; border-color: #8aa9c9; }
   .synth-tabs .tab.g2 { background: #e6f5ea; border-color: #7aaa86; }
@@ -189,25 +157,7 @@
   .synth-tabs .tab.g13 { background: #f3e4f4; border-color: #b888b8; }
   .synth-tabs .tab.g14 { background: #e6ecef; border-color: #7a90a0; }
   .synth-tabs .tab.g15 { background: #f6e8d0; border-color: #c4a060; }
-  .synth-tabs .tab.gwh { background: #eceff3; border-color: #8b95a5; }
   .synth-tabs .tab.on { box-shadow: inset 0 0 0 2px rgba(40,50,70,.28); }
-  .synth-rows { display: flex; flex-direction: column; padding: 6px 8px 20px; gap: 4px; }
-  .synth-add {
-    display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto auto;
-    gap: 1px 8px; align-items: center;
-    width: 100%; text-align: left; border: 1px solid #e4e9ef; background: #fafbfc;
-    border-radius: 8px; padding: 6px 8px; cursor: pointer; color: var(--text);
-    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-    touch-action: pan-y;
-  }
-  .synth-add.dragging {
-    box-shadow: 0 10px 24px rgba(40,50,70,.28);
-    cursor: grabbing; opacity: .96; z-index: 80;
-  }
-  .synth-ph {
-    border: 1px dashed #8aa0b5; border-radius: 8px; background: #eef3f7;
-    pointer-events: none; flex-shrink: 0;
-  }
   .synth-add.g0 { background: #fbf6ee; border-color: #ead9bc; }
   .synth-add.g1 { background: #f4f8fd; border-color: #c5d6e8; }
   .synth-add.g2 { background: #f3faf5; border-color: #c3ddc9; }
@@ -224,37 +174,28 @@
   .synth-add.g13 { background: #f8f0f8; border-color: #e0c4e0; }
   .synth-add.g14 { background: #eef2f4; border-color: #c0ccd4; }
   .synth-add.g15 { background: #faf3e6; border-color: #e4d0a8; }
-  .synth-add.gwh { background: #f3f5f7; border-color: #c5ccd6; }
-  .synth-add:hover { filter: brightness(0.98); border-color: #8aa0b5; }
-  .synth-add .nm { grid-column: 2; grid-row: 1; font-size: .82rem; font-weight: 700; }
-  .synth-add .mc { grid-column: 2; grid-row: 2; font-size: .68rem; color: var(--muted); }
+  .synth-rows { display: flex; flex-direction: column; padding: 6px 8px 20px; gap: 4px; }
+  .synth-add {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center;
+    width: 100%; text-align: left; border: 1px solid #e4e9ef; background: #fafbfc;
+    border-radius: 8px; padding: 7px 8px; cursor: pointer; color: var(--text);
+  }
+  .synth-add:hover { border-color: var(--accent); background: #eef8f5; }
+  .synth-add.on { border-color: var(--accent); background: #e8f6f2; }
+  .synth-add .nm { font-size: .82rem; font-weight: 700; }
+  .synth-add .mc { font-size: .68rem; color: var(--muted); }
   .synth-add .plus {
-    grid-column: 1; grid-row: 1 / span 2; justify-self: start; align-self: center;
-    width: max-content; white-space: nowrap;
-    font-size: .72rem; font-weight: 700; color: var(--accent);
-    border: 1px solid #b7e0d4; background: #e8f6f2; border-radius: 6px; padding: 3px 6px;
+    grid-row: 1 / span 2; font-size: .72rem; font-weight: 700; color: var(--accent);
+    border: 1px solid #b7e0d4; background: #e8f6f2; border-radius: 6px; padding: 4px 8px;
   }
   .plan-hint { color: var(--accent); }
   .node.plan-sel > rect { stroke: #111; stroke-width: 2.6; }
   .node.plan-from > rect { stroke: #ea580c; stroke-width: 2.8; }
-  .wh-port { stroke-width: 1.2; }
-  .wh-port.free { fill: #f1f5f9; stroke: #94a3b8; }
-  .wh-port.in { fill: #ccfbf1; stroke: #0d9488; }
-  .wh-port.out { fill: #ffedd5; stroke: #ea580c; }
-  .plan-toast {
-    display: none; position: absolute; z-index: 45; left: 50%; bottom: 56px;
-    transform: translateX(-50%);
-    background: #2a3038; color: #fff; border-radius: 8px;
-    padding: 8px 14px; font-size: .78rem; font-weight: 600;
-    box-shadow: 0 8px 24px rgba(40,50,70,.28); pointer-events: none;
-    white-space: nowrap;
-  }
-  .plan-toast.show { display: block; }
 </style>
 </head>
 <body>
 <div class="route-layout" id="routeLayout">
-  <div class="route-canvas-wrap">
+  <div class="route-canvas-wrap plan-sidebar">
     <div class="float-search">
       <div class="suggest-wrap">
         <input id="routeQ" type="search" placeholder="搜索产品…" autocomplete="off" enterkeyhint="search" />
@@ -263,30 +204,19 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813g" style="text-decoration:none">合成查看</a>
-      <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
-      <button class="btn" type="button" id="pcLink" title="快捷键 2：先点产出，再点下游" style="display:none">连线 2</button>
-      <button class="btn danger" type="button" id="pcUnlink" title="快捷键 3：点线立刻断开" style="display:none">断开 3</button>
-      <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
-      <button class="btn" type="button" id="pcClear" title="清空规划板" style="display:none">清空</button>
+      <a class="btn" href="../pc/index.html?v=20260813g" style="text-decoration:none">线路规划</a>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="pcReset" title="复位视角">复位</button>
     </div>
     <div class="synth-overlay" id="synthList">
       <div class="synth-head">
-        <h2>线路规划</h2>
-        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。仓库接入产品后改成该名，只许再接同名；4口：纯进4 / 纯出4 / 混接进2出2。</p>
+        <h2>合成查看</h2>
+        <p>点成品查看从原料到它的完整合成路线。层级与线路规划相同（钛条1级、钛棒2级）。</p>
         <div class="synth-tabs" id="synthTabs"></div>
       </div>
       <div class="synth-rows" id="synthGrid"></div>
     </div>
-    <div class="plan-toast" id="planToast"></div>
-    <div class="keys-hint" id="keysHint">
-      <b>快捷键</b><br />
-      <kbd>2</kbd> 连线　<kbd>3</kbd> 断开<br />
-      <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消
-    </div>
-    <div class="route-empty" id="routeEmpty">开「线路规划」从左侧加入、摆块连线。查一路配方请点「合成查看」</div>
+    <div class="route-empty" id="routeEmpty">从左侧点一个成品，右侧画出从原料到它的完整合成路线</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -309,7 +239,7 @@ function isV2(machine) {
 
 const routeState = {
   preferBase: true,
-  dir: "h", // h=横向 left→right; v=竖向 top→bottom（原料上、成品下）
+  dir: "h", // 平面：原料左 → 成品右（可切竖向）
   mode: "query", // query=搜路线 | plan=自己摆自己连
   target: "",
   highlight: null,
@@ -327,12 +257,7 @@ const routeState = {
 };
 
 const PLAN_LS = "starrupture_plan_board_v1";
-const PLAN_LS_BAK = PLAN_LS + "_bak";
-const SYNTH_ORDER_LS = "starrupture_synth_order_v1";
-const PLAN_NODE_W = 86, PLAN_NODE_H = 70;
-const WH_NODE_W = 68, WH_NODE_H = 44;
-const WH_NAME_DY = 15, WH_META_DY = 29;
-const BADGE_W = 36, BADGE_H = 11, BADGE_GAP = 2;
+const PLAN_NODE_W = 136, PLAN_NODE_H = 66;
 const plan = {
   nodes: [], // {id, name, x, y}
   edges: [], // {from, to} id
@@ -340,50 +265,26 @@ const plan = {
   selected: null, // node id
   selectedEdge: null, // index
   linkOn: false,
-  unlinkOn: false,
   linkFrom: null,
 };
 
-function applyPlanData(raw) {
-  if (!raw || !Array.isArray(raw.nodes)) return false;
-  plan.nodes = raw.nodes;
-  plan.edges = Array.isArray(raw.edges) ? raw.edges : [];
-  plan.nextId = Number(raw.nextId) || (plan.nodes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1);
-  return true;
-}
 function loadPlan() {
   try {
     const raw = JSON.parse(localStorage.getItem(PLAN_LS) || "null");
-    applyPlanData(raw);
-    if (!plan.nodes.length) {
-      const bak = JSON.parse(localStorage.getItem(PLAN_LS_BAK) || "null");
-      if (bak && Array.isArray(bak.nodes) && bak.nodes.length) applyPlanData(bak);
-    }
+    if (!raw || !Array.isArray(raw.nodes)) return;
+    plan.nodes = raw.nodes;
+    plan.edges = Array.isArray(raw.edges) ? raw.edges : [];
+    plan.nextId = Number(raw.nextId) || (plan.nodes.reduce((m, n) => Math.max(m, n.id), 0) + 1);
   } catch (_) {}
 }
 function savePlan() {
   try {
-    const payload = {
+    localStorage.setItem(PLAN_LS, JSON.stringify({
       nodes: plan.nodes, edges: plan.edges, nextId: plan.nextId,
-    };
-    const prev = localStorage.getItem(PLAN_LS);
-    if (prev && plan.nodes.length) localStorage.setItem(PLAN_LS_BAK, prev);
-    localStorage.setItem(PLAN_LS, JSON.stringify(payload));
+    }));
   } catch (_) {}
 }
 loadPlan();
-
-let synthOrder = {};
-function loadSynthOrder() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SYNTH_ORDER_LS) || "{}");
-    synthOrder = raw && typeof raw === "object" ? raw : {};
-  } catch (_) { synthOrder = {}; }
-}
-function saveSynthOrder() {
-  try { localStorage.setItem(SYNTH_ORDER_LS, JSON.stringify(synthOrder)); } catch (_) {}
-}
-loadSynthOrder();
 
 const recipeIndex = (() => {
   const map = new Map();
@@ -424,24 +325,6 @@ function itemMachineLabel(name) {
 function itemInCount(name) {
   const r = pickRecipe(name);
   return r ? r.materials.length : 0;
-}
-
-function itemGrade(name) {
-  if (name === "仓库") return "wh";
-  const r = pickRecipe(name);
-  if (!r) return 0;
-  return Math.max(1, itemDepth(name));
-}
-
-function gradeCls(g) {
-  if (g === "wh") return "gwh";
-  return "g" + Math.max(0, Math.min(15, g | 0));
-}
-
-function isWarehouse(n) {
-  if (n == null) return false;
-  if (typeof n === "string") return n === "仓库";
-  return n.kind === "warehouse" || n.name === "仓库";
 }
 
 const FAMILY_ORDER = ["钛", "钨", "钙", "氦", "硫"];
@@ -506,6 +389,9 @@ function itemDepth(name, stack) {
   _depthMemo.set(name, out);
   return out;
 }
+function gradeCls(g) {
+  return "g" + Math.max(0, Math.min(15, g | 0));
+}
 function cmpParts(aName, bName) {
   const fa = familyRank(aName), fb = familyRank(bName);
   if (fa !== fb) return fa - fb;
@@ -514,7 +400,7 @@ function cmpParts(aName, bName) {
   return aName.localeCompare(bName, "zh");
 }
 
-/** 每个成品取一条非 v.2 配方，按离原料最长合成步数分级（钛条1、钛棒2） */
+/** 与线路规划相同：按离原料最长合成步数分页（钛条1、钛棒2） */
 const synthCatalog = (() => {
   const seen = new Set();
   const list = [];
@@ -529,7 +415,6 @@ const synthCatalog = (() => {
     seen.add(r.product);
     list.push(r);
   }
-  list.sort((a, b) => cmpParts(a.product, b.product));
   const byGrade = new Map();
   byGrade.set(0, []);
   const products = new Set(list.map((r) => r.product));
@@ -545,13 +430,7 @@ const synthCatalog = (() => {
     byGrade.get(g).push(r);
   }
   for (const [, arr] of byGrade) arr.sort((a, b) => cmpParts(a.product, b.product));
-  byGrade.set("wh", [{
-    product: "仓库",
-    machine: "4口 · 纯进4 / 纯出4 / 混接进2出2",
-    materials: [],
-    kind: "warehouse",
-  }]);
-  const grades = [...[...byGrade.keys()].filter((g) => g !== "wh").sort((a, b) => a - b), "wh"];
+  const grades = [...byGrade.keys()].sort((a, b) => a - b);
   return { list, byGrade, grades };
 })();
 
@@ -560,14 +439,10 @@ let synthGrade = synthCatalog.grades.includes(1) ? 1 : (synthCatalog.grades[0] |
 function syncPlanToolbar() {
   const on = routeState.mode === "plan";
   document.getElementById("pcLink").style.display = on ? "" : "none";
-  document.getElementById("pcUnlink").style.display = on ? "" : "none";
   document.getElementById("pcDel").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
   document.getElementById("pcLink").classList.toggle("active", plan.linkOn);
-  document.getElementById("pcUnlink").classList.toggle("active", plan.unlinkOn);
-  document.getElementById("keysHint").classList.toggle("show", on);
-  document.querySelector(".route-canvas-wrap").classList.toggle("unlink-on", on && plan.unlinkOn);
 }
 
 function enterPlanMode() {
@@ -586,7 +461,6 @@ function enterPlanMode() {
 
 function exitPlanMode() {
   plan.linkOn = false;
-  plan.unlinkOn = false;
   plan.linkFrom = null;
   routeState.mode = "query";
   document.getElementById("pcList").classList.remove("active");
@@ -609,135 +483,17 @@ function setSynthListOpen(on) {
 function nextPlanPos() {
   const i = plan.nodes.length;
   const col = i % 5, row = Math.floor(i / 5);
-  return { x: 24 + col * 102, y: 24 + row * 86 };
+  return { x: 24 + col * 158, y: 24 + row * 88 };
 }
 
 function addPlanItem(name) {
   const pos = nextPlanPos();
   const node = { id: plan.nextId++, name, x: pos.x, y: pos.y };
-  if (isWarehouse(name)) node.kind = "warehouse";
   plan.nodes.push(node);
   plan.selected = node.id;
   plan.selectedEdge = null;
   savePlan();
   renderPlanBoard();
-}
-
-function nodeBox(n) {
-  if (isWarehouse(n)) return { x: n.x, y: n.y, w: WH_NODE_W, h: WH_NODE_H };
-  return { x: n.x, y: n.y, w: PLAN_NODE_W, h: PLAN_NODE_H };
-}
-
-function showPlanToast(msg) {
-  const el = document.getElementById("planToast");
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(showPlanToast._t);
-  showPlanToast._t = setTimeout(() => el.classList.remove("show"), 2400);
-}
-
-function warehouseCounts(id) {
-  let ins = 0, outs = 0;
-  for (const e of plan.edges) {
-    if (e.from === id) outs++;
-    if (e.to === id) ins++;
-  }
-  return { ins, outs };
-}
-
-function inferWarehouseCargo(id) {
-  for (const e of plan.edges) {
-    let otherId = null;
-    if (e.from === id) otherId = e.to;
-    else if (e.to === id) otherId = e.from;
-    else continue;
-    const other = planNodeById(otherId);
-    if (other && !isWarehouse(other)) return other.name;
-  }
-  for (const e of plan.edges) {
-    let otherId = null;
-    if (e.from === id) otherId = e.to;
-    else if (e.to === id) otherId = e.from;
-    else continue;
-    const other = planNodeById(otherId);
-    if (isWarehouse(other) && other.cargo) return other.cargo;
-  }
-  return null;
-}
-
-function syncWarehouseCargos() {
-  let changed = true, guard = 0;
-  while (changed && guard++ < 24) {
-    changed = false;
-    for (const n of plan.nodes) {
-      if (!isWarehouse(n)) continue;
-      const next = inferWarehouseCargo(n.id) || null;
-      if ((n.cargo || null) !== next) {
-        n.cargo = next;
-        changed = true;
-      }
-    }
-  }
-}
-
-function nodeCargo(n) {
-  if (!n) return null;
-  if (isWarehouse(n)) return n.cargo || inferWarehouseCargo(n.id) || null;
-  return n.name;
-}
-
-function fitNodeLabel(s) {
-  if (!s) return "";
-  return s.length > 7 ? s.slice(0, 6) + "…" : s;
-}
-
-function warehouseCanTake(id, asOut) {
-  const { ins, outs } = warehouseCounts(id);
-  const newIn = ins + (asOut ? 0 : 1);
-  const newOut = outs + (asOut ? 1 : 0);
-  if (newIn + newOut > 4) return false;
-  if (newIn > 0 && newOut > 0) return newIn <= 2 && newOut <= 2;
-  return true;
-}
-
-function usedWarehousePorts(id) {
-  const used = new Set();
-  for (const e of plan.edges) {
-    if (e.from === id && e.fromPort != null) used.add(Number(e.fromPort));
-    if (e.to === id && e.toPort != null) used.add(Number(e.toPort));
-  }
-  return used;
-}
-
-function pickWarehousePort(node, other, asOut) {
-  const used = usedWarehousePorts(node.id);
-  const dx = other.x - node.x;
-  const dy = other.y - node.y;
-  const order = Math.abs(dx) > Math.abs(dy)
-    ? (dx > 0 ? [1, 0, 2, 3] : [3, 0, 2, 1])
-    : (dy > 0 ? [2, 1, 3, 0] : [0, 1, 3, 2]);
-  for (const s of order) if (!used.has(s)) return s;
-  for (let s = 0; s < 4; s++) if (!used.has(s)) return s;
-  return null;
-}
-
-function warehousePortBox(p, side) {
-  const s = 8;
-  const cx = p.x + p.w / 2 - s / 2;
-  const cy = p.y + p.h / 2 - s / 2;
-  if (side === 0) return { x: cx, y: p.y - s / 2, w: s, h: s };
-  if (side === 1) return { x: p.x + p.w - s / 2, y: cy, w: s, h: s };
-  if (side === 2) return { x: cx, y: p.y + p.h - s / 2, w: s, h: s };
-  return { x: p.x - s / 2, y: cy, w: s, h: s };
-}
-
-function portAnchor(p, side) {
-  const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-  if (side === 0) return { x: cx, y: p.y };
-  if (side === 1) return { x: p.x + p.w, y: cy };
-  if (side === 2) return { x: cx, y: p.y + p.h };
-  return { x: p.x, y: cy };
 }
 
 function planNodeById(id) {
@@ -755,45 +511,6 @@ function planPortStats() {
   return { outMap, inMap };
 }
 
-function tryUnlinkPlan(toId) {
-  const fromId = plan.linkFrom;
-  if (!fromId || fromId === toId) {
-    plan.linkFrom = toId;
-    renderPlanBoard();
-    return;
-  }
-  const idx = plan.edges.findIndex((e) =>
-    (e.from === fromId && e.to === toId) || (e.from === toId && e.to === fromId)
-  );
-  if (idx >= 0) plan.edges.splice(idx, 1);
-  plan.linkFrom = null;
-  syncWarehouseCargos();
-  savePlan();
-  renderPlanBoard();
-}
-
-function cutPlanEdge(ei) {
-  if (ei == null || ei < 0 || ei >= plan.edges.length) return;
-  plan.edges.splice(ei, 1);
-  plan.selectedEdge = null;
-  plan.linkFrom = null;
-  syncWarehouseCargos();
-  savePlan();
-  renderPlanBoard();
-}
-
-function onPlanEdgeClick(ev, ei) {
-  ev.stopPropagation();
-  if (plan.unlinkOn) {
-    cutPlanEdge(ei);
-    return;
-  }
-  plan.selected = null;
-  plan.selectedEdge = ei;
-  plan.linkFrom = null;
-  renderPlanBoard();
-}
-
 function tryLinkPlan(toId) {
   const fromId = plan.linkFrom;
   if (!fromId || fromId === toId) {
@@ -802,54 +519,9 @@ function tryLinkPlan(toId) {
     return;
   }
   const exists = plan.edges.some((e) => e.from === fromId && e.to === toId);
-  if (exists) {
-    plan.linkFrom = null;
-    renderPlanBoard();
-    return;
-  }
-  const fromNode = planNodeById(fromId);
-  const toNode = planNodeById(toId);
-  if (isWarehouse(fromNode) && !warehouseCanTake(fromId, true)) {
-    showPlanToast("仓库混接只能进2出2；否则只能进4或出4");
-    return;
-  }
-  if (isWarehouse(toNode) && !warehouseCanTake(toId, false)) {
-    showPlanToast("仓库混接只能进2出2；否则只能进4或出4");
-    return;
-  }
-  const fromC = nodeCargo(fromNode);
-  const toC = nodeCargo(toNode);
-  if (isWarehouse(fromNode) || isWarehouse(toNode)) {
-    if (fromC && toC && fromC !== toC) {
-      showPlanToast("仓库已存「" + (isWarehouse(toNode) && toC ? toC : fromC) + "」，只能接同名");
-      return;
-    }
-    if (isWarehouse(fromNode) && isWarehouse(toNode) && !fromC && !toC) {
-      showPlanToast("先把仓库接到要存的产品上");
-      return;
-    }
-  }
-  const edge = { from: fromId, to: toId };
-  if (isWarehouse(fromNode)) {
-    const fp = pickWarehousePort(fromNode, toNode, true);
-    if (fp == null) {
-      showPlanToast("仓库没有空口了");
-      return;
-    }
-    edge.fromPort = fp;
-  }
-  if (isWarehouse(toNode)) {
-    const tp = pickWarehousePort(toNode, fromNode, false);
-    if (tp == null) {
-      showPlanToast("仓库没有空口了");
-      return;
-    }
-    edge.toPort = tp;
-  }
-  plan.edges.push(edge);
+  if (!exists) plan.edges.push({ from: fromId, to: toId });
   plan.linkFrom = null;
   plan.selected = toId;
-  syncWarehouseCargos();
   savePlan();
   renderPlanBoard();
 }
@@ -858,7 +530,6 @@ function deletePlanSelection() {
   if (plan.selectedEdge != null) {
     plan.edges.splice(plan.selectedEdge, 1);
     plan.selectedEdge = null;
-    syncWarehouseCargos();
     savePlan();
     renderPlanBoard();
     return;
@@ -869,7 +540,6 @@ function deletePlanSelection() {
   plan.edges = plan.edges.filter((e) => e.from !== id && e.to !== id);
   plan.selected = null;
   if (plan.linkFrom === id) plan.linkFrom = null;
-  syncWarehouseCargos();
   savePlan();
   renderPlanBoard();
 }
@@ -892,23 +562,18 @@ function renderPlanBoard() {
   world.classList.remove("is-hl");
   routeState.nodeDrag = null;
   if (!plan.nodes.length) {
-    if (emptyEl) {
-      emptyEl.classList.remove("hide");
-      emptyEl.classList.add("plan-hint");
-      emptyEl.textContent = "点「加入」摆块；「连线」：先点产出再点下游；「断开」：直接点线，或同样两点切断";
-    }
+    emptyEl.classList.remove("hide");
+    emptyEl.classList.add("plan-hint");
+    emptyEl.textContent = "从左侧点「加入」放到格子上，拖动摆位置；点「连线」后：先点产出块，再点要送去的下游";
     applyTransform();
     return;
   }
-  if (emptyEl) {
-    emptyEl.classList.add("hide");
-    emptyEl.classList.remove("plan-hint");
-  }
-  syncWarehouseCargos();
+  emptyEl.classList.add("hide");
+  emptyEl.classList.remove("plan-hint");
 
   const layout = { positions: new Map(), vertical: routeState.dir === "v" };
   for (const n of plan.nodes) {
-    layout.positions.set(String(n.id), nodeBox(n));
+    layout.positions.set(String(n.id), { x: n.x, y: n.y, w: PLAN_NODE_W, h: PLAN_NODE_H });
   }
   routeState.layout = layout;
   routeState.graph = {
@@ -924,41 +589,33 @@ function renderPlanBoard() {
     const a = layout.positions.get(String(e.from));
     const b = layout.positions.get(String(e.to));
     if (!a || !b) return;
-    const d = edgePathD(a, b, vertical, e.fromPort, e.toPort);
-    const hit = document.createElementNS(ns, "path");
-    hit.setAttribute("class", "edge-hit");
-    hit.dataset.from = String(e.from);
-    hit.dataset.to = String(e.to);
-    hit.dataset.fromPort = e.fromPort == null ? "" : String(e.fromPort);
-    hit.dataset.toPort = e.toPort == null ? "" : String(e.toPort);
-    hit.dataset.ei = String(ei);
-    hit.setAttribute("d", d);
-    hit.addEventListener("click", (ev) => onPlanEdgeClick(ev, ei));
-    world.appendChild(hit);
     const path = document.createElementNS(ns, "path");
     path.setAttribute("class", "edge" + (plan.selectedEdge === ei ? " hl" : ""));
     path.dataset.from = String(e.from);
     path.dataset.to = String(e.to);
-    path.dataset.fromPort = e.fromPort == null ? "" : String(e.fromPort);
-    path.dataset.toPort = e.toPort == null ? "" : String(e.toPort);
     path.dataset.ei = String(ei);
-    path.setAttribute("d", d);
+    path.setAttribute("d", edgePathD(a, b, vertical));
     if (plan.selectedEdge === ei) {
       path.setAttribute("stroke", "#e07a2f");
       path.setAttribute("stroke-width", "2.8");
     }
     path.style.cursor = "pointer";
-    path.addEventListener("click", (ev) => onPlanEdgeClick(ev, ei));
+    path.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      plan.selected = null;
+      plan.selectedEdge = ei;
+      plan.linkFrom = null;
+      renderPlanBoard();
+    });
     world.appendChild(path);
   });
 
   for (const n of plan.nodes) {
-    const p = nodeBox(n);
+    const p = { x: n.x, y: n.y, w: PLAN_NODE_W, h: PLAN_NODE_H };
     const rec = pickRecipe(n.name);
-    const wh = isWarehouse(n);
-    let cls = "node " + gradeCls(itemGrade(n.name));
-    if (wh) cls = "node gwh";
-    else if (!rec) cls = "node g0";
+    let cls = "node node-mid";
+    if (!rec) cls = "node node-raw";
+    else if (plan.selected === n.id) cls = "node node-target";
     const g = document.createElementNS(ns, "g");
     g.setAttribute("class", cls + (plan.selected === n.id ? " plan-sel" : "") + (plan.linkFrom === n.id ? " plan-from" : ""));
     g.dataset.name = String(n.id);
@@ -966,8 +623,8 @@ function renderPlanBoard() {
     const rect = document.createElementNS(ns, "rect");
     rect.setAttribute("x", p.x);
     rect.setAttribute("y", p.y);
-    rect.setAttribute("rx", 7);
-    rect.setAttribute("ry", 7);
+    rect.setAttribute("rx", 10);
+    rect.setAttribute("ry", 10);
     rect.setAttribute("width", p.w);
     rect.setAttribute("height", p.h);
     g.appendChild(rect);
@@ -975,24 +632,18 @@ function renderPlanBoard() {
     const t1 = document.createElementNS(ns, "text");
     t1.setAttribute("class", "name");
     t1.setAttribute("x", p.x + p.w / 2);
-    t1.setAttribute("y", p.y + (wh ? WH_NAME_DY : 14));
+    t1.setAttribute("y", p.y + 18);
     t1.setAttribute("text-anchor", "middle");
-    t1.textContent = fitNodeLabel(wh ? (n.cargo || "仓库") : n.name);
+    t1.textContent = n.name.length > 9 ? n.name.slice(0, 8) + "…" : n.name;
     g.appendChild(t1);
     const t2 = document.createElementNS(ns, "text");
     t2.setAttribute("class", "meta");
     t2.setAttribute("x", p.x + p.w / 2);
-    t2.setAttribute("y", p.y + (wh ? WH_META_DY : 31));
+    t2.setAttribute("y", p.y + 34);
     t2.setAttribute("text-anchor", "middle");
-    if (wh) {
-      const c = warehouseCounts(n.id);
-      t2.textContent = `进${c.ins} 出${c.outs}`;
-    } else {
-      t2.textContent = rec ? rec.machine : "原料 / 采集";
-    }
+    t2.textContent = rec ? rec.machine : "原料 / 采集";
     g.appendChild(t2);
-    if (wh) appendWarehousePorts(g, n, p);
-    else appendPortBadges(g, p, outMap.get(n.id) || 0, inMap.get(n.id) || 0);
+    appendPortBadges(g, p, outMap.get(n.id) || 0, inMap.get(n.id) || 0);
 
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -1002,10 +653,6 @@ function renderPlanBoard() {
       }
       if (plan.linkOn) {
         tryLinkPlan(n.id);
-        return;
-      }
-      if (plan.unlinkOn) {
-        tryUnlinkPlan(n.id);
         return;
       }
       plan.selected = n.id;
@@ -1022,7 +669,7 @@ function bindPlanNodeDrag(g, node) {
   g.style.cursor = "grab";
   g.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (plan.linkOn || plan.unlinkOn) return;
+    if (plan.linkOn) return;
     e.stopPropagation();
     const startClient = { x: e.clientX, y: e.clientY };
     const startPos = { x: node.x, y: node.y };
@@ -1070,151 +717,51 @@ function bindPlanNodeDrag(g, node) {
 }
 
 function refreshPlanNodePos(g, node) {
-  const p = nodeBox(node);
-  const rect = g.querySelector("rect:not(.wh-port)");
+  const p = { x: node.x, y: node.y, w: PLAN_NODE_W, h: PLAN_NODE_H };
+  const rect = g.querySelector("rect");
   if (rect) {
     rect.setAttribute("x", p.x);
     rect.setAttribute("y", p.y);
-    rect.setAttribute("width", p.w);
-    rect.setAttribute("height", p.h);
   }
-  const nameEl = g.querySelector("text.name");
-  const metaEl = g.querySelector("text.meta");
-  const wh = isWarehouse(node);
-  if (nameEl) {
-    nameEl.setAttribute("x", p.x + p.w / 2);
-    nameEl.setAttribute("y", p.y + (wh ? WH_NAME_DY : 14));
+  const texts = g.querySelectorAll("text");
+  if (texts[0]) {
+    texts[0].setAttribute("x", p.x + p.w / 2);
+    texts[0].setAttribute("y", p.y + 18);
   }
-  if (metaEl) {
-    metaEl.setAttribute("x", p.x + p.w / 2);
-    metaEl.setAttribute("y", p.y + (wh ? WH_META_DY : 31));
+  if (texts[1]) {
+    texts[1].setAttribute("x", p.x + p.w / 2);
+    texts[1].setAttribute("y", p.y + 34);
   }
-  if (wh) layoutWarehousePorts(g, p);
-  else layoutPortBadges(g, p);
-}
-
-function orderedSynthItems(grade) {
-  const items = [...(synthCatalog.byGrade.get(grade) || [])];
-  const order = synthOrder[String(grade)];
-  if (!Array.isArray(order) || !order.length) return items;
-  const map = new Map(items.map((r) => [r.product, r]));
-  const out = [];
-  const used = new Set();
-  for (const name of order) {
-    const r = map.get(name);
-    if (r && !used.has(name)) {
-      out.push(r);
-      used.add(name);
+  const badges = g.querySelectorAll(".badge-bg, .badge");
+  const y = p.y + p.h - 18;
+  const bw = 52, gap = 6;
+  const total = bw * 2 + gap;
+  let x = p.x + (p.w - total) / 2;
+  badges.forEach((el, i) => {
+    const col = Math.floor(i / 2);
+    const isBg = el.classList.contains("badge-bg");
+    if (isBg) {
+      el.setAttribute("x", x);
+      el.setAttribute("y", y);
+      x += bw + gap;
+    } else {
+      const bx = Number(g.querySelectorAll(".badge-bg")[col]?.getAttribute("x") || 0);
+      el.setAttribute("x", bx + bw / 2);
+      el.setAttribute("y", y + 10.5);
     }
-  }
-  for (const r of items) if (!used.has(r.product)) out.push(r);
-  return out;
-}
-
-function persistSynthGridOrder(grade) {
-  const grid = document.getElementById("synthGrid");
-  if (!grid) return;
-  synthOrder[String(grade)] = [...grid.querySelectorAll(".synth-add")].map((el) => el.dataset.name).filter(Boolean);
-  saveSynthOrder();
-}
-
-function bindSynthRowReorder(row) {
-  row.addEventListener("contextmenu", (e) => e.preventDefault());
-  row.addEventListener("click", (e) => {
-    if (row.dataset.skipClick === "1") {
-      delete row.dataset.skipClick;
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    addPlanItem(row.dataset.name);
   });
-  row.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const pointerId = e.pointerId;
-    const startX = e.clientX, startY = e.clientY;
-    let armed = false;
-    let placeholder = null;
-    const timer = setTimeout(() => {
-      armed = true;
-      beginDrag();
-    }, 420);
+}
 
-    function beginDrag() {
-      row.dataset.skipClick = "1";
-      const rect = row.getBoundingClientRect();
-      placeholder = document.createElement("div");
-      placeholder.className = "synth-ph";
-      placeholder.style.height = rect.height + "px";
-      row.parentNode.insertBefore(placeholder, row);
-      row.classList.add("dragging");
-      row.style.position = "fixed";
-      row.style.left = rect.left + "px";
-      row.style.width = rect.width + "px";
-      row.style.top = rect.top + "px";
-      row.style.margin = "0";
-      row.style.pointerEvents = "none";
-      row.style.touchAction = "none";
-      try { row.setPointerCapture(pointerId); } catch (_) {}
-      placeGap(startY);
-    }
+function gradeOfProduct(name) {
+  for (const [g, items] of synthCatalog.byGrade) {
+    if (items.some((r) => r.product === name)) return g;
+  }
+  return synthGrade;
+}
 
-    function placeGap(clientY) {
-      const grid = document.getElementById("synthGrid");
-      if (!grid || !placeholder) return;
-      const others = [...grid.querySelectorAll(".synth-add")].filter((el) => el !== row);
-      let before = null;
-      for (const other of others) {
-        const r = other.getBoundingClientRect();
-        if (clientY < r.top + r.height / 2) {
-          before = other;
-          break;
-        }
-      }
-      if (before) grid.insertBefore(placeholder, before);
-      else grid.appendChild(placeholder);
-      const overlay = document.getElementById("synthList");
-      if (!overlay) return;
-      const ob = overlay.getBoundingClientRect();
-      if (clientY < ob.top + 48) overlay.scrollTop -= 16;
-      else if (clientY > ob.bottom - 48) overlay.scrollTop += 16;
-    }
-
-    function onMove(ev) {
-      if (!armed) {
-        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 8) clearTimeout(timer);
-        return;
-      }
-      ev.preventDefault();
-      const h = row.offsetHeight || 40;
-      row.style.top = (ev.clientY - h / 2) + "px";
-      placeGap(ev.clientY);
-    }
-
-    function onUp() {
-      clearTimeout(timer);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      if (!armed) return;
-      row.classList.remove("dragging");
-      row.style.position = "";
-      row.style.left = "";
-      row.style.width = "";
-      row.style.top = "";
-      row.style.margin = "";
-      row.style.pointerEvents = "";
-      row.style.touchAction = "";
-      if (placeholder && placeholder.parentNode) {
-        placeholder.parentNode.insertBefore(row, placeholder);
-        placeholder.remove();
-      }
-      persistSynthGridOrder(synthGrade);
-    }
-
-    window.addEventListener("pointermove", onMove, { passive: false });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+function markActiveProduct(name) {
+  document.querySelectorAll(".synth-add").forEach((el) => {
+    el.classList.toggle("on", el.dataset.name === name);
   });
 }
 
@@ -1230,18 +777,18 @@ function renderSynthList(grade) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tab " + gradeCls(g) + (g === grade ? " on" : "");
-    btn.textContent = g === "wh" ? `仓库 · ${items.length}` : (g === 0 ? `原料 · ${items.length}` : `${g}级 · ${items.length}`);
+    btn.textContent = g === 0 ? `原料 · ${items.length}` : `${g}级 · ${items.length}`;
     btn.addEventListener("click", () => renderSynthList(g));
     tabs.appendChild(btn);
   }
-  const items = orderedSynthItems(grade);
+  const items = synthCatalog.byGrade.get(grade) || [];
   items.forEach((r) => {
     const row = document.createElement("button");
     row.type = "button";
-    row.className = "synth-add " + gradeCls(grade);
+    row.className = "synth-add " + gradeCls(grade) + (r.product === routeState.target ? " on" : "");
     row.dataset.name = r.product;
-    row.innerHTML = `<span class="nm">${r.product}</span><span class="plus">加入</span><span class="mc">${r.machine}${r.materials && r.materials.length ? " · " + r.materials.join("+") : ""}</span>`;
-    bindSynthRowReorder(row);
+    row.innerHTML = `<span class="nm">${r.product}</span><span class="plus">查看</span><span class="mc">${r.machine}${r.materials && r.materials.length ? " · " + r.materials.join("+") : ""}</span>`;
+    row.addEventListener("click", () => goSearch(r.product));
     grid.appendChild(row);
   });
 }
@@ -1316,7 +863,7 @@ function layoutRoute(graph) {
     byDepth.get(n.depth).push(n);
   }
   const depths = [...byDepth.keys()].sort((a, b) => a - b);
-  const nodeW = PLAN_NODE_W, nodeH = PLAN_NODE_H, gapX = PLAN_NODE_W + 22, gapY = PLAN_NODE_H + 16;
+  const nodeW = 136, nodeH = 66, gapX = 178, gapY = 88;
   const positions = new Map();
   const vertical = routeState.dir === "v";
 
@@ -1380,80 +927,36 @@ function portStats(graph) {
   return stats;
 }
 
-function portBadgeBox(p, index) {
-  const stackH = BADGE_H * 2 + BADGE_GAP;
-  const x = p.x + (p.w - BADGE_W) / 2;
-  const y0 = p.y + p.h - stackH - 4;
-  return { x, y: y0 + index * (BADGE_H + BADGE_GAP), w: BADGE_W, h: BADGE_H };
-}
-
-function layoutPortBadges(g, p) {
-  const bgs = [...g.querySelectorAll(".badge-bg")];
-  const texts = [...g.querySelectorAll("text.badge")];
-  bgs.forEach((el, i) => {
-    const b = portBadgeBox(p, i);
-    el.setAttribute("x", b.x);
-    el.setAttribute("y", b.y);
-    el.setAttribute("width", b.w);
-    el.setAttribute("height", b.h);
-  });
-  texts.forEach((el, i) => {
-    const b = portBadgeBox(p, i);
-    el.setAttribute("x", b.x + b.w / 2);
-    el.setAttribute("y", b.y + 8.4);
-  });
-}
-
-function layoutWarehousePorts(g, p) {
-  const ports = [...g.querySelectorAll(".wh-port")];
-  ports.forEach((el, s) => {
-    const b = warehousePortBox(p, s);
-    el.setAttribute("x", b.x);
-    el.setAttribute("y", b.y);
-    el.setAttribute("width", b.w);
-    el.setAttribute("height", b.h);
-  });
-}
-
-function appendWarehousePorts(g, node, p) {
-  const ns = "http://www.w3.org/2000/svg";
-  const roles = ["free", "free", "free", "free"];
-  for (const e of plan.edges) {
-    if (e.from === node.id && e.fromPort != null) roles[Number(e.fromPort)] = "out";
-    if (e.to === node.id && e.toPort != null) roles[Number(e.toPort)] = "in";
-  }
-  for (let s = 0; s < 4; s++) {
-    const b = warehousePortBox(p, s);
-    const r = document.createElementNS(ns, "rect");
-    r.setAttribute("class", "wh-port " + roles[s]);
-    r.setAttribute("rx", 2);
-    r.setAttribute("ry", 2);
-    r.setAttribute("x", b.x);
-    r.setAttribute("y", b.y);
-    r.setAttribute("width", b.w);
-    r.setAttribute("height", b.h);
-    g.appendChild(r);
-  }
-}
-
 function appendPortBadges(g, p, outN, inN) {
   const ns = "http://www.w3.org/2000/svg";
+  const y = p.y + p.h - 18;
+  const bw = 52, bh = 14, gap = 6;
+  const total = bw * 2 + gap;
+  let x = p.x + (p.w - total) / 2;
+
   function pill(label, cls) {
     const bg = document.createElementNS(ns, "rect");
     bg.setAttribute("class", "badge-bg " + cls);
+    bg.setAttribute("x", x);
+    bg.setAttribute("y", y);
+    bg.setAttribute("width", bw);
+    bg.setAttribute("height", bh);
     bg.setAttribute("stroke-width", "1");
     g.appendChild(bg);
     const t = document.createElementNS(ns, "text");
     t.setAttribute("class", "badge " + cls);
+    t.setAttribute("x", x + bw / 2);
+    t.setAttribute("y", y + 10.5);
     t.setAttribute("text-anchor", "middle");
     t.textContent = label;
     g.appendChild(t);
+    x += bw + gap;
   }
+
   const outCls = outN >= 2 ? "out-multi" : "out-single";
   const inCls = inN >= 2 ? "in-multi" : "in-single";
-  pill(`出${outN}`, outCls);
-  pill(`进${inN}`, inCls);
-  layoutPortBadges(g, p);
+  pill(outN >= 2 ? `出${outN}·分轨` : (outN === 1 ? "出1·单轨" : "出0"), outCls);
+  pill(inN >= 2 ? `进${inN}·多口` : (inN === 1 ? "进1" : "进0"), inCls);
 }
 
 function applyHighlight(focus) {
@@ -1545,18 +1048,18 @@ function renderRouteGraph(target, opts = {}) {
     if (!p) continue;
     const st = ports.get(n.name) || { out: 0, in: 0 };
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    let cls = "node " + gradeCls(itemGrade(n.name));
-    if (n.name === target) cls += " node-target";
-    if (n.cycle) cls += " node-cycle";
-    if (n.raw) cls += " g0";
+    let cls = "node node-mid";
+    if (n.name === target) cls = "node node-target";
+    else if (n.cycle) cls = "node node-cycle";
+    else if (n.raw) cls = "node node-raw";
     g.setAttribute("class", cls);
     g.dataset.name = n.name;
 
     const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     rect.setAttribute("x", p.x);
     rect.setAttribute("y", p.y);
-    rect.setAttribute("rx", 7);
-    rect.setAttribute("ry", 7);
+    rect.setAttribute("rx", 10);
+    rect.setAttribute("ry", 10);
     rect.setAttribute("width", p.w);
     rect.setAttribute("height", p.h);
     g.appendChild(rect);
@@ -1564,9 +1067,9 @@ function renderRouteGraph(target, opts = {}) {
     const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t1.setAttribute("class", "name");
     t1.setAttribute("x", p.x + p.w / 2);
-    t1.setAttribute("y", p.y + 14);
+    t1.setAttribute("y", p.y + 18);
     t1.setAttribute("text-anchor", "middle");
-    t1.textContent = n.name.length > 7 ? n.name.slice(0, 6) + "…" : n.name;
+    t1.textContent = n.name.length > 9 ? n.name.slice(0, 8) + "…" : n.name;
     const outHint = st.out >= 2 ? `输出分 ${st.out} 路，建议调制器/分轨` : (st.out === 1 ? "输出单轨即可" : "终点，无下游输出");
     const inHint = st.in >= 2 ? `进料 ${st.in} 口，各原料独立进黄口` : (st.in === 1 ? "进料 1 口" : "原料点，无进料");
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
@@ -1577,7 +1080,7 @@ function renderRouteGraph(target, opts = {}) {
     const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t2.setAttribute("class", "meta");
     t2.setAttribute("x", p.x + p.w / 2);
-    t2.setAttribute("y", p.y + 31);
+    t2.setAttribute("y", p.y + 34);
     t2.setAttribute("text-anchor", "middle");
     if (n.cycle) t2.textContent = "循环截断";
     else if (n.raw) t2.textContent = "原料 / 采集";
@@ -1618,27 +1121,16 @@ function applyTransform() {
   world.setAttribute("transform", `translate(${routeState.tx},${routeState.ty}) scale(${routeState.scale})`);
 }
 
-function edgePathD(a, b, vertical, fromPort, toPort) {
-  const fp = fromPort === "" || fromPort == null ? null : Number(fromPort);
-  const tp = toPort === "" || toPort == null ? null : Number(toPort);
-  let x1, y1, x2, y2;
-  if (fp != null && !Number.isNaN(fp)) {
-    const pt = portAnchor(a, fp);
-    x1 = pt.x; y1 = pt.y;
-  } else if (vertical) {
-    x1 = a.x + a.w / 2; y1 = a.y + a.h;
-  } else {
-    x1 = a.x + a.w; y1 = a.y + a.h / 2;
+function edgePathD(a, b, vertical) {
+  if (vertical) {
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h;
+    const x2 = b.x + b.w / 2, y2 = b.y;
+    const my = (y1 + y2) / 2;
+    return `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
   }
-  if (tp != null && !Number.isNaN(tp)) {
-    const pt = portAnchor(b, tp);
-    x2 = pt.x; y2 = pt.y;
-  } else if (vertical) {
-    x2 = b.x + b.w / 2; y2 = b.y;
-  } else {
-    x2 = b.x; y2 = b.y + b.h / 2;
-  }
-  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const x1 = a.x + a.w, y1 = a.y + a.h / 2;
+  const x2 = b.x, y2 = b.y + b.h / 2;
+  const mx = (x1 + x2) / 2;
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 }
 
@@ -1656,11 +1148,11 @@ function refreshEdgePaths() {
   if (!routeState.layout) return;
   const vertical = routeState.dir === "v";
   const world = document.getElementById("routeWorld");
-  world.querySelectorAll(".edge, .edge-hit").forEach((path) => {
+  world.querySelectorAll(".edge").forEach((path) => {
     const a = effectivePos(path.dataset.from);
     const b = effectivePos(path.dataset.to);
     if (!a || !b) return;
-    path.setAttribute("d", edgePathD(a, b, vertical, path.dataset.fromPort, path.dataset.toPort));
+    path.setAttribute("d", edgePathD(a, b, vertical));
   });
 }
 
@@ -1829,12 +1321,15 @@ function resolveTarget(raw) {
 }
 
 function goSearch(name) {
-  if (routeState.mode === "plan") exitPlanMode();
   const target = resolveTarget(name);
   if (!target) return;
   document.getElementById("routeQ").value = target;
   hideSuggest();
+  routeState.mode = "query";
   routeState.target = target;
+  const g = gradeOfProduct(target);
+  if (g !== synthGrade) renderSynthList(g);
+  else markActiveProduct(target);
   renderRouteGraph(target);
 }
 
@@ -1973,35 +1468,6 @@ routeQ.addEventListener("keydown", (e) => {
 document.getElementById("routeGo").addEventListener("click", () => {
   goSearch(document.getElementById("routeQ").value);
 });
-document.getElementById("pcList").addEventListener("click", () => {
-  const sidebar = document.getElementById("synthList");
-  if (routeState.mode !== "plan") {
-    setSynthListOpen(true);
-    return;
-  }
-  setSynthListOpen(!sidebar.classList.contains("show"));
-  if (routeState.mode === "plan" && !document.getElementById("synthList").classList.contains("show")) {
-    document.getElementById("pcList").classList.remove("active");
-  }
-});
-function setLinkMode(on) {
-  plan.linkOn = !!on;
-  if (plan.linkOn) plan.unlinkOn = false;
-  plan.linkFrom = null;
-  syncPlanToolbar();
-  renderPlanBoard();
-}
-function setUnlinkMode(on) {
-  plan.unlinkOn = !!on;
-  if (plan.unlinkOn) plan.linkOn = false;
-  plan.linkFrom = null;
-  syncPlanToolbar();
-  renderPlanBoard();
-}
-document.getElementById("pcLink").addEventListener("click", () => setLinkMode(!plan.linkOn));
-document.getElementById("pcUnlink").addEventListener("click", () => setUnlinkMode(!plan.unlinkOn));
-document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
-document.getElementById("pcClear").addEventListener("click", () => clearPlanBoard());
 document.getElementById("pcDir").addEventListener("click", () => {
   routeState.dir = routeState.dir === "h" ? "v" : "h";
   clearPosOverrides();
@@ -2009,7 +1475,6 @@ document.getElementById("pcDir").addEventListener("click", () => {
   btn.classList.toggle("active", routeState.dir === "v");
   btn.title = routeState.dir === "v" ? "当前竖向，点击切回横向" : "当前横向，点击切换竖向";
   if (routeState.target) renderRouteGraph(routeState.target);
-  else if (routeState.mode === "plan") renderPlanBoard();
 });
 document.getElementById("pcReset").addEventListener("click", () => {
   const svgEl = document.getElementById("routeSvg");
@@ -2034,19 +1499,8 @@ window.addEventListener("keydown", (e) => {
   if (routeState.mode !== "plan") return;
   const tag = (e.target && e.target.tagName) || "";
   if (tag === "INPUT" || tag === "TEXTAREA") return;
-  if (e.key === "2") {
-    e.preventDefault();
-    setLinkMode(!plan.linkOn);
-    return;
-  }
-  if (e.key === "3") {
-    e.preventDefault();
-    setUnlinkMode(!plan.unlinkOn);
-    return;
-  }
   if (e.key === "Escape") {
     plan.linkOn = false;
-    plan.unlinkOn = false;
     plan.linkFrom = null;
     plan.selected = null;
     plan.selectedEdge = null;
@@ -2061,12 +1515,12 @@ window.addEventListener("keydown", (e) => {
 
 const svg = document.getElementById("routeSvg");
 svg.addEventListener("mousedown", (e) => {
-  if (e.target.closest(".node") || e.target.closest(".edge, .edge-hit")) return;
+  if (e.target.closest(".node") || e.target.closest(".edge")) return;
   if (routeState.nodeDrag) return;
   if (routeState.mode === "plan") {
     plan.selected = null;
     plan.selectedEdge = null;
-    if (!plan.linkOn && !plan.unlinkOn) plan.linkFrom = null;
+    if (!plan.linkOn) plan.linkFrom = null;
     renderPlanBoard();
   }
   routeState.dragging = true;
@@ -2168,6 +1622,14 @@ window.addEventListener("orientationchange", () => {
     applyTransform();
   }, 200);
 });
+
+(function initDebugBoard() {
+  const dirBtn = document.getElementById("pcDir");
+  dirBtn.classList.remove("active");
+  dirBtn.title = "当前横向平面，点击切换竖向";
+  renderSynthList(synthGrade);
+  goSearch("陶瓷");
+})();
 </script>
 </body>
 </html>

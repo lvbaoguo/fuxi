@@ -33,8 +33,7 @@
     border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line); color: var(--text);
   }
   a.m { background: var(--accent); color: #fff; border-color: var(--accent); }
-  a.pc:hover, a.sandbox:hover { border-color: var(--accent); color: var(--accent); }
-  a.sandbox { border-color: #f0c48a; background: #fff8ee; }
+  a.pc:hover { border-color: var(--accent); color: var(--accent); }
   .tip { margin-top: 14px; font-size: .8rem; color: var(--muted); }
 </style>
 <script>
@@ -43,18 +42,18 @@
   var mobile = /Android|iPhone|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)
     || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua));
   if (/[?&]stay=1(?:&|$)/.test(location.search)) return;
-  location.replace(mobile ? "./m/" : "./pc/");
+  location.replace(mobile ? "./m/index.html" : "./pc/index.html");
 })();
 </script>
 </head>
 <body>
   <div class="card">
     <h1>星际裂变 · 路线工具</h1>
-    <p>手机 / 电脑合成路线；电脑还可开方格沙盘试摆。</p>
+    <p>电脑两个页对照：线路规划自己摆线，合成查看查一路配方。</p>
     <div class="links">
-      <a class="m" href="./m/?v=20260803c">手机 · 合成路线</a>
-      <a class="pc" href="./pc/?v=20260803c">电脑 · 合成路线</a>
-      <a class="sandbox" href="./sandbox/?v=20260804g">电脑 · 方格沙盘（初版）</a>
+      <a class="m" href="./m/index.html?v=20260803c">手机 · 合成路线</a>
+      <a class="pc" href="./pc/index.html?v=20260813g">电脑 · 线路规划</a>
+      <a class="pc" href="./debug/index.html?v=20260813g">电脑 · 合成查看</a>
     </div>
     <p class="tip">强制留在本页：加 <code>?stay=1</code></p>
   </div>
