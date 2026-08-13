@@ -250,6 +250,12 @@
     white-space: nowrap;
   }
   .plan-toast.show { display: block; }
+  .marquee {
+    display: none; position: absolute; z-index: 28; pointer-events: none;
+    border: 1.5px dashed #2f9d84; background: rgba(47,157,132,.12);
+    border-radius: 2px;
+  }
+  .marquee.show { display: block; }
 </style>
 </head>
 <body>
@@ -275,16 +281,18 @@
     <div class="synth-overlay" id="synthList">
       <div class="synth-head">
         <h2>线路规划</h2>
-        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。仓库接入产品后改成该名，只许再接同名；4口：纯进4 / 纯出4 / 混接进2出2。</p>
+        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。画板长按空地拉框可多选移动。仓库接入产品后改成该名，只许再接同名；4口：纯进4 / 纯出4 / 混接进2出2。</p>
         <div class="synth-tabs" id="synthTabs"></div>
       </div>
       <div class="synth-rows" id="synthGrid"></div>
     </div>
     <div class="plan-toast" id="planToast"></div>
+    <div class="marquee" id="marqueeBox"></div>
     <div class="keys-hint" id="keysHint">
       <b>快捷键</b><br />
       <kbd>2</kbd> 连线　<kbd>3</kbd> 断开<br />
-      <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消
+      <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
+      长按空地拉框多选，再拖一块一起走
     </div>
     <div class="route-empty" id="routeEmpty">开「线路规划」从左侧加入、摆块连线。查一路配方请点「合成查看」</div>
     <svg id="routeSvg" xmlns="http://www.w3.org/2000/svg">
@@ -318,6 +326,7 @@ const routeState = {
   posOverride: {},
   overrideKey: "",
   nodeDrag: null,
+  canvasPtr: null,
   scale: 1,
   tx: 40,
   ty: 40,
@@ -338,6 +347,7 @@ const plan = {
   edges: [], // {from, to} id
   nextId: 1,
   selected: null, // node id
+  selectedIds: [], // multi-select
   selectedEdge: null, // index
   linkOn: false,
   unlinkOn: false,
@@ -617,10 +627,72 @@ function addPlanItem(name) {
   const node = { id: plan.nextId++, name, x: pos.x, y: pos.y };
   if (isWarehouse(name)) node.kind = "warehouse";
   plan.nodes.push(node);
-  plan.selected = node.id;
-  plan.selectedEdge = null;
+  selectPlanNodes([node.id]);
   savePlan();
   renderPlanBoard();
+}
+
+function selectPlanNodes(ids) {
+  const uniq = [];
+  const seen = new Set();
+  for (const id of ids || []) {
+    if (id == null || seen.has(id)) continue;
+    seen.add(id);
+    uniq.push(id);
+  }
+  plan.selectedIds = uniq;
+  plan.selected = uniq.length ? uniq[0] : null;
+  plan.selectedEdge = null;
+}
+
+function nodeIsSelected(id) {
+  if (plan.selectedIds && plan.selectedIds.length) return plan.selectedIds.includes(id);
+  return plan.selected === id;
+}
+
+function hideMarquee() {
+  const el = document.getElementById("marqueeBox");
+  if (el) el.classList.remove("show");
+}
+
+function updateMarquee(x1, y1, x2, y2) {
+  const el = document.getElementById("marqueeBox");
+  const wrap = document.querySelector(".route-canvas-wrap");
+  if (!el || !wrap) return;
+  const r = wrap.getBoundingClientRect();
+  el.style.left = (Math.min(x1, x2) - r.left) + "px";
+  el.style.top = (Math.min(y1, y2) - r.top) + "px";
+  el.style.width = Math.abs(x2 - x1) + "px";
+  el.style.height = Math.abs(y2 - y1) + "px";
+  el.classList.add("show");
+}
+
+function marqueeWorldBox(x1, y1, x2, y2) {
+  const a = clientToWorld(x1, y1);
+  const b = clientToWorld(x2, y2);
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(a.x - b.x),
+    h: Math.abs(a.y - b.y),
+  };
+}
+
+function nodesInMarquee(box) {
+  const hits = [];
+  for (const n of plan.nodes) {
+    const p = nodeBox(n);
+    if (p.x < box.x + box.w && p.x + p.w > box.x && p.y < box.y + box.h && p.y + p.h > box.y) hits.push(n.id);
+  }
+  return hits;
+}
+
+function previewMarqueeSelection(ids) {
+  const set = new Set(ids);
+  document.querySelectorAll("#routeWorld .node").forEach((g) => {
+    const id = Number(g.dataset.name);
+    g.classList.toggle("plan-sel", set.has(id));
+  });
 }
 
 function nodeBox(n) {
@@ -789,6 +861,7 @@ function onPlanEdgeClick(ev, ei) {
     return;
   }
   plan.selected = null;
+  plan.selectedIds = [];
   plan.selectedEdge = ei;
   plan.linkFrom = null;
   renderPlanBoard();
@@ -848,14 +921,14 @@ function tryLinkPlan(toId) {
   }
   plan.edges.push(edge);
   plan.linkFrom = null;
-  plan.selected = toId;
+  selectPlanNodes([toId]);
   syncWarehouseCargos();
   savePlan();
   renderPlanBoard();
 }
 
 function deletePlanSelection() {
-  if (plan.selectedEdge != null) {
+  if (plan.selectedEdge != null && !(plan.selectedIds && plan.selectedIds.length)) {
     plan.edges.splice(plan.selectedEdge, 1);
     plan.selectedEdge = null;
     syncWarehouseCargos();
@@ -863,12 +936,15 @@ function deletePlanSelection() {
     renderPlanBoard();
     return;
   }
-  if (plan.selected == null) return;
-  const id = plan.selected;
-  plan.nodes = plan.nodes.filter((n) => n.id !== id);
-  plan.edges = plan.edges.filter((e) => e.from !== id && e.to !== id);
-  plan.selected = null;
-  if (plan.linkFrom === id) plan.linkFrom = null;
+  const ids = (plan.selectedIds && plan.selectedIds.length)
+    ? [...plan.selectedIds]
+    : (plan.selected != null ? [plan.selected] : []);
+  if (!ids.length) return;
+  const idSet = new Set(ids);
+  plan.nodes = plan.nodes.filter((n) => !idSet.has(n.id));
+  plan.edges = plan.edges.filter((e) => !idSet.has(e.from) && !idSet.has(e.to));
+  selectPlanNodes([]);
+  if (idSet.has(plan.linkFrom)) plan.linkFrom = null;
   syncWarehouseCargos();
   savePlan();
   renderPlanBoard();
@@ -879,6 +955,7 @@ function clearPlanBoard() {
   plan.nodes = [];
   plan.edges = [];
   plan.selected = null;
+  plan.selectedIds = [];
   plan.selectedEdge = null;
   plan.linkFrom = null;
   savePlan();
@@ -960,7 +1037,7 @@ function renderPlanBoard() {
     if (wh) cls = "node gwh";
     else if (!rec) cls = "node g0";
     const g = document.createElementNS(ns, "g");
-    g.setAttribute("class", cls + (plan.selected === n.id ? " plan-sel" : "") + (plan.linkFrom === n.id ? " plan-from" : ""));
+    g.setAttribute("class", cls + (nodeIsSelected(n.id) ? " plan-sel" : "") + (plan.linkFrom === n.id ? " plan-from" : ""));
     g.dataset.name = String(n.id);
 
     const rect = document.createElementNS(ns, "rect");
@@ -1008,8 +1085,11 @@ function renderPlanBoard() {
         tryUnlinkPlan(n.id);
         return;
       }
-      plan.selected = n.id;
-      plan.selectedEdge = null;
+      if (plan.selectedIds && plan.selectedIds.length > 1 && plan.selectedIds.includes(n.id)) {
+        plan.selected = n.id;
+        return;
+      }
+      selectPlanNodes([n.id]);
       renderPlanBoard();
     });
     bindPlanNodeDrag(g, n);
@@ -1025,10 +1105,14 @@ function bindPlanNodeDrag(g, node) {
     if (plan.linkOn || plan.unlinkOn) return;
     e.stopPropagation();
     const startClient = { x: e.clientX, y: e.clientY };
-    const startPos = { x: node.x, y: node.y };
+    const groupIds = (plan.selectedIds && plan.selectedIds.includes(node.id) && plan.selectedIds.length > 1)
+      ? [...plan.selectedIds]
+      : [node.id];
+    const group = groupIds.map((id) => planNodeById(id)).filter(Boolean);
+    const starts = group.map((n) => ({ n, x: n.x, y: n.y }));
     routeState.nodeDrag = {
       name: String(node.id), el: g, active: true, moved: false,
-      startClient, startPos, curX: startPos.x, curY: startPos.y, planNode: node,
+      startClient, startPos: { x: node.x, y: node.y }, curX: node.x, curY: node.y, planNode: node,
     };
     try { g.setPointerCapture(e.pointerId); } catch (_) {}
     const onMove = (ev) => {
@@ -1038,25 +1122,28 @@ function bindPlanNodeDrag(g, node) {
       const dy = (ev.clientY - startClient.y) / routeState.scale;
       if (Math.hypot(dx, dy) > 4) d.moved = true;
       if (!d.moved) return;
-      g.classList.add("dragging-node");
-      g.style.cursor = "grabbing";
-      node.x = startPos.x + dx;
-      node.y = startPos.y + dy;
+      const world = document.getElementById("routeWorld");
+      for (const s of starts) {
+        s.n.x = s.x + dx;
+        s.n.y = s.y + dy;
+        const p = routeState.layout && routeState.layout.positions.get(String(s.n.id));
+        if (p) { p.x = s.n.x; p.y = s.n.y; }
+        const el = world && world.querySelector('.node[data-name="' + s.n.id + '"]');
+        if (el) {
+          el.classList.add("dragging-node");
+          refreshPlanNodePos(el, s.n);
+        }
+      }
       d.curX = node.x;
       d.curY = node.y;
-      const p = routeState.layout.positions.get(String(node.id));
-      if (p) { p.x = node.x; p.y = node.y; }
-      g.querySelectorAll("rect, text").forEach((el) => {
-        /* positions baked into attributes — redraw edges only */
-      });
-      refreshPlanNodePos(g, node);
+      g.style.cursor = "grabbing";
       refreshEdgePaths();
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       const d = routeState.nodeDrag;
-      g.classList.remove("dragging-node");
+      document.querySelectorAll(".dragging-node").forEach((el) => el.classList.remove("dragging-node"));
       g.style.cursor = "grab";
       if (d && d.moved) {
         g.dataset.skipClick = "1";
@@ -2048,8 +2135,8 @@ window.addEventListener("keydown", (e) => {
     plan.linkOn = false;
     plan.unlinkOn = false;
     plan.linkFrom = null;
-    plan.selected = null;
-    plan.selectedEdge = null;
+    selectPlanNodes([]);
+    hideMarquee();
     syncPlanToolbar();
     renderPlanBoard();
   }
@@ -2063,18 +2150,14 @@ const svg = document.getElementById("routeSvg");
 svg.addEventListener("mousedown", (e) => {
   if (e.target.closest(".node") || e.target.closest(".edge, .edge-hit")) return;
   if (routeState.nodeDrag) return;
-  if (routeState.mode === "plan") {
-    plan.selected = null;
-    plan.selectedEdge = null;
-    if (!plan.linkOn && !plan.unlinkOn) plan.linkFrom = null;
-    renderPlanBoard();
-  }
+  if (routeState.mode === "plan") return;
   routeState.dragging = true;
   routeState.lastX = e.clientX;
   routeState.lastY = e.clientY;
   svg.classList.add("dragging");
 });
 window.addEventListener("mousemove", (e) => {
+  if (routeState.canvasPtr) return;
   if (routeState.nodeDrag) return;
   if (!routeState.dragging) return;
   panByClientDelta(routeState.lastX, routeState.lastY, e.clientX, e.clientY);
@@ -2086,6 +2169,94 @@ window.addEventListener("mouseup", () => {
   routeState.dragging = false;
   svg.classList.remove("dragging");
 });
+
+function endCanvasPtr() {
+  const p = routeState.canvasPtr;
+  if (p && p.timer) clearTimeout(p.timer);
+  routeState.canvasPtr = null;
+  hideMarquee();
+  routeState.dragging = false;
+  svg.classList.remove("dragging");
+}
+
+svg.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  if (e.target.closest(".node") || e.target.closest(".edge, .edge-hit")) return;
+  if (routeState.nodeDrag) return;
+  if (routeState.mode !== "plan") return;
+  e.preventDefault();
+  const ptr = {
+    mode: (plan.linkOn || plan.unlinkOn) ? "pan" : "wait",
+    startX: e.clientX,
+    startY: e.clientY,
+    lastX: e.clientX,
+    lastY: e.clientY,
+    pointerId: e.pointerId,
+    timer: null,
+  };
+  routeState.canvasPtr = ptr;
+  if (ptr.mode === "pan") {
+    routeState.dragging = true;
+    svg.classList.add("dragging");
+  } else {
+    ptr.timer = setTimeout(() => {
+      if (!routeState.canvasPtr || routeState.canvasPtr !== ptr || ptr.mode !== "wait") return;
+      ptr.mode = "marquee";
+      updateMarquee(ptr.startX, ptr.startY, ptr.startX, ptr.startY);
+    }, 420);
+  }
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+});
+svg.addEventListener("pointermove", (e) => {
+  const ptr = routeState.canvasPtr;
+  if (!ptr) return;
+  if (ptr.mode === "wait") {
+    if (Math.hypot(e.clientX - ptr.startX, e.clientY - ptr.startY) > 8) {
+      clearTimeout(ptr.timer);
+      ptr.mode = "pan";
+      ptr.lastX = e.clientX;
+      ptr.lastY = e.clientY;
+      routeState.dragging = true;
+      svg.classList.add("dragging");
+    }
+    return;
+  }
+  if (ptr.mode === "pan") {
+    panByClientDelta(ptr.lastX, ptr.lastY, e.clientX, e.clientY);
+    ptr.lastX = e.clientX;
+    ptr.lastY = e.clientY;
+    applyTransform();
+    return;
+  }
+  if (ptr.mode === "marquee") {
+    updateMarquee(ptr.startX, ptr.startY, e.clientX, e.clientY);
+    previewMarqueeSelection(nodesInMarquee(marqueeWorldBox(ptr.startX, ptr.startY, e.clientX, e.clientY)));
+  }
+});
+svg.addEventListener("pointerup", (e) => {
+  const ptr = routeState.canvasPtr;
+  if (!ptr) return;
+  if (ptr.timer) clearTimeout(ptr.timer);
+  if (ptr.mode === "wait") {
+    selectPlanNodes([]);
+    if (!plan.linkOn && !plan.unlinkOn) plan.linkFrom = null;
+    hideMarquee();
+    routeState.canvasPtr = null;
+    renderPlanBoard();
+    return;
+  }
+  if (ptr.mode === "marquee") {
+    const box = marqueeWorldBox(ptr.startX, ptr.startY, e.clientX, e.clientY);
+    const hits = (box.w > 6 || box.h > 6) ? nodesInMarquee(box) : [];
+    selectPlanNodes(hits);
+    hideMarquee();
+    routeState.canvasPtr = null;
+    renderPlanBoard();
+    return;
+  }
+  endCanvasPtr();
+});
+svg.addEventListener("pointercancel", () => endCanvasPtr());
 svg.addEventListener("wheel", (e) => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -2104,6 +2275,7 @@ function touchCenter(a, b) {
 }
 svg.addEventListener("touchstart", (e) => {
   if (e.target.closest(".node") && e.touches.length === 1) return;
+  if (routeState.mode === "plan" && e.touches.length === 1) return;
   if (e.touches.length === 1) {
     const t = e.touches[0];
     touchCtl.mode = "pan";
