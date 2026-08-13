@@ -61,6 +61,8 @@
   }
   .pc-toolbar .btn:hover { border-color: var(--accent); color: var(--accent); }
   .pc-toolbar .btn.active { border-color: var(--accent); background: #e8f6f2; color: var(--accent); }
+  .pc-toolbar .btn:disabled { opacity: .4; cursor: default; }
+  .pc-toolbar .btn:disabled:hover { border-color: var(--line); color: var(--text); }
   .keys-hint {
     display: none; position: absolute; z-index: 40; right: 12px; bottom: 12px;
     background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 10px;
@@ -269,11 +271,13 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813h" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260813i" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
-      <button class="btn danger" type="button" id="pcUnlink" title="点线立刻断开，或同样两点切断" style="display:none">断开</button>
+      <button class="btn danger" type="button" id="pcUnlink" title="快捷键 4：点线立刻断开，或同样两点切断" style="display:none">断开 4</button>
+      <button class="btn" type="button" id="pcUndo" title="Ctrl+Z / ⌘Z 撤销" style="display:none">撤销</button>
+      <button class="btn" type="button" id="pcRedo" title="Ctrl+Y / ⌘⇧Z 恢复撤销" style="display:none">恢复</button>
       <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
       <button class="btn" type="button" id="pcClear" title="清空规划板" style="display:none">清空</button>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
@@ -291,7 +295,8 @@
     <div class="marquee" id="marqueeBox"></div>
     <div class="keys-hint" id="keysHint">
       <b>快捷键</b><br />
-      <kbd>2</kbd> 进口　<kbd>3</kbd> 出口<br />
+      <kbd>2</kbd> 进口　<kbd>3</kbd> 出口　<kbd>4</kbd> 断开<br />
+      <kbd>Ctrl+Z</kbd> 撤销　<kbd>Ctrl+Y</kbd> 恢复<br />
       <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
       长按空地拉框多选，再拖一块一起走
     </div>
@@ -372,17 +377,86 @@ function loadPlan() {
     }
   } catch (_) {}
 }
+
+const UNDO_MAX = 50;
+let undoStack = [];
+let redoStack = [];
+let undoBusy = false;
+let lastSaved = null;
+
+function snapshotPlan() {
+  return JSON.parse(JSON.stringify({
+    nodes: plan.nodes,
+    edges: plan.edges,
+    nextId: plan.nextId,
+  }));
+}
+
+function applySnapshot(s) {
+  plan.nodes = JSON.parse(JSON.stringify(s.nodes || []));
+  plan.edges = JSON.parse(JSON.stringify(s.edges || []));
+  plan.nextId = Number(s.nextId) || (plan.nodes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1);
+  plan.selected = null;
+  plan.selectedIds = [];
+  plan.selectedEdge = null;
+  plan.linkFrom = null;
+}
+
+function syncUndoButtons() {
+  const u = document.getElementById("pcUndo");
+  const r = document.getElementById("pcRedo");
+  if (u) u.disabled = !undoStack.length;
+  if (r) r.disabled = !redoStack.length;
+}
+
 function savePlan() {
   try {
     const payload = {
       nodes: plan.nodes, edges: plan.edges, nextId: plan.nextId,
     };
+    if (!undoBusy) {
+      if (lastSaved) {
+        undoStack.push(lastSaved);
+        if (undoStack.length > UNDO_MAX) undoStack.shift();
+      }
+      redoStack = [];
+    }
+    lastSaved = JSON.parse(JSON.stringify(payload));
     const prev = localStorage.getItem(PLAN_LS);
     if (prev && plan.nodes.length) localStorage.setItem(PLAN_LS_BAK, prev);
     localStorage.setItem(PLAN_LS, JSON.stringify(payload));
   } catch (_) {}
+  syncUndoButtons();
 }
+
+function undoPlan() {
+  if (!undoStack.length) {
+    showPlanToast("没有可撤销的操作");
+    return;
+  }
+  undoBusy = true;
+  redoStack.push(snapshotPlan());
+  applySnapshot(undoStack.pop());
+  savePlan();
+  undoBusy = false;
+  renderPlanBoard();
+}
+
+function redoPlan() {
+  if (!redoStack.length) {
+    showPlanToast("没有可恢复的操作");
+    return;
+  }
+  undoBusy = true;
+  undoStack.push(snapshotPlan());
+  applySnapshot(redoStack.pop());
+  savePlan();
+  undoBusy = false;
+  renderPlanBoard();
+}
+
 loadPlan();
+lastSaved = snapshotPlan();
 
 let synthOrder = {};
 function loadSynthOrder() {
@@ -573,6 +647,8 @@ function syncPlanToolbar() {
   document.getElementById("pcLink").style.display = on ? "" : "none";
   document.getElementById("pcOut").style.display = on ? "" : "none";
   document.getElementById("pcUnlink").style.display = on ? "" : "none";
+  document.getElementById("pcUndo").style.display = on ? "" : "none";
+  document.getElementById("pcRedo").style.display = on ? "" : "none";
   document.getElementById("pcDel").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
@@ -581,6 +657,7 @@ function syncPlanToolbar() {
   document.getElementById("pcUnlink").classList.toggle("active", plan.unlinkOn);
   document.getElementById("keysHint").classList.toggle("show", on);
   document.querySelector(".route-canvas-wrap").classList.toggle("unlink-on", on && plan.unlinkOn);
+  syncUndoButtons();
 }
 
 function enterPlanMode() {
@@ -2110,6 +2187,8 @@ function setUnlinkMode(on) {
 document.getElementById("pcLink").addEventListener("click", () => setLinkKind("in"));
 document.getElementById("pcOut").addEventListener("click", () => setLinkKind("out"));
 document.getElementById("pcUnlink").addEventListener("click", () => setUnlinkMode(!plan.unlinkOn));
+document.getElementById("pcUndo").addEventListener("click", () => undoPlan());
+document.getElementById("pcRedo").addEventListener("click", () => redoPlan());
 document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
 document.getElementById("pcClear").addEventListener("click", () => clearPlanBoard());
 document.getElementById("pcDir").addEventListener("click", () => {
@@ -2144,6 +2223,17 @@ window.addEventListener("keydown", (e) => {
   if (routeState.mode !== "plan") return;
   const tag = (e.target && e.target.tagName) || "";
   if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
+    e.preventDefault();
+    if (e.shiftKey) redoPlan();
+    else undoPlan();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
+    e.preventDefault();
+    redoPlan();
+    return;
+  }
   if (e.key === "2") {
     e.preventDefault();
     setLinkKind("in");
@@ -2152,6 +2242,11 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "3") {
     e.preventDefault();
     setLinkKind("out");
+    return;
+  }
+  if (e.key === "4") {
+    e.preventDefault();
+    setUnlinkMode(!plan.unlinkOn);
     return;
   }
   if (e.key === "Escape") {
