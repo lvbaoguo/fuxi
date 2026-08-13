@@ -271,11 +271,11 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813l" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260813m" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
-      <button class="btn danger" type="button" id="pcUnlink" title="快捷键 4：点线立刻断开，或同样两点切断" style="display:none">断开 4</button>
+      <button class="btn danger" type="button" id="pcUnlink" title="快捷键 4：点产品每次断一条线（先进口后出口）；点线立刻切断" style="display:none">断开 4</button>
       <button class="btn" type="button" id="pcUndo" title="Ctrl+Z / ⌘Z 撤销" style="display:none">撤销</button>
       <button class="btn" type="button" id="pcRedo" title="Ctrl+Y / ⌘⇧Z 恢复撤销" style="display:none">恢复</button>
       <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
@@ -299,6 +299,7 @@
       <kbd>Ctrl+Z</kbd> 撤销　<kbd>Ctrl+Y</kbd> 恢复<br />
       <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
       单击块高亮上一层；再点一次取消<br />
+      断开后点产品：每点一次断一条线<br />
       长按空地拉框多选，再拖一块一起走
     </div>
     <div class="route-empty" id="routeEmpty">开「线路规划」从左侧加入、摆块连线。查一路配方请点「合成查看」</div>
@@ -879,21 +880,46 @@ function planPortStats() {
   return { outMap, inMap };
 }
 
-function tryUnlinkPlan(toId) {
-  const fromId = plan.linkFrom;
-  if (!fromId || fromId === toId) {
-    plan.linkFrom = toId;
+function incidentEdgeIndices(id) {
+  const nid = Number(id);
+  const ins = [], outs = [];
+  plan.edges.forEach((e, i) => {
+    if (Number(e.to) === nid) ins.push(i);
+    else if (Number(e.from) === nid) outs.push(i);
+  });
+  const byOther = (isIn) => (ia, ib) => {
+    const a = plan.edges[ia], b = plan.edges[ib];
+    const na = planNodeById(isIn ? a.from : a.to);
+    const nb = planNodeById(isIn ? b.from : b.to);
+    const ax = na ? na.x : 0, ay = na ? na.y : 0;
+    const bx = nb ? nb.x : 0, by = nb ? nb.y : 0;
+    return ax - bx || ay - by || ia - ib;
+  };
+  ins.sort(byOther(true));
+  outs.sort(byOther(false));
+  return ins.concat(outs);
+}
+
+function nodeShortName(n) {
+  if (!n) return "";
+  if (isWarehouse(n)) return n.cargo || "仓库";
+  return n.name || "";
+}
+
+function tryUnlinkPlan(nodeId) {
+  selectPlanNodes([nodeId]);
+  const idxs = incidentEdgeIndices(nodeId);
+  if (!idxs.length) {
+    showPlanToast("这条没有连线");
     renderPlanBoard();
     return;
   }
-  const idx = plan.edges.findIndex((e) =>
-    (e.from === fromId && e.to === toId) || (e.from === toId && e.to === fromId)
-  );
-  if (idx >= 0) plan.edges.splice(idx, 1);
-  plan.linkFrom = null;
-  syncWarehouseCargos();
-  savePlan();
-  renderPlanBoard();
+  const ei = idxs[0];
+  const e = plan.edges[ei];
+  const other = planNodeById(Number(e.from) === Number(nodeId) ? e.to : e.from);
+  const dir = Number(e.to) === Number(nodeId) ? "进" : "出";
+  cutPlanEdge(ei);
+  showPlanToast("已断 " + dir + " · " + nodeShortName(other));
 }
 
 function cutPlanEdge(ei) {
@@ -1027,7 +1053,7 @@ function renderPlanBoard() {
     if (emptyEl) {
       emptyEl.classList.remove("hide");
       emptyEl.classList.add("plan-hint");
-      emptyEl.textContent = "点「加入」摆块；「进口 2」接进仓库（同名）；「出口 3」从仓库接到下游；「断开」点线切断";
+      emptyEl.textContent = "点「加入」摆块；「进口 2」接进仓库（同名）；「出口 3」从仓库接到下游；「断开」点产品依次断线";
     }
     applyTransform();
     return;
