@@ -271,7 +271,7 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813k" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260813l" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -346,8 +346,8 @@ const PLAN_LS = "starrupture_plan_board_v1";
 const PLAN_LS_BAK = PLAN_LS + "_bak";
 const SYNTH_ORDER_LS = "starrupture_synth_order_v1";
 const PLAN_NODE_W = 86, PLAN_NODE_H = 70;
-const WH_NODE_W = 68, WH_NODE_H = 44;
-const WH_NAME_DY = 15, WH_META_DY = 29;
+const WH_NODE_W = 72, WH_NODE_H = 62;
+const WH_NAME_DY = 14, WH_META_DY = 27;
 const BADGE_W = 36, BADGE_H = 11, BADGE_GAP = 2;
 const plan = {
   nodes: [], // {id, name, x, y}
@@ -1116,15 +1116,15 @@ function renderPlanBoard() {
     t2.setAttribute("x", p.x + p.w / 2);
     t2.setAttribute("y", p.y + (wh ? WH_META_DY : 31));
     t2.setAttribute("text-anchor", "middle");
+    t2.textContent = wh ? "仓库" : (rec ? rec.machine : "原料 / 采集");
+    g.appendChild(t2);
     if (wh) {
       const c = warehouseCounts(n.id);
-      t2.textContent = `进${c.ins} 出${c.outs}`;
+      appendWarehousePorts(g, n, p);
+      appendPortBadges(g, p, c.outs, c.ins, true);
     } else {
-      t2.textContent = rec ? rec.machine : "原料 / 采集";
+      appendPortBadges(g, p, outMap.get(n.id) || 0, inMap.get(n.id) || 0);
     }
-    g.appendChild(t2);
-    if (wh) appendWarehousePorts(g, n, p);
-    else appendPortBadges(g, p, outMap.get(n.id) || 0, inMap.get(n.id) || 0);
 
     g.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -1241,7 +1241,7 @@ function refreshPlanNodePos(g, node) {
     metaEl.setAttribute("y", p.y + (wh ? WH_META_DY : 31));
   }
   if (wh) layoutWarehousePorts(g, p);
-  else layoutPortBadges(g, p);
+  layoutPortBadges(g, p);
 }
 
 function orderedSynthItems(grade) {
@@ -1587,7 +1587,7 @@ function appendWarehousePorts(g, node, p) {
   }
 }
 
-function appendPortBadges(g, p, outN, inN) {
+function appendPortBadges(g, p, outN, inN, alwaysColor) {
   const ns = "http://www.w3.org/2000/svg";
   function pill(label, cls) {
     const bg = document.createElementNS(ns, "rect");
@@ -1600,8 +1600,8 @@ function appendPortBadges(g, p, outN, inN) {
     t.textContent = label;
     g.appendChild(t);
   }
-  const outCls = outN >= 2 ? "out-multi" : "out-single";
-  const inCls = inN >= 2 ? "in-multi" : "in-single";
+  const outCls = (alwaysColor || outN >= 2) ? "out-multi" : "out-single";
+  const inCls = (alwaysColor || inN >= 2) ? "in-multi" : "in-single";
   pill(`出${outN}`, outCls);
   pill(`进${inN}`, inCls);
   layoutPortBadges(g, p);
