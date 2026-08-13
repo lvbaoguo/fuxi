@@ -271,7 +271,7 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813i" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260813j" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -298,6 +298,7 @@
       <kbd>2</kbd> 进口　<kbd>3</kbd> 出口　<kbd>4</kbd> 断开<br />
       <kbd>Ctrl+Z</kbd> 撤销　<kbd>Ctrl+Y</kbd> 恢复<br />
       <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
+      单击块高亮上一层；再点一次取消<br />
       长按空地拉框多选，再拖一块一起走
     </div>
     <div class="route-empty" id="routeEmpty">开「线路规划」从左侧加入、摆块连线。查一路配方请点「合成查看」</div>
@@ -1184,10 +1185,14 @@ function renderPlanBoard() {
         tryUnlinkPlan(n.id);
         return;
       }
+      const id = String(n.id);
       if (plan.selectedIds && plan.selectedIds.length > 1 && plan.selectedIds.includes(n.id)) {
         plan.selected = n.id;
+        applyHighlight(id);
         return;
       }
+      if (routeState.highlight === id) routeState.highlight = null;
+      else routeState.highlight = id;
       selectPlanNodes([n.id]);
       renderPlanBoard();
     });
@@ -1195,6 +1200,11 @@ function renderPlanBoard() {
     world.appendChild(g);
   }
   applyTransform();
+  if (routeState.highlight) {
+    const keep = routeState.highlight;
+    routeState.highlight = null;
+    applyHighlight(keep, { force: true });
+  }
 }
 
 function bindPlanNodeDrag(g, node) {
@@ -1642,20 +1652,23 @@ function appendPortBadges(g, p, outN, inN) {
   layoutPortBadges(g, p);
 }
 
-function applyHighlight(focus) {
+function applyHighlight(focus, opts) {
   const world = document.getElementById("routeWorld");
+  const force = !!(opts && opts.force);
 
   if (!focus || !routeState.graph) {
     routeState.highlight = null;
-    world.classList.remove("is-hl");
-    world.querySelectorAll(".edge.hl").forEach(el => el.classList.remove("hl"));
-    world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-prev").forEach(el => {
-      el.classList.remove("hl", "hl-focus", "hl-prev");
-    });
+    if (world) {
+      world.classList.remove("is-hl");
+      world.querySelectorAll(".edge.hl").forEach(el => el.classList.remove("hl"));
+      world.querySelectorAll(".node.hl, .node.hl-focus, .node.hl-prev").forEach(el => {
+        el.classList.remove("hl", "hl-focus", "hl-prev");
+      });
+    }
     return;
   }
 
-  if (routeState.highlight === focus) {
+  if (!force && routeState.highlight === focus) {
     applyHighlight(null);
     return;
   }
@@ -2255,6 +2268,7 @@ window.addEventListener("keydown", (e) => {
     plan.linkFrom = null;
     selectPlanNodes([]);
     hideMarquee();
+    applyHighlight(null);
     syncPlanToolbar();
     renderPlanBoard();
   }
@@ -2358,6 +2372,7 @@ svg.addEventListener("pointerup", (e) => {
   if (ptr.mode === "wait") {
     selectPlanNodes([]);
     if (!plan.linkKind && !plan.unlinkOn) plan.linkFrom = null;
+    routeState.highlight = null;
     hideMarquee();
     routeState.canvasPtr = null;
     renderPlanBoard();
@@ -2367,6 +2382,7 @@ svg.addEventListener("pointerup", (e) => {
     const box = marqueeWorldBox(ptr.startX, ptr.startY, e.clientX, e.clientY);
     const hits = (box.w > 6 || box.h > 6) ? nodesInMarquee(box) : [];
     selectPlanNodes(hits);
+    routeState.highlight = null;
     hideMarquee();
     routeState.canvasPtr = null;
     renderPlanBoard();
