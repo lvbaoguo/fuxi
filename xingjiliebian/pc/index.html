@@ -269,10 +269,11 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260813g" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260813h" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
-      <button class="btn" type="button" id="pcLink" title="快捷键 2：先点产出，再点下游" style="display:none">连线 2</button>
-      <button class="btn danger" type="button" id="pcUnlink" title="快捷键 3：点线立刻断开" style="display:none">断开 3</button>
+      <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
+      <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
+      <button class="btn danger" type="button" id="pcUnlink" title="点线立刻断开，或同样两点切断" style="display:none">断开</button>
       <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
       <button class="btn" type="button" id="pcClear" title="清空规划板" style="display:none">清空</button>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
@@ -281,7 +282,7 @@
     <div class="synth-overlay" id="synthList">
       <div class="synth-head">
         <h2>线路规划</h2>
-        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。画板长按空地拉框可多选移动。仓库接入产品后改成该名，只许再接同名；4口：纯进4 / 纯出4 / 混接进2出2。</p>
+        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。画板长按空地拉框可多选移动。仓库：2 进口只接同名产品，3 出口可接到下游；4口：纯进4 / 纯出4 / 混接进2出2。</p>
         <div class="synth-tabs" id="synthTabs"></div>
       </div>
       <div class="synth-rows" id="synthGrid"></div>
@@ -290,7 +291,7 @@
     <div class="marquee" id="marqueeBox"></div>
     <div class="keys-hint" id="keysHint">
       <b>快捷键</b><br />
-      <kbd>2</kbd> 连线　<kbd>3</kbd> 断开<br />
+      <kbd>2</kbd> 进口　<kbd>3</kbd> 出口<br />
       <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
       长按空地拉框多选，再拖一块一起走
     </div>
@@ -349,7 +350,7 @@ const plan = {
   selected: null, // node id
   selectedIds: [], // multi-select
   selectedEdge: null, // index
-  linkOn: false,
+  linkKind: null, // 'in' 进口 | 'out' 出口
   unlinkOn: false,
   linkFrom: null,
 };
@@ -557,7 +558,7 @@ const synthCatalog = (() => {
   for (const [, arr] of byGrade) arr.sort((a, b) => cmpParts(a.product, b.product));
   byGrade.set("wh", [{
     product: "仓库",
-    machine: "4口 · 纯进4 / 纯出4 / 混接进2出2",
+    machine: "4口 · 2进口同名锁定 · 3出口可接下游",
     materials: [],
     kind: "warehouse",
   }]);
@@ -570,11 +571,13 @@ let synthGrade = synthCatalog.grades.includes(1) ? 1 : (synthCatalog.grades[0] |
 function syncPlanToolbar() {
   const on = routeState.mode === "plan";
   document.getElementById("pcLink").style.display = on ? "" : "none";
+  document.getElementById("pcOut").style.display = on ? "" : "none";
   document.getElementById("pcUnlink").style.display = on ? "" : "none";
   document.getElementById("pcDel").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
-  document.getElementById("pcLink").classList.toggle("active", plan.linkOn);
+  document.getElementById("pcLink").classList.toggle("active", plan.linkKind === "in");
+  document.getElementById("pcOut").classList.toggle("active", plan.linkKind === "out");
   document.getElementById("pcUnlink").classList.toggle("active", plan.unlinkOn);
   document.getElementById("keysHint").classList.toggle("show", on);
   document.querySelector(".route-canvas-wrap").classList.toggle("unlink-on", on && plan.unlinkOn);
@@ -595,7 +598,7 @@ function enterPlanMode() {
 }
 
 function exitPlanMode() {
-  plan.linkOn = false;
+  plan.linkKind = null;
   plan.unlinkOn = false;
   plan.linkFrom = null;
   routeState.mode = "query";
@@ -720,19 +723,13 @@ function warehouseCounts(id) {
 
 function inferWarehouseCargo(id) {
   for (const e of plan.edges) {
-    let otherId = null;
-    if (e.from === id) otherId = e.to;
-    else if (e.to === id) otherId = e.from;
-    else continue;
-    const other = planNodeById(otherId);
+    if (e.to !== id) continue;
+    const other = planNodeById(e.from);
     if (other && !isWarehouse(other)) return other.name;
   }
   for (const e of plan.edges) {
-    let otherId = null;
-    if (e.from === id) otherId = e.to;
-    else if (e.to === id) otherId = e.from;
-    else continue;
-    const other = planNodeById(otherId);
+    if (e.to !== id) continue;
+    const other = planNodeById(e.from);
     if (isWarehouse(other) && other.cargo) return other.cargo;
   }
   return null;
@@ -867,42 +864,67 @@ function onPlanEdgeClick(ev, ei) {
   renderPlanBoard();
 }
 
-function tryLinkPlan(toId) {
+function tryLinkPlan(clickId) {
+  const kind = plan.linkKind || "in";
   const fromId = plan.linkFrom;
-  if (!fromId || fromId === toId) {
-    plan.linkFrom = toId;
+  if (!fromId || fromId === clickId) {
+    plan.linkFrom = clickId;
     renderPlanBoard();
     return;
   }
-  const exists = plan.edges.some((e) => e.from === fromId && e.to === toId);
-  if (exists) {
+  const a = planNodeById(fromId);
+  const b = planNodeById(clickId);
+  if (!a || !b) return;
+  let fromNode = a, toNode = b;
+  const aWh = isWarehouse(a), bWh = isWarehouse(b);
+  if (kind === "in") {
+    if (aWh && !bWh) { fromNode = b; toNode = a; }
+    else if (bWh && !aWh) { fromNode = a; toNode = b; }
+  } else if (kind === "out") {
+    if (aWh && !bWh) { fromNode = a; toNode = b; }
+    else if (bWh && !aWh) { fromNode = b; toNode = a; }
+  }
+  const srcId = fromNode.id, dstId = toNode.id;
+  if (plan.edges.some((e) => e.from === srcId && e.to === dstId)) {
     plan.linkFrom = null;
     renderPlanBoard();
     return;
   }
-  const fromNode = planNodeById(fromId);
-  const toNode = planNodeById(toId);
-  if (isWarehouse(fromNode) && !warehouseCanTake(fromId, true)) {
-    showPlanToast("仓库混接只能进2出2；否则只能进4或出4");
+  if (isWarehouse(fromNode) && !warehouseCanTake(srcId, true)) {
+    showPlanToast("仓库出口已满（混接只能进2出2，否则出4）");
     return;
   }
-  if (isWarehouse(toNode) && !warehouseCanTake(toId, false)) {
-    showPlanToast("仓库混接只能进2出2；否则只能进4或出4");
+  if (isWarehouse(toNode) && !warehouseCanTake(dstId, false)) {
+    showPlanToast("仓库进口已满（混接只能进2出2，否则进4）");
     return;
   }
-  const fromC = nodeCargo(fromNode);
-  const toC = nodeCargo(toNode);
-  if (isWarehouse(fromNode) || isWarehouse(toNode)) {
-    if (fromC && toC && fromC !== toC) {
-      showPlanToast("仓库已存「" + (isWarehouse(toNode) && toC ? toC : fromC) + "」，只能接同名");
+  if (kind === "in" && isWarehouse(toNode)) {
+    const incoming = nodeCargo(fromNode);
+    const stored = nodeCargo(toNode);
+    if (stored && incoming && stored !== incoming) {
+      showPlanToast("仓库已存「" + stored + "」，进口只能接同名");
       return;
     }
-    if (isWarehouse(fromNode) && isWarehouse(toNode) && !fromC && !toC) {
-      showPlanToast("先把仓库接到要存的产品上");
+    if (isWarehouse(fromNode) && isWarehouse(toNode) && !stored && !incoming) {
+      showPlanToast("先把仓库进口接到要存的产品上");
       return;
     }
   }
-  const edge = { from: fromId, to: toId };
+  if (kind === "out" && isWarehouse(fromNode)) {
+    const stored = nodeCargo(fromNode);
+    if (!stored) {
+      showPlanToast("仓库还没进口，先按 2 接要存的产品");
+      return;
+    }
+    if (isWarehouse(toNode)) {
+      const destC = nodeCargo(toNode);
+      if (destC && destC !== stored) {
+        showPlanToast("下游仓库已存「" + destC + "」，对不上");
+        return;
+      }
+    }
+  }
+  const edge = { from: srcId, to: dstId };
   if (isWarehouse(fromNode)) {
     const fp = pickWarehousePort(fromNode, toNode, true);
     if (fp == null) {
@@ -921,7 +943,7 @@ function tryLinkPlan(toId) {
   }
   plan.edges.push(edge);
   plan.linkFrom = null;
-  selectPlanNodes([toId]);
+  selectPlanNodes([dstId]);
   syncWarehouseCargos();
   savePlan();
   renderPlanBoard();
@@ -972,7 +994,7 @@ function renderPlanBoard() {
     if (emptyEl) {
       emptyEl.classList.remove("hide");
       emptyEl.classList.add("plan-hint");
-      emptyEl.textContent = "点「加入」摆块；「连线」：先点产出再点下游；「断开」：直接点线，或同样两点切断";
+      emptyEl.textContent = "点「加入」摆块；「进口 2」接进仓库（同名）；「出口 3」从仓库接到下游；「断开」点线切断";
     }
     applyTransform();
     return;
@@ -1077,7 +1099,7 @@ function renderPlanBoard() {
         delete g.dataset.skipClick;
         return;
       }
-      if (plan.linkOn) {
+      if (plan.linkKind) {
         tryLinkPlan(n.id);
         return;
       }
@@ -1102,7 +1124,7 @@ function bindPlanNodeDrag(g, node) {
   g.style.cursor = "grab";
   g.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (plan.linkOn || plan.unlinkOn) return;
+    if (plan.linkKind || plan.unlinkOn) return;
     e.stopPropagation();
     const startClient = { x: e.clientX, y: e.clientY };
     const groupIds = (plan.selectedIds && plan.selectedIds.includes(node.id) && plan.selectedIds.length > 1)
@@ -2071,21 +2093,22 @@ document.getElementById("pcList").addEventListener("click", () => {
     document.getElementById("pcList").classList.remove("active");
   }
 });
-function setLinkMode(on) {
-  plan.linkOn = !!on;
-  if (plan.linkOn) plan.unlinkOn = false;
+function setLinkKind(kind) {
+  plan.linkKind = plan.linkKind === kind ? null : kind;
+  if (plan.linkKind) plan.unlinkOn = false;
   plan.linkFrom = null;
   syncPlanToolbar();
   renderPlanBoard();
 }
 function setUnlinkMode(on) {
   plan.unlinkOn = !!on;
-  if (plan.unlinkOn) plan.linkOn = false;
+  if (plan.unlinkOn) plan.linkKind = null;
   plan.linkFrom = null;
   syncPlanToolbar();
   renderPlanBoard();
 }
-document.getElementById("pcLink").addEventListener("click", () => setLinkMode(!plan.linkOn));
+document.getElementById("pcLink").addEventListener("click", () => setLinkKind("in"));
+document.getElementById("pcOut").addEventListener("click", () => setLinkKind("out"));
 document.getElementById("pcUnlink").addEventListener("click", () => setUnlinkMode(!plan.unlinkOn));
 document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
 document.getElementById("pcClear").addEventListener("click", () => clearPlanBoard());
@@ -2123,16 +2146,16 @@ window.addEventListener("keydown", (e) => {
   if (tag === "INPUT" || tag === "TEXTAREA") return;
   if (e.key === "2") {
     e.preventDefault();
-    setLinkMode(!plan.linkOn);
+    setLinkKind("in");
     return;
   }
   if (e.key === "3") {
     e.preventDefault();
-    setUnlinkMode(!plan.unlinkOn);
+    setLinkKind("out");
     return;
   }
   if (e.key === "Escape") {
-    plan.linkOn = false;
+    plan.linkKind = null;
     plan.unlinkOn = false;
     plan.linkFrom = null;
     selectPlanNodes([]);
@@ -2186,7 +2209,7 @@ svg.addEventListener("pointerdown", (e) => {
   if (routeState.mode !== "plan") return;
   e.preventDefault();
   const ptr = {
-    mode: (plan.linkOn || plan.unlinkOn) ? "pan" : "wait",
+    mode: (plan.linkKind || plan.unlinkOn) ? "pan" : "wait",
     startX: e.clientX,
     startY: e.clientY,
     lastX: e.clientX,
@@ -2239,7 +2262,7 @@ svg.addEventListener("pointerup", (e) => {
   if (ptr.timer) clearTimeout(ptr.timer);
   if (ptr.mode === "wait") {
     selectPlanNodes([]);
-    if (!plan.linkOn && !plan.unlinkOn) plan.linkFrom = null;
+    if (!plan.linkKind && !plan.unlinkOn) plan.linkFrom = null;
     hideMarquee();
     routeState.canvasPtr = null;
     renderPlanBoard();
