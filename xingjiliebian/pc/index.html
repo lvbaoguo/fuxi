@@ -271,7 +271,7 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260814b" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260814c" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -281,6 +281,7 @@
       <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
       <button class="btn" type="button" id="pcExport" title="下载规划图，拿到本地打开再导入" style="display:none">导出</button>
       <button class="btn" type="button" id="pcImport" title="导入导出的 json，远程和本地存档不共用" style="display:none">导入</button>
+      <button class="btn" type="button" id="pcRecover" title="找回浏览器里那份规划图" style="display:none">找回原图</button>
       <input id="pcImportFile" type="file" accept="application/json,.json" style="display:none" />
       <button class="btn" type="button" id="pcClear" title="清空规划板" style="display:none">清空</button>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
@@ -373,15 +374,26 @@ function applyPlanData(raw) {
   plan.nextId = Number(raw.nextId) || (plan.nodes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1);
   return true;
 }
+const RECOVERED_PLAN = {"nodes":[{"id":5,"name":"钛矿石","x":-65.38070185497554,"y":-85.84547254774304},{"id":11,"name":"钨条","x":41.91656494140625,"y":1.029937744140625},{"id":12,"name":"钨条","x":42.3017578125,"y":87.40191650390625},{"id":13,"name":"钙块","x":153.91656527146066,"y":-0.2777381183152148},{"id":28,"name":"钨矿石","x":46.837432861328125,"y":-87.50332641601562},{"id":29,"name":"钙矿石","x":160.37738037109375,"y":-86.74276733398438},{"id":30,"name":"氦-3","x":264.45452880859375,"y":-86.53070068359375},{"id":31,"name":"硫矿石","x":359.1085205078125,"y":-86.79592895507812},{"id":32,"name":"钙块","x":150.79691669272228,"y":85.98404622221464},{"id":36,"name":"钛条","x":-65.36220909004214,"y":3.8758818026331596},{"id":37,"name":"钛条","x":-65.88453391434865,"y":87.61415292369921},{"id":38,"name":"仓库","x":-60.7208251953125,"y":189.45703125,"kind":"warehouse","cargo":"钛条"},{"id":42,"name":"加压氦气","x":254.84210205078125,"y":0.775360107421875},{"id":43,"name":"仓库","x":46.80352783203125,"y":188.6053466796875,"kind":"warehouse","cargo":"钨条"},{"id":44,"name":"能源矿","x":455.96270751953125,"y":-87.43020629882812},{"id":45,"name":"针铁矿","x":554.8095703125,"y":-87.47354125976562},{"id":46,"name":"精炼油","x":348.8704833984375,"y":-1.40380859375},{"id":47,"name":"钛铁合金锭","x":560.4028930664062,"y":-2.7919921875},{"id":48,"name":"钨钢锭","x":452.5828857421875,"y":-1.231597900390625},{"id":50,"name":"仓库","x":161.67144775390625,"y":187.963623046875,"kind":"warehouse","cargo":"钙块"},{"id":51,"name":"钛板","x":-67.94760131835938,"y":263.8638916015625},{"id":52,"name":"钛棒","x":31.2889404296875,"y":264.4176025390625},{"id":53,"name":"钛梁","x":132.23760986328125,"y":263.91583251953125},{"id":54,"name":"钨板","x":251.82366943359375,"y":264.2982177734375}],"edges":[{"from":30,"to":42},{"from":31,"to":42},{"from":5,"to":36},{"from":28,"to":11},{"from":29,"to":13},{"from":44,"to":46},{"from":29,"to":46},{"from":5,"to":46},{"from":45,"to":47},{"from":28,"to":48},{"from":45,"to":48},{"from":47,"to":5},{"from":5,"to":47},{"from":5,"to":37},{"from":28,"to":12},{"from":29,"to":32},{"from":37,"to":38,"toPort":0},{"from":12,"to":43,"toPort":0},{"from":32,"to":50,"toPort":0}],"nextId":55};
+
 function loadPlan() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PLAN_LS) || "null");
-    applyPlanData(raw);
-    if (!plan.nodes.length) {
-      const bak = JSON.parse(localStorage.getItem(PLAN_LS_BAK) || "null");
-      if (bak && Array.isArray(bak.nodes) && bak.nodes.length) applyPlanData(bak);
-    }
-  } catch (_) {}
+  let main = null, bak = null;
+  try { main = JSON.parse(localStorage.getItem(PLAN_LS) || "null"); } catch (_) {}
+  try { bak = JSON.parse(localStorage.getItem(PLAN_LS_BAK) || "null"); } catch (_) {}
+  const n = (p) => (p && Array.isArray(p.nodes) ? p.nodes.length : 0);
+  let best = main;
+  if (n(bak) > n(best)) best = bak;
+  if (typeof RECOVERED_PLAN !== "undefined" && n(RECOVERED_PLAN) > n(best) && n(best) <= 2) {
+    best = RECOVERED_PLAN;
+  }
+  applyPlanData(best);
+  if (best && n(best) && best !== main) {
+    try {
+      localStorage.setItem(PLAN_LS, JSON.stringify({
+        nodes: plan.nodes, edges: plan.edges, nextId: plan.nextId,
+      }));
+    } catch (_) {}
+  }
 }
 
 const UNDO_MAX = 50;
@@ -442,6 +454,25 @@ function planExportPayload() {
     edges: plan.edges,
     nextId: plan.nextId,
   };
+}
+
+function restoreRecoveredPlan() {
+  if (!RECOVERED_PLAN || !RECOVERED_PLAN.nodes || !RECOVERED_PLAN.nodes.length) {
+    showPlanToast("没有可找回的图");
+    return;
+  }
+  applyPlanData(RECOVERED_PLAN);
+  plan.selected = null;
+  plan.selectedIds = [];
+  plan.selectedEdge = null;
+  plan.linkFrom = null;
+  undoStack = [];
+  redoStack = [];
+  lastSaved = null;
+  savePlan();
+  lastSaved = snapshotPlan();
+  renderPlanBoard();
+  showPlanToast("已找回 " + plan.nodes.length + " 个块");
 }
 
 function exportPlanBoard() {
@@ -703,6 +734,7 @@ function syncPlanToolbar() {
   document.getElementById("pcDel").style.display = on ? "" : "none";
   document.getElementById("pcExport").style.display = on ? "" : "none";
   document.getElementById("pcImport").style.display = on ? "" : "none";
+  document.getElementById("pcRecover").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
   document.getElementById("pcLink").classList.toggle("active", plan.linkKind === "in");
@@ -2237,6 +2269,7 @@ document.getElementById("pcRedo").addEventListener("click", () => redoPlan());
 document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
 document.getElementById("pcExport").addEventListener("click", () => exportPlanBoard());
 document.getElementById("pcImport").addEventListener("click", () => document.getElementById("pcImportFile").click());
+document.getElementById("pcRecover").addEventListener("click", () => restoreRecoveredPlan());
 document.getElementById("pcImportFile").addEventListener("change", (ev) => {
   const file = ev.target.files && ev.target.files[0];
   ev.target.value = "";
