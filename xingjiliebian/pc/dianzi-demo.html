@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>电子元件怎么摆 · 主干道示意</title>
+<style>
+  :root {
+    --text: #2a3038; --muted: #6b7585; --line: #c5ccd6;
+    --accent: #2f9d84; --out: #ea580c; --in: #0d9488;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text); background: #edf0f4;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 1rem; }
+  header p { margin: 0; flex: 1; min-width: 220px; font-size: .82rem; color: var(--muted); }
+  .btn {
+    border: 1px solid var(--line); background: #fff; border-radius: 8px;
+    padding: 8px 12px; font-size: .85rem; font-weight: 600; text-decoration: none; color: var(--text);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+  main { padding: 14px; max-width: 1280px; margin: 0 auto; }
+  .sum {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px; margin-bottom: 12px;
+  }
+  .sum div {
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px; font-size: .8rem; line-height: 1.45;
+  }
+  .sum b { display: block; margin-bottom: 4px; font-size: .88rem; }
+  .sum .a { border-left: 4px solid #8aa9c9; }
+  .sum .b { border-left: 4px solid #7aaa86; }
+  .sum .c { border-left: 4px solid #9a8ab8; }
+  .sum .t { border-left: 4px solid #c4a060; }
+  .board-wrap {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    overflow: auto; box-shadow: 0 8px 28px rgba(40,50,70,.08);
+  }
+  svg.board {
+    display: block; min-width: 1180px; width: 100%;
+    background:
+      linear-gradient(#eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, #eef1f5 1px, transparent 1px) 0 0 / 24px 24px,
+      #f8f9fb;
+  }
+  .lane { fill: rgba(0,0,0,.03); }
+  .lane.ti { fill: rgba(138,169,201,.10); }
+  .lane.w { fill: rgba(122,170,134,.10); }
+  .lane.ca { fill: rgba(154,138,184,.10); }
+  .lane.he { fill: rgba(196,160,96,.10); }
+  .lane.final { fill: rgba(47,157,132,.08); }
+  .lab { fill: var(--muted); font-size: 11px; font-weight: 700; }
+  .node rect { rx: 6; ry: 6; stroke-width: 1.3; }
+  .raw rect { fill: #f6eee0; stroke: #d2b48c; }
+  .wh rect { fill: #eef1f5; stroke: #7d8796; }
+  .g1 rect { fill: #e8f1fb; stroke: #8aa9c9; }
+  .g2 rect { fill: #e6f5ea; stroke: #7aaa86; }
+  .g3 rect { fill: #eeeaf8; stroke: #9a8ab8; }
+  .g4 rect { fill: #fdeee4; stroke: #d4a07a; }
+  .g5 rect { fill: #f8e8ef; stroke: #c4889e; }
+  .target rect { fill: #e8f6f2; stroke: #2f9d84; stroke-width: 2.2; }
+  .name { font-size: 10px; font-weight: 700; fill: var(--text); text-anchor: middle; }
+  .meta { font-size: 8px; fill: var(--muted); text-anchor: middle; }
+  .e { fill: none; stroke: #8aa0b5; stroke-width: 1.4; marker-end: url(#a); }
+  .bus { stroke: #ea580c; stroke-width: 2; marker-end: url(#ab); }
+  .take { stroke: #0d9488; stroke-width: 1.7; marker-end: url(#at); }
+  .note {
+    margin-top: 12px; background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; font-size: .85rem; line-height: 1.55;
+  }
+  .note code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+  .toast {
+    display: none; position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    background: #2a3038; color: #fff; padding: 10px 14px; border-radius: 8px;
+    font-size: .85rem; font-weight: 600;
+  }
+  .toast.show { display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>造「电子元件」怎么摆</h1>
+  <p>终点只要三样：合成硅 + 电感器 + 定子。前面全部先囤进仓，再从仓往这三路上供。</p>
+  <a class="btn" href="./bus-demo.html">主干道总示意</a>
+  <a class="btn" href="./index.html">线路规划</a>
+  <button class="btn primary" type="button" id="btnApply">灌进画板看连线</button>
+</header>
+<main>
+  <div class="sum">
+    <div class="t"><b>电子元件 = 3 进口</b>合成硅、电感器、定子（熔炉）</div>
+    <div class="a"><b>A 轨 · 钛系</b>钛矿→条→板/棒/梁→管材/外壳→定子、电感器</div>
+    <div class="b"><b>B 轨 · 钨系</b>钨矿→条→丝/粉→陶瓷、电感器、定子</div>
+    <div class="c"><b>C 轨 · 钙+氦</b>钙矿→块→板/粉 + 氦-3 →陶瓷→合成硅</div>
+  </div>
+
+  <div class="board-wrap">
+    <svg class="board" viewBox="0 0 1220 900" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8aa0b5"/></marker>
+        <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ea580c"/></marker>
+        <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0d9488"/></marker>
+      </defs>
+
+      <!-- lanes -->
+      <rect class="lane ti" x="20" y="20" width="300" height="700" rx="10"/>
+      <rect class="lane w" x="330" y="20" width="300" height="700" rx="10"/>
+      <rect class="lane ca" x="640" y="20" width="280" height="700" rx="10"/>
+      <rect class="lane he" x="930" y="20" width="140" height="280" rx="10"/>
+      <rect class="lane final" x="20" y="740" width="1180" height="140" rx="10"/>
+
+      <text class="lab" x="40" y="42" fill="#3d5a80">A 钛轨（竖着往下）</text>
+      <text class="lab" x="350" y="42" fill="#3d6b4f">B 钨轨</text>
+      <text class="lab" x="660" y="42" fill="#5a4a7a">C 钙轨</text>
+      <text class="lab" x="948" y="42" fill="#8a6a20">氦轨</text>
+      <text class="lab" x="40" y="762" fill="#2f9d84">汇合带：三路仓 → 电子元件</text>
+
+      <!-- ===== A 钛 ===== -->
+      <!-- y bands: 60 raw, 130 wh, 200 bar, 270 barWh, 350 plate/rod/beam, 430 their wh, 520 tube/shell, 600 their wh, 680 stator parts wait -->
+      <g class="node raw" transform="translate(50,55)"><rect width="78" height="42"/><text class="name" x="39" y="18">钛矿石</text><text class="meta" x="39" y="32">原料</text></g>
+      <g class="node wh" transform="translate(50,115)"><rect width="78" height="40"/><text class="name" x="39" y="17">钛矿仓</text><text class="meta" x="39" y="30">囤矿</text></g>
+      <g class="node g1" transform="translate(50,175)"><rect width="78" height="44"/><text class="name" x="39" y="18">钛条</text><text class="meta" x="39" y="32">冶炼厂</text></g>
+      <g class="node wh" transform="translate(50,240)"><rect width="78" height="40"/><text class="name" x="39" y="17">钛条仓</text><text class="meta" x="39" y="30">总线①</text></g>
+
+      <g class="node g2" transform="translate(30,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钛板</text><text class="meta" x="35" y="31">制造</text></g>
+      <g class="node g2" transform="translate(110,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钛棒</text><text class="meta" x="35" y="31">制造</text></g>
+      <g class="node g2" transform="translate(190,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钛梁</text><text class="meta" x="35" y="31">制造</text></g>
+      <g class="node wh" transform="translate(30,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钛板仓</text><text class="meta" x="35" y="28">总线②</text></g>
+      <g class="node wh" transform="translate(110,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钛棒仓</text><text class="meta" x="35" y="28">总线②</text></g>
+      <g class="node wh" transform="translate(190,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钛梁仓</text><text class="meta" x="35" y="28">总线②</text></g>
+
+      <g class="node g3" transform="translate(50,450)"><rect width="90" height="44"/><text class="name" x="45" y="18">管材</text><text class="meta" x="45" y="32">棒+板</text></g>
+      <g class="node g3" transform="translate(170,450)"><rect width="100" height="44"/><text class="name" x="50" y="18">钛金属外壳</text><text class="meta" x="50" y="32">梁+板</text></g>
+      <g class="node wh" transform="translate(50,520)"><rect width="90" height="36"/><text class="name" x="45" y="15">管材仓</text><text class="meta" x="45" y="28">给电感器</text></g>
+      <g class="node wh" transform="translate(170,520)"><rect width="100" height="36"/><text class="name" x="50" y="15">外壳仓</text><text class="meta" x="50" y="28">给定子</text></g>
+
+      <g class="node g4" transform="translate(170,590)"><rect width="100" height="44"/><text class="name" x="50" y="18">定子</text><text class="meta" x="50" y="32">外壳+钨丝</text></g>
+      <g class="node wh" transform="translate(170,655)"><rect width="100" height="36"/><text class="name" x="50" y="15">定子仓</text><text class="meta" x="50" y="28">三路之一</text></g>
+
+      <!-- A edges -->
+      <path class="e" d="M89 97 V115"/><path class="e" d="M89 155 V175"/><path class="e" d="M89 219 V240"/>
+      <path class="e bus" d="M89 280 V310"/>
+      <path class="e take" d="M89 280 C 89 295, 65 295, 65 310"/>
+      <path class="e take" d="M89 280 C 89 295, 145 295, 145 310"/>
+      <path class="e take" d="M89 280 C 120 295, 225 295, 225 310"/>
+      <path class="e" d="M65 352 V375"/><path class="e" d="M145 352 V375"/><path class="e" d="M225 352 V375"/>
+      <path class="e take" d="M145 411 C 120 430, 95 430, 80 450"/>
+      <path class="e take" d="M65 411 C 65 430, 80 430, 80 450"/>
+      <path class="e take" d="M225 411 C 220 430, 220 430, 220 450"/>
+      <path class="e take" d="M65 411 C 120 430, 200 430, 220 450"/>
+      <path class="e" d="M95 494 V520"/><path class="e" d="M220 494 V520"/>
+      <path class="e take" d="M220 556 V590"/>
+      <path class="e" d="M220 634 V655"/>
+
+      <!-- ===== B 钨 ===== -->
+      <g class="node raw" transform="translate(360,55)"><rect width="78" height="42"/><text class="name" x="39" y="18">钨矿石</text><text class="meta" x="39" y="32">原料</text></g>
+      <g class="node wh" transform="translate(360,115)"><rect width="78" height="40"/><text class="name" x="39" y="17">钨矿仓</text><text class="meta" x="39" y="30">囤矿</text></g>
+      <g class="node g1" transform="translate(360,175)"><rect width="78" height="44"/><text class="name" x="39" y="18">钨条</text><text class="meta" x="39" y="32">冶炼厂</text></g>
+      <g class="node wh" transform="translate(360,240)"><rect width="78" height="40"/><text class="name" x="39" y="17">钨条仓</text><text class="meta" x="39" y="30">总线①</text></g>
+
+      <g class="node g2" transform="translate(340,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钨丝</text><text class="meta" x="35" y="31">制造</text></g>
+      <g class="node g2" transform="translate(430,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钨粉</text><text class="meta" x="35" y="31">熔炉</text></g>
+      <g class="node wh" transform="translate(340,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钨丝仓</text><text class="meta" x="35" y="28">总线②</text></g>
+      <g class="node wh" transform="translate(430,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钨粉仓</text><text class="meta" x="35" y="28">总线②</text></g>
+
+      <g class="node g3" transform="translate(400,450)"><rect width="90" height="44"/><text class="name" x="45" y="18">陶瓷</text><text class="meta" x="45" y="32">方解石板+钨粉</text></g>
+      <g class="node wh" transform="translate(400,520)"><rect width="90" height="36"/><text class="name" x="45" y="15">陶瓷仓</text><text class="meta" x="45" y="28">共用枢纽</text></g>
+
+      <g class="node g4" transform="translate(340,590)"><rect width="100" height="44"/><text class="name" x="50" y="18">电感器</text><text class="meta" x="50" y="32">管材+丝+陶瓷</text></g>
+      <g class="node wh" transform="translate(340,655)"><rect width="100" height="36"/><text class="name" x="50" y="15">电感器仓</text><text class="meta" x="50" y="28">三路之一</text></g>
+
+      <path class="e" d="M399 97 V115"/><path class="e" d="M399 155 V175"/><path class="e" d="M399 219 V240"/>
+      <path class="e take" d="M399 280 C 399 295, 375 295, 375 310"/>
+      <path class="e take" d="M399 280 C 399 295, 465 295, 465 310"/>
+      <path class="e" d="M375 352 V375"/><path class="e" d="M465 352 V375"/>
+      <path class="e take" d="M465 411 C 465 430, 445 430, 445 450"/>
+      <path class="e" d="M445 494 V520"/>
+      <!-- 钨丝 to 定子 and 电感器 -->
+      <path class="e take" d="M375 411 C 300 500, 260 560, 220 590"/>
+      <path class="e take" d="M375 411 C 375 520, 390 560, 390 590"/>
+      <!-- 管材仓 to 电感器 -->
+      <path class="e take" d="M95 556 C 180 580, 280 590, 340 610"/>
+      <!-- 陶瓷仓 to 电感器 -->
+      <path class="e take" d="M445 556 C 420 570, 400 580, 390 590"/>
+      <path class="e" d="M390 634 V655"/>
+
+      <!-- ===== C 钙 ===== -->
+      <g class="node raw" transform="translate(680,55)"><rect width="78" height="42"/><text class="name" x="39" y="18">钙矿石</text><text class="meta" x="39" y="32">原料</text></g>
+      <g class="node wh" transform="translate(680,115)"><rect width="78" height="40"/><text class="name" x="39" y="17">钙矿仓</text><text class="meta" x="39" y="30">囤矿</text></g>
+      <g class="node g1" transform="translate(680,175)"><rect width="78" height="44"/><text class="name" x="39" y="18">钙块</text><text class="meta" x="39" y="32">冶炼厂</text></g>
+      <g class="node wh" transform="translate(680,240)"><rect width="78" height="40"/><text class="name" x="39" y="17">钙块仓</text><text class="meta" x="39" y="30">总线①</text></g>
+
+      <g class="node g2" transform="translate(650,310)"><rect width="78" height="42"/><text class="name" x="39" y="17">方解石板</text><text class="meta" x="39" y="31">制造</text></g>
+      <g class="node g2" transform="translate(750,310)"><rect width="70" height="42"/><text class="name" x="35" y="17">钙粉</text><text class="meta" x="35" y="31">熔炉</text></g>
+      <g class="node wh" transform="translate(650,375)"><rect width="78" height="36"/><text class="name" x="39" y="15">方解石仓</text><text class="meta" x="39" y="28">→陶瓷</text></g>
+      <g class="node wh" transform="translate(750,375)"><rect width="70" height="36"/><text class="name" x="35" y="15">钙粉仓</text><text class="meta" x="35" y="28">→合成硅</text></g>
+
+      <path class="e" d="M719 97 V115"/><path class="e" d="M719 155 V175"/><path class="e" d="M719 219 V240"/>
+      <path class="e take" d="M719 280 C 719 295, 689 295, 689 310"/>
+      <path class="e take" d="M719 280 C 719 295, 785 295, 785 310"/>
+      <path class="e" d="M689 352 V375"/><path class="e" d="M785 352 V375"/>
+      <!-- 方解石 → 陶瓷 -->
+      <path class="e take" d="M689 411 C 600 430, 520 440, 445 450"/>
+
+      <!-- 氦 -->
+      <g class="node raw" transform="translate(960,55)"><rect width="90" height="42"/><text class="name" x="45" y="18">氦-3</text><text class="meta" x="45" y="32">原料</text></g>
+      <g class="node wh" transform="translate(960,115)"><rect width="90" height="40"/><text class="name" x="45" y="17">氦仓</text><text class="meta" x="45" y="30">直供合成硅</text></g>
+      <path class="e" d="M1005 97 V115"/>
+
+      <!-- 合成硅 -->
+      <g class="node g4" transform="translate(720,520)"><rect width="110" height="44"/><text class="name" x="55" y="18">合成硅</text><text class="meta" x="55" y="32">钙粉+氦+陶瓷</text></g>
+      <g class="node wh" transform="translate(720,590)"><rect width="110" height="36"/><text class="name" x="55" y="15">合成硅仓</text><text class="meta" x="55" y="28">三路之一</text></g>
+      <path class="e take" d="M785 411 C 785 470, 775 500, 775 520"/>
+      <path class="e take" d="M1005 155 C 1005 400, 900 500, 830 540"/>
+      <path class="e take" d="M445 556 C 560 560, 680 550, 720 540"/>
+      <path class="e" d="M775 564 V590"/>
+
+      <!-- ===== FINAL ===== -->
+      <g class="node target" transform="translate(480,780)"><rect width="140" height="56"/><text class="name" x="70" y="24">电子元件</text><text class="meta" x="70" y="42">合成硅+电感器+定子</text></g>
+
+      <path class="e take" d="M220 691 C 260 740, 400 780, 480 800"/>
+      <path class="e take" d="M390 691 C 420 740, 460 780, 480 808"/>
+      <path class="e take" d="M775 626 C 700 720, 620 780, 620 808"/>
+
+      <!-- callouts -->
+      <rect x="960" y="320" width="220" height="88" rx="8" fill="#fff" stroke="#ea580c"/>
+      <text x="974" y="344" font-size="12" font-weight="700" fill="#c2410c">怎么记这张图</text>
+      <text x="974" y="364" font-size="11" fill="#6b7585">左右分轨：钛 / 钨 / 钙(+氦)</text>
+      <text x="974" y="382" font-size="11" fill="#6b7585">每造完一种 → 立刻进仓</text>
+      <text x="974" y="400" font-size="11" fill="#6b7585">下面只从仓取，不回头连厂</text>
+
+      <rect x="960" y="430" width="220" height="88" rx="8" fill="#fff" stroke="#0d9488"/>
+      <text x="974" y="454" font-size="12" font-weight="700" fill="#0f766e">电子元件只要盯 3 仓</text>
+      <text x="974" y="474" font-size="11" fill="#6b7585">① 定子仓（钛轨底）</text>
+      <text x="974" y="492" font-size="11" fill="#6b7585">② 电感器仓（钨轨底）</text>
+      <text x="974" y="510" font-size="11" fill="#6b7585">③ 合成硅仓（钙轨底）</text>
+
+      <rect x="960" y="540" width="220" height="70" rx="8" fill="#fff" stroke="#9a8ab8"/>
+      <text x="974" y="564" font-size="12" font-weight="700" fill="#5a4a7a">共用点别重复造</text>
+      <text x="974" y="584" font-size="11" fill="#6b7585">陶瓷仓同时喂：合成硅、电感器</text>
+      <text x="974" y="602" font-size="11" fill="#6b7585">钨丝仓同时喂：定子、电感器</text>
+    </svg>
+  </div>
+
+  <div class="note">
+    <b>配方心算（从浅到深）：</b><br/>
+    原料：钛矿、钨矿、钙矿、氦-3<br/>
+    1级：钛条、钨条、钙块<br/>
+    2级：钛板/棒/梁、钨丝/粉、方解石板、钙粉<br/>
+    3级：管材、钛金属外壳、陶瓷<br/>
+    4级：定子、电感器、合成硅<br/>
+    5级：<code>电子元件 = 合成硅 + 电感器 + 定子</code><br/><br/>
+    你不会一次算清整棵树也没关系：<b>先铺三根竖轨把仓囤满，最后只连三个仓到电子元件</b>。点「灌进画板」可在线路规划里拖着看线。
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const PLAN_LS = "starrupture_plan_board_v1";
+const PLAN_LS_BAK = PLAN_LS + "_bak";
+
+// Compact placeable demo for 电子元件 bus
+const DEMO = (() => {
+  const W = 100, H = 78;
+  const nodes = [];
+  const edges = [];
+  let id = 1;
+  function add(name, x, y, kind) {
+    const n = { id: id++, name, x, y };
+    if (kind === "wh") { n.kind = "warehouse"; n.name = "仓库"; n.cargo = name; }
+    nodes.push(n);
+    return n.id;
+  }
+  function link(a, b) { edges.push({ from: a, to: b }); }
+
+  // A titanium
+  const tiOre = add("钛矿石", 40, 20);
+  const tiOreW = add("钛矿石", 40, 20+H, "wh");
+  const tiBar = add("钛条", 40, 20+2*H);
+  const tiBarW = add("钛条", 40, 20+3*H, "wh");
+  const tiPlate = add("钛板", -20, 20+4*H);
+  const tiRod = add("钛棒", 80, 20+4*H);
+  const tiBeam = add("钛梁", 180, 20+4*H);
+  const tiPlateW = add("钛板", -20, 20+5*H, "wh");
+  const tiRodW = add("钛棒", 80, 20+5*H, "wh");
+  const tiBeamW = add("钛梁", 180, 20+5*H, "wh");
+  const tube = add("管材", 20, 20+6*H);
+  const shell = add("钛金属外壳", 140, 20+6*H);
+  const tubeW = add("管材", 20, 20+7*H, "wh");
+  const shellW = add("钛金属外壳", 140, 20+7*H, "wh");
+  const stator = add("定子", 140, 20+8*H);
+  const statorW = add("定子", 140, 20+9*H, "wh");
+
+  link(tiOre, tiOreW); link(tiOreW, tiBar); link(tiBar, tiBarW);
+  link(tiBarW, tiPlate); link(tiBarW, tiRod); link(tiBarW, tiBeam);
+  link(tiPlate, tiPlateW); link(tiRod, tiRodW); link(tiBeam, tiBeamW);
+  link(tiRodW, tube); link(tiPlateW, tube); link(tiBeamW, shell); link(tiPlateW, shell);
+  link(tube, tubeW); link(shell, shellW); link(shellW, stator); link(stator, statorW);
+
+  // B tungsten
+  const wOre = add("钨矿石", 360, 20);
+  const wOreW = add("钨矿石", 360, 20+H, "wh");
+  const wBar = add("钨条", 360, 20+2*H);
+  const wBarW = add("钨条", 360, 20+3*H, "wh");
+  const wWire = add("钨丝", 320, 20+4*H);
+  const wPowder = add("钨粉", 420, 20+4*H);
+  const wWireW = add("钨丝", 320, 20+5*H, "wh");
+  const wPowderW = add("钨粉", 420, 20+5*H, "wh");
+  const ceramic = add("陶瓷", 400, 20+6*H);
+  const ceramicW = add("陶瓷", 400, 20+7*H, "wh");
+  const inductor = add("电感器", 340, 20+8*H);
+  const inductorW = add("电感器", 340, 20+9*H, "wh");
+
+  link(wOre, wOreW); link(wOreW, wBar); link(wBar, wBarW);
+  link(wBarW, wWire); link(wBarW, wPowder);
+  link(wWire, wWireW); link(wPowder, wPowderW);
+  link(wPowderW, ceramic); link(ceramic, ceramicW);
+  link(wWireW, stator); // shared
+  link(tubeW, inductor); link(wWireW, inductor); link(ceramicW, inductor);
+  link(inductor, inductorW);
+
+  // C calcium + He
+  const caOre = add("钙矿石", 620, 20);
+  const caOreW = add("钙矿石", 620, 20+H, "wh");
+  const caBlock = add("钙块", 620, 20+2*H);
+  const caBlockW = add("钙块", 620, 20+3*H, "wh");
+  const calcite = add("方解石板", 560, 20+4*H);
+  const caPowder = add("钙粉", 680, 20+4*H);
+  const calciteW = add("方解石板", 560, 20+5*H, "wh");
+  const caPowderW = add("钙粉", 680, 20+5*H, "wh");
+  const he = add("氦-3", 820, 20);
+  const heW = add("氦-3", 820, 20+H, "wh");
+  const silicon = add("合成硅", 680, 20+7*H);
+  const siliconW = add("合成硅", 680, 20+8*H, "wh");
+
+  link(caOre, caOreW); link(caOreW, caBlock); link(caBlock, caBlockW);
+  link(caBlockW, calcite); link(caBlockW, caPowder);
+  link(calcite, calciteW); link(caPowder, caPowderW);
+  link(he, heW);
+  link(calciteW, ceramic);
+  link(caPowderW, silicon); link(heW, silicon); link(ceramicW, silicon);
+  link(silicon, siliconW);
+
+  const ecomp = add("电子元件", 400, 20+10.5*H);
+  link(siliconW, ecomp); link(inductorW, ecomp); link(statorW, ecomp);
+
+  return { nodes, edges, nextId: id };
+})();
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+document.getElementById("btnApply").addEventListener("click", () => {
+  if (!confirm("会覆盖本机线路规划当前存档（先备份）。确定灌入「电子元件」示范板？")) return;
+  try {
+    const prev = localStorage.getItem(PLAN_LS);
+    if (prev) localStorage.setItem(PLAN_LS_BAK, prev);
+    localStorage.setItem(PLAN_LS, JSON.stringify({
+      nodes: DEMO.nodes, edges: DEMO.edges, nextId: DEMO.nextId
+    }));
+    toast("已写入，打开线路规划…");
+    setTimeout(() => { location.href = "./index.html?v=dianzi"; }, 400);
+  } catch (_) {
+    toast("写入失败");
+  }
+});
+</script>
+</body>
+</html>
