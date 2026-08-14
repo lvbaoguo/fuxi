@@ -287,7 +287,7 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260814e" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260814f" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -1710,8 +1710,8 @@ function appendPortBadges(g, p, outN, inN, alwaysColor) {
     t.textContent = label;
     g.appendChild(t);
   }
-  const outCls = (alwaysColor || outN >= 2) ? "out-multi" : "out-single";
-  const inCls = (alwaysColor || inN >= 2) ? "in-multi" : "in-single";
+  const outCls = "out-multi";
+  const inCls = "in-multi";
   pill(`出${outN}`, outCls);
   pill(`进${inN}`, inCls);
   layoutPortBadges(g, p);
