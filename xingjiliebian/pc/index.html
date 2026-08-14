@@ -271,7 +271,7 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260814c" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260814d" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -279,10 +279,6 @@
       <button class="btn" type="button" id="pcUndo" title="Ctrl+Z / ⌘Z 撤销" style="display:none">撤销</button>
       <button class="btn" type="button" id="pcRedo" title="Ctrl+Y / ⌘⇧Z 恢复撤销" style="display:none">恢复</button>
       <button class="btn" type="button" id="pcDel" title="删除选中的块或线" style="display:none">删除</button>
-      <button class="btn" type="button" id="pcExport" title="下载规划图，拿到本地打开再导入" style="display:none">导出</button>
-      <button class="btn" type="button" id="pcImport" title="导入导出的 json，远程和本地存档不共用" style="display:none">导入</button>
-      <button class="btn" type="button" id="pcRecover" title="找回浏览器里那份规划图" style="display:none">找回原图</button>
-      <input id="pcImportFile" type="file" accept="application/json,.json" style="display:none" />
       <button class="btn" type="button" id="pcClear" title="清空规划板" style="display:none">清空</button>
       <button class="btn" type="button" id="pcDir" title="横向 / 竖向切换">展示方向</button>
       <button class="btn" type="button" id="pcReset" title="复位视角">复位</button>
@@ -304,7 +300,6 @@
       <kbd>Del</kbd> 删除选中　<kbd>Esc</kbd> 取消<br />
       单击块高亮上一层；再点一次取消<br />
       断开后点产品：每点一次断一条线<br />
-      远程图用「导出」，本地「导入」<br />
       长按空地拉框多选，再拖一块一起走
     </div>
     <div class="route-empty" id="routeEmpty">开「线路规划」从左侧加入、摆块连线。查一路配方请点「合成查看」</div>
@@ -445,70 +440,6 @@ function savePlan() {
     localStorage.setItem(PLAN_LS, JSON.stringify(payload));
   } catch (_) {}
   syncUndoButtons();
-}
-
-function planExportPayload() {
-  return {
-    v: 1,
-    nodes: plan.nodes,
-    edges: plan.edges,
-    nextId: plan.nextId,
-  };
-}
-
-function restoreRecoveredPlan() {
-  if (!RECOVERED_PLAN || !RECOVERED_PLAN.nodes || !RECOVERED_PLAN.nodes.length) {
-    showPlanToast("没有可找回的图");
-    return;
-  }
-  applyPlanData(RECOVERED_PLAN);
-  plan.selected = null;
-  plan.selectedIds = [];
-  plan.selectedEdge = null;
-  plan.linkFrom = null;
-  undoStack = [];
-  redoStack = [];
-  lastSaved = null;
-  savePlan();
-  lastSaved = snapshotPlan();
-  renderPlanBoard();
-  showPlanToast("已找回 " + plan.nodes.length + " 个块");
-}
-
-function exportPlanBoard() {
-  if (!plan.nodes.length) {
-    showPlanToast("画板是空的，没有可导出的图");
-    return;
-  }
-  const blob = new Blob([JSON.stringify(planExportPayload(), null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "线路规划.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 800);
-  showPlanToast("已下载，拿到本地打开后点「导入」");
-}
-
-function importPlanBoard(raw) {
-  const data = raw && raw.nodes ? raw : (raw && raw.plan) || raw;
-  if (!applyPlanData(data) || !plan.nodes.length) {
-    showPlanToast("这个文件里没有规划图");
-    return false;
-  }
-  plan.selected = null;
-  plan.selectedIds = [];
-  plan.selectedEdge = null;
-  plan.linkFrom = null;
-  undoStack = [];
-  redoStack = [];
-  lastSaved = null;
-  savePlan();
-  lastSaved = snapshotPlan();
-  renderPlanBoard();
-  showPlanToast("已导入 " + plan.nodes.length + " 个块");
-  return true;
 }
 
 function undoPlan() {
@@ -732,9 +663,6 @@ function syncPlanToolbar() {
   document.getElementById("pcUndo").style.display = on ? "" : "none";
   document.getElementById("pcRedo").style.display = on ? "" : "none";
   document.getElementById("pcDel").style.display = on ? "" : "none";
-  document.getElementById("pcExport").style.display = on ? "" : "none";
-  document.getElementById("pcImport").style.display = on ? "" : "none";
-  document.getElementById("pcRecover").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
   document.getElementById("pcLink").classList.toggle("active", plan.linkKind === "in");
@@ -1136,7 +1064,7 @@ function renderPlanBoard() {
     if (emptyEl) {
       emptyEl.classList.remove("hide");
       emptyEl.classList.add("plan-hint");
-      emptyEl.textContent = "点「加入」摆块。远程链好的图不会自动出现在本地：远程点「导出」，再在本地点「导入」";
+      emptyEl.textContent = "点「加入」摆块；「进口 2」接进仓库（同名）；「出口 3」从仓库接到下游；「断开」点产品依次断线";
     }
     applyTransform();
     return;
@@ -2267,23 +2195,6 @@ document.getElementById("pcUnlink").addEventListener("click", () => setUnlinkMod
 document.getElementById("pcUndo").addEventListener("click", () => undoPlan());
 document.getElementById("pcRedo").addEventListener("click", () => redoPlan());
 document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
-document.getElementById("pcExport").addEventListener("click", () => exportPlanBoard());
-document.getElementById("pcImport").addEventListener("click", () => document.getElementById("pcImportFile").click());
-document.getElementById("pcRecover").addEventListener("click", () => restoreRecoveredPlan());
-document.getElementById("pcImportFile").addEventListener("change", (ev) => {
-  const file = ev.target.files && ev.target.files[0];
-  ev.target.value = "";
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      importPlanBoard(JSON.parse(String(reader.result || "")));
-    } catch (_) {
-      showPlanToast("文件不是合法的规划图 json");
-    }
-  };
-  reader.readAsText(file, "utf-8");
-});
 document.getElementById("pcClear").addEventListener("click", () => clearPlanBoard());
 document.getElementById("pcDir").addEventListener("click", () => {
   routeState.dir = routeState.dir === "h" ? "v" : "h";
