@@ -287,10 +287,10 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260814f" style="text-decoration:none">合成查看</a>
-      <a class="btn" href="./bus-demo.html?v=20260814f" style="text-decoration:none" title="主干道怎么摆的示意">摆法示意</a>
-      <a class="btn" href="./dianzi-demo.html?v=20260814f" style="text-decoration:none" title="电子元件专页">电子元件摆法</a>
-      <a class="btn" href="./full14-demo.html?v=20260814f" style="text-decoration:none" title="1～4级全量主干">1-4级全量</a>
+      <a class="btn" href="../debug/index.html?v=20260814g" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="./bus-demo.html?v=20260814g" style="text-decoration:none" title="主干道怎么摆的示意">摆法示意</a>
+      <a class="btn" href="./dianzi-demo.html?v=20260814g" style="text-decoration:none" title="电子元件专页">电子元件摆法</a>
+      <a class="btn" href="./full14-demo.html?v=20260814g" style="text-decoration:none" title="1～4级全量主干">1-4级全量</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
@@ -1905,7 +1905,20 @@ function edgePathD(a, b, vertical, fromPort, toPort) {
   } else {
     x2 = b.x; y2 = b.y + b.h / 2;
   }
-  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  // 主干风格：先竖后横（直角折线），少斜飞蜘蛛网
+  const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+  if (dx < 6) return `M ${x1} ${y1} L ${x2} ${y2}`;
+  if (dy < 6) return `M ${x1} ${y1} L ${x2} ${y2}`;
+  if (routeState.mode === "plan") {
+    // 出块先走到目标高度附近，再横穿进目标
+    if (y2 >= y1) {
+      const midY = y2 - Math.min(28, dy * 0.35);
+      return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+    }
+    const midY = y1 - Math.min(28, dy * 0.35);
+    return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+  }
+  const mx = (x1 + x2) / 2;
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 }
 
