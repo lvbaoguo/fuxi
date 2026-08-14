@@ -502,6 +502,60 @@ function saveSynthOrder() {
 }
 loadSynthOrder();
 
+function clampSynthWidth(w) {
+  const max = Math.min(SYNTH_W_MAX, Math.max(SYNTH_W_MIN + 40, window.innerWidth * 0.72));
+  return Math.round(Math.max(SYNTH_W_MIN, Math.min(max, w)));
+}
+function applySynthWidth(w) {
+  const px = clampSynthWidth(w == null ? SYNTH_W_DEF : w);
+  document.documentElement.style.setProperty("--synth-w", px + "px");
+  return px;
+}
+function loadSynthWidth() {
+  let w = SYNTH_W_DEF;
+  try {
+    const n = Number(localStorage.getItem(SYNTH_W_LS));
+    if (n) w = n;
+  } catch (_) {}
+  applySynthWidth(w);
+}
+function saveSynthWidth(w) {
+  try { localStorage.setItem(SYNTH_W_LS, String(clampSynthWidth(w))); } catch (_) {}
+}
+function bindSynthResize() {
+  const handle = document.getElementById("synthResize");
+  const overlay = document.getElementById("synthList");
+  if (!handle || !overlay) return;
+  handle.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    overlay.classList.add("resizing");
+    try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+    const onMove = (ev) => {
+      applySynthWidth(ev.clientX);
+    };
+    const onUp = (ev) => {
+      overlay.classList.remove("resizing");
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
+      const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--synth-w")) || SYNTH_W_DEF;
+      saveSynthWidth(cur);
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+  });
+  handle.addEventListener("dblclick", (e) => {
+    e.preventDefault();
+    applySynthWidth(SYNTH_W_DEF);
+    saveSynthWidth(SYNTH_W_DEF);
+  });
+}
+loadSynthWidth();
+bindSynthResize();
+
 const recipeIndex = (() => {
   const map = new Map();
   for (const r of RECIPES) {
