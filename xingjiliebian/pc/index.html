@@ -519,18 +519,16 @@ function migrateTierBoards() {
 
 function applyTier2MfgFixOnce() {
   try {
-    if (localStorage.getItem("starrupture_t2_mfg_fix_v6") === "1") return;
-    if (typeof RECOVERED_PLAN_T2 === "undefined" || planNodeCount(RECOVERED_PLAN_T2) <= 2) {
-      localStorage.setItem("starrupture_t2_mfg_fix_v6", "1");
-      return;
-    }
+    if (typeof RECOVERED_PLAN_T2 === "undefined" || planNodeCount(RECOVERED_PLAN_T2) <= 2) return;
+    const raw = readStoredPlan(PLAN_LS_T2);
+    // 本地比内置恢复图少节点时强制覆盖（一口气接完后的大图）
+    if (raw && planNodeCount(raw) >= planNodeCount(RECOVERED_PLAN_T2)) return;
     writeStoredPlan(PLAN_LS_T2, RECOVERED_PLAN_T2);
     if (currentTier() === 2) {
       applyPlanData(JSON.parse(JSON.stringify(RECOVERED_PLAN_T2)));
       writeStoredPlan(PLAN_LS, RECOVERED_PLAN_T2);
     }
-    localStorage.setItem("starrupture_t2_mfg_fix_v6", "1");
-    try { console.log("[plan] applied T2 mfg fix v4 edges=", RECOVERED_PLAN_T2.edges.length); } catch (_) {}
+    try { localStorage.setItem("starrupture_t2_mfg_fix_v6", "1"); } catch (_) {}
   } catch (err) { try { console.error(err); } catch (_) {} }
 }
 
