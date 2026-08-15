@@ -209,6 +209,10 @@
   .synth-tabs .tab.g15 { background: #f6e8d0; border-color: #c4a060; }
   .synth-tabs .tab.gwh { background: #eceff3; border-color: #8b95a5; }
   .synth-tabs .tab.on { box-shadow: inset 0 0 0 2px rgba(40,50,70,.28); }
+  .tier-switch { display: inline-flex; gap: 4px; margin: 6px 0 2px; }
+  .tier-switch .btn { padding: 4px 10px; font-size: 12px; }
+  .tier-switch .btn.active { background: #2f6fed; color: #fff; border-color: #2f6fed; }
+  .synth-head h2 .tier-tag { font-weight: 600; color: #2f6fed; font-size: 13px; margin-left: 6px; }
   .synth-rows { display: flex; flex-direction: column; padding: 6px 8px 20px; gap: 4px; overflow: auto; flex: 1; min-height: 0; }
   .synth-add {
     display: grid; grid-template-columns: max-content 1fr; grid-template-rows: auto auto;
@@ -287,8 +291,10 @@
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260814m" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260815b" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
+      <button class="btn" type="button" id="pcTier1" title="零件库+规划板切到 1级机制造厂/熔炉配方" style="display:none">1级机</button>
+      <button class="btn" type="button" id="pcTier2" title="零件库+规划板切到 2级机制造厂/熔炉配方" style="display:none">2级机</button>
       <button class="btn" type="button" id="pcLink" title="快捷键 2：进口，点产品再点仓库（或先点产出再点下游）" style="display:none">进口 2</button>
       <button class="btn" type="button" id="pcOut" title="快捷键 3：出口，点仓库再点下游" style="display:none">出口 3</button>
       <button class="btn danger" type="button" id="pcUnlink" title="快捷键 4：点产品每次断一条线（先进口后出口）；点线立刻切断" style="display:none">断开 4</button>
@@ -302,8 +308,12 @@
     </div>
     <div class="synth-overlay" id="synthList">
       <div class="synth-head">
-        <h2>线路规划</h2>
-        <p>分级按离原料最长步数。短按「加入」上板；长按条目可上下拖排序。画板长按空地拉框可多选移动。仓库：2 进口只接同名产品，3 出口可接到下游；进出条数不限。</p>
+        <h2>零件库<span class="tier-tag" id="synthTierTag">· 1级机</span></h2>
+        <p>短按「加入」上板；长按条目可排序。1级/2级机会换配方材料，规划板分开存互不影响。仓库：2 进口同名，3 出口下游。</p>
+        <div class="tier-switch" id="synthTierSwitch">
+          <button class="btn" type="button" data-tier="1" id="synthTier1">1级机</button>
+          <button class="btn" type="button" data-tier="2" id="synthTier2">2级机</button>
+        </div>
         <div class="synth-tabs" id="synthTabs"></div>
       </div>
       <div class="synth-rows" id="synthGrid"></div>
@@ -335,7 +345,7 @@
   </div>
 </div>
 <script>
-const RECIPES = [{"level": 1, "product": "钨条", "machine": "冶炼厂", "materials": ["钨矿石"]}, {"level": 1, "product": "钛条", "machine": "冶炼厂", "materials": ["钛矿石"]}, {"level": 1, "product": "钙块", "machine": "冶炼厂", "materials": ["钙矿石"]}, {"level": 1, "product": "基础建筑材料", "machine": "制造厂", "materials": ["钨矿石", "钛矿石"]}, {"level": 1, "product": "中级建筑材料", "machine": "大型冲压机", "materials": ["基础建筑材料", "电感器", "玻璃", "钛金属外壳"]}, {"level": 2, "product": "钛棒", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂", "materials": ["钨条"]}, {"level": 2, "product": "方解石板", "machine": "制造厂", "materials": ["钙块"]}, {"level": 2, "product": "钛梁", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨粉", "machine": "熔炉", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉", "materials": ["钙块"]}, {"level": 2, "product": "钛棒", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂 v.2", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉 v.2", "materials": ["钙块"]}, {"level": 2, "product": "钨粉", "machine": "熔炉 v.2", "materials": ["钨条"]}, {"level": 3, "product": "钨板", "machine": "制造厂", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂", "materials": ["钛棒", "钨丝"]}, {"level": 3, "product": "管材", "machine": "制造厂", "materials": ["钛棒", "钛板"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉", "materials": ["方解石板", "钨粉"]}, {"level": 3, "product": "钛金属外壳", "machine": "熔炉", "materials": ["钛梁", "钛板"]}, {"level": 3, "product": "玻璃", "machine": "熔炉", "materials": ["氦-3", "钙粉"]}, {"level": 3, "product": "钨板", "machine": "制造厂 v.2", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂 v.2", "materials": ["钛棒", "钨丝", "钨板"]}, {"level": 3, "product": "管材", "machine": "制造厂 v.2", "materials": ["针铁矿锭", "钛板", "钨粉"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉 v.2", "materials": ["方解石板", "氦-3", "钨粉"]}, {"level": 3, "product": "玻璃", "machine": "熔炉 v.2", "materials": ["加压氦气", "方解石板", "针铁矿锭"]}, {"level": 4, "product": "稳定器", "machine": "制造厂", "materials": ["转子", "钛棒"]}, {"level": 4, "product": "定子", "machine": "制造厂", "materials": ["钛金属外壳", "钨丝"]}, {"level": 4, "product": "耐热板", "machine": "熔炉", "materials": ["钨板", "钛板", "玻璃"]}, {"level": 4, "product": "合成硅", "machine": "熔炉", "materials": ["钙粉", "氦-3", "陶瓷"]}, {"level": 4, "product": "化学品", "machine": "熔炉", "materials": ["合成硅", "钨粉", "氦-3"]}, {"level": 4, "product": "定子", "machine": "制造厂 v.2", "materials": ["钛金属外壳", "钨丝", "钛板"]}, {"level": 4, "product": "化学品", "machine": "熔炉 v.2", "materials": ["钙粉", "钨粉", "氦-3", "针铁矿锭"]}, {"level": 4, "product": "耐热板", "machine": "熔炉 v.2", "materials": ["钛铁合金锭", "钨钢锭", "氦-3"]}, {"level": 5, "product": "给药器", "machine": "制造厂", "materials": ["管材", "玻璃"]}, {"level": 5, "product": "电感器", "machine": "熔炉", "materials": ["管材", "钨丝", "陶瓷"]}, {"level": 5, "product": "电子元件", "machine": "熔炉", "materials": ["合成硅", "电感器", "定子"]}, {"level": 5, "product": "涡轮机", "machine": "大型冲压机", "materials": ["叶轮", "定子", "转子", "硫酸"]}, {"level": 5, "product": "阀门", "machine": "大型冲压机", "materials": ["钛金属外壳", "钛梁", "钛棒", "喷嘴"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉", "materials": ["硫酸", "合成硅", "给药器"]}, {"level": 6, "product": "超磁体", "machine": "熔炉", "materials": ["硫酸", "钨板", "化学品"]}, {"level": 6, "product": "叶轮", "machine": "大型冲压机", "materials": ["钛棒", "耐热板", "钨板", "稳定器"]}, {"level": 6, "product": "喷嘴", "machine": "大型冲压机", "materials": ["耐热板", "氦-3", "稳定器"]}, {"level": 6, "product": "电池", "machine": "大型冲压机", "materials": ["电感器", "电子元件", "硫酸"]}, {"level": 6, "product": "加压氦气", "machine": "加压器", "materials": ["氦-3", "硫矿石"]}, {"level": 6, "product": "硫酸", "machine": "加压器", "materials": ["硫矿石", "化学品"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉 v.2", "materials": ["硫酸", "合成硅", "给药器", "加压氦气"]}, {"level": 6, "product": "加压氦气", "machine": "化合反应炉 v.2", "materials": ["氦-3", "硫矿石", "钙粉"]}, {"level": 6, "product": "硫酸", "machine": "化合反应炉 v.2", "materials": ["硫矿石", "化学品", "钨粉"]}, {"level": 7, "product": "电磁线圈", "machine": "大型冲压机", "materials": ["电感器", "加压氦气", "钨板", "超磁体"]}, {"level": 7, "product": "蓄电池", "machine": "装配厂", "materials": ["电子元件", "定子", "电池"]}, {"level": 7, "product": "发电机", "machine": "装配厂", "materials": ["涡轮机", "电池", "喷嘴"]}, {"level": 7, "product": "压力罐", "machine": "装配厂", "materials": ["耐热板", "阀门", "泵"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉", "materials": ["加压氦气", "硬化剂"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉 v.2", "materials": ["加压氦气", "硬化剂", "化学品"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉 v.2", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 8, "product": "泵", "machine": "大型冲压机", "materials": ["阀门", "涡轮机", "叶轮", "硫酸"]}, {"level": 8, "product": "谐振器", "machine": "装配厂", "materials": ["蓄电池", "发电机", "液态氦"]}, {"level": 8, "product": "透镜", "machine": "化合反应炉", "materials": ["玻璃", "硬化剂", "合成树脂"]}, {"level": 8, "product": "超导体", "machine": "化合反应炉", "materials": ["合成树脂", "电磁铁", "超磁体"]}, {"level": 8, "product": "针铁矿锭", "machine": "锻造炉", "materials": ["针铁矿"]}, {"level": 8, "product": "钛铁合金锭", "machine": "锻造炉", "materials": ["钛矿石", "针铁矿"]}, {"level": 8, "product": "钨钢锭", "machine": "锻造炉", "materials": ["钨矿石", "针铁矿"]}, {"level": 8, "product": "针铁矿粉", "machine": "化合反应炉", "materials": ["针铁矿锭", "加压氦气", "钙粉"]}, {"level": 8, "product": "针铁矿晶格", "machine": "大型冲压机", "materials": ["针铁矿锭", "钛铁合金锭", "钨钢锭"]}, {"level": 8, "product": "超导体", "machine": "加工厂 v.2", "materials": ["合成树脂", "电磁铁", "超磁体", "气凝胶", "隔热罩"]}, {"level": 9, "product": "电磁铁", "machine": "装配厂", "materials": ["电磁线圈", "合成树脂", "蓄电池"]}, {"level": 9, "product": "激光发射器", "machine": "装配厂", "materials": ["透镜", "谐振器", "电磁线圈"]}, {"level": 9, "product": "扫描仪", "machine": "装配厂", "materials": ["透镜", "发电机", "稳定器"]}, {"level": 9, "product": "纳米纤维", "machine": "化合反应炉", "materials": ["管材", "液态氦", "钨丝"]}, {"level": 9, "product": "离子注入器", "machine": "化合反应炉", "materials": ["给药器", "电磁铁", "压力罐"]}, {"level": 9, "product": "环氧树脂", "machine": "化合反应炉", "materials": ["液态氦", "针铁矿粉", "合成树脂"]}, {"level": 9, "product": "基础燃料", "machine": "化合反应炉", "materials": ["钨粉", "针铁矿粉", "液态氦"]}, {"level": 9, "product": "精炼油", "machine": "精炼厂", "materials": ["能源矿", "钙矿石", "钛矿石"]}, {"level": 9, "product": "气凝胶", "machine": "化合反应炉", "materials": ["针铁矿粉", "钙粉", "液态氦"]}, {"level": 9, "product": "强化框架", "machine": "大型冲压机", "materials": ["管材", "钛铁合金锭", "钛梁"]}, {"level": 9, "product": "强化外壳", "machine": "大型冲压机", "materials": ["钛金属外壳", "钨钢锭", "钨板"]}, {"level": 9, "product": "塑料", "machine": "化合反应炉", "materials": ["精炼油", "硫酸", "化学品"]}, {"level": 9, "product": "有机化合物", "machine": "化合反应炉", "materials": ["硫酸", "精炼油", "环氧树脂"]}, {"level": 9, "product": "离子注入器", "machine": "加工厂 v.2", "materials": ["给药器", "电磁铁", "压力罐", "针铁矿晶格", "塑料"]}, {"level": 9, "product": "激光发射器", "machine": "加工厂 v.2", "materials": ["透镜", "谐振器", "电磁线圈", "炸药", "环氧树脂"]}, {"level": 9, "product": "扫描仪", "machine": "加工厂 v.2", "materials": ["透镜", "发电机", "稳定器", "超级纤维", "拟橡胶绝缘体"]}, {"level": 10, "product": "冷凝器", "machine": "装配厂", "materials": ["谐振器", "泵", "纳米纤维"]}, {"level": 10, "product": "穹顶", "machine": "弹药加工厂", "materials": ["超级纤维", "冷凝器", "气闸舱", "脚手架", "转换器"]}, {"level": 10, "product": "火箭引擎", "machine": "弹药加工厂", "materials": ["喷嘴", "涡轮机", "泵", "火箭燃料", "冷凝器"]}, {"level": 10, "product": "炸药", "machine": "装配厂", "materials": ["强化外壳", "环氧树脂"]}, {"level": 10, "product": "离子推进器", "machine": "加工厂", "materials": ["阀门", "隔热罩", "压力罐", "火箭燃料"]}, {"level": 10, "product": "离子稳定器", "machine": "大型冲压机", "materials": ["环氧树脂", "液态氦", "船载仪器", "炸药"]}, {"level": 10, "product": "塑料粉尘", "machine": "装配厂", "materials": ["有机化合物", "基础燃料", "塑料"]}, {"level": 10, "product": "拟橡胶绝缘体", "machine": "装配厂", "materials": ["塑料", "环氧树脂", "针铁矿晶格"]}, {"level": 10, "product": "物质#FHS-135-493", "machine": "化合反应炉", "materials": ["硫酸", "针铁矿粉", "液态氦"]}, {"level": 10, "product": "合成蛋白", "machine": "化合反应炉", "materials": ["有机化合物", "物质#FHS-135-493", "硫酸"]}, {"level": 10, "product": "冷凝器", "machine": "加工厂 v.2", "materials": ["谐振器", "泵", "纳米纤维", "强化外壳", "基础燃料"]}, {"level": 11, "product": "抗辐射罩", "machine": "加工厂", "materials": ["强化外壳", "强化框架", "拟橡胶绝缘体", "环氧树脂"]}, {"level": 11, "product": "纳米注射器", "machine": "加工厂", "materials": ["硬化剂", "给药器", "纳米纤维", "物质#FHS-135-493"]}, {"level": 11, "product": "卫星主体", "machine": "弹药加工厂", "materials": ["船载仪器", "扫描仪", "离子推进器", "火箭引擎", "隔热罩"]}, {"level": 11, "product": "脚手架", "machine": "加工厂", "materials": ["超级纤维", "强化框架", "针铁矿晶格", "塑料粉尘"]}, {"level": 11, "product": "船载仪器", "machine": "装配厂", "materials": ["电子元件", "稳定器", "强化外壳"]}, {"level": 11, "product": "RNA稳定剂", "machine": "加工厂", "materials": ["有机化合物", "纳米注射器", "合成蛋白", "塑料"]}, {"level": 11, "product": "RTSC（室温超导体）", "machine": "加工厂", "materials": ["抗辐射罩", "隔热罩", "气凝胶", "拟橡胶绝缘体"]}, {"level": 11, "product": "超级纤维", "machine": "装配厂", "materials": ["钙粉", "针铁矿晶格", "环氧树脂"]}, {"level": 12, "product": "气闸舱", "machine": "加工厂", "materials": ["脚手架", "压力罐", "超级纤维", "拟橡胶绝缘体"]}, {"level": 12, "product": "回旋加速器", "machine": "弹药加工厂", "materials": ["气凝胶", "电磁铁", "离子注入器", "强化外壳", "塑料粉尘"]}, {"level": 12, "product": "隔热罩", "machine": "大型冲压机", "materials": ["环氧树脂", "气凝胶", "超级纤维", "强化框架"]}, {"level": 12, "product": "生物纤维", "machine": "弹药加工厂", "materials": ["合成蛋白", "RNA稳定剂", "物质#FHS-135-493", "纳米纤维", "超导体"]}, {"level": 12, "product": "碳声呐", "machine": "加工厂", "materials": ["离子稳定器", "量子镇定剂", "蓄电池", "船载仪器"]}, {"level": 12, "product": "量子镇定剂", "machine": "加工厂", "materials": ["离子稳定器", "超磁体", "塑料粉尘", "硫酸"]}, {"level": 12, "product": "火箭燃料", "machine": "加工厂", "materials": ["液态氦", "基础燃料", "硫酸", "精炼油"]}, {"level": 12, "product": "合成DNA", "machine": "弹药加工厂", "materials": ["合成蛋白", "物质#FHS-135-493", "纳米注射器", "塑料", "生物纤维"]}, {"level": 13, "product": "转换器", "machine": "弹药加工厂", "materials": ["激光发射器", "蓄电池", "电磁线圈", "塑料", "RTSC（室温超导体）"]}, {"level": 13, "product": "RTSC发电机", "machine": "弹药加工厂", "materials": ["RTSC（室温超导体）", "发电机", "激光发射器", "抗辐射罩", "回旋加速器"]}, {"level": 13, "product": "追踪装置", "machine": "弹药加工厂", "materials": ["碳声呐", "量子镇定剂", "透镜", "船载仪器", "扫描仪"]}, {"level": 13, "product": "离子炸弹", "machine": "弹药加工厂", "materials": ["离子注入器", "离子稳定器", "炸药", "追踪装置", "谐振器"]}];
+const RECIPES = [{"level": 1, "product": "钨条", "machine": "冶炼厂", "materials": ["钨矿石"]}, {"level": 1, "product": "钛条", "machine": "冶炼厂", "materials": ["钛矿石"]}, {"level": 1, "product": "钙块", "machine": "冶炼厂", "materials": ["钙矿石"]}, {"level": 1, "product": "基础建筑材料", "machine": "制造厂", "materials": ["钨矿石", "钛矿石"]}, {"level": 1, "product": "中级建筑材料", "machine": "大型冲压机", "materials": ["基础建筑材料", "电感器", "玻璃", "钛金属外壳"]}, {"level": 2, "product": "钛棒", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂", "materials": ["钨条"]}, {"level": 2, "product": "方解石板", "machine": "制造厂", "materials": ["钙块"]}, {"level": 2, "product": "钛梁", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂", "materials": ["钛条"]}, {"level": 2, "product": "钨粉", "machine": "熔炉", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉", "materials": ["钙块"]}, {"level": 2, "product": "钛棒", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钛板", "machine": "制造厂 v.2", "materials": ["钛条"]}, {"level": 2, "product": "钨丝", "machine": "制造厂 v.2", "materials": ["钨条"]}, {"level": 2, "product": "钙粉", "machine": "熔炉 v.2", "materials": ["钙块"]}, {"level": 2, "product": "钨粉", "machine": "熔炉 v.2", "materials": ["钨条"]}, {"level": 3, "product": "钨板", "machine": "制造厂", "materials": ["钨条"]}, {"level": 3, "product": "转子", "machine": "制造厂", "materials": ["钛棒", "钨丝"]}, {"level": 3, "product": "管材", "machine": "制造厂", "materials": ["钛棒", "钛板"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉", "materials": ["方解石板", "钨粉"]}, {"level": 3, "product": "钛金属外壳", "machine": "熔炉", "materials": ["钛梁", "钛板"]}, {"level": 3, "product": "玻璃", "machine": "熔炉", "materials": ["氦-3", "钙粉"]}, {"level": 3, "product": "钨板", "machine": "制造厂 v.2", "materials": ["钨条", "钨粉"]}, {"level": 3, "product": "转子", "machine": "制造厂 v.2", "materials": ["钛棒", "钨丝", "钨板"]}, {"level": 3, "product": "管材", "machine": "制造厂 v.2", "materials": ["针铁矿锭", "钛板", "钨粉"]}, {"level": 3, "product": "陶瓷", "machine": "熔炉 v.2", "materials": ["方解石板", "氦-3", "钨粉"]}, {"level": 3, "product": "玻璃", "machine": "熔炉 v.2", "materials": ["加压氦气", "方解石板", "针铁矿锭"]}, {"level": 4, "product": "稳定器", "machine": "制造厂", "materials": ["转子", "钛棒"]}, {"level": 4, "product": "定子", "machine": "制造厂", "materials": ["钛金属外壳", "钨丝"]}, {"level": 4, "product": "耐热板", "machine": "熔炉", "materials": ["钨板", "钛板", "玻璃"]}, {"level": 4, "product": "合成硅", "machine": "熔炉", "materials": ["钙粉", "氦-3", "陶瓷"]}, {"level": 4, "product": "化学品", "machine": "熔炉", "materials": ["合成硅", "钨粉", "氦-3"]}, {"level": 4, "product": "定子", "machine": "制造厂 v.2", "materials": ["钛金属外壳", "钨丝", "钛板"]}, {"level": 4, "product": "化学品", "machine": "熔炉 v.2", "materials": ["钙粉", "钨粉", "氦-3", "针铁矿锭"]}, {"level": 4, "product": "耐热板", "machine": "熔炉 v.2", "materials": ["钛铁合金锭", "钨钢锭", "氦-3"]}, {"level": 5, "product": "给药器", "machine": "制造厂", "materials": ["管材", "玻璃"]}, {"level": 5, "product": "电感器", "machine": "熔炉", "materials": ["管材", "钨丝", "陶瓷"]}, {"level": 5, "product": "电子元件", "machine": "熔炉", "materials": ["合成硅", "电感器", "定子"]}, {"level": 5, "product": "涡轮机", "machine": "大型冲压机", "materials": ["叶轮", "定子", "转子", "硫酸"]}, {"level": 5, "product": "阀门", "machine": "大型冲压机", "materials": ["钛金属外壳", "钛梁", "钛棒", "喷嘴"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉", "materials": ["硫酸", "合成硅", "给药器"]}, {"level": 6, "product": "超磁体", "machine": "熔炉", "materials": ["硫酸", "钨板", "化学品"]}, {"level": 6, "product": "叶轮", "machine": "大型冲压机", "materials": ["钛棒", "耐热板", "钨板", "稳定器"]}, {"level": 6, "product": "喷嘴", "machine": "大型冲压机", "materials": ["耐热板", "氦-3", "稳定器"]}, {"level": 6, "product": "电池", "machine": "大型冲压机", "materials": ["电感器", "电子元件", "硫酸"]}, {"level": 6, "product": "加压氦气", "machine": "加压器", "materials": ["氦-3", "硫矿石"]}, {"level": 6, "product": "硫酸", "machine": "加压器", "materials": ["硫矿石", "化学品"]}, {"level": 6, "product": "硬化剂", "machine": "熔炉 v.2", "materials": ["硫酸", "合成硅", "给药器", "加压氦气"]}, {"level": 6, "product": "加压氦气", "machine": "化合反应炉 v.2", "materials": ["氦-3", "硫矿石", "钙粉"]}, {"level": 6, "product": "硫酸", "machine": "化合反应炉 v.2", "materials": ["硫矿石", "化学品", "钨粉"]}, {"level": 7, "product": "电磁线圈", "machine": "大型冲压机", "materials": ["电感器", "加压氦气", "钨板", "超磁体"]}, {"level": 7, "product": "蓄电池", "machine": "装配厂", "materials": ["电子元件", "定子", "电池"]}, {"level": 7, "product": "发电机", "machine": "装配厂", "materials": ["涡轮机", "电池", "喷嘴"]}, {"level": 7, "product": "压力罐", "machine": "装配厂", "materials": ["耐热板", "阀门", "泵"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉", "materials": ["加压氦气", "硬化剂"]}, {"level": 7, "product": "液态氦", "machine": "化合反应炉 v.2", "materials": ["加压氦气", "硬化剂", "化学品"]}, {"level": 7, "product": "合成树脂", "machine": "化合反应炉 v.2", "materials": ["硬化剂", "硫酸", "方解石板"]}, {"level": 8, "product": "泵", "machine": "大型冲压机", "materials": ["阀门", "涡轮机", "叶轮", "硫酸"]}, {"level": 8, "product": "谐振器", "machine": "装配厂", "materials": ["蓄电池", "发电机", "液态氦"]}, {"level": 8, "product": "透镜", "machine": "化合反应炉", "materials": ["玻璃", "硬化剂", "合成树脂"]}, {"level": 8, "product": "超导体", "machine": "化合反应炉", "materials": ["合成树脂", "电磁铁", "超磁体"]}, {"level": 8, "product": "针铁矿锭", "machine": "锻造炉", "materials": ["针铁矿"]}, {"level": 8, "product": "钛铁合金锭", "machine": "锻造炉", "materials": ["钛矿石", "针铁矿"]}, {"level": 8, "product": "钨钢锭", "machine": "锻造炉", "materials": ["钨矿石", "针铁矿"]}, {"level": 8, "product": "针铁矿粉", "machine": "化合反应炉", "materials": ["针铁矿锭", "加压氦气", "钙粉"]}, {"level": 8, "product": "针铁矿晶格", "machine": "大型冲压机", "materials": ["针铁矿锭", "钛铁合金锭", "钨钢锭"]}, {"level": 8, "product": "超导体", "machine": "加工厂 v.2", "materials": ["合成树脂", "电磁铁", "超磁体", "气凝胶", "隔热罩"]}, {"level": 9, "product": "电磁铁", "machine": "装配厂", "materials": ["电磁线圈", "合成树脂", "蓄电池"]}, {"level": 9, "product": "激光发射器", "machine": "装配厂", "materials": ["透镜", "谐振器", "电磁线圈"]}, {"level": 9, "product": "扫描仪", "machine": "装配厂", "materials": ["透镜", "发电机", "稳定器"]}, {"level": 9, "product": "纳米纤维", "machine": "化合反应炉", "materials": ["管材", "液态氦", "钨丝"]}, {"level": 9, "product": "离子注入器", "machine": "化合反应炉", "materials": ["给药器", "电磁铁", "压力罐"]}, {"level": 9, "product": "环氧树脂", "machine": "化合反应炉", "materials": ["液态氦", "针铁矿粉", "合成树脂"]}, {"level": 9, "product": "基础燃料", "machine": "化合反应炉", "materials": ["钨粉", "针铁矿粉", "液态氦"]}, {"level": 9, "product": "精炼油", "machine": "精炼厂", "materials": ["能源矿", "钙矿石", "钛矿石"]}, {"level": 9, "product": "气凝胶", "machine": "化合反应炉", "materials": ["针铁矿粉", "钙粉", "液态氦"]}, {"level": 9, "product": "强化框架", "machine": "大型冲压机", "materials": ["管材", "钛铁合金锭", "钛梁"]}, {"level": 9, "product": "强化外壳", "machine": "大型冲压机", "materials": ["钛金属外壳", "钨钢锭", "钨板"]}, {"level": 9, "product": "塑料", "machine": "化合反应炉", "materials": ["精炼油", "硫酸", "化学品"]}, {"level": 9, "product": "有机化合物", "machine": "化合反应炉", "materials": ["硫酸", "精炼油", "环氧树脂"]}, {"level": 9, "product": "离子注入器", "machine": "加工厂 v.2", "materials": ["给药器", "电磁铁", "压力罐", "针铁矿晶格", "塑料"]}, {"level": 9, "product": "激光发射器", "machine": "加工厂 v.2", "materials": ["透镜", "谐振器", "电磁线圈", "炸药", "环氧树脂"]}, {"level": 9, "product": "扫描仪", "machine": "加工厂 v.2", "materials": ["透镜", "发电机", "稳定器", "超级纤维", "拟橡胶绝缘体"]}, {"level": 10, "product": "冷凝器", "machine": "装配厂", "materials": ["谐振器", "泵", "纳米纤维"]}, {"level": 10, "product": "穹顶", "machine": "弹药加工厂", "materials": ["超级纤维", "冷凝器", "气闸舱", "脚手架", "转换器"]}, {"level": 10, "product": "火箭引擎", "machine": "弹药加工厂", "materials": ["喷嘴", "涡轮机", "泵", "火箭燃料", "冷凝器"]}, {"level": 10, "product": "炸药", "machine": "装配厂", "materials": ["强化外壳", "环氧树脂"]}, {"level": 10, "product": "离子推进器", "machine": "加工厂", "materials": ["阀门", "隔热罩", "压力罐", "火箭燃料"]}, {"level": 10, "product": "离子稳定器", "machine": "大型冲压机", "materials": ["环氧树脂", "液态氦", "船载仪器", "炸药"]}, {"level": 10, "product": "塑料粉尘", "machine": "装配厂", "materials": ["有机化合物", "基础燃料", "塑料"]}, {"level": 10, "product": "拟橡胶绝缘体", "machine": "装配厂", "materials": ["塑料", "环氧树脂", "针铁矿晶格"]}, {"level": 10, "product": "物质#FHS-135-493", "machine": "化合反应炉", "materials": ["硫酸", "针铁矿粉", "液态氦"]}, {"level": 10, "product": "合成蛋白", "machine": "化合反应炉", "materials": ["有机化合物", "物质#FHS-135-493", "硫酸"]}, {"level": 10, "product": "冷凝器", "machine": "加工厂 v.2", "materials": ["谐振器", "泵", "纳米纤维", "强化外壳", "基础燃料"]}, {"level": 11, "product": "抗辐射罩", "machine": "加工厂", "materials": ["强化外壳", "强化框架", "拟橡胶绝缘体", "环氧树脂"]}, {"level": 11, "product": "纳米注射器", "machine": "加工厂", "materials": ["硬化剂", "给药器", "纳米纤维", "物质#FHS-135-493"]}, {"level": 11, "product": "卫星主体", "machine": "弹药加工厂", "materials": ["船载仪器", "扫描仪", "离子推进器", "火箭引擎", "隔热罩"]}, {"level": 11, "product": "脚手架", "machine": "加工厂", "materials": ["超级纤维", "强化框架", "针铁矿晶格", "塑料粉尘"]}, {"level": 11, "product": "船载仪器", "machine": "装配厂", "materials": ["电子元件", "稳定器", "强化外壳"]}, {"level": 11, "product": "RNA稳定剂", "machine": "加工厂", "materials": ["有机化合物", "纳米注射器", "合成蛋白", "塑料"]}, {"level": 11, "product": "RTSC（室温超导体）", "machine": "加工厂", "materials": ["抗辐射罩", "隔热罩", "气凝胶", "拟橡胶绝缘体"]}, {"level": 11, "product": "超级纤维", "machine": "装配厂", "materials": ["钙粉", "针铁矿晶格", "环氧树脂"]}, {"level": 12, "product": "气闸舱", "machine": "加工厂", "materials": ["脚手架", "压力罐", "超级纤维", "拟橡胶绝缘体"]}, {"level": 12, "product": "回旋加速器", "machine": "弹药加工厂", "materials": ["气凝胶", "电磁铁", "离子注入器", "强化外壳", "塑料粉尘"]}, {"level": 12, "product": "隔热罩", "machine": "大型冲压机", "materials": ["环氧树脂", "气凝胶", "超级纤维", "强化框架"]}, {"level": 12, "product": "生物纤维", "machine": "弹药加工厂", "materials": ["合成蛋白", "RNA稳定剂", "物质#FHS-135-493", "纳米纤维", "超导体"]}, {"level": 12, "product": "碳声呐", "machine": "加工厂", "materials": ["离子稳定器", "量子镇定剂", "蓄电池", "船载仪器"]}, {"level": 12, "product": "量子镇定剂", "machine": "加工厂", "materials": ["离子稳定器", "超磁体", "塑料粉尘", "硫酸"]}, {"level": 12, "product": "火箭燃料", "machine": "加工厂", "materials": ["液态氦", "基础燃料", "硫酸", "精炼油"]}, {"level": 12, "product": "合成DNA", "machine": "弹药加工厂", "materials": ["合成蛋白", "物质#FHS-135-493", "纳米注射器", "塑料", "生物纤维"]}, {"level": 13, "product": "转换器", "machine": "弹药加工厂", "materials": ["激光发射器", "蓄电池", "电磁线圈", "塑料", "RTSC（室温超导体）"]}, {"level": 13, "product": "RTSC发电机", "machine": "弹药加工厂", "materials": ["RTSC（室温超导体）", "发电机", "激光发射器", "抗辐射罩", "回旋加速器"]}, {"level": 13, "product": "追踪装置", "machine": "弹药加工厂", "materials": ["碳声呐", "量子镇定剂", "透镜", "船载仪器", "扫描仪"]}, {"level": 13, "product": "离子炸弹", "machine": "弹药加工厂", "materials": ["离子注入器", "离子稳定器", "炸药", "追踪装置", "谐振器"]}];
 
 function isV2(machine) {
   return /v\.?2|V\.?2/.test(machine);
@@ -343,6 +353,7 @@ function isV2(machine) {
 
 const routeState = {
   preferBase: true,
+  machineTier: 1, // 1=基础机 2=v.2机；零件库与规划板共用
   dir: "h", // h=横向 left→right; v=竖向 top→bottom（原料上、成品下）
   mode: "query", // query=搜路线 | plan=自己摆自己连
   target: "",
@@ -363,6 +374,9 @@ const routeState = {
 
 const PLAN_LS = "starrupture_plan_board_v1";
 const PLAN_LS_BAK = PLAN_LS + "_bak";
+const PLAN_TIER_LS = "starrupture_plan_tier_v1";
+const PLAN_LS_T1 = PLAN_LS + "_t1";
+const PLAN_LS_T2 = PLAN_LS + "_t2";
 const SYNTH_ORDER_LS = "starrupture_synth_order_v1";
 const SYNTH_W_LS = "starrupture_synth_width_v1";
 const SYNTH_W_MIN = 200, SYNTH_W_MAX = 640, SYNTH_W_DEF = 292;
@@ -390,26 +404,141 @@ function applyPlanData(raw) {
   return true;
 }
 const RECOVERED_PLAN = {"nodes":[{"id":1,"name":"钛矿石","x":250.86797494754995,"y":81.86957672028845},{"id":2,"name":"仓库","x":259.8988240995817,"y":205.80804106039614,"kind":"warehouse","cargo":"钛矿石"},{"id":3,"name":"钨矿石","x":393.04173163687415,"y":78.39056053213949},{"id":4,"name":"仓库","x":392.5048210206285,"y":205.31419680852198,"kind":"warehouse","cargo":"钨矿石"},{"id":5,"name":"钙矿石","x":510.47811642661185,"y":79.52303897140776},{"id":6,"name":"仓库","x":511.0259257919667,"y":203.11120521744255,"kind":"warehouse","cargo":"钙矿石"},{"id":7,"name":"氦-3","x":634.8702946834277,"y":77.37640573425713},{"id":8,"name":"仓库","x":638.6150401341737,"y":203.21690739133228,"kind":"warehouse","cargo":"氦-3"},{"id":9,"name":"硫矿石","x":762.1702440468538,"y":79.73620153356481},{"id":10,"name":"仓库","x":765.9484792952676,"y":197.539005232446,"kind":"warehouse","cargo":"硫矿石"},{"id":11,"name":"针铁矿","x":901.7512639049642,"y":78.46599630138675},{"id":12,"name":"仓库","x":901.2115758155437,"y":202.57541031700106,"kind":"warehouse","cargo":"针铁矿"},{"id":13,"name":"能源矿","x":1022.6660665294926,"y":84.11423905821333},{"id":14,"name":"仓库","x":1026.8805901170267,"y":195.43433889799812,"kind":"warehouse","cargo":"能源矿"},{"id":15,"name":"钛条","x":243.44006448515023,"y":302.2191196445977},{"id":16,"name":"仓库","x":242.77702041821917,"y":411.0770328713873,"kind":"warehouse","cargo":"钛条"},{"id":19,"name":"钨条","x":382.0274767362715,"y":301.7335526307771},{"id":20,"name":"仓库","x":380.4734100089774,"y":410.41837403122344,"kind":"warehouse","cargo":"钨条"},{"id":21,"name":"钙块","x":506.5568797421555,"y":298.7039652590235},{"id":22,"name":"仓库","x":504.7830088841736,"y":409.520880888846,"kind":"warehouse","cargo":"钙块"},{"id":23,"name":"加压氦气","x":631.2414239326133,"y":298.0109776207776},{"id":24,"name":"仓库","x":631.8370399841393,"y":407.326085136424,"kind":"warehouse","cargo":"加压氦气"},{"id":25,"name":"针铁矿锭","x":755.8478531700105,"y":294.9424749094436},{"id":26,"name":"仓库","x":758.3595879951134,"y":411.47568037872946,"kind":"warehouse","cargo":"针铁矿锭"},{"id":27,"name":"钛铁合金锭","x":876.695658114712,"y":296.9299688143004},{"id":28,"name":"仓库","x":875.8247559263549,"y":413.2377879452804,"kind":"warehouse","cargo":"钛铁合金锭"},{"id":29,"name":"钨钢锭","x":1000.1127166120112,"y":298.5118594071502},{"id":30,"name":"仓库","x":1000.8679115494259,"y":411.6673257458848,"kind":"warehouse","cargo":"钨钢锭"},{"id":31,"name":"精炼油","x":1124.1359672389403,"y":290.4161613056199},{"id":32,"name":"仓库","x":1116.9859791613083,"y":413.7852205504115,"kind":"warehouse","cargo":"精炼油"},{"id":33,"name":"钛板","x":247.40149511852707,"y":503.4630125278635},{"id":34,"name":"仓库","x":252.74933845433907,"y":598.0565805358084,"kind":"warehouse","cargo":"钛板"},{"id":35,"name":"钛棒","x":365.40149511852707,"y":503.4630125278635},{"id":36,"name":"仓库","x":375.23372008764943,"y":593.5105566262067,"kind":"warehouse","cargo":"钛棒"},{"id":37,"name":"钛梁","x":483.40149511852707,"y":503.4630125278635},{"id":38,"name":"仓库","x":497.32672964664044,"y":592.4208696490534,"kind":"warehouse","cargo":"钛梁"},{"id":39,"name":"钨丝","x":619.0798052263863,"y":503.0862606776347},{"id":40,"name":"仓库","x":618.4871443829024,"y":595.8784583555306,"kind":"warehouse","cargo":"钨丝"},{"id":41,"name":"钨粉","x":731.2868039628563,"y":504.1999752263661},{"id":42,"name":"仓库","x":733.1010795134066,"y":599.1742629923355,"kind":"warehouse","cargo":"钨粉"},{"id":43,"name":"方解石板","x":862.1241734717935,"y":506.8333001784336},{"id":44,"name":"仓库","x":857.5604350190758,"y":600.8505611550497,"kind":"warehouse","cargo":"方解石板"},{"id":45,"name":"钙粉","x":972.4027657214506,"y":508.9013370466821},{"id":46,"name":"仓库","x":974.3740589366855,"y":600.5577765989369,"kind":"warehouse","cargo":"钙粉"},{"id":47,"name":"针铁矿晶格","x":1081.2887296114113,"y":508.07150172271514},{"id":48,"name":"仓库","x":1083.7244425958077,"y":600.1290234642918,"kind":"warehouse","cargo":"针铁矿晶格"},{"id":49,"name":"管材","x":247.40149511852707,"y":699.4630125278635},{"id":50,"name":"仓库","x":242.48162015292345,"y":795.7369093334848,"kind":"warehouse","cargo":"管材"},{"id":51,"name":"钛金属外壳","x":373.79125613156674,"y":695.0849784629048},{"id":52,"name":"仓库","x":376.1994384333001,"y":799.3324239075412,"kind":"warehouse","cargo":"钛金属外壳"},{"id":53,"name":"转子","x":488.4182668091992,"y":692.8784996838563},{"id":54,"name":"仓库","x":490.6975553760231,"y":798.3712871992495,"kind":"warehouse","cargo":"转子"},{"id":55,"name":"钨板","x":610.1318270517802,"y":694.9321098920307},{"id":56,"name":"仓库","x":618.6063878422416,"y":799.2734210352312,"kind":"warehouse","cargo":"钨板"},{"id":57,"name":"陶瓷","x":733.8126070556175,"y":698.8285250538503},{"id":58,"name":"仓库","x":743.3128718613557,"y":798.3982386778017,"kind":"warehouse","cargo":"陶瓷"},{"id":59,"name":"玻璃","x":859.3256822541582,"y":696.5049424243398},{"id":60,"name":"仓库","x":865.2872011370457,"y":797.2078972961677,"kind":"warehouse","cargo":"玻璃"},{"id":61,"name":"针铁矿粉","x":976.7165014949846,"y":698.2318857033393},{"id":62,"name":"仓库","x":977.527456945516,"y":803.2575780714163,"kind":"warehouse","cargo":"针铁矿粉"},{"id":63,"name":"定子","x":234.3092939561502,"y":899.3727251485401},{"id":64,"name":"仓库","x":236.69938633220696,"y":1009.3261679633061,"kind":"warehouse","cargo":"定子"},{"id":65,"name":"强化框架","x":369.7133373210856,"y":900.4596221712313},{"id":66,"name":"仓库","x":374.2803723883882,"y":1004.4604679031254,"kind":"warehouse","cargo":"强化框架"},{"id":67,"name":"稳定器","x":489.59203091261304,"y":895.9662854938194},{"id":68,"name":"仓库","x":493.5278963872899,"y":1001.8250567774979,"kind":"warehouse","cargo":"稳定器"},{"id":69,"name":"电感器","x":613.9458944243729,"y":898.2422899615158},{"id":70,"name":"仓库","x":614.2110502041609,"y":998.4183748450854,"kind":"warehouse","cargo":"电感器"},{"id":71,"name":"强化外壳","x":731.5909501435158,"y":899.9308953352065},{"id":72,"name":"仓库","x":741.3736317840905,"y":1000.3443894366912,"kind":"warehouse","cargo":"强化外壳"},{"id":73,"name":"耐热板","x":837.8613900921564,"y":898.2836313734572},{"id":74,"name":"仓库","x":840.668953006403,"y":997.3493141582414,"kind":"warehouse","cargo":"耐热板"},{"id":75,"name":"合成硅","x":948.8286390055935,"y":896.7926636413646},{"id":76,"name":"仓库","x":949.7069793081132,"y":999.370486424735,"kind":"warehouse","cargo":"合成硅"},{"id":77,"name":"给药器","x":1060.1638856550749,"y":896.3256739144091},{"id":78,"name":"仓库","x":1068.5821345316338,"y":1001.3409281120618,"kind":"warehouse","cargo":"给药器"},{"id":79,"name":"叶轮","x":235.42881263891536,"y":1093.729194218776},{"id":80,"name":"仓库","x":241.6117272933157,"y":1205.7197666309983,"kind":"warehouse","cargo":"叶轮"},{"id":81,"name":"电子元件","x":364.57261912663995,"y":1091.0864524716658},{"id":82,"name":"仓库","x":363.64725503220234,"y":1202.3287324121181,"kind":"warehouse","cargo":"电子元件"},{"id":83,"name":"喷嘴","x":492.4388005968083,"y":1096.1386759885563},{"id":84,"name":"仓库","x":487.30337837495614,"y":1201.2984367772483,"kind":"warehouse","cargo":"喷嘴"},{"id":85,"name":"化学品","x":614.2600582114966,"y":1094.3131898640615},{"id":86,"name":"仓库","x":616.5813439465437,"y":1201.2235537126735,"kind":"warehouse","cargo":"化学品"}],"edges":[{"from":1,"to":2},{"from":3,"to":4},{"from":5,"to":6},{"from":7,"to":8},{"from":9,"to":10},{"from":11,"to":12},{"from":13,"to":14},{"from":2,"to":15},{"from":15,"to":16},{"from":4,"to":19},{"from":19,"to":20},{"from":6,"to":21},{"from":21,"to":22},{"from":8,"to":23},{"from":10,"to":23},{"from":23,"to":24},{"from":12,"to":25},{"from":25,"to":26},{"from":2,"to":27},{"from":12,"to":27},{"from":27,"to":28},{"from":4,"to":29},{"from":12,"to":29},{"from":29,"to":30},{"from":14,"to":31},{"from":6,"to":31},{"from":2,"to":31},{"from":31,"to":32},{"from":16,"to":33},{"from":33,"to":34},{"from":16,"to":35},{"from":35,"to":36},{"from":16,"to":37},{"from":37,"to":38},{"from":20,"to":39},{"from":39,"to":40},{"from":20,"to":41},{"from":41,"to":42},{"from":22,"to":43},{"from":43,"to":44},{"from":22,"to":45},{"from":45,"to":46},{"from":26,"to":47},{"from":28,"to":47},{"from":30,"to":47},{"from":47,"to":48},{"from":36,"to":49},{"from":34,"to":49},{"from":49,"to":50},{"from":38,"to":51},{"from":34,"to":51},{"from":51,"to":52},{"from":36,"to":53},{"from":40,"to":53},{"from":53,"to":54},{"from":20,"to":55},{"from":42,"to":55},{"from":55,"to":56},{"from":44,"to":57},{"from":42,"to":57},{"from":57,"to":58},{"from":8,"to":59},{"from":46,"to":59},{"from":59,"to":60},{"from":26,"to":61},{"from":24,"to":61},{"from":46,"to":61},{"from":61,"to":62},{"from":52,"to":63},{"from":40,"to":63},{"from":63,"to":64},{"from":50,"to":65},{"from":28,"to":65},{"from":38,"to":65},{"from":65,"to":66},{"from":54,"to":67},{"from":36,"to":67},{"from":67,"to":68},{"from":50,"to":69},{"from":40,"to":69},{"from":58,"to":69},{"from":69,"to":70},{"from":52,"to":71},{"from":30,"to":71},{"from":56,"to":71},{"from":71,"to":72},{"from":56,"to":73},{"from":34,"to":73},{"from":60,"to":73},{"from":73,"to":74},{"from":46,"to":75},{"from":8,"to":75},{"from":58,"to":75},{"from":75,"to":76},{"from":50,"to":77},{"from":60,"to":77},{"from":77,"to":78},{"from":79,"to":80},{"from":36,"to":79},{"from":74,"to":79},{"from":56,"to":79},{"from":68,"to":79},{"from":81,"to":82},{"from":76,"to":81},{"from":70,"to":81},{"from":64,"to":81},{"from":83,"to":84},{"from":74,"to":83},{"from":8,"to":83},{"from":68,"to":83},{"from":85,"to":86},{"from":76,"to":85},{"from":42,"to":85},{"from":8,"to":85}],"nextId":87};
+const RECOVERED_PLAN_T1 = {"nodes":[{"id":1,"name":"钛矿石","x":250.86797494754995,"y":81.86957672028845},{"id":2,"name":"仓库","x":259.8988240995817,"y":205.80804106039614,"kind":"warehouse","cargo":"钛矿石"},{"id":3,"name":"钨矿石","x":393.04173163687415,"y":78.39056053213949},{"id":4,"name":"仓库","x":392.5048210206285,"y":205.31419680852198,"kind":"warehouse","cargo":"钨矿石"},{"id":5,"name":"钙矿石","x":510.47811642661185,"y":79.52303897140776},{"id":6,"name":"仓库","x":511.0259257919667,"y":203.11120521744255,"kind":"warehouse","cargo":"钙矿石"},{"id":7,"name":"氦-3","x":634.8702946834277,"y":77.37640573425713},{"id":8,"name":"仓库","x":638.6150401341737,"y":203.21690739133228,"kind":"warehouse","cargo":"氦-3"},{"id":9,"name":"硫矿石","x":762.1702440468538,"y":79.73620153356481},{"id":10,"name":"仓库","x":765.9484792952676,"y":197.539005232446,"kind":"warehouse","cargo":"硫矿石"},{"id":11,"name":"针铁矿","x":901.7512639049642,"y":78.46599630138675},{"id":12,"name":"仓库","x":901.2115758155437,"y":202.57541031700106,"kind":"warehouse","cargo":"针铁矿"},{"id":13,"name":"能源矿","x":1022.6660665294926,"y":84.11423905821333},{"id":14,"name":"仓库","x":1026.8805901170267,"y":195.43433889799812,"kind":"warehouse","cargo":"能源矿"},{"id":15,"name":"钛条","x":243.44006448515023,"y":302.2191196445977},{"id":16,"name":"仓库","x":242.77702041821917,"y":411.0770328713873,"kind":"warehouse","cargo":"钛条"},{"id":19,"name":"钨条","x":382.0274767362715,"y":301.7335526307771},{"id":20,"name":"仓库","x":380.4734100089774,"y":410.41837403122344,"kind":"warehouse","cargo":"钨条"},{"id":21,"name":"钙块","x":506.5568797421555,"y":298.7039652590235},{"id":22,"name":"仓库","x":504.7830088841736,"y":409.520880888846,"kind":"warehouse","cargo":"钙块"},{"id":23,"name":"加压氦气","x":631.2414239326133,"y":298.0109776207776},{"id":24,"name":"仓库","x":631.8370399841393,"y":407.326085136424,"kind":"warehouse","cargo":"加压氦气"},{"id":25,"name":"针铁矿锭","x":755.8478531700105,"y":294.9424749094436},{"id":26,"name":"仓库","x":758.3595879951134,"y":411.47568037872946,"kind":"warehouse","cargo":"针铁矿锭"},{"id":27,"name":"钛铁合金锭","x":876.695658114712,"y":296.9299688143004},{"id":28,"name":"仓库","x":875.8247559263549,"y":413.2377879452804,"kind":"warehouse","cargo":"钛铁合金锭"},{"id":29,"name":"钨钢锭","x":1000.1127166120112,"y":298.5118594071502},{"id":30,"name":"仓库","x":1000.8679115494259,"y":411.6673257458848,"kind":"warehouse","cargo":"钨钢锭"},{"id":31,"name":"精炼油","x":1124.1359672389403,"y":290.4161613056199},{"id":32,"name":"仓库","x":1116.9859791613083,"y":413.7852205504115,"kind":"warehouse","cargo":"精炼油"},{"id":33,"name":"钛板","x":247.40149511852707,"y":503.4630125278635},{"id":34,"name":"仓库","x":252.74933845433907,"y":598.0565805358084,"kind":"warehouse","cargo":"钛板"},{"id":35,"name":"钛棒","x":365.40149511852707,"y":503.4630125278635},{"id":36,"name":"仓库","x":375.23372008764943,"y":593.5105566262067,"kind":"warehouse","cargo":"钛棒"},{"id":37,"name":"钛梁","x":483.40149511852707,"y":503.4630125278635},{"id":38,"name":"仓库","x":497.32672964664044,"y":592.4208696490534,"kind":"warehouse","cargo":"钛梁"},{"id":39,"name":"钨丝","x":619.0798052263863,"y":503.0862606776347},{"id":40,"name":"仓库","x":618.4871443829024,"y":595.8784583555306,"kind":"warehouse","cargo":"钨丝"},{"id":41,"name":"钨粉","x":731.2868039628563,"y":504.1999752263661},{"id":42,"name":"仓库","x":733.1010795134066,"y":599.1742629923355,"kind":"warehouse","cargo":"钨粉"},{"id":43,"name":"方解石板","x":862.1241734717935,"y":506.8333001784336},{"id":44,"name":"仓库","x":857.5604350190758,"y":600.8505611550497,"kind":"warehouse","cargo":"方解石板"},{"id":45,"name":"钙粉","x":972.4027657214506,"y":508.9013370466821},{"id":46,"name":"仓库","x":974.3740589366855,"y":600.5577765989369,"kind":"warehouse","cargo":"钙粉"},{"id":47,"name":"针铁矿晶格","x":1081.2887296114113,"y":508.07150172271514},{"id":48,"name":"仓库","x":1083.7244425958077,"y":600.1290234642918,"kind":"warehouse","cargo":"针铁矿晶格"},{"id":49,"name":"管材","x":247.40149511852707,"y":699.4630125278635},{"id":50,"name":"仓库","x":242.48162015292345,"y":795.7369093334848,"kind":"warehouse","cargo":"管材"},{"id":51,"name":"钛金属外壳","x":373.79125613156674,"y":695.0849784629048},{"id":52,"name":"仓库","x":376.1994384333001,"y":799.3324239075412,"kind":"warehouse","cargo":"钛金属外壳"},{"id":53,"name":"转子","x":488.4182668091992,"y":692.8784996838563},{"id":54,"name":"仓库","x":490.6975553760231,"y":798.3712871992495,"kind":"warehouse","cargo":"转子"},{"id":55,"name":"钨板","x":610.1318270517802,"y":694.9321098920307},{"id":56,"name":"仓库","x":618.6063878422416,"y":799.2734210352312,"kind":"warehouse","cargo":"钨板"},{"id":57,"name":"陶瓷","x":733.8126070556175,"y":698.8285250538503},{"id":58,"name":"仓库","x":743.3128718613557,"y":798.3982386778017,"kind":"warehouse","cargo":"陶瓷"},{"id":59,"name":"玻璃","x":859.3256822541582,"y":696.5049424243398},{"id":60,"name":"仓库","x":865.2872011370457,"y":797.2078972961677,"kind":"warehouse","cargo":"玻璃"},{"id":61,"name":"针铁矿粉","x":976.7165014949846,"y":698.2318857033393},{"id":62,"name":"仓库","x":977.527456945516,"y":803.2575780714163,"kind":"warehouse","cargo":"针铁矿粉"},{"id":63,"name":"定子","x":234.3092939561502,"y":899.3727251485401},{"id":64,"name":"仓库","x":236.69938633220696,"y":1009.3261679633061,"kind":"warehouse","cargo":"定子"},{"id":65,"name":"强化框架","x":369.7133373210856,"y":900.4596221712313},{"id":66,"name":"仓库","x":374.2803723883882,"y":1004.4604679031254,"kind":"warehouse","cargo":"强化框架"},{"id":67,"name":"稳定器","x":489.59203091261304,"y":895.9662854938194},{"id":68,"name":"仓库","x":493.5278963872899,"y":1001.8250567774979,"kind":"warehouse","cargo":"稳定器"},{"id":69,"name":"电感器","x":613.9458944243729,"y":898.2422899615158},{"id":70,"name":"仓库","x":614.2110502041609,"y":998.4183748450854,"kind":"warehouse","cargo":"电感器"},{"id":71,"name":"强化外壳","x":731.5909501435158,"y":899.9308953352065},{"id":72,"name":"仓库","x":741.3736317840905,"y":1000.3443894366912,"kind":"warehouse","cargo":"强化外壳"},{"id":73,"name":"耐热板","x":837.8613900921564,"y":898.2836313734572},{"id":74,"name":"仓库","x":840.668953006403,"y":997.3493141582414,"kind":"warehouse","cargo":"耐热板"},{"id":75,"name":"合成硅","x":948.8286390055935,"y":896.7926636413646},{"id":76,"name":"仓库","x":949.7069793081132,"y":999.370486424735,"kind":"warehouse","cargo":"合成硅"},{"id":77,"name":"给药器","x":1060.1638856550749,"y":896.3256739144091},{"id":78,"name":"仓库","x":1068.5821345316338,"y":1001.3409281120618,"kind":"warehouse","cargo":"给药器"},{"id":79,"name":"叶轮","x":235.42881263891536,"y":1093.729194218776},{"id":80,"name":"仓库","x":241.6117272933157,"y":1205.7197666309983,"kind":"warehouse","cargo":"叶轮"},{"id":81,"name":"电子元件","x":364.57261912663995,"y":1091.0864524716658},{"id":82,"name":"仓库","x":363.64725503220234,"y":1202.3287324121181,"kind":"warehouse","cargo":"电子元件"},{"id":83,"name":"喷嘴","x":492.4388005968083,"y":1096.1386759885563},{"id":84,"name":"仓库","x":487.30337837495614,"y":1201.2984367772483,"kind":"warehouse","cargo":"喷嘴"},{"id":85,"name":"化学品","x":614.2600582114966,"y":1094.3131898640615},{"id":86,"name":"仓库","x":616.5813439465437,"y":1201.2235537126735,"kind":"warehouse","cargo":"化学品"}],"edges":[{"from":1,"to":2},{"from":3,"to":4},{"from":5,"to":6},{"from":7,"to":8},{"from":9,"to":10},{"from":11,"to":12},{"from":13,"to":14},{"from":2,"to":15},{"from":15,"to":16},{"from":4,"to":19},{"from":19,"to":20},{"from":6,"to":21},{"from":21,"to":22},{"from":8,"to":23},{"from":10,"to":23},{"from":23,"to":24},{"from":12,"to":25},{"from":25,"to":26},{"from":2,"to":27},{"from":12,"to":27},{"from":27,"to":28},{"from":4,"to":29},{"from":12,"to":29},{"from":29,"to":30},{"from":14,"to":31},{"from":6,"to":31},{"from":2,"to":31},{"from":31,"to":32},{"from":16,"to":33},{"from":33,"to":34},{"from":16,"to":35},{"from":35,"to":36},{"from":16,"to":37},{"from":37,"to":38},{"from":20,"to":39},{"from":39,"to":40},{"from":20,"to":41},{"from":41,"to":42},{"from":22,"to":43},{"from":43,"to":44},{"from":22,"to":45},{"from":45,"to":46},{"from":26,"to":47},{"from":28,"to":47},{"from":30,"to":47},{"from":47,"to":48},{"from":36,"to":49},{"from":34,"to":49},{"from":49,"to":50},{"from":38,"to":51},{"from":34,"to":51},{"from":51,"to":52},{"from":36,"to":53},{"from":40,"to":53},{"from":53,"to":54},{"from":20,"to":55},{"from":55,"to":56},{"from":44,"to":57},{"from":42,"to":57},{"from":57,"to":58},{"from":8,"to":59},{"from":46,"to":59},{"from":59,"to":60},{"from":26,"to":61},{"from":24,"to":61},{"from":46,"to":61},{"from":61,"to":62},{"from":52,"to":63},{"from":40,"to":63},{"from":63,"to":64},{"from":50,"to":65},{"from":28,"to":65},{"from":38,"to":65},{"from":65,"to":66},{"from":54,"to":67},{"from":36,"to":67},{"from":67,"to":68},{"from":50,"to":69},{"from":40,"to":69},{"from":58,"to":69},{"from":69,"to":70},{"from":52,"to":71},{"from":30,"to":71},{"from":56,"to":71},{"from":71,"to":72},{"from":56,"to":73},{"from":34,"to":73},{"from":60,"to":73},{"from":73,"to":74},{"from":46,"to":75},{"from":8,"to":75},{"from":58,"to":75},{"from":75,"to":76},{"from":50,"to":77},{"from":60,"to":77},{"from":77,"to":78},{"from":79,"to":80},{"from":36,"to":79},{"from":74,"to":79},{"from":56,"to":79},{"from":68,"to":79},{"from":81,"to":82},{"from":76,"to":81},{"from":70,"to":81},{"from":64,"to":81},{"from":83,"to":84},{"from":74,"to":83},{"from":8,"to":83},{"from":68,"to":83},{"from":85,"to":86},{"from":76,"to":85},{"from":42,"to":85},{"from":8,"to":85}],"nextId":87};
+const RECOVERED_PLAN_T2 = {"nodes":[{"id":1,"name":"钛矿石","x":250.86797494754995,"y":81.86957672028845},{"id":2,"name":"仓库","x":259.8988240995817,"y":205.80804106039614,"kind":"warehouse","cargo":"钛矿石"},{"id":3,"name":"钨矿石","x":393.04173163687415,"y":78.39056053213949},{"id":4,"name":"仓库","x":392.5048210206285,"y":205.31419680852198,"kind":"warehouse","cargo":"钨矿石"},{"id":5,"name":"钙矿石","x":510.47811642661185,"y":79.52303897140776},{"id":6,"name":"仓库","x":511.0259257919667,"y":203.11120521744255,"kind":"warehouse","cargo":"钙矿石"},{"id":7,"name":"氦-3","x":634.8702946834277,"y":77.37640573425713},{"id":8,"name":"仓库","x":638.6150401341737,"y":203.21690739133228,"kind":"warehouse","cargo":"氦-3"},{"id":9,"name":"硫矿石","x":762.1702440468538,"y":79.73620153356481},{"id":10,"name":"仓库","x":765.9484792952676,"y":197.539005232446,"kind":"warehouse","cargo":"硫矿石"},{"id":11,"name":"针铁矿","x":901.7512639049642,"y":78.46599630138675},{"id":12,"name":"仓库","x":901.2115758155437,"y":202.57541031700106,"kind":"warehouse","cargo":"针铁矿"},{"id":13,"name":"能源矿","x":1022.6660665294926,"y":84.11423905821333},{"id":14,"name":"仓库","x":1026.8805901170267,"y":195.43433889799812,"kind":"warehouse","cargo":"能源矿"},{"id":15,"name":"钛条","x":243.44006448515023,"y":302.2191196445977},{"id":16,"name":"仓库","x":242.77702041821917,"y":411.0770328713873,"kind":"warehouse","cargo":"钛条"},{"id":19,"name":"钨条","x":382.0274767362715,"y":301.7335526307771},{"id":20,"name":"仓库","x":380.4734100089774,"y":410.41837403122344,"kind":"warehouse","cargo":"钨条"},{"id":21,"name":"钙块","x":506.5568797421555,"y":298.7039652590235},{"id":22,"name":"仓库","x":504.7830088841736,"y":409.520880888846,"kind":"warehouse","cargo":"钙块"},{"id":23,"name":"加压氦气","x":631.2414239326133,"y":298.0109776207776},{"id":24,"name":"仓库","x":631.8370399841393,"y":407.326085136424,"kind":"warehouse","cargo":"加压氦气"},{"id":25,"name":"针铁矿锭","x":755.8478531700105,"y":294.9424749094436},{"id":26,"name":"仓库","x":758.3595879951134,"y":411.47568037872946,"kind":"warehouse","cargo":"针铁矿锭"},{"id":27,"name":"钛铁合金锭","x":876.695658114712,"y":296.9299688143004},{"id":28,"name":"仓库","x":875.8247559263549,"y":413.2377879452804,"kind":"warehouse","cargo":"钛铁合金锭"},{"id":29,"name":"钨钢锭","x":1000.1127166120112,"y":298.5118594071502},{"id":30,"name":"仓库","x":1000.8679115494259,"y":411.6673257458848,"kind":"warehouse","cargo":"钨钢锭"},{"id":31,"name":"精炼油","x":1124.1359672389403,"y":290.4161613056199},{"id":32,"name":"仓库","x":1116.9859791613083,"y":413.7852205504115,"kind":"warehouse","cargo":"精炼油"},{"id":33,"name":"钛板","x":247.40149511852707,"y":503.4630125278635},{"id":34,"name":"仓库","x":252.74933845433907,"y":598.0565805358084,"kind":"warehouse","cargo":"钛板"},{"id":35,"name":"钛棒","x":365.40149511852707,"y":503.4630125278635},{"id":36,"name":"仓库","x":375.23372008764943,"y":593.5105566262067,"kind":"warehouse","cargo":"钛棒"},{"id":37,"name":"钛梁","x":483.40149511852707,"y":503.4630125278635},{"id":38,"name":"仓库","x":497.32672964664044,"y":592.4208696490534,"kind":"warehouse","cargo":"钛梁"},{"id":39,"name":"钨丝","x":619.0798052263863,"y":503.0862606776347},{"id":40,"name":"仓库","x":618.4871443829024,"y":595.8784583555306,"kind":"warehouse","cargo":"钨丝"},{"id":41,"name":"钨粉","x":731.2868039628563,"y":504.1999752263661},{"id":42,"name":"仓库","x":733.1010795134066,"y":599.1742629923355,"kind":"warehouse","cargo":"钨粉"},{"id":43,"name":"方解石板","x":862.1241734717935,"y":506.8333001784336},{"id":44,"name":"仓库","x":857.5604350190758,"y":600.8505611550497,"kind":"warehouse","cargo":"方解石板"},{"id":45,"name":"钙粉","x":972.4027657214506,"y":508.9013370466821},{"id":46,"name":"仓库","x":974.3740589366855,"y":600.5577765989369,"kind":"warehouse","cargo":"钙粉"},{"id":47,"name":"针铁矿晶格","x":1081.2887296114113,"y":508.07150172271514},{"id":48,"name":"仓库","x":1083.7244425958077,"y":600.1290234642918,"kind":"warehouse","cargo":"针铁矿晶格"},{"id":49,"name":"管材","x":247.40149511852707,"y":699.4630125278635},{"id":50,"name":"仓库","x":242.48162015292345,"y":795.7369093334848,"kind":"warehouse","cargo":"管材"},{"id":51,"name":"钛金属外壳","x":373.79125613156674,"y":695.0849784629048},{"id":52,"name":"仓库","x":376.1994384333001,"y":799.3324239075412,"kind":"warehouse","cargo":"钛金属外壳"},{"id":53,"name":"转子","x":488.4182668091992,"y":692.8784996838563},{"id":54,"name":"仓库","x":490.6975553760231,"y":798.3712871992495,"kind":"warehouse","cargo":"转子"},{"id":55,"name":"钨板","x":610.1318270517802,"y":694.9321098920307},{"id":56,"name":"仓库","x":618.6063878422416,"y":799.2734210352312,"kind":"warehouse","cargo":"钨板"},{"id":57,"name":"陶瓷","x":733.8126070556175,"y":698.8285250538503},{"id":58,"name":"仓库","x":743.3128718613557,"y":798.3982386778017,"kind":"warehouse","cargo":"陶瓷"},{"id":59,"name":"玻璃","x":859.3256822541582,"y":696.5049424243398},{"id":60,"name":"仓库","x":865.2872011370457,"y":797.2078972961677,"kind":"warehouse","cargo":"玻璃"},{"id":61,"name":"针铁矿粉","x":976.7165014949846,"y":698.2318857033393},{"id":62,"name":"仓库","x":977.527456945516,"y":803.2575780714163,"kind":"warehouse","cargo":"针铁矿粉"},{"id":63,"name":"定子","x":234.3092939561502,"y":899.3727251485401},{"id":64,"name":"仓库","x":236.69938633220696,"y":1009.3261679633061,"kind":"warehouse","cargo":"定子"},{"id":65,"name":"强化框架","x":369.7133373210856,"y":900.4596221712313},{"id":66,"name":"仓库","x":374.2803723883882,"y":1004.4604679031254,"kind":"warehouse","cargo":"强化框架"},{"id":67,"name":"稳定器","x":489.59203091261304,"y":895.9662854938194},{"id":68,"name":"仓库","x":493.5278963872899,"y":1001.8250567774979,"kind":"warehouse","cargo":"稳定器"},{"id":69,"name":"电感器","x":613.9458944243729,"y":898.2422899615158},{"id":70,"name":"仓库","x":614.2110502041609,"y":998.4183748450854,"kind":"warehouse","cargo":"电感器"},{"id":71,"name":"强化外壳","x":731.5909501435158,"y":899.9308953352065},{"id":72,"name":"仓库","x":741.3736317840905,"y":1000.3443894366912,"kind":"warehouse","cargo":"强化外壳"},{"id":73,"name":"耐热板","x":837.8613900921564,"y":898.2836313734572},{"id":74,"name":"仓库","x":840.668953006403,"y":997.3493141582414,"kind":"warehouse","cargo":"耐热板"},{"id":75,"name":"合成硅","x":948.8286390055935,"y":896.7926636413646},{"id":76,"name":"仓库","x":949.7069793081132,"y":999.370486424735,"kind":"warehouse","cargo":"合成硅"},{"id":77,"name":"给药器","x":1060.1638856550749,"y":896.3256739144091},{"id":78,"name":"仓库","x":1068.5821345316338,"y":1001.3409281120618,"kind":"warehouse","cargo":"给药器"},{"id":79,"name":"叶轮","x":235.42881263891536,"y":1093.729194218776},{"id":80,"name":"仓库","x":241.6117272933157,"y":1205.7197666309983,"kind":"warehouse","cargo":"叶轮"},{"id":81,"name":"电子元件","x":364.57261912663995,"y":1091.0864524716658},{"id":82,"name":"仓库","x":363.64725503220234,"y":1202.3287324121181,"kind":"warehouse","cargo":"电子元件"},{"id":83,"name":"喷嘴","x":492.4388005968083,"y":1096.1386759885563},{"id":84,"name":"仓库","x":487.30337837495614,"y":1201.2984367772483,"kind":"warehouse","cargo":"喷嘴"},{"id":85,"name":"化学品","x":614.2600582114966,"y":1094.3131898640615},{"id":86,"name":"仓库","x":616.5813439465437,"y":1201.2235537126735,"kind":"warehouse","cargo":"化学品"}],"edges":[{"from":1,"to":2},{"from":3,"to":4},{"from":5,"to":6},{"from":7,"to":8},{"from":9,"to":10},{"from":11,"to":12},{"from":13,"to":14},{"from":2,"to":15},{"from":15,"to":16},{"from":4,"to":19},{"from":19,"to":20},{"from":6,"to":21},{"from":21,"to":22},{"from":8,"to":23},{"from":10,"to":23},{"from":23,"to":24},{"from":12,"to":25},{"from":25,"to":26},{"from":2,"to":27},{"from":12,"to":27},{"from":27,"to":28},{"from":4,"to":29},{"from":12,"to":29},{"from":29,"to":30},{"from":14,"to":31},{"from":6,"to":31},{"from":2,"to":31},{"from":31,"to":32},{"from":16,"to":33},{"from":33,"to":34},{"from":16,"to":35},{"from":35,"to":36},{"from":16,"to":37},{"from":37,"to":38},{"from":20,"to":39},{"from":39,"to":40},{"from":20,"to":41},{"from":41,"to":42},{"from":22,"to":43},{"from":43,"to":44},{"from":22,"to":45},{"from":45,"to":46},{"from":26,"to":47},{"from":28,"to":47},{"from":30,"to":47},{"from":47,"to":48},{"from":36,"to":49},{"from":34,"to":49},{"from":49,"to":50},{"from":38,"to":51},{"from":34,"to":51},{"from":51,"to":52},{"from":36,"to":53},{"from":40,"to":53},{"from":53,"to":54},{"from":20,"to":55},{"from":42,"to":55},{"from":55,"to":56},{"from":44,"to":57},{"from":42,"to":57},{"from":57,"to":58},{"from":8,"to":59},{"from":46,"to":59},{"from":59,"to":60},{"from":26,"to":61},{"from":24,"to":61},{"from":46,"to":61},{"from":61,"to":62},{"from":52,"to":63},{"from":40,"to":63},{"from":63,"to":64},{"from":50,"to":65},{"from":28,"to":65},{"from":38,"to":65},{"from":65,"to":66},{"from":54,"to":67},{"from":36,"to":67},{"from":67,"to":68},{"from":50,"to":69},{"from":40,"to":69},{"from":58,"to":69},{"from":69,"to":70},{"from":52,"to":71},{"from":30,"to":71},{"from":56,"to":71},{"from":71,"to":72},{"from":56,"to":73},{"from":34,"to":73},{"from":60,"to":73},{"from":73,"to":74},{"from":46,"to":75},{"from":8,"to":75},{"from":58,"to":75},{"from":75,"to":76},{"from":50,"to":77},{"from":60,"to":77},{"from":77,"to":78},{"from":79,"to":80},{"from":36,"to":79},{"from":74,"to":79},{"from":56,"to":79},{"from":68,"to":79},{"from":81,"to":82},{"from":76,"to":81},{"from":70,"to":81},{"from":64,"to":81},{"from":83,"to":84},{"from":74,"to":83},{"from":8,"to":83},{"from":68,"to":83},{"from":85,"to":86},{"from":76,"to":85},{"from":42,"to":85},{"from":8,"to":85}],"nextId":87};
+
+function planTierKey(tier) {
+  return Number(tier) === 2 ? PLAN_LS_T2 : PLAN_LS_T1;
+}
+
+function readStoredPlan(key) {
+  try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (_) { return null; }
+}
+
+function planNodeCount(p) {
+  return p && Array.isArray(p.nodes) ? p.nodes.length : 0;
+}
+
+function writeStoredPlan(key, raw) {
+  if (!raw) return;
+  localStorage.setItem(key, JSON.stringify({
+    nodes: raw.nodes || [],
+    edges: raw.edges || [],
+    nextId: raw.nextId || 1,
+  }));
+}
+
+function currentTier() {
+  return routeState.machineTier === 2 ? 2 : 1;
+}
+
+function setMachineTierState(tier) {
+  const t = Number(tier) === 2 ? 2 : 1;
+  routeState.machineTier = t;
+  routeState.preferBase = t === 1;
+  try { localStorage.setItem(PLAN_TIER_LS, String(t)); } catch (_) {}
+}
+
+function pickRecipeForTier(product, tier) {
+  const list = recipeIndex.get(product) || [];
+  if (!list.length) return null;
+  if (Number(tier) === 1) {
+    const base = list.find((r) => !isV2(r.machine));
+    return base || list[0];
+  }
+  const v2 = list.find((r) => isV2(r.machine));
+  return v2 || list[0];
+}
+
+function matsEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  const sa = [...a].sort().join("\0");
+  const sb = [...b].sort().join("\0");
+  return sa === sb;
+}
+
+/** 从 2 级板推导 1 级板：布局不动，只按 1 级配方裁掉多出来的进料线 */
+function deriveTier1BoardFromTier2(raw) {
+  const board = JSON.parse(JSON.stringify(raw || { nodes: [], edges: [], nextId: 1 }));
+  const byId = new Map((board.nodes || []).map((n) => [n.id, n]));
+  function srcCargo(id) {
+    const n = byId.get(id);
+    if (!n) return null;
+    if (isWarehouse(n)) return n.cargo || null;
+    return n.name || null;
+  }
+  board.edges = (board.edges || []).filter((e) => {
+    const to = byId.get(e.to);
+    if (!to || isWarehouse(to)) return true;
+    const r1 = pickRecipeForTier(to.name, 1);
+    const r2 = pickRecipeForTier(to.name, 2);
+    if (!r1 || !r2 || matsEqual(r1.materials, r2.materials)) return true;
+    const cargo = srcCargo(e.from);
+    return !!(cargo && r1.materials.includes(cargo));
+  });
+  return board;
+}
+
+function migrateTierBoards() {
+  const legacyMain = readStoredPlan(PLAN_LS);
+  const legacyBak = readStoredPlan(PLAN_LS_BAK);
+  let legacy = legacyMain;
+  if (planNodeCount(legacyBak) > planNodeCount(legacy)) legacy = legacyBak;
+  if (planNodeCount(legacy) <= 2 && typeof RECOVERED_PLAN !== "undefined" && planNodeCount(RECOVERED_PLAN) > 2) {
+    legacy = RECOVERED_PLAN;
+  }
+  let t2 = readStoredPlan(PLAN_LS_T2);
+  let t1 = readStoredPlan(PLAN_LS_T1);
+  if (planNodeCount(t2) <= 2) {
+    if (typeof RECOVERED_PLAN_T2 !== "undefined" && planNodeCount(RECOVERED_PLAN_T2) > 2) {
+      t2 = JSON.parse(JSON.stringify(RECOVERED_PLAN_T2));
+    } else if (planNodeCount(legacy) > 2) {
+      t2 = JSON.parse(JSON.stringify(legacy));
+    }
+    if (planNodeCount(t2) > 2) writeStoredPlan(PLAN_LS_T2, t2);
+  }
+  const deriveFlag = "starrupture_t1_derive_wuban_v1";
+  let needDerive = false;
+  try { needDerive = localStorage.getItem(deriveFlag) !== "1"; } catch (_) { needDerive = true; }
+  if (planNodeCount(t1) <= 2 && typeof RECOVERED_PLAN_T1 !== "undefined" && planNodeCount(RECOVERED_PLAN_T1) > 2 && !needDerive) {
+    t1 = JSON.parse(JSON.stringify(RECOVERED_PLAN_T1));
+    writeStoredPlan(PLAN_LS_T1, t1);
+  } else if ((planNodeCount(t1) <= 2 || needDerive) && planNodeCount(t2) > 2) {
+    t1 = (typeof RECOVERED_PLAN_T1 !== "undefined" && planNodeCount(RECOVERED_PLAN_T1) > 2)
+      ? JSON.parse(JSON.stringify(RECOVERED_PLAN_T1))
+      : deriveTier1BoardFromTier2(t2);
+    writeStoredPlan(PLAN_LS_T1, t1);
+    try { localStorage.setItem(deriveFlag, "1"); } catch (_) {}
+  }
+  if (planNodeCount(t2) <= 2 && planNodeCount(t1) > 2) {
+    t2 = JSON.parse(JSON.stringify(t1));
+    writeStoredPlan(PLAN_LS_T2, t2);
+  }
+}
 
 function loadPlan() {
-  let main = null, bak = null;
-  try { main = JSON.parse(localStorage.getItem(PLAN_LS) || "null"); } catch (_) {}
-  try { bak = JSON.parse(localStorage.getItem(PLAN_LS_BAK) || "null"); } catch (_) {}
-  const n = (p) => (p && Array.isArray(p.nodes) ? p.nodes.length : 0);
-  let best = main;
-  if (n(bak) > n(best)) best = bak;
-  if (typeof RECOVERED_PLAN !== "undefined" && n(RECOVERED_PLAN) > n(best) && n(best) <= 2) {
-    best = RECOVERED_PLAN;
-  }
-  applyPlanData(best);
-  if (best && n(best) && best !== main) {
-    try {
-      localStorage.setItem(PLAN_LS, JSON.stringify({
-        nodes: plan.nodes, edges: plan.edges, nextId: plan.nextId,
-      }));
-    } catch (_) {}
-  }
+  let savedTier = 2;
+  try {
+    const raw = localStorage.getItem(PLAN_TIER_LS);
+    if (raw === "1" || raw === "2") savedTier = Number(raw);
+  } catch (_) {}
+  setMachineTierState(savedTier);
+  migrateTierBoards();
   applyDepth5DeltaOnce();
+  // depth5 可能写在旧 PLAN_LS 上，再迁一次
+  migrateTierBoards();
+  const key = planTierKey(currentTier());
+  let best = readStoredPlan(key);
+  if (planNodeCount(best) <= 2) {
+    const other = readStoredPlan(planTierKey(currentTier() === 1 ? 2 : 1));
+    if (planNodeCount(other) > 2) best = other;
+  }
+  if (planNodeCount(best) <= 2 && typeof RECOVERED_PLAN !== "undefined") best = RECOVERED_PLAN;
+  applyPlanData(best || { nodes: [], edges: [], nextId: 1 });
+  try {
+    writeStoredPlan(key, snapshotPlan());
+    writeStoredPlan(PLAN_LS, snapshotPlan());
+  } catch (_) {}
 }
 
 /** 针对当前堆叠板（nextId=79、已有定子仓）一次性在下方接上 5 级，不挪原坐标 */
@@ -486,8 +615,51 @@ function savePlan() {
     const prev = localStorage.getItem(PLAN_LS);
     if (prev && plan.nodes.length) localStorage.setItem(PLAN_LS_BAK, prev);
     localStorage.setItem(PLAN_LS, JSON.stringify(payload));
+    writeStoredPlan(planTierKey(currentTier()), payload);
   } catch (_) {}
   syncUndoButtons();
+}
+
+function syncTierButtons() {
+  const t = currentTier();
+  const map = [
+    ["pcTier1", 1], ["pcTier2", 2],
+    ["synthTier1", 1], ["synthTier2", 2],
+  ];
+  for (const [id, tier] of map) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("active", t === tier);
+  }
+  const tag = document.getElementById("synthTierTag");
+  if (tag) tag.textContent = t === 1 ? "· 1级机" : "· 2级机";
+}
+
+function switchMachineTier(tier) {
+  const next = Number(tier) === 2 ? 2 : 1;
+  if (next === currentTier()) {
+    syncTierButtons();
+    return;
+  }
+  try { writeStoredPlan(planTierKey(currentTier()), snapshotPlan()); } catch (_) {}
+  setMachineTierState(next);
+  _depthMemo.clear();
+  rebuildSynthCatalog();
+  const raw = readStoredPlan(planTierKey(next));
+  applyPlanData(raw && planNodeCount(raw) ? raw : { nodes: [], edges: [], nextId: 1 });
+  undoStack = [];
+  redoStack = [];
+  lastSaved = snapshotPlan();
+  plan.selected = null;
+  plan.selectedIds = [];
+  plan.selectedEdge = null;
+  plan.linkFrom = null;
+  syncTierButtons();
+  syncPlanToolbar();
+  if (routeState.mode === "plan") {
+    renderSynthList(synthGrade);
+    renderPlanBoard();
+  }
+  showPlanToast(next === 1 ? "已切到 1级机零件库/规划板" : "已切到 2级机零件库/规划板");
 }
 
 function undoPlan() {
@@ -516,11 +688,7 @@ function redoPlan() {
   renderPlanBoard();
 }
 
-loadPlan();
-lastSaved = snapshotPlan();
-if (window.__justAppendedD5) {
-  try { enterPlanMode(); } catch (_) {}
-}
+// loadPlan 需等 recipeIndex / pickRecipe 就绪后再调（见下方 initPlanAfterRecipes）
 
 let synthOrder = {};
 function loadSynthOrder() {
@@ -717,20 +885,15 @@ function cmpParts(aName, bName) {
   return aName.localeCompare(bName, "zh");
 }
 
-/** 每个成品取一条非 v.2 配方，按离原料最长合成步数分级（钛条1、钛棒2） */
-const synthCatalog = (() => {
+/** 每个成品取当前机级配方，按离原料最长合成步数分级 */
+function rebuildSynthCatalog() {
+  _depthMemo.clear();
   const seen = new Set();
   const list = [];
   for (const r of RECIPES) {
-    if (isV2(r.machine)) continue;
     if (seen.has(r.product)) continue;
     seen.add(r.product);
-    list.push(r);
-  }
-  for (const r of RECIPES) {
-    if (seen.has(r.product)) continue;
-    seen.add(r.product);
-    list.push(r);
+    list.push(pickRecipe(r.product) || r);
   }
   list.sort((a, b) => cmpParts(a.product, b.product));
   const byGrade = new Map();
@@ -755,10 +918,11 @@ const synthCatalog = (() => {
     kind: "warehouse",
   }]);
   const grades = [...[...byGrade.keys()].filter((g) => g !== "wh").sort((a, b) => a - b), "wh"];
-  return { list, byGrade, grades };
-})();
+  synthCatalog = { list, byGrade, grades };
+}
 
-let synthGrade = synthCatalog.grades.includes(1) ? 1 : (synthCatalog.grades[0] || 0);
+let synthCatalog = { list: [], byGrade: new Map([[0, []], ["wh", []]]), grades: [0, "wh"] };
+let synthGrade = 1;
 
 function syncPlanToolbar() {
   const on = routeState.mode === "plan";
@@ -770,12 +934,15 @@ function syncPlanToolbar() {
   document.getElementById("pcDel").style.display = on ? "" : "none";
   document.getElementById("pcClear").style.display = on ? "" : "none";
   document.getElementById("pcNextGrade").style.display = on ? "" : "none";
+  document.getElementById("pcTier1").style.display = on ? "" : "none";
+  document.getElementById("pcTier2").style.display = on ? "" : "none";
   document.getElementById("pcDir").style.display = "";
   document.getElementById("pcLink").classList.toggle("active", plan.linkKind === "in");
   document.getElementById("pcOut").classList.toggle("active", plan.linkKind === "out");
   document.getElementById("pcUnlink").classList.toggle("active", plan.unlinkOn);
   document.getElementById("keysHint").classList.toggle("show", on);
   document.querySelector(".route-canvas-wrap").classList.toggle("unlink-on", on && plan.unlinkOn);
+  syncTierButtons();
   syncUndoButtons();
 }
 
@@ -2394,6 +2561,10 @@ document.getElementById("pcRedo").addEventListener("click", () => redoPlan());
 document.getElementById("pcDel").addEventListener("click", () => deletePlanSelection());
 document.getElementById("pcClear").addEventListener("click", () => clearPlanBoard());
 document.getElementById("pcNextGrade").addEventListener("click", () => appendNextGrade());
+document.getElementById("pcTier1").addEventListener("click", () => switchMachineTier(1));
+document.getElementById("pcTier2").addEventListener("click", () => switchMachineTier(2));
+document.getElementById("synthTier1").addEventListener("click", () => switchMachineTier(1));
+document.getElementById("synthTier2").addEventListener("click", () => switchMachineTier(2));
 document.getElementById("pcDir").addEventListener("click", () => {
   routeState.dir = routeState.dir === "h" ? "v" : "h";
   clearPosOverrides();
@@ -2421,7 +2592,17 @@ document.getElementById("pcReset").addEventListener("click", () => {
   if (routeState.target) renderRouteGraph(routeState.target, { keepView: true });
   else applyTransform();
 });
-/* preferBase stays true */
+/* machineTier toggles preferBase via switchMachineTier */
+(function initPlanAfterRecipes() {
+  rebuildSynthCatalog();
+  synthGrade = synthCatalog.grades.includes(1) ? 1 : (synthCatalog.grades[0] || 0);
+  loadPlan();
+  lastSaved = snapshotPlan();
+  syncTierButtons();
+  if (window.__justAppendedD5) {
+    try { enterPlanMode(); } catch (_) {}
+  }
+})();
 window.addEventListener("keydown", (e) => {
   if (routeState.mode !== "plan") return;
   const tag = (e.target && e.target.tagName) || "";
