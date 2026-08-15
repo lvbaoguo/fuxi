@@ -155,6 +155,42 @@
     left: 12px; top: 12px; right: auto; width: min(420px, 46vw);
   }
   .route-canvas-wrap.plan-sidebar .float-search { left: calc(var(--synth-w, 292px) + 12px); width: min(280px, 28vw); }
+  .float-map-search {
+    display: none; position: absolute; z-index: 40; left: 12px; top: 58px;
+    align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(40,50,70,.18); padding: 5px;
+    width: min(220px, 26vw);
+  }
+  .float-map-search.show { display: flex; }
+  .route-canvas-wrap.plan-sidebar .float-map-search { left: calc(var(--synth-w, 292px) + 12px); }
+  .float-map-search .suggest-wrap { position: relative; flex: 1; min-width: 0; }
+  .float-map-search input {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+    font-size: 14px; outline: none; background: #fff; color: var(--text);
+  }
+  .float-map-search input:focus { border-color: var(--accent); }
+  .float-map-search .go {
+    flex-shrink: 0; border: 0; background: #334155; color: #fff; border-radius: 8px;
+    padding: 7px 10px; font-size: .78rem; font-weight: 600; cursor: pointer;
+  }
+  .float-map-search .suggest {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+    max-height: 220px; overflow: auto; background: #fff; border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(40,50,70,.16); z-index: 50;
+  }
+  .float-map-search .suggest.show { display: block; }
+  .float-map-search .suggest button {
+    display: block; width: 100%; text-align: left; border: 0; background: #fff;
+    padding: 7px 10px; font-size: .8rem; cursor: pointer; color: var(--text);
+  }
+  .float-map-search .suggest button:hover,
+  .float-map-search .suggest button.active { background: #e8f6f2; color: var(--accent); }
+  .float-map-search .suggest .meta { color: var(--muted); font-size: .68rem; margin-left: 6px; }
+  .node.plan-find > rect {
+    stroke: #2563eb; stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(37,99,235,.55));
+  }
 
   .synth-overlay {
     display: none; position: absolute; z-index: 36; left: 0; top: 0; bottom: 0;
@@ -290,8 +326,15 @@
       </div>
       <button class="go" type="button" id="routeGo">确定</button>
     </div>
+    <div class="float-map-search" id="mapSearchBox" title="只搜当前规划板上已有的产品，定位过去">
+      <div class="suggest-wrap">
+        <input id="mapQ" type="search" placeholder="图上找产品…" autocomplete="off" enterkeyhint="search" />
+        <div class="suggest" id="mapSuggest"></div>
+      </div>
+      <button class="go" type="button" id="mapGo">定位</button>
+    </div>
     <div class="pc-toolbar">
-      <a class="btn" href="../debug/index.html?v=20260816b" style="text-decoration:none">合成查看</a>
+      <a class="btn" href="../debug/index.html?v=20260816c" style="text-decoration:none">合成查看</a>
       <button class="btn" type="button" id="pcList" title="自己摆线、连线">线路规划</button>
       <button class="btn" type="button" id="pcTier1" title="零件库+规划板切到 1级机制造厂/熔炉配方" style="display:none">1级机</button>
       <button class="btn" type="button" id="pcTier2" title="零件库+规划板切到 2级机制造厂/熔炉配方" style="display:none">2级机</button>
@@ -968,6 +1011,8 @@ function syncPlanToolbar() {
   document.getElementById("pcUnlink").classList.toggle("active", plan.unlinkOn);
   document.getElementById("keysHint").classList.toggle("show", on);
   document.querySelector(".route-canvas-wrap").classList.toggle("unlink-on", on && plan.unlinkOn);
+  const mapBox = document.getElementById("mapSearchBox");
+  if (mapBox) mapBox.classList.toggle("show", on);
   syncTierButtons();
   syncUndoButtons();
 }
@@ -1099,6 +1144,126 @@ function showPlanToast(msg) {
   el.classList.add("show");
   clearTimeout(showPlanToast._t);
   showPlanToast._t = setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+/** 图上产品名：工厂用 name，仓库用 cargo */
+function planNodeSearchKey(n) {
+  if (!n) return "";
+  if (isWarehouse(n)) return String(n.cargo || "").trim();
+  return String(n.name || "").trim();
+}
+
+function listPlanSearchHits(q) {
+  const raw = String(q || "").trim().toLowerCase();
+  if (!raw) return [];
+  const hits = [];
+  for (const n of plan.nodes) {
+    const key = planNodeSearchKey(n);
+    if (!key) continue;
+    const kl = key.toLowerCase();
+    if (!kl.includes(raw)) continue;
+    hits.push({
+      id: n.id,
+      key,
+      wh: isWarehouse(n),
+      exact: kl === raw,
+      starts: kl.startsWith(raw),
+      node: n,
+    });
+  }
+  hits.sort((a, b) => {
+    if (a.exact !== b.exact) return a.exact ? -1 : 1;
+    if (a.starts !== b.starts) return a.starts ? -1 : 1;
+    if (a.wh !== b.wh) return a.wh ? 1 : -1; // 工厂优先
+    return a.key.localeCompare(b.key, "zh") || a.id - b.id;
+  });
+  return hits;
+}
+
+function hideMapSuggest() {
+  const box = document.getElementById("mapSuggest");
+  if (box) box.classList.remove("show");
+}
+
+function showMapSuggest(q) {
+  const box = document.getElementById("mapSuggest");
+  if (!box) return;
+  const hits = listPlanSearchHits(q).slice(0, 12);
+  if (!hits.length) {
+    box.innerHTML = "";
+    box.classList.remove("show");
+    return;
+  }
+  box.innerHTML = hits.map((h, i) => (
+    `<button type="button" data-id="${h.id}" class="${i === 0 ? "active" : ""}">`
+    + h.key
+    + `<span class="meta">${h.wh ? "仓库" : "工厂"}</span></button>`
+  )).join("");
+  box.classList.add("show");
+  box.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", () => {
+      const id = Number(btn.getAttribute("data-id"));
+      const hit = hits.find((h) => h.id === id);
+      if (hit) focusPlanNodeById(hit.id, { fromSuggest: true });
+    });
+  });
+}
+
+function focusPlanNodeById(id, opts) {
+  const node = plan.nodes.find((n) => n.id === id);
+  if (!node) {
+    showPlanToast("图上没有这个节点");
+    return false;
+  }
+  selectPlanNodes([node.id]);
+  plan.selectedEdge = null;
+  const svgEl = document.getElementById("routeSvg");
+  const box = nodeBox(node);
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const vw = svgEl.clientWidth || 800;
+  const vh = svgEl.clientHeight || 600;
+  // 规划侧栏时略偏右，避免被零件库挡住
+  const sidebar = document.querySelector(".route-canvas-wrap.plan-sidebar");
+  const leftPad = sidebar
+    ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--synth-w")) || 292) * 0.35
+    : 0;
+  routeState.tx = (vw + leftPad) / 2 - cx * routeState.scale;
+  routeState.ty = vh / 2 - cy * routeState.scale;
+  renderPlanBoard();
+  const g = document.querySelector(`#routeWorld .node[data-name="${node.id}"]`);
+  if (g) {
+    g.classList.add("plan-find");
+    clearTimeout(focusPlanNodeById._t);
+    focusPlanNodeById._t = setTimeout(() => g.classList.remove("plan-find"), 1800);
+  }
+  const label = planNodeSearchKey(node) || node.name || ("#" + node.id);
+  showPlanToast("已定位：" + label + (isWarehouse(node) ? "（仓）" : ""));
+  hideMapSuggest();
+  const inp = document.getElementById("mapQ");
+  if (inp && opts && opts.fromSuggest) inp.value = label;
+  return true;
+}
+
+function goMapSearch(q) {
+  const hits = listPlanSearchHits(q);
+  if (!hits.length) {
+    showPlanToast("图上没有匹配的产品");
+    hideMapSuggest();
+    return;
+  }
+  const qn = String(q || "").trim().toLowerCase();
+  let idx = 0;
+  if (goMapSearch._lastQ === qn && hits.length > 1) {
+    idx = (goMapSearch._lastIdx + 1) % hits.length;
+  }
+  goMapSearch._lastQ = qn;
+  goMapSearch._lastIdx = idx;
+  focusPlanNodeById(hits[idx].id);
+  if (hits.length > 1) {
+    showPlanToast(`已定位：${hits[idx].key}（${idx + 1}/${hits.length}，再按定位下一项）`);
+  }
 }
 
 function warehouseCounts(id) {
@@ -2554,6 +2719,46 @@ routeQ.addEventListener("keydown", (e) => {
 document.getElementById("routeGo").addEventListener("click", () => {
   goSearch(document.getElementById("routeQ").value);
 });
+
+const mapQ = document.getElementById("mapQ");
+if (mapQ) {
+  mapQ.addEventListener("input", (e) => showMapSuggest(e.target.value));
+  mapQ.addEventListener("focus", (e) => showMapSuggest(e.target.value));
+  mapQ.addEventListener("blur", () => setTimeout(hideMapSuggest, 150));
+  mapQ.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      hideMapSuggest();
+      mapQ.blur();
+      return;
+    }
+    const box = document.getElementById("mapSuggest");
+    const buttons = box ? [...box.querySelectorAll("button[data-id]")] : [];
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!buttons.length) return;
+      e.preventDefault();
+      let i = buttons.findIndex((b) => b.classList.contains("active"));
+      if (i < 0) i = 0;
+      else i = e.key === "ArrowDown" ? (i + 1) % buttons.length : (i - 1 + buttons.length) % buttons.length;
+      buttons.forEach((b) => b.classList.remove("active"));
+      buttons[i].classList.add("active");
+      buttons[i].scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const active = buttons.find((b) => b.classList.contains("active"));
+      if (active && box && box.classList.contains("show")) {
+        focusPlanNodeById(Number(active.getAttribute("data-id")), { fromSuggest: true });
+      } else {
+        goMapSearch(mapQ.value);
+      }
+    }
+  });
+}
+const mapGo = document.getElementById("mapGo");
+if (mapGo) {
+  mapGo.addEventListener("click", () => goMapSearch(document.getElementById("mapQ").value));
+}
 document.getElementById("pcList").addEventListener("click", () => {
   const sidebar = document.getElementById("synthList");
   if (routeState.mode !== "plan") {
