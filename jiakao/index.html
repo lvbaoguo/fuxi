@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>科目一</title>
-  <link rel="stylesheet" href="css/style.css?v=20260819multi1" />
+  <link rel="stylesheet" href="css/style.css?v=20260819mod1" />
 </head>
 <body>
   <div class="phone">
@@ -25,6 +25,12 @@
         <button type="button" class="mode-btn" data-mode="memo" id="modeMemo">背题模式</button>
       </div>
     </div>
+
+    <div class="tool-row">
+      <button type="button" class="tool-btn" id="btnShuffle">打乱题序</button>
+      <button type="button" class="tool-btn" id="btnKoujue">背题口诀</button>
+    </div>
+    <p class="module-bar" id="moduleBar">模块：单选</p>
 
     <div class="stage" id="swipeStage">
       <main class="slide" id="quizPanel">
@@ -94,7 +100,68 @@
     </div>
   </div>
 
-  <script src="js/questions.js?v=20260819q500"></script>
-  <script src="js/app.js?v=20260819multi1"></script>
+  <div class="koujue-page" id="koujuePage" hidden>
+    <div class="koujue-hd">
+      <button type="button" class="icon-btn" id="btnKoujueBack" aria-label="返回题目">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2>背题口诀</h2>
+      <span style="width:48px"></span>
+    </div>
+    <div class="koujue-body">
+      <div class="koujue-card">
+        <h3>记分档位总纲</h3>
+        <p>十二酒逃伪倒逆，九遮未挂准驾疲；
+六灯应急超半路，三电行人校车道；
+一带禁令灯光一，未列明的先想「不记分」。</p>
+        <p class="note">口诀按 163 号令：安全带/禁令是 1 分，不是老版 3 分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>超速（普通小车）</h3>
+        <p>普通路：不到 20 不记分，20～50 记三分，超 50 记六分。
+高速路：不到 20 不记分，20～50 记六分，超 50 记十二。</p>
+        <p class="note">中型以上/校车/危化：高速超 20% 就十二；普通路超 50% 记九分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>号牌三分法</h3>
+        <p>伪造变造十二分，遮挡污损未挂九，安装不当只三分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>酒驾 vs 醉驾</h3>
+        <p>酒驾：记十二 + 罚一千到两千 + 暂扣半年。
+醉驾：不记分，拘役罚金，吊销，五年内不得再考（营运更重）。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>逃逸两档</h3>
+        <p>轻微伤或财产损失逃逸：六分。
+轻伤以上或死亡逃逸：十二分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>疲劳</h3>
+        <p>载货四小时：三分。
+中型以上载客/危化品：九分。
+普通小客车：163 不记分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>易混对比</h3>
+        <p>闯红灯六分 ≠ 禁令一分。
+电话三分 ≠ 安全带一分。
+普通路逆行三分 ≠ 高速逆行十二。
+行人/校车三分，不是六分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>考试本身</h3>
+        <p>科目一：一百题，九十分合格。
+记分周期十二个月，满分十二分。</p>
+      </div>
+      <div class="koujue-card">
+        <h3>怎么用</h3>
+        <p>先看口诀建立骨架，再回题库按模块刷：单选→判断→多选→图题。要模拟考场就点「打乱题序」。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/questions.js?v=20260819mod1"></script>
+  <script src="js/app.js?v=20260819mod1"></script>
 </body>
 </html>

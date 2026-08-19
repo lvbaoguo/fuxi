@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "jiakao_v6_progress";
+  const STORAGE_KEY = "jiakao_v7_progress";
 
   const state = {
     mode: "quiz",
@@ -13,6 +13,8 @@
     correct: 0,
     wrong: 0,
     autoTimer: 0,
+    shuffled: false,
+    shuffleOrder: null,
   };
 
   const els = {
@@ -35,7 +37,51 @@
     progressText: document.getElementById("progressText"),
     gridSheet: document.getElementById("gridSheet"),
     qGrid: document.getElementById("qGrid"),
+    moduleBar: document.getElementById("moduleBar"),
+    btnShuffle: document.getElementById("btnShuffle"),
+    koujuePage: document.getElementById("koujuePage"),
   };
+
+  function moduleName(q) {
+    if (!q) return "";
+    if (q.module) return q.module;
+    if (q.image) return "图题";
+    if (q.type === "tf") return "判断";
+    if (q.type === "multi") return "多选";
+    return "单选";
+  }
+
+  function moduleRank(q) {
+    if (q.image) return 3;
+    if (q.type === "single") return 0;
+    if (q.type === "tf") return 1;
+    if (q.type === "multi") return 2;
+    return 4;
+  }
+
+  function sortByModule(arr) {
+    return arr.slice().sort(function (a, b) {
+      var ra = moduleRank(a);
+      var rb = moduleRank(b);
+      if (ra !== rb) return ra - rb;
+      var fa = a.family || "";
+      var fb = b.family || "";
+      if (fa < fb) return -1;
+      if (fa > fb) return 1;
+      return (a.id || 0) - (b.id || 0);
+    });
+  }
+
+  function shuffleArray(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
 
   function letter(i) {
     return String.fromCharCode(65 + i);
@@ -74,7 +120,23 @@
   }
 
   function buildList() {
-    return QUESTIONS.filter(function (q) { return !state.removed.has(q.id); });
+    var base = QUESTIONS.filter(function (q) { return !state.removed.has(q.id); });
+    if (state.shuffled) {
+      if (state.shuffleOrder && state.shuffleOrder.length) {
+        var map = {};
+        base.forEach(function (q) { map[q.id] = q; });
+        var ordered = [];
+        state.shuffleOrder.forEach(function (id) {
+          if (map[id]) ordered.push(map[id]);
+        });
+        base.forEach(function (q) {
+          if (ordered.indexOf(q) < 0) ordered.push(q);
+        });
+        return ordered;
+      }
+      return shuffleArray(base);
+    }
+    return sortByModule(base);
   }
 
   function clearAuto() {
@@ -92,6 +154,8 @@
       answers: state.answers,
       correct: state.correct,
       wrong: state.wrong,
+      shuffled: state.shuffled,
+      shuffleOrder: state.shuffleOrder,
     }));
   }
 
@@ -106,6 +170,8 @@
       state.correct = d.correct || 0;
       state.wrong = d.wrong || 0;
       state.index = d.index || 0;
+      state.shuffled = !!d.shuffled;
+      state.shuffleOrder = d.shuffleOrder || null;
     } catch (_) { /* ignore */ }
   }
 
@@ -154,9 +220,45 @@
     return state.pending[qid];
   }
 
-  function answerLettersFrom(indices) {
-    var arr = Array.isArray(indices) ? normAns(indices) : [indices];
-    return arr.map(letter).join("");
+  function moduleRangeLabel(mod) {
+    var first = -1, last = -1, i;
+    for (i = 0; i < state.list.length; i++) {
+      if (moduleName(state.list[i]) === mod) {
+        if (first < 0) first = i;
+        last = i;
+      }
+    }
+    if (first < 0) return "";
+    return (first + 1) + "–" + (last + 1) + "题";
+  }
+
+  function toggleShuffle() {
+    clearAuto();
+    if (!state.shuffled) {
+      state.shuffled = true;
+      var ids = buildList().map(function (q) { return q.id; });
+      // buildList still module order until we set shuffleOrder
+      state.shuffleOrder = shuffleArray(QUESTIONS.filter(function (q) {
+        return !state.removed.has(q.id);
+      }).map(function (q) { return q.id; }));
+      state.index = 0;
+    } else {
+      state.shuffled = false;
+      state.shuffleOrder = null;
+      state.index = 0;
+    }
+    refreshList();
+    save();
+    render();
+  }
+
+  function openKoujue() {
+    clearAuto();
+    els.koujuePage.hidden = false;
+  }
+
+  function closeKoujue() {
+    els.koujuePage.hidden = true;
   }
 
   function render() {
@@ -184,6 +286,17 @@
     els.questionText.textContent = q.text;
     renderImage(q);
     els.progressText.textContent = (state.index + 1) + "/" + state.list.length;
+    if (els.moduleBar) {
+      var mod = moduleName(q);
+      var range = moduleRangeLabel(mod);
+      els.moduleBar.textContent = state.shuffled
+        ? ("乱序模式 · 当前：" + mod)
+        : ("模块顺序 · " + mod + (range ? "（" + range + "）" : ""));
+    }
+    if (els.btnShuffle) {
+      els.btnShuffle.classList.toggle("active", state.shuffled);
+      els.btnShuffle.textContent = state.shuffled ? "打乱题序 · 开" : "打乱题序";
+    }
 
     var picked = state.answers[q.id];
     var answered = picked !== undefined;
@@ -231,17 +344,27 @@
         if (state.mode === "memo" && !answered) {
           if (inAns) btn.classList.add("right", "picked");
         } else if (answered) {
-          if (inPick && inAns) {
+          if (multiMode && isWrong) {
+            // 整题算错：你选的一律红；漏选的正确项标绿
+            if (inPick) {
+              btn.classList.add("wrong", "yours");
+            } else if (inAns) {
+              btn.classList.add("missed");
+              var tag = document.createElement("span");
+              tag.className = "miss-tag";
+              tag.textContent = "漏选";
+              btn.appendChild(tag);
+            }
+          } else if (inPick && inAns) {
             btn.classList.add("right", "yours");
           } else if (inPick && !inAns) {
             btn.classList.add("wrong", "yours");
           } else if (!inPick && inAns) {
-            // 漏选：空心绿，别做成实心勾，避免看起来像「你选了」
             btn.classList.add("missed");
-            var tag = document.createElement("span");
-            tag.className = "miss-tag";
-            tag.textContent = "漏选";
-            btn.appendChild(tag);
+            var tag2 = document.createElement("span");
+            tag2.className = "miss-tag";
+            tag2.textContent = "漏选";
+            btn.appendChild(tag2);
           }
         }
       }
@@ -462,6 +585,9 @@
   document.getElementById("btnClearCancel").addEventListener("click", closeClearSheet);
   document.getElementById("btnBack").addEventListener("click", function () { flipTo(-1); });
   els.btnMultiSubmit.addEventListener("click", submitMulti);
+  document.getElementById("btnShuffle").addEventListener("click", toggleShuffle);
+  document.getElementById("btnKoujue").addEventListener("click", openKoujue);
+  document.getElementById("btnKoujueBack").addEventListener("click", closeKoujue);
 
   var stage = document.getElementById("swipeStage");
   var drag = { on: false, x: 0, y: 0, dx: 0, axis: "", skipClick: false, pid: 0 };
