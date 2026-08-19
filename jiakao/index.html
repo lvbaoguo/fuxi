@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>科目一</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <button type="button" class="icon-btn" id="btnBack" aria-label="返回">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button type="button" class="icon-btn" id="btnClose" aria-label="关闭">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <h1>科目一</h1>
+    </header>
+
+    <div class="mode-row">
+      <div class="mode-switch" role="tablist">
+        <button type="button" class="mode-btn active" data-mode="quiz" id="modeQuiz">答题模式</button>
+        <button type="button" class="mode-btn" data-mode="memo" id="modeMemo">背题模式</button>
+      </div>
+    </div>
+
+    <div class="stage" id="swipeStage">
+      <main class="slide" id="quizPanel">
+        <p class="stem">
+          <span class="type-pill" id="typeTag">单选题</span>
+          <span id="questionText"></span>
+        </p>
+        <figure class="q-img-wrap" id="questionImageWrap" hidden>
+          <img id="questionImage" alt="" />
+          <figcaption id="questionImageCaption" hidden></figcaption>
+        </figure>
+        <div class="options" id="optionsList"></div>
+        <div class="explain" id="explainBox" hidden>
+          <div class="explain-hd">解析</div>
+          <p id="explainText"></p>
+        </div>
+        <p class="swipe-hint">左滑下一题 · 右滑回看</p>
+      </main>
+
+      <section class="slide result" id="resultPanel" hidden>
+        <div class="result-score" id="resultScore">0 分</div>
+        <p id="resultDetail"></p>
+        <button type="button" class="again-btn" id="btnRestartResult">再练一遍</button>
+      </section>
+    </div>
+
+    <footer class="dock">
+      <div class="dock-stat">
+        <span class="ok-ico" aria-hidden="true">✓</span>
+        <span id="statCorrect">0</span>
+        <span class="bad-ico" aria-hidden="true">✕</span>
+        <span id="statWrong">0</span>
+      </div>
+      <button type="button" class="dock-progress" id="btnGrid" aria-label="题目列表">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
+        <span id="progressText">1/0</span>
+        <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 14l6-6 6 6"/></svg>
+      </button>
+      <button type="button" class="dock-remove" id="btnRemove">移除</button>
+    </footer>
+  </div>
+
+  <div class="sheet" id="gridSheet" hidden>
+    <div class="sheet-mask" id="sheetMask"></div>
+    <div class="sheet-body">
+      <div class="sheet-hd">
+        <span>选题</span>
+        <button type="button" class="icon-btn" id="btnCloseSheet">关闭</button>
+      </div>
+      <div class="grid" id="qGrid"></div>
+    </div>
+  </div>
+
+  <p class="legal-note">题库依据：公安部令第163号（2022.4.1起，现行有效）</p>
+
+  <script src="js/questions.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280">
+<rect width="400" height="280" fill="#0f172a"/>
+<rect y="190" width="400" height="90" fill="#1e293b"/>
+<rect x="45" y="40" width="70" height="150" fill="#1d4ed8" opacity="0.28"/>
+<rect x="132" y="62" width="84" height="128" fill="#2563eb" opacity="0.22"/>
+<rect x="236" y="28" width="68" height="162" fill="#60a5fa" opacity="0.25"/>
+<rect x="318" y="78" width="38" height="112" fill="#3b82f6" opacity="0.22"/>
+<rect x="192" y="190" width="16" height="68" fill="#f8fafc"/>
+<rect x="195" y="204" width="10" height="22" fill="#fde68a"/>
+<circle cx="66" cy="104" r="8" fill="#fef08a"/>
+<circle cx="150" cy="120" r="8" fill="#fef08a"/>
+<circle cx="262" cy="88" r="8" fill="#fef08a"/>
+<circle cx="336" cy="128" r="8" fill="#fef08a"/>
+<text x="200" y="246" text-anchor="middle" font-size="22" fill="#e2e8f0" font-family="Arial, sans-serif">Well Lit Road</text>
+</svg>
