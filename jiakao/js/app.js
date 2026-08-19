@@ -119,6 +119,11 @@
     return letter(a);
   }
 
+  function answerLettersFrom(indices) {
+    var arr = Array.isArray(indices) ? normAns(indices) : [indices];
+    return arr.map(letter).join("");
+  }
+
   function buildList() {
     var base = QUESTIONS.filter(function (q) { return !state.removed.has(q.id); });
     if (state.shuffled) {
