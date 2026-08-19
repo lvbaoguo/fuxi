@@ -264,11 +264,11 @@
 
   function openKoujue() {
     clearAuto();
-    els.koujuePage.hidden = false;
+    if (els.koujuePage) els.koujuePage.hidden = false;
   }
 
   function closeKoujue() {
-    els.koujuePage.hidden = true;
+    if (els.koujuePage) els.koujuePage.hidden = true;
   }
 
   function render() {
@@ -663,5 +663,6 @@
 
   load();
   refreshList();
+  closeKoujue();
   render();
 })();
