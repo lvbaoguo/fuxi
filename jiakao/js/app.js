@@ -273,12 +273,22 @@
     state.index = 0;
     refreshList();
     els.gridSheet.hidden = true;
+    const clearSheet = document.getElementById("clearSheet");
+    if (clearSheet) clearSheet.hidden = true;
     save();
     render();
   }
 
+  function openClearSheet() {
+    clearAuto();
+    document.getElementById("clearSheet").hidden = false;
+  }
+
+  function closeClearSheet() {
+    document.getElementById("clearSheet").hidden = true;
+  }
+
   function clearAll() {
-    if (!confirm("确定清空当前答题进度，从头开始？")) return;
     restart();
   }
 
@@ -332,9 +342,11 @@
   document.getElementById("btnCloseSheet").addEventListener("click", () => { els.gridSheet.hidden = true; });
   document.getElementById("btnRemove").addEventListener("click", removeCurrent);
   document.getElementById("btnRestartResult").addEventListener("click", restart);
-  document.getElementById("btnClear").addEventListener("click", clearAll);
+  document.getElementById("btnClear").addEventListener("click", openClearSheet);
+  document.getElementById("btnClearConfirm").addEventListener("click", clearAll);
+  document.getElementById("clearMask").addEventListener("click", closeClearSheet);
+  document.getElementById("btnClearCancel").addEventListener("click", closeClearSheet);
   document.getElementById("btnBack").addEventListener("click", () => flipTo(-1));
-  document.getElementById("btnClose").addEventListener("click", restart);
 
   const stage = document.getElementById("swipeStage");
   const drag = { on: false, x: 0, y: 0, dx: 0, axis: "", skipClick: false, pid: 0 };
