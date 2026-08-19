@@ -455,6 +455,13 @@ body {
   padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
 
+.koujue-lead {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
 .koujue-card {
   margin-bottom: 16px;
   padding: 14px 14px 12px;
