@@ -154,6 +154,11 @@
     return state.pending[qid];
   }
 
+  function answerLettersFrom(indices) {
+    var arr = Array.isArray(indices) ? normAns(indices) : [indices];
+    return arr.map(letter).join("");
+  }
+
   function render() {
     document.getElementById("modeQuiz").classList.toggle("active", state.mode === "quiz");
     document.getElementById("modeMemo").classList.toggle("active", state.mode === "memo");
@@ -182,15 +187,21 @@
 
     var picked = state.answers[q.id];
     var answered = picked !== undefined;
-    var isWrong = answered && !sameAns(picked, q.answer);
+    var isOk = answered && sameAns(picked, q.answer);
+    var isWrong = answered && !isOk;
     var showMark = state.mode === "memo" || answered;
     var showExplain = state.mode === "memo" || isWrong;
     var pending = getPending(q.id);
     var multiMode = isMulti(q);
+    var ansArr = Array.isArray(normAns(q.answer)) ? normAns(q.answer) : [q.answer];
+    var pickedArr = answered ? (Array.isArray(picked) ? normAns(picked) : [picked]) : [];
 
     els.multiBar.hidden = !(multiMode && state.mode === "quiz" && !answered);
     if (!els.multiBar.hidden) {
       els.btnMultiSubmit.disabled = pending.length === 0;
+      els.btnMultiSubmit.textContent = pending.length
+        ? ("提交答案（已选 " + pending.length + " 项）")
+        : "提交答案";
     }
 
     els.optionsList.innerHTML = "";
@@ -208,17 +219,31 @@
       btn.appendChild(mark);
       btn.appendChild(lab);
 
-      var ansArr = Array.isArray(normAns(q.answer)) ? normAns(q.answer) : [q.answer];
-      var pickedArr = answered ? (Array.isArray(picked) ? normAns(picked) : [picked]) : [];
+      var inAns = ansArr.indexOf(i) >= 0;
+      var inPick = pickedArr.indexOf(i) >= 0;
 
+      // 答题中：只点亮你勾选的项
       if (!answered && multiMode && state.mode === "quiz" && pending.indexOf(i) >= 0) {
         btn.classList.add("picked");
       }
 
       if (showMark) {
-        if (ansArr.indexOf(i) >= 0) btn.classList.add("right");
-        if (answered && pickedArr.indexOf(i) >= 0 && ansArr.indexOf(i) < 0) btn.classList.add("wrong");
-        if (state.mode === "memo" && ansArr.indexOf(i) >= 0) btn.classList.add("picked");
+        if (state.mode === "memo" && !answered) {
+          if (inAns) btn.classList.add("right", "picked");
+        } else if (answered) {
+          if (inPick && inAns) {
+            btn.classList.add("right", "yours");
+          } else if (inPick && !inAns) {
+            btn.classList.add("wrong", "yours");
+          } else if (!inPick && inAns) {
+            // 漏选：空心绿，别做成实心勾，避免看起来像「你选了」
+            btn.classList.add("missed");
+            var tag = document.createElement("span");
+            tag.className = "miss-tag";
+            tag.textContent = "漏选";
+            btn.appendChild(tag);
+          }
+        }
       }
 
       btn.addEventListener("click", function () { select(i); });
@@ -226,7 +251,10 @@
     });
 
     if (showExplain) {
-      els.explainText.textContent = "正确答案：" + answerLetters(q) + "。 " + q.explain;
+      var yours = answered ? ("你的答案：" + answerLettersFrom(picked) + "。") : "";
+      var right = "正确答案：" + answerLetters(q) + "。";
+      var tip = (multiMode && isWrong) ? "（多选必须全对，漏选/多选都不算对）" : "";
+      els.explainText.textContent = (yours ? yours + " " : "") + right + " " + tip + " " + q.explain;
       els.explainBox.hidden = false;
     } else {
       els.explainBox.hidden = true;

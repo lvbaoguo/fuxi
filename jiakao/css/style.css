@@ -285,13 +285,15 @@ body {
 }
 
 .opt-multi.picked .check,
-.opt-multi.right .check {
+.opt-multi.right .check,
+.opt-multi.yours.right .check {
   border-color: var(--ok);
   background: var(--ok);
 }
 
 .opt-multi.picked .check::after,
-.opt-multi.right .check::after {
+.opt-multi.right .check::after,
+.opt-multi.yours.right .check::after {
   content: "";
   position: absolute;
   left: 7px;
@@ -304,12 +306,14 @@ body {
   transform: rotate(45deg);
 }
 
-.opt-multi.wrong .check {
+.opt-multi.wrong .check,
+.opt-multi.yours.wrong .check {
   border-color: var(--bad);
   background: var(--bad);
 }
 
-.opt-multi.wrong .check::after {
+.opt-multi.wrong .check::after,
+.opt-multi.yours.wrong .check::after {
   content: "×";
   position: absolute;
   inset: 0;
@@ -323,6 +327,30 @@ body {
   transform: none;
   left: 0;
   top: 0;
+}
+
+/* 漏选：空心绿框，绝不是实心勾 */
+.opt-multi.missed {
+  color: #15803d;
+}
+
+.opt-multi.missed .check {
+  border-color: var(--ok);
+  background: #fff;
+}
+
+.opt-multi.missed .check::after {
+  content: none;
+}
+
+.miss-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #15803d;
+  background: var(--ok-soft);
+  border-radius: 99px;
+  padding: 2px 8px;
 }
 
 .multi-bar {
