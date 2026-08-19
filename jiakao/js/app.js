@@ -272,8 +272,14 @@
     state.wrong = 0;
     state.index = 0;
     refreshList();
+    els.gridSheet.hidden = true;
     save();
     render();
+  }
+
+  function clearAll() {
+    if (!confirm("确定清空当前答题进度，从头开始？")) return;
+    restart();
   }
 
   function removeCurrent() {
@@ -326,6 +332,7 @@
   document.getElementById("btnCloseSheet").addEventListener("click", () => { els.gridSheet.hidden = true; });
   document.getElementById("btnRemove").addEventListener("click", removeCurrent);
   document.getElementById("btnRestartResult").addEventListener("click", restart);
+  document.getElementById("btnClear").addEventListener("click", clearAll);
   document.getElementById("btnBack").addEventListener("click", () => flipTo(-1));
   document.getElementById("btnClose").addEventListener("click", restart);
 
