@@ -1,9 +1,12 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "jiakao_v8_progress";
+  const PRACTICE_KEY = "jiakao_v9_practice";
+  const REVIEW_KEY = "jiakao_v9_review";
+  const WRONG_KEY = "jiakao_v9_wrong";
 
   const state = {
+    scene: "home",
     mode: "quiz",
     index: 0,
     list: [],
@@ -15,6 +18,7 @@
     autoTimer: 0,
     shuffled: false,
     shuffleOrder: null,
+    wrongIds: [],
   };
 
   const els = {
@@ -40,6 +44,11 @@
     moduleBar: document.getElementById("moduleBar"),
     btnShuffle: document.getElementById("btnShuffle"),
     koujuePage: document.getElementById("koujuePage"),
+    homePage: document.getElementById("homePage"),
+    pageTitle: document.getElementById("pageTitle"),
+    wrongCountLabel: document.getElementById("wrongCountLabel"),
+    clearTitle: document.getElementById("clearTitle"),
+    clearDesc: document.getElementById("clearDesc"),
   };
 
   function moduleName(q) {
@@ -124,20 +133,80 @@
     return arr.map(letter).join("");
   }
 
+  function isReview() {
+    return state.scene === "review";
+  }
+
+  function storageKey() {
+    return isReview() ? REVIEW_KEY : PRACTICE_KEY;
+  }
+
+  function loadWrongIds() {
+    try {
+      var raw = localStorage.getItem(WRONG_KEY);
+      if (!raw) {
+        state.wrongIds = [];
+        return;
+      }
+      var d = JSON.parse(raw);
+      state.wrongIds = Array.isArray(d.ids) ? d.ids.map(Number) : [];
+    } catch (_) {
+      state.wrongIds = [];
+    }
+  }
+
+  function saveWrongIds() {
+    localStorage.setItem(WRONG_KEY, JSON.stringify({ ids: state.wrongIds }));
+  }
+
+  function rememberWrong(id) {
+    if (state.wrongIds.indexOf(id) >= 0) return;
+    state.wrongIds.push(id);
+    saveWrongIds();
+    updateHomeCounts();
+  }
+
+  function updateHomeCounts() {
+    if (!els.wrongCountLabel) return;
+    var n = state.wrongIds.length;
+    els.wrongCountLabel.textContent = n ? ("已收录 " + n + " 题") : "还没有错题";
+  }
+
   function buildList() {
-    var base = QUESTIONS.filter(function (q) { return !state.removed.has(q.id); });
-    if (state.shuffled) {
-      if (state.shuffleOrder && state.shuffleOrder.length) {
-        var map = {};
-        base.forEach(function (q) { map[q.id] = q; });
+    if (isReview()) {
+      var map = {};
+      QUESTIONS.forEach(function (q) { map[q.id] = q; });
+      var list = [];
+      state.wrongIds.forEach(function (id) {
+        if (map[id]) list.push(map[id]);
+      });
+      if (state.shuffled && state.shuffleOrder && state.shuffleOrder.length) {
+        var byId = {};
+        list.forEach(function (q) { byId[q.id] = q; });
         var ordered = [];
         state.shuffleOrder.forEach(function (id) {
-          if (map[id]) ordered.push(map[id]);
+          if (byId[id]) ordered.push(byId[id]);
         });
-        base.forEach(function (q) {
+        list.forEach(function (q) {
           if (ordered.indexOf(q) < 0) ordered.push(q);
         });
         return ordered;
+      }
+      return list;
+    }
+    var base = QUESTIONS.slice();
+    if (state.shuffled) {
+      if (state.shuffleOrder && state.shuffleOrder.length) {
+        var pmap = {};
+        base.forEach(function (q) { pmap[q.id] = q; });
+        var pordered = [];
+        state.shuffleOrder.forEach(function (id) {
+          if (pmap[id]) pordered.push(pmap[id]);
+        });
+        base.forEach(function (q) {
+          if (pordered.indexOf(q) < 0) pordered.push(q);
+        });
+        return pordered;
       }
       return shuffleArray(base);
     }
@@ -152,44 +221,49 @@
   }
 
   function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    if (state.scene === "home") return;
+    localStorage.setItem(storageKey(), JSON.stringify({
       mode: state.mode,
       index: state.index,
-      removed: Array.from(state.removed),
       answers: state.answers,
-      correct: state.correct,
-      wrong: state.wrong,
       shuffled: state.shuffled,
       shuffleOrder: state.shuffleOrder,
     }));
   }
 
-  function load() {
+  function loadSession() {
+    state.answers = {};
+    state.pending = {};
+    state.index = 0;
+    state.shuffled = false;
+    state.shuffleOrder = null;
+    state.mode = "quiz";
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        // 升级：清掉旧版「移除」误删，题库全部回来
-        try { localStorage.removeItem("jiakao_v7_progress"); localStorage.removeItem("jiakao_v6_progress"); localStorage.removeItem("jiakao_v5_progress"); } catch (_) {}
-        return;
-      }
-      const d = JSON.parse(raw);
+      var raw = localStorage.getItem(storageKey());
+      if (!raw) return;
+      var d = JSON.parse(raw);
       state.mode = d.mode === "memo" ? "memo" : "quiz";
-      // 不再支持移除；忽略历史 removed，两道误删自动恢复
-      state.removed = new Set();
       state.answers = d.answers || {};
-      state.correct = d.correct || 0;
-      state.wrong = d.wrong || 0;
       state.index = d.index || 0;
       state.shuffled = !!d.shuffled;
       state.shuffleOrder = d.shuffleOrder || null;
     } catch (_) { /* ignore */ }
   }
 
+  function load() {
+    loadWrongIds();
+    try {
+      localStorage.removeItem("jiakao_v8_progress");
+      localStorage.removeItem("jiakao_v7_progress");
+      localStorage.removeItem("jiakao_v6_progress");
+      localStorage.removeItem("jiakao_v5_progress");
+    } catch (_) { /* ignore */ }
+  }
+
   function recount() {
     var ok = 0, bad = 0;
-    for (var i = 0; i < QUESTIONS.length; i++) {
-      var q = QUESTIONS[i];
-      if (state.removed.has(q.id)) continue;
+    for (var i = 0; i < state.list.length; i++) {
+      var q = state.list[i];
       if (!(q.id in state.answers)) continue;
       if (sameAns(state.answers[q.id], q.answer)) ok += 1;
       else bad += 1;
@@ -246,11 +320,7 @@
     clearAuto();
     if (!state.shuffled) {
       state.shuffled = true;
-      var ids = buildList().map(function (q) { return q.id; });
-      // buildList still module order until we set shuffleOrder
-      state.shuffleOrder = shuffleArray(QUESTIONS.filter(function (q) {
-        return !state.removed.has(q.id);
-      }).map(function (q) { return q.id; }));
+      state.shuffleOrder = shuffleArray(buildList().map(function (q) { return q.id; }));
       state.index = 0;
     } else {
       state.shuffled = false;
@@ -259,6 +329,29 @@
     }
     refreshList();
     save();
+    render();
+  }
+
+  function showHome() {
+    clearAuto();
+    closeKoujue();
+    closeClearSheet();
+    state.scene = "home";
+    if (els.gridSheet) els.gridSheet.hidden = true;
+    if (els.homePage) els.homePage.hidden = false;
+    updateHomeCounts();
+  }
+
+  function enterScene(scene) {
+    clearAuto();
+    closeKoujue();
+    closeClearSheet();
+    state.scene = scene;
+    state.pending = {};
+    if (els.homePage) els.homePage.hidden = true;
+    loadSession();
+    refreshList();
+    if (state.index >= state.list.length) state.index = Math.max(0, state.list.length - 1);
     render();
   }
 
@@ -277,15 +370,21 @@
     recount();
     els.statCorrect.textContent = state.correct;
     els.statWrong.textContent = state.wrong;
+    if (els.pageTitle) els.pageTitle.textContent = isReview() ? "错题回顾" : "答题练习";
 
     if (!state.list.length) {
       els.quizPanel.hidden = false;
       els.resultPanel.hidden = true;
-      els.questionText.textContent = "题都被移除了，点清空再练一遍。";
+      els.questionText.textContent = isReview()
+        ? "还没有错题。去答题练习做错的题会收进来。"
+        : "没有题目。";
       els.optionsList.innerHTML = "";
       els.explainBox.hidden = true;
       els.multiBar.hidden = true;
       els.progressText.textContent = "0/0";
+      if (els.moduleBar) {
+        els.moduleBar.textContent = isReview() ? "错题回顾 · 0 题" : "模块：—";
+      }
       return;
     }
 
@@ -297,11 +396,15 @@
     renderImage(q);
     els.progressText.textContent = (state.index + 1) + "/" + state.list.length;
     if (els.moduleBar) {
-      var mod = moduleName(q);
-      var range = moduleRangeLabel(mod);
-      els.moduleBar.textContent = state.shuffled
-        ? ("乱序模式 · 当前：" + mod)
-        : ("模块顺序 · " + mod + (range ? "（" + range + "）" : ""));
+      if (isReview()) {
+        els.moduleBar.textContent = "错题回顾 · 共 " + state.list.length + " 题";
+      } else {
+        var mod = moduleName(q);
+        var range = moduleRangeLabel(mod);
+        els.moduleBar.textContent = state.shuffled
+          ? ("乱序模式 · 当前：" + mod)
+          : ("模块顺序 · " + mod + (range ? "（" + range + "）" : ""));
+      }
     }
     if (els.btnShuffle) {
       els.btnShuffle.classList.toggle("active", state.shuffled);
@@ -398,6 +501,9 @@
   function commitAnswer(q, value) {
     state.answers[q.id] = value;
     delete state.pending[q.id];
+    if (!isReview() && !sameAns(value, q.answer)) {
+      rememberWrong(q.id);
+    }
     save();
     render();
     if (sameAns(value, q.answer)) {
@@ -509,7 +615,7 @@
     els.progressText.textContent = total + "/" + total;
   }
 
-  function restart() {
+  function resetCurrentSession() {
     clearAuto();
     state.answers = {};
     state.pending = {};
@@ -517,6 +623,8 @@
     state.correct = 0;
     state.wrong = 0;
     state.index = 0;
+    state.shuffled = false;
+    state.shuffleOrder = null;
     refreshList();
     els.gridSheet.hidden = true;
     var clearSheet = document.getElementById("clearSheet");
@@ -525,17 +633,39 @@
     render();
   }
 
+  function restart() {
+    resetCurrentSession();
+  }
+
+  function clearAll() {
+    if (isReview()) {
+      state.wrongIds = [];
+      saveWrongIds();
+      localStorage.removeItem(REVIEW_KEY);
+    } else {
+      localStorage.removeItem(PRACTICE_KEY);
+    }
+    resetCurrentSession();
+    updateHomeCounts();
+  }
+
   function openClearSheet() {
     clearAuto();
+    if (els.clearTitle && els.clearDesc) {
+      if (isReview()) {
+        els.clearTitle.textContent = "清空错题回顾？";
+        els.clearDesc.textContent = "只清错题本。答题练习的进度和题号都还在。";
+      } else {
+        els.clearTitle.textContent = "清空答题练习进度？";
+        els.clearDesc.textContent = "只清练习里的对错和题号。错题回顾里的题不会被清掉。";
+      }
+    }
     document.getElementById("clearSheet").hidden = false;
   }
 
   function closeClearSheet() {
-    document.getElementById("clearSheet").hidden = true;
-  }
-
-  function clearAll() {
-    restart();
+    var el = document.getElementById("clearSheet");
+    if (el) el.hidden = true;
   }
 
   function removeCurrent() {
@@ -584,7 +714,9 @@
   document.getElementById("btnClearConfirm").addEventListener("click", clearAll);
   document.getElementById("clearMask").addEventListener("click", closeClearSheet);
   document.getElementById("btnClearCancel").addEventListener("click", closeClearSheet);
-  document.getElementById("btnBack").addEventListener("click", function () { flipTo(-1); });
+  document.getElementById("btnHome").addEventListener("click", showHome);
+  document.getElementById("btnGoPractice").addEventListener("click", function () { enterScene("practice"); });
+  document.getElementById("btnGoReview").addEventListener("click", function () { enterScene("review"); });
   els.btnMultiSubmit.addEventListener("click", submitMulti);
   document.getElementById("btnShuffle").addEventListener("click", toggleShuffle);
   document.getElementById("btnKoujue").addEventListener("click", openKoujue);
@@ -662,7 +794,6 @@
   });
 
   load();
-  refreshList();
   closeKoujue();
-  render();
+  showHome();
 })();

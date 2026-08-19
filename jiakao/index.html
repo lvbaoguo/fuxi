@@ -7,15 +7,28 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>科目一</title>
-  <link rel="stylesheet" href="css/style.css?v=20260819kj2" />
+  <link rel="stylesheet" href="css/style.css?v=20260819home1" />
 </head>
 <body>
+  <div class="home-page" id="homePage">
+    <div class="home-inner">
+      <h1>科目一</h1>
+      <p class="home-sub">先选要做的事</p>
+      <button type="button" class="home-card" id="btnGoPractice">
+        <strong>答题练习</strong>
+        <span>500 道，按模块练</span>
+      </button>
+      <button type="button" class="home-card home-card-review" id="btnGoReview">
+        <strong>错题回顾</strong>
+        <span id="wrongCountLabel">已收录 0 题</span>
+      </button>
+    </div>
+  </div>
+
   <div class="phone">
     <header class="topbar">
-      <button type="button" class="icon-btn" id="btnBack" aria-label="上一题">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
-      <h1>科目一 · 500</h1>
+      <button type="button" class="home-btn" id="btnHome">首页</button>
+      <h1 id="pageTitle">答题练习</h1>
       <button type="button" class="clear-btn" id="btnClear">清空</button>
     </header>
 
@@ -89,8 +102,8 @@
   <div class="sheet" id="clearSheet" hidden>
     <div class="sheet-mask" id="clearMask"></div>
     <div class="sheet-body clear-sheet-body">
-      <p class="clear-title">清空答题进度？</p>
-      <p class="clear-desc">对错记录会清掉，从第 1 题重来。题库 500 道全部保留。</p>
+      <p class="clear-title" id="clearTitle">清空答题练习进度？</p>
+      <p class="clear-desc" id="clearDesc">只清练习里的对错和题号，从第 1 题重来。错题回顾里的题不会被清掉。</p>
       <button type="button" class="clear-confirm" id="btnClearConfirm">确定清空</button>
       <button type="button" class="clear-cancel" id="btnClearCancel">取消</button>
     </div>
@@ -236,7 +249,7 @@
     </div>
   </div>
 
-  <script src="js/questions.js?v=20260819kj2"></script>
-  <script src="js/app.js?v=20260819kj2"></script>
+  <script src="js/questions.js?v=20260819home1"></script>
+  <script src="js/app.js?v=20260819home1"></script>
 </body>
 </html>
