@@ -555,10 +555,11 @@ body {
 .dock {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
+  gap: 4px;
   min-height: 56px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
   background: var(--bar);
   border-top: 1px solid #eee;
@@ -568,9 +569,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 16px;
+  font-size: 15px;
   color: #333;
   min-height: var(--tap);
+  padding-right: 4px;
 }
 
 .ok-ico, .bad-ico {
@@ -585,7 +587,7 @@ body {
 }
 
 .ok-ico { background: var(--ok); }
-.bad-ico { background: var(--bad); margin-left: 8px; }
+.bad-ico { background: var(--bad); margin-left: 6px; }
 
 .dock-progress {
   display: inline-flex;
@@ -593,28 +595,46 @@ body {
   justify-content: center;
   gap: 6px;
   min-height: var(--tap);
-  padding: 0 10px;
+  padding: 0 8px;
   border: 0;
   background: transparent;
   color: #333;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
 }
 
-.dock-remove {
-  justify-self: end;
-  min-height: var(--tap);
+.dock-action {
+  min-width: 56px;
+  min-height: 40px;
   padding: 0 10px;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 16px;
-  font-weight: 600;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.dock-action.active {
+  border-color: var(--accent);
+  background: #fff4eb;
+  color: var(--accent);
+}
+
+.dock-koujue {
+  border-color: var(--pill);
+  color: #15803d;
+  background: var(--ok-soft);
+}
+
+.dock-koujue:active,
+.dock-action:active {
+  opacity: .85;
 }
 
 .sheet {
