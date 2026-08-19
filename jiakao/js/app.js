@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "jiakao_v7_progress";
+  const STORAGE_KEY = "jiakao_v8_progress";
 
   const state = {
     mode: "quiz",
@@ -167,10 +167,15 @@
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        // 升级：清掉旧版「移除」误删，题库全部回来
+        try { localStorage.removeItem("jiakao_v7_progress"); localStorage.removeItem("jiakao_v6_progress"); localStorage.removeItem("jiakao_v5_progress"); } catch (_) {}
+        return;
+      }
       const d = JSON.parse(raw);
       state.mode = d.mode === "memo" ? "memo" : "quiz";
-      state.removed = new Set(d.removed || []);
+      // 不再支持移除；忽略历史 removed，两道误删自动恢复
+      state.removed = new Set();
       state.answers = d.answers || {};
       state.correct = d.correct || 0;
       state.wrong = d.wrong || 0;
@@ -300,7 +305,7 @@
     }
     if (els.btnShuffle) {
       els.btnShuffle.classList.toggle("active", state.shuffled);
-      els.btnShuffle.textContent = state.shuffled ? "打乱题序 · 开" : "打乱题序";
+      els.btnShuffle.textContent = state.shuffled ? "乱序·开" : "打乱";
     }
 
     var picked = state.answers[q.id];
@@ -534,15 +539,7 @@
   }
 
   function removeCurrent() {
-    var q = currentQ();
-    if (!q) return;
-    clearAuto();
-    state.removed.add(q.id);
-    delete state.answers[q.id];
-    delete state.pending[q.id];
-    refreshList();
-    save();
-    render();
+    // 已取消「移除」，保留空函数防旧缓存报错
   }
 
   function openGrid() {
@@ -582,7 +579,6 @@
   document.getElementById("btnGrid").addEventListener("click", openGrid);
   document.getElementById("sheetMask").addEventListener("click", function () { els.gridSheet.hidden = true; });
   document.getElementById("btnCloseSheet").addEventListener("click", function () { els.gridSheet.hidden = true; });
-  document.getElementById("btnRemove").addEventListener("click", removeCurrent);
   document.getElementById("btnRestartResult").addEventListener("click", restart);
   document.getElementById("btnClear").addEventListener("click", openClearSheet);
   document.getElementById("btnClearConfirm").addEventListener("click", clearAll);
