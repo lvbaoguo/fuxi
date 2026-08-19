@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "jiakao_v5_progress";
+  const STORAGE_KEY = "jiakao_v6_progress";
 
   const state = {
     mode: "quiz",
@@ -9,6 +9,7 @@
     list: [],
     removed: new Set(),
     answers: {},
+    pending: {},
     correct: 0,
     wrong: 0,
     autoTimer: 0,
@@ -21,6 +22,8 @@
     questionImage: document.getElementById("questionImage"),
     questionImageCaption: document.getElementById("questionImageCaption"),
     optionsList: document.getElementById("optionsList"),
+    multiBar: document.getElementById("multiBar"),
+    btnMultiSubmit: document.getElementById("btnMultiSubmit"),
     explainBox: document.getElementById("explainBox"),
     explainText: document.getElementById("explainText"),
     quizPanel: document.getElementById("quizPanel"),
@@ -39,11 +42,39 @@
   }
 
   function typeLabel(type) {
+    if (type === "multi") return "多选题";
+    if (type === "tf") return "判断题";
     return "单选题";
   }
 
+  function normAns(a) {
+    if (Array.isArray(a)) return a.map(Number).sort(function (x, y) { return x - y; });
+    return a;
+  }
+
+  function sameAns(a, b) {
+    const aa = normAns(a);
+    const bb = normAns(b);
+    if (Array.isArray(aa) || Array.isArray(bb)) {
+      const x = Array.isArray(aa) ? aa : [aa];
+      const y = Array.isArray(bb) ? bb : [bb];
+      return x.length === y.length && x.every(function (v, i) { return v === y[i]; });
+    }
+    return aa === bb;
+  }
+
+  function isMulti(q) {
+    return q && q.type === "multi";
+  }
+
+  function answerLetters(q) {
+    const a = normAns(q.answer);
+    if (Array.isArray(a)) return a.map(letter).join("");
+    return letter(a);
+  }
+
   function buildList() {
-    return QUESTIONS.filter((q) => !state.removed.has(q.id));
+    return QUESTIONS.filter(function (q) { return !state.removed.has(q.id); });
   }
 
   function clearAuto() {
@@ -57,7 +88,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       mode: state.mode,
       index: state.index,
-      removed: [...state.removed],
+      removed: Array.from(state.removed),
       answers: state.answers,
       correct: state.correct,
       wrong: state.wrong,
@@ -79,11 +110,12 @@
   }
 
   function recount() {
-    let ok = 0, bad = 0;
-    for (const q of QUESTIONS) {
+    var ok = 0, bad = 0;
+    for (var i = 0; i < QUESTIONS.length; i++) {
+      var q = QUESTIONS[i];
       if (state.removed.has(q.id)) continue;
       if (!(q.id in state.answers)) continue;
-      if (state.answers[q.id] === q.answer) ok += 1;
+      if (sameAns(state.answers[q.id], q.answer)) ok += 1;
       else bad += 1;
     }
     state.correct = ok;
@@ -117,6 +149,11 @@
     }
   }
 
+  function getPending(qid) {
+    if (!state.pending[qid]) state.pending[qid] = [];
+    return state.pending[qid];
+  }
+
   function render() {
     document.getElementById("modeQuiz").classList.toggle("active", state.mode === "quiz");
     document.getElementById("modeMemo").classList.toggle("active", state.mode === "memo");
@@ -127,14 +164,15 @@
     if (!state.list.length) {
       els.quizPanel.hidden = false;
       els.resultPanel.hidden = true;
-      els.questionText.textContent = "题都被移除了，点关闭再练一遍。";
+      els.questionText.textContent = "题都被移除了，点清空再练一遍。";
       els.optionsList.innerHTML = "";
       els.explainBox.hidden = true;
+      els.multiBar.hidden = true;
       els.progressText.textContent = "0/0";
       return;
     }
 
-    const q = currentQ();
+    var q = currentQ();
     els.quizPanel.hidden = false;
     els.resultPanel.hidden = true;
     els.typeTag.textContent = typeLabel(q.type);
@@ -142,35 +180,53 @@
     renderImage(q);
     els.progressText.textContent = (state.index + 1) + "/" + state.list.length;
 
-    const picked = state.answers[q.id];
-    const answered = picked !== undefined;
-    const isWrong = answered && picked !== q.answer;
-    const showMark = state.mode === "memo" || answered;
-    const showExplain = state.mode === "memo" || isWrong;
+    var picked = state.answers[q.id];
+    var answered = picked !== undefined;
+    var isWrong = answered && !sameAns(picked, q.answer);
+    var showMark = state.mode === "memo" || answered;
+    var showExplain = state.mode === "memo" || isWrong;
+    var pending = getPending(q.id);
+    var multiMode = isMulti(q);
+
+    els.multiBar.hidden = !(multiMode && state.mode === "quiz" && !answered);
+    if (!els.multiBar.hidden) {
+      els.btnMultiSubmit.disabled = pending.length === 0;
+    }
 
     els.optionsList.innerHTML = "";
-    q.options.forEach((opt, i) => {
-      const btn = document.createElement("button");
+    els.optionsList.classList.toggle("is-multi", multiMode);
+
+    q.options.forEach(function (opt, i) {
+      var btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "opt";
-      const radio = document.createElement("span");
-      radio.className = "radio";
-      const lab = document.createElement("span");
+      btn.className = "opt" + (multiMode ? " opt-multi" : "");
+      var mark = document.createElement("span");
+      mark.className = multiMode ? "check" : "radio";
+      var lab = document.createElement("span");
+      lab.className = "opt-text";
       lab.textContent = letter(i) + "、" + opt;
-      btn.appendChild(radio);
+      btn.appendChild(mark);
       btn.appendChild(lab);
-      if (showMark) {
-        if (i === q.answer) btn.classList.add("right");
-        if (answered && i === picked && i !== q.answer) btn.classList.add("wrong");
-        if (state.mode === "memo" && i === q.answer) btn.classList.add("picked");
+
+      var ansArr = Array.isArray(normAns(q.answer)) ? normAns(q.answer) : [q.answer];
+      var pickedArr = answered ? (Array.isArray(picked) ? normAns(picked) : [picked]) : [];
+
+      if (!answered && multiMode && state.mode === "quiz" && pending.indexOf(i) >= 0) {
+        btn.classList.add("picked");
       }
-      btn.addEventListener("click", () => select(i));
+
+      if (showMark) {
+        if (ansArr.indexOf(i) >= 0) btn.classList.add("right");
+        if (answered && pickedArr.indexOf(i) >= 0 && ansArr.indexOf(i) < 0) btn.classList.add("wrong");
+        if (state.mode === "memo" && ansArr.indexOf(i) >= 0) btn.classList.add("picked");
+      }
+
+      btn.addEventListener("click", function () { select(i); });
       els.optionsList.appendChild(btn);
     });
 
     if (showExplain) {
-      const letterAns = letter(q.answer);
-      els.explainText.textContent = "正确答案：" + letterAns + "。 " + q.explain;
+      els.explainText.textContent = "正确答案：" + answerLetters(q) + "。 " + q.explain;
       els.explainBox.hidden = false;
     } else {
       els.explainBox.hidden = true;
@@ -178,21 +234,48 @@
     setSlideX(els.quizPanel, 0, 0);
   }
 
-  function select(i) {
-    const q = currentQ();
-    if (!q) return;
-    if (state.mode === "memo") return;
-    if (q.id in state.answers) return;
-    state.answers[q.id] = i;
+  function commitAnswer(q, value) {
+    state.answers[q.id] = value;
+    delete state.pending[q.id];
     save();
     render();
-    if (i === q.answer) {
+    if (sameAns(value, q.answer)) {
       clearAuto();
-      state.autoTimer = setTimeout(() => {
+      state.autoTimer = setTimeout(function () {
         state.autoTimer = 0;
         flipTo(1);
       }, 1000);
     }
+  }
+
+  function select(i) {
+    var q = currentQ();
+    if (!q) return;
+    if (state.mode === "memo") return;
+    if (q.id in state.answers) return;
+
+    if (isMulti(q)) {
+      var pending = getPending(q.id).slice();
+      var pos = pending.indexOf(i);
+      if (pos >= 0) pending.splice(pos, 1);
+      else pending.push(i);
+      pending.sort(function (a, b) { return a - b; });
+      state.pending[q.id] = pending;
+      render();
+      return;
+    }
+
+    commitAnswer(q, i);
+  }
+
+  function submitMulti() {
+    var q = currentQ();
+    if (!q || !isMulti(q)) return;
+    if (state.mode === "memo") return;
+    if (q.id in state.answers) return;
+    var pending = getPending(q.id);
+    if (!pending.length) return;
+    commitAnswer(q, pending.slice());
   }
 
   function go(delta) {
@@ -206,7 +289,7 @@
       render();
       return;
     }
-    const next = state.index + delta;
+    var next = state.index + delta;
     if (next < 0) return;
     if (next >= state.list.length) {
       showResult();
@@ -217,7 +300,7 @@
     render();
   }
 
-  let flipping = false;
+  var flipping = false;
 
   function activeSlide() {
     return els.resultPanel.hidden ? els.quizPanel : els.resultPanel;
@@ -235,14 +318,14 @@
       setSlideX(activeSlide(), 0, 180);
       return;
     }
-    const el = activeSlide();
-    const w = Math.max(document.getElementById("swipeStage").clientWidth, 280);
+    var el = activeSlide();
+    var w = Math.max(document.getElementById("swipeStage").clientWidth, 280);
     flipping = true;
     clearAuto();
     setSlideX(el, delta > 0 ? -w : w, 220);
     setTimeout(function () {
       go(delta);
-      const el2 = activeSlide();
+      var el2 = activeSlide();
       setSlideX(el2, delta > 0 ? w : -w, 0);
       el2.offsetHeight;
       setSlideX(el2, 0, 220);
@@ -253,10 +336,11 @@
   function showResult() {
     clearAuto();
     recount();
-    const total = state.list.length;
-    const score = total ? Math.round((state.correct / total) * 100) : 0;
+    var total = state.list.length;
+    var score = total ? Math.round((state.correct / total) * 100) : 0;
     els.quizPanel.hidden = true;
     els.resultPanel.hidden = false;
+    els.multiBar.hidden = true;
     els.resultScore.textContent = score + " 分";
     els.resultDetail.textContent =
       "共 " + total + " 题，答对 " + state.correct + "，答错 " + state.wrong +
@@ -267,13 +351,14 @@
   function restart() {
     clearAuto();
     state.answers = {};
+    state.pending = {};
     state.removed = new Set();
     state.correct = 0;
     state.wrong = 0;
     state.index = 0;
     refreshList();
     els.gridSheet.hidden = true;
-    const clearSheet = document.getElementById("clearSheet");
+    var clearSheet = document.getElementById("clearSheet");
     if (clearSheet) clearSheet.hidden = true;
     save();
     render();
@@ -293,11 +378,12 @@
   }
 
   function removeCurrent() {
-    const q = currentQ();
+    var q = currentQ();
     if (!q) return;
     clearAuto();
     state.removed.add(q.id);
     delete state.answers[q.id];
+    delete state.pending[q.id];
     refreshList();
     save();
     render();
@@ -305,15 +391,15 @@
 
   function openGrid() {
     els.qGrid.innerHTML = "";
-    state.list.forEach((q, i) => {
-      const b = document.createElement("button");
+    state.list.forEach(function (q, i) {
+      var b = document.createElement("button");
       b.type = "button";
       b.textContent = i + 1;
       if (i === state.index) b.classList.add("cur");
       if (q.id in state.answers) {
-        b.classList.add(state.answers[q.id] === q.answer ? "ok" : "bad");
+        b.classList.add(sameAns(state.answers[q.id], q.answer) ? "ok" : "bad");
       }
-      b.addEventListener("click", () => {
+      b.addEventListener("click", function () {
         clearAuto();
         state.index = i;
         els.gridSheet.hidden = true;
@@ -325,31 +411,32 @@
     els.gridSheet.hidden = false;
   }
 
-  document.getElementById("modeQuiz").addEventListener("click", () => {
+  document.getElementById("modeQuiz").addEventListener("click", function () {
     clearAuto();
     state.mode = "quiz";
     save();
     render();
   });
-  document.getElementById("modeMemo").addEventListener("click", () => {
+  document.getElementById("modeMemo").addEventListener("click", function () {
     clearAuto();
     state.mode = "memo";
     save();
     render();
   });
   document.getElementById("btnGrid").addEventListener("click", openGrid);
-  document.getElementById("sheetMask").addEventListener("click", () => { els.gridSheet.hidden = true; });
-  document.getElementById("btnCloseSheet").addEventListener("click", () => { els.gridSheet.hidden = true; });
+  document.getElementById("sheetMask").addEventListener("click", function () { els.gridSheet.hidden = true; });
+  document.getElementById("btnCloseSheet").addEventListener("click", function () { els.gridSheet.hidden = true; });
   document.getElementById("btnRemove").addEventListener("click", removeCurrent);
   document.getElementById("btnRestartResult").addEventListener("click", restart);
   document.getElementById("btnClear").addEventListener("click", openClearSheet);
   document.getElementById("btnClearConfirm").addEventListener("click", clearAll);
   document.getElementById("clearMask").addEventListener("click", closeClearSheet);
   document.getElementById("btnClearCancel").addEventListener("click", closeClearSheet);
-  document.getElementById("btnBack").addEventListener("click", () => flipTo(-1));
+  document.getElementById("btnBack").addEventListener("click", function () { flipTo(-1); });
+  els.btnMultiSubmit.addEventListener("click", submitMulti);
 
-  const stage = document.getElementById("swipeStage");
-  const drag = { on: false, x: 0, y: 0, dx: 0, axis: "", skipClick: false, pid: 0 };
+  var stage = document.getElementById("swipeStage");
+  var drag = { on: false, x: 0, y: 0, dx: 0, axis: "", skipClick: false, pid: 0 };
 
   function onDragStart(x, y, pid) {
     if (flipping) return;
@@ -365,8 +452,8 @@
 
   function onDragMove(x, y, e) {
     if (!drag.on) return;
-    const dx = x - drag.x;
-    const dy = y - drag.y;
+    var dx = x - drag.x;
+    var dy = y - drag.y;
     if (!drag.axis) {
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
       drag.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
@@ -378,7 +465,7 @@
     if (e && e.cancelable) e.preventDefault();
     drag.dx = dx;
     drag.skipClick = true;
-    let tx = dx;
+    var tx = dx;
     if (els.resultPanel.hidden && state.index <= 0 && dx > 0) tx = dx * 0.28;
     setSlideX(activeSlide(), tx, 0);
   }
@@ -386,8 +473,8 @@
   function onDragEnd() {
     if (!drag.on) return;
     drag.on = false;
-    const dx = drag.dx;
-    const axis = drag.axis;
+    var dx = drag.dx;
+    var axis = drag.axis;
     drag.axis = "";
     if (axis !== "x") return;
     if (Math.abs(dx) < 56) {
@@ -397,16 +484,16 @@
     flipTo(dx < 0 ? 1 : -1);
   }
 
-  stage.addEventListener("pointerdown", (e) => {
+  stage.addEventListener("pointerdown", function (e) {
     if (e.button != null && e.button !== 0) return;
-    if (e.target.closest(".again-btn")) return;
+    if (e.target.closest(".again-btn, .multi-submit")) return;
     onDragStart(e.clientX, e.clientY, e.pointerId);
   });
-  stage.addEventListener("pointermove", (e) => onDragMove(e.clientX, e.clientY, e), { passive: false });
+  stage.addEventListener("pointermove", function (e) { onDragMove(e.clientX, e.clientY, e); }, { passive: false });
   stage.addEventListener("pointerup", onDragEnd);
   stage.addEventListener("pointercancel", onDragEnd);
 
-  els.optionsList.addEventListener("click", (e) => {
+  els.optionsList.addEventListener("click", function (e) {
     if (drag.skipClick) {
       e.preventDefault();
       e.stopPropagation();
@@ -414,7 +501,7 @@
     }
   }, true);
 
-  window.addEventListener("keydown", (e) => {
+  window.addEventListener("keydown", function (e) {
     if (e.key === "ArrowLeft") flipTo(-1);
     if (e.key === "ArrowRight") flipTo(1);
   });

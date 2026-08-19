@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>科目一</title>
-  <link rel="stylesheet" href="css/style.css?v=20260819m" />
+  <link rel="stylesheet" href="css/style.css?v=20260819q500" />
 </head>
 <body>
   <div class="phone">
@@ -15,7 +15,7 @@
       <button type="button" class="icon-btn" id="btnBack" aria-label="上一题">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <h1>科目一</h1>
+      <h1>科目一 · 500</h1>
       <button type="button" class="clear-btn" id="btnClear">清空</button>
     </header>
 
@@ -37,6 +37,10 @@
           <figcaption id="questionImageCaption" hidden></figcaption>
         </figure>
         <div class="options" id="optionsList"></div>
+        <div class="multi-bar" id="multiBar" hidden>
+          <p class="multi-tip">多选题：可选多项，选完点提交</p>
+          <button type="button" class="multi-submit" id="btnMultiSubmit">提交答案</button>
+        </div>
         <div class="explain" id="explainBox" hidden>
           <div class="explain-hd">解析</div>
           <p id="explainText"></p>
@@ -90,7 +94,7 @@
     </div>
   </div>
 
-  <script src="js/questions.js?v=20260819m"></script>
-  <script src="js/app.js?v=20260819m"></script>
+  <script src="js/questions.js?v=20260819q500"></script>
+  <script src="js/app.js?v=20260819q500"></script>
 </body>
 </html>
