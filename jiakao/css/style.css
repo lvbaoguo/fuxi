@@ -565,11 +565,11 @@ body {
   color: #111;
 }
 
-.koujue-card p {
-  font-size: 14px;
-  line-height: 1.7;
+.koujue-card p:not(.note) {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
   color: #333;
-  white-space: pre-wrap;
 }
 
 .koujue-card .note {
