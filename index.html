@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-06 persist history answers -->
+  <!-- gh-deploy: 2026-09-06 persist all 3 subjects progress -->
   <style>
     :root {
       --bg: #ffffff;
@@ -1643,6 +1643,7 @@
       const quiz = document.getElementById("xi-quiz-view");
       if (quiz && !quiz.hidden) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
+        if (typeof persistXiProgress === "function") persistXiProgress();
       }
       if (stub) stub.hidden = true;
       if (quiz) {
@@ -1659,6 +1660,7 @@
       const quiz = document.getElementById("marx-quiz-view");
       if (quiz && !quiz.hidden) {
         marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
+        if (typeof persistMarxProgress === "function") persistMarxProgress();
       }
       if (stub) stub.hidden = true;
       if (quiz) {
@@ -4035,6 +4037,7 @@
     }
 
     const MARX_RESULT_STORAGE_KEY = "pansan2-marx-chapter-results-v1";
+    const MARX_PROGRESS_STORAGE_KEY = "pansan2-marx-chapter-progress-v1";
     let marxChapterResults = {};
     (function initMarxResultsFromStorage() {
       try {
@@ -4050,6 +4053,53 @@
         localStorage.setItem(MARX_RESULT_STORAGE_KEY, JSON.stringify(marxChapterResults));
       } catch (_) {}
     }
+
+    function persistMarxProgress() {
+      persistMarxResults();
+      try {
+        const last = {};
+        const order = {};
+        for (let ch = 1; ch <= 8; ch++) {
+          if (typeof marxChapterLastIndex[ch] === "number") last[ch] = marxChapterLastIndex[ch];
+          if (marxDisplayOrder[ch]) order[ch] = marxDisplayOrder[ch];
+        }
+        localStorage.setItem(MARX_PROGRESS_STORAGE_KEY, JSON.stringify({ last, order }));
+      } catch (_) {}
+    }
+
+    function firstUnansweredMarxIndex(ch) {
+      const qs = marxQuestionsForChapter(ch);
+      const res = marxChapterResults[String(ch)];
+      if (!res || !qs.length) return 0;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return i;
+      }
+      return Math.max(0, qs.length - 1);
+    }
+
+    function rememberMarxIndex() {
+      if (marxQuizChapter >= 1 && marxQuizChapter <= 8) {
+        marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
+        persistMarxProgress();
+      }
+    }
+
+    (function initMarxProgressFromStorage() {
+      try {
+        const raw = localStorage.getItem(MARX_PROGRESS_STORAGE_KEY);
+        if (!raw) return;
+        const prog = JSON.parse(raw);
+        if (!prog || typeof prog !== "object") return;
+        const last = prog.last || {};
+        const order = prog.order || {};
+        for (let ch = 1; ch <= 8; ch++) {
+          const ix = last[ch] != null ? last[ch] : last[String(ch)];
+          if (typeof ix === "number") marxChapterLastIndex[ch] = ix;
+          const o = order[ch] || order[String(ch)];
+          if (Array.isArray(o)) marxDisplayOrder[ch] = o;
+        }
+      } catch (_) {}
+    })();
 
     function ensureMarxResults(ch) {
       const qs = marxQuestionsForChapter(ch);
@@ -4346,6 +4396,7 @@
 
       if (!marxQuizViewEl.hidden && marxQuizChapter !== ch) {
         marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
+        persistMarxProgress();
       }
 
       if (choice === "continue") {
@@ -4357,7 +4408,7 @@
         ensureMarxResults(ch);
         const maxIx = Math.max(0, qs.length - 1);
         let ix = marxChapterLastIndex[ch];
-        if (typeof ix !== "number" || ix < 0) ix = 0;
+        if (typeof ix !== "number" || ix < 0) ix = firstUnansweredMarxIndex(ch);
         if (ix > maxIx) ix = maxIx;
         marxQuizIndex = ix;
         marxQuizViewEl.classList.remove("is-submitted");
@@ -4369,11 +4420,12 @@
       marxQuizChapter = ch;
       marxQuizIndex = 0;
       delete marxDisplayOrder[ch];
+      delete marxChapterLastIndex[ch];
       ensureMarxResults(ch);
       const qs = marxQuestionsForChapter(ch);
       const key = String(ch);
       marxChapterResults[key] = qs.map(() => null);
-      persistMarxResults();
+      persistMarxProgress();
 
       marxChapterListEl.hidden = true;
       if (marxChapterStubEl) marxChapterStubEl.hidden = true;
@@ -4475,7 +4527,8 @@
         if (!ok) {
           addMarxWrongQuestion(marxQuizChapter, origIdx);
         }
-        persistMarxResults();
+        persistMarxProgress();
+        rememberMarxIndex();
         recomputeMarxStats();
         marxQuizViewEl.classList.add("is-submitted");
         mqOptionsEl.querySelectorAll("input").forEach((inp) => {
@@ -4495,6 +4548,7 @@
         const qs = marxQuestionsForChapter(marxQuizChapter);
         if (marxQuizIndex < qs.length - 1) {
           marxQuizIndex += 1;
+          rememberMarxIndex();
           renderMarxQuiz();
         }
       });
@@ -4504,6 +4558,7 @@
       mqPrev.addEventListener("click", () => {
         if (marxQuizIndex > 0) {
           marxQuizIndex -= 1;
+          rememberMarxIndex();
           renderMarxQuiz();
         }
       });
@@ -9599,6 +9654,7 @@
     const XI_WRONG_STORAGE_KEY = "pansan2-xi-wrong-v1";
     const XI_MASTERY_STORAGE_KEY = "pansan2-xi-mastery-v1";
     const XI_RESULT_STORAGE_KEY = "pansan2-xi-chapter-results-v1";
+    const XI_PROGRESS_STORAGE_KEY = "pansan2-xi-chapter-progress-v1";
 
     const XI_QUIZ_TYPE_LABELS = [
       "",
@@ -10209,6 +10265,53 @@
       } catch (_) {}
     }
 
+    function persistXiProgress() {
+      persistXiResults();
+      try {
+        const last = {};
+        const order = {};
+        for (let ch = 1; ch <= 18; ch++) {
+          if (typeof xiChapterLastIndex[ch] === "number") last[ch] = xiChapterLastIndex[ch];
+          if (xiDisplayOrder[ch]) order[ch] = xiDisplayOrder[ch];
+        }
+        localStorage.setItem(XI_PROGRESS_STORAGE_KEY, JSON.stringify({ last, order }));
+      } catch (_) {}
+    }
+
+    function firstUnansweredXiIndex(ch) {
+      const qs = xiQuestionsForChapter(ch);
+      const res = xiChapterResults[String(ch)];
+      if (!res || !qs.length) return 0;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return i;
+      }
+      return Math.max(0, qs.length - 1);
+    }
+
+    function rememberXiIndex() {
+      if (xiQuizChapter >= 1 && xiQuizChapter <= 18) {
+        xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
+        persistXiProgress();
+      }
+    }
+
+    (function initXiProgressFromStorage() {
+      try {
+        const raw = localStorage.getItem(XI_PROGRESS_STORAGE_KEY);
+        if (!raw) return;
+        const prog = JSON.parse(raw);
+        if (!prog || typeof prog !== "object") return;
+        const last = prog.last || {};
+        const order = prog.order || {};
+        for (let ch = 1; ch <= 18; ch++) {
+          const ix = last[ch] != null ? last[ch] : last[String(ch)];
+          if (typeof ix === "number") xiChapterLastIndex[ch] = ix;
+          const o = order[ch] || order[String(ch)];
+          if (Array.isArray(o)) xiDisplayOrder[ch] = o;
+        }
+      } catch (_) {}
+    })();
+
     function ensureXiResults(ch) {
       const qs = xiQuestionsForChapter(ch);
       const key = String(ch);
@@ -10489,6 +10592,7 @@
 
       if (!xiQuizViewEl.hidden && xiQuizChapter !== ch) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
+        persistXiProgress();
       }
 
       if (choice === "continue") {
@@ -10500,7 +10604,7 @@
         ensureXiResults(ch);
         const maxIx = Math.max(0, qs.length - 1);
         let ix = xiChapterLastIndex[ch];
-        if (typeof ix !== "number" || ix < 0) ix = 0;
+        if (typeof ix !== "number" || ix < 0) ix = firstUnansweredXiIndex(ch);
         if (ix > maxIx) ix = maxIx;
         xiQuizIndex = ix;
         xiQuizViewEl.classList.remove("is-submitted");
@@ -10512,11 +10616,12 @@
       xiQuizChapter = ch;
       xiQuizIndex = 0;
       delete xiDisplayOrder[ch];
+      delete xiChapterLastIndex[ch];
       ensureXiResults(ch);
       const qs = xiQuestionsForChapter(ch);
       const key = String(ch);
       xiChapterResults[key] = qs.map(() => null);
-      persistXiResults();
+      persistXiProgress();
 
       xiChapterListEl.hidden = true;
       if (xiChapterStubEl) xiChapterStubEl.hidden = true;
@@ -10618,7 +10723,8 @@
         if (!ok) {
           addXiWrongQuestion(xiQuizChapter, origIdx);
         }
-        persistXiResults();
+        persistXiProgress();
+        rememberXiIndex();
         recomputeXiStats();
         xiQuizViewEl.classList.add("is-submitted");
         xqOptionsEl.querySelectorAll("input").forEach((inp) => {
@@ -10638,6 +10744,7 @@
         const qs = xiQuestionsForChapter(xiQuizChapter);
         if (xiQuizIndex < qs.length - 1) {
           xiQuizIndex += 1;
+          rememberXiIndex();
           renderXiQuiz();
         }
       });
@@ -10647,6 +10754,7 @@
       xqPrev.addEventListener("click", () => {
         if (xiQuizIndex > 0) {
           xiQuizIndex -= 1;
+          rememberXiIndex();
           renderXiQuiz();
         }
       });
@@ -16189,9 +16297,17 @@
     });
 
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") rememberHistoryIndex();
+      if (document.visibilityState === "hidden") {
+        rememberHistoryIndex();
+        rememberMarxIndex();
+        rememberXiIndex();
+      }
     });
-    window.addEventListener("pagehide", rememberHistoryIndex);
+    window.addEventListener("pagehide", () => {
+      rememberHistoryIndex();
+      rememberMarxIndex();
+      rememberXiIndex();
+    });
 
     chContinueBtn.addEventListener("click", () => {
       if (historyQuizChapter === 1) openHistoryQuiz(2);
@@ -16242,8 +16358,9 @@
         marxDisplayOrder[ch] = shuffleIndices(n);
         marxChapterResults[String(ch)] = qs.map(() => null);
         marxQuizIndex = 0;
+        marxChapterLastIndex[ch] = 0;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
-        persistMarxResults();
+        persistMarxProgress();
         recomputeMarxStats();
         renderMarxQuiz();
       });
@@ -16255,8 +16372,9 @@
         const qs = marxQuestionsForChapter(ch);
         marxChapterResults[String(ch)] = qs.map(() => null);
         marxQuizIndex = 0;
+        marxChapterLastIndex[ch] = 0;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
-        persistMarxResults();
+        persistMarxProgress();
         recomputeMarxStats();
         renderMarxQuiz();
       });
@@ -16271,8 +16389,9 @@
         xiDisplayOrder[ch] = shuffleIndices(n);
         xiChapterResults[String(ch)] = qs.map(() => null);
         xiQuizIndex = 0;
+        xiChapterLastIndex[ch] = 0;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
-        persistXiResults();
+        persistXiProgress();
         recomputeXiStats();
         renderXiQuiz();
       });
@@ -16284,8 +16403,9 @@
         const qs = xiQuestionsForChapter(ch);
         xiChapterResults[String(ch)] = qs.map(() => null);
         xiQuizIndex = 0;
+        xiChapterLastIndex[ch] = 0;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
-        persistXiResults();
+        persistXiProgress();
         recomputeXiStats();
         renderXiQuiz();
       });
