@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-04-03 pipeline check -->
+  <!-- gh-deploy: 2026-09-06 persist history answers -->
   <style>
     :root {
       --bg: #ffffff;
@@ -15574,6 +15574,67 @@
     const historyChapterLastIndex = {};
     /** @type {Record<number, number[]|undefined>} 每章题目的显示顺序（下标数组，未打乱则为 undefined） */
     const historyDisplayOrder = {};
+    const HISTORY_RESULT_STORAGE_KEY = "pansan2-history-chapter-results-v1";
+    const HISTORY_PROGRESS_STORAGE_KEY = "pansan2-history-chapter-progress-v1";
+
+    function persistHistoryProgress() {
+      try {
+        const resultsOnly = {};
+        const lastOnly = {};
+        const orderOnly = {};
+        for (let ch = 1; ch <= 10; ch++) {
+          if (historyChapterResults[ch]) resultsOnly[ch] = historyChapterResults[ch];
+          if (typeof historyChapterLastIndex[ch] === "number") lastOnly[ch] = historyChapterLastIndex[ch];
+          if (historyDisplayOrder[ch]) orderOnly[ch] = historyDisplayOrder[ch];
+        }
+        localStorage.setItem(HISTORY_RESULT_STORAGE_KEY, JSON.stringify(resultsOnly));
+        localStorage.setItem(HISTORY_PROGRESS_STORAGE_KEY, JSON.stringify({ last: lastOnly, order: orderOnly }));
+      } catch (_) {}
+    }
+
+    function firstUnansweredHistoryIndex(ch) {
+      const qs = questionsForChapter(ch);
+      const res = historyChapterResults[ch];
+      if (!res || !qs.length) return 0;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return i;
+      }
+      return Math.max(0, qs.length - 1);
+    }
+
+    function rememberHistoryIndex() {
+      if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
+        historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
+        persistHistoryProgress();
+      }
+    }
+
+    (function initHistoryResultsFromStorage() {
+      try {
+        const raw = localStorage.getItem(HISTORY_RESULT_STORAGE_KEY);
+        if (raw) {
+          const obj = JSON.parse(raw) || {};
+          for (let ch = 1; ch <= 10; ch++) {
+            const row = obj[ch] || obj[String(ch)];
+            if (Array.isArray(row)) historyChapterResults[ch] = row;
+          }
+        }
+        const progRaw = localStorage.getItem(HISTORY_PROGRESS_STORAGE_KEY);
+        if (progRaw) {
+          const prog = JSON.parse(progRaw);
+          if (prog && typeof prog === "object") {
+            const last = prog.last || {};
+            const order = prog.order || {};
+            for (let ch = 1; ch <= 10; ch++) {
+              const ix = last[ch] != null ? last[ch] : last[String(ch)];
+              if (typeof ix === "number") historyChapterLastIndex[ch] = ix;
+              const o = order[ch] || order[String(ch)];
+              if (Array.isArray(o)) historyDisplayOrder[ch] = o;
+            }
+          }
+        }
+      } catch (_) {}
+    })();
 
     function shuffleIndices(n) {
       const a = Array.from({ length: n }, (_, i) => i);
@@ -15622,6 +15683,7 @@
       const qs = questionsForChapter(ch);
       if (!historyChapterResults[ch] || historyChapterResults[ch].length !== qs.length) {
         historyChapterResults[ch] = qs.map(() => null);
+        if (ch >= 1 && ch <= 10) persistHistoryProgress();
       }
     }
 
@@ -15888,7 +15950,7 @@
         }
         const maxIx = Math.max(0, qs.length - 1);
         let ix = historyChapterLastIndex[chapterNum];
-        if (typeof ix !== "number" || ix < 0) ix = 0;
+        if (typeof ix !== "number" || ix < 0) ix = firstUnansweredHistoryIndex(chapterNum);
         if (ix > maxIx) ix = maxIx;
         historyQuizIndex = ix;
         ensureHistoryResults(chapterNum);
@@ -15902,14 +15964,16 @@
       historyQuizChapter = chapterNum;
       historyQuizIndex = 0;
       delete historyDisplayOrder[chapterNum];
+      delete historyChapterLastIndex[chapterNum];
       const qs = questionsForChapter(chapterNum);
       historyChapterResults[chapterNum] = qs.map(() => null);
+      if (chapterNum >= 1 && chapterNum <= 10) persistHistoryProgress();
       recomputeHistoryStats();
       renderHistoryQuiz();
     }
 
     function closeHistoryQuiz() {
-      historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
+      rememberHistoryIndex();
       ch1QuizEl.hidden = true;
       historyListEl.hidden = false;
       ch1QuizEl.classList.remove("is-submitted");
@@ -16104,12 +16168,14 @@
       ch1Next.disabled = historyQuizIndex >= qs.length - 1;
       ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
       updateContinueChapterVisibility();
+      rememberHistoryIndex();
     });
 
     ch1Next.addEventListener("click", () => {
       const qs = getHistoryQuestions();
       if (historyQuizIndex < qs.length - 1) {
         historyQuizIndex += 1;
+        rememberHistoryIndex();
         renderHistoryQuiz();
       }
     });
@@ -16117,9 +16183,15 @@
     ch1Prev.addEventListener("click", () => {
       if (historyQuizIndex > 0) {
         historyQuizIndex -= 1;
+        rememberHistoryIndex();
         renderHistoryQuiz();
       }
     });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") rememberHistoryIndex();
+    });
+    window.addEventListener("pagehide", rememberHistoryIndex);
 
     chContinueBtn.addEventListener("click", () => {
       if (historyQuizChapter === 1) openHistoryQuiz(2);
@@ -16141,6 +16213,8 @@
       historyDisplayOrder[ch] = shuffleIndices(n);
       historyChapterResults[ch] = qs.map(() => null);
       historyQuizIndex = 0;
+      historyChapterLastIndex[ch] = 0;
+      if (ch >= 1 && ch <= 10) persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
       renderHistoryQuiz();
@@ -16152,6 +16226,8 @@
       const qs = questionsForChapter(ch);
       historyChapterResults[ch] = qs.map(() => null);
       historyQuizIndex = 0;
+      historyChapterLastIndex[ch] = 0;
+      if (ch >= 1 && ch <= 10) persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
       renderHistoryQuiz();
