@@ -2,9 +2,9 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-07 short-answer lead bold again -->
+  <!-- gh-deploy: 2026-09-07 history mock exam phone -->
   <style>
     :root {
       --bg: #ffffff;
@@ -29,6 +29,10 @@
       border: 0;
     }
     html, body { height: 100%; }
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
     body {
       margin: 0;
       background: var(--bg);
@@ -42,6 +46,7 @@
     .app {
       display: flex;
       min-height: 100vh;
+      min-height: 100dvh;
       max-width: 1200px;
       margin: 0 auto;
       border-left: 1px solid var(--border);
@@ -175,6 +180,371 @@
     .list-card__wrong-btn:focus-visible {
       outline: 2px solid #fff;
       outline-offset: 2px;
+    }
+    .list-card__head-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* 近代史 · 模拟考卷（仿纸质自考卷） */
+    .exam-view {
+      max-width: 920px;
+    }
+    .exam-chrome {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: var(--bg);
+      padding: 4px 0 10px;
+      margin-bottom: 8px;
+    }
+    .exam-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 1 1 auto;
+    }
+    .exam-toolbar__actions,
+    .exam-dock {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .exam-toolbar__actions button,
+    .exam-dock button {
+      margin: 0;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .exam-btn-ghost {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }
+    .exam-btn-ghost:hover { background: #f5f5f5; }
+    .exam-btn-submit {
+      border: 1px solid #b71c1c;
+      background: #c62828;
+      color: #fff;
+    }
+    .exam-btn-submit:hover { filter: brightness(1.05); }
+    .exam-btn-submit:disabled {
+      opacity: 0.55;
+      cursor: default;
+      filter: none;
+    }
+    .exam-score {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border: 1px solid #f0d0d0;
+      border-radius: 10px;
+      background: #fff8f6;
+      color: #3c4043;
+      line-height: 1.7;
+    }
+    .exam-score strong { color: #c62828; }
+    .exam-score--pass {
+      border-color: #c8e6c9;
+      background: #f1f8f2;
+    }
+    .exam-score--pass strong { color: #1b5e20; }
+    .exam-desk {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0;
+    }
+    .exam-seal {
+      width: 28px;
+      flex-shrink: 0;
+      border-right: 2px dashed #c62828;
+      color: #c62828;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 0;
+      opacity: 0.85;
+    }
+    .exam-sheet {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      max-width: 820px;
+      background: #fffef6;
+      border: 1px solid #cfc6b0;
+      box-shadow: 0 10px 28px rgba(80, 60, 20, 0.08);
+      padding: 28px 36px 48px;
+      color: #1a1a1a;
+      font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+      line-height: 1.75;
+      overflow-wrap: anywhere;
+    }
+    .exam-sheet::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 24px;
+      bottom: 24px;
+      width: 2px;
+      background: repeating-linear-gradient(#c62828 0 8px, transparent 8px 16px);
+      opacity: 0.35;
+    }
+    .exam-head {
+      text-align: center;
+      margin: 0 0 18px;
+      padding: 0 12px;
+    }
+    .exam-kicker {
+      margin: 0 0 6px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      color: #444;
+    }
+    .exam-title {
+      margin: 0 0 6px;
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+    .exam-code {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: #444;
+    }
+    .exam-meta {
+      margin: 0;
+      font-size: 13px;
+      color: #333;
+    }
+    .exam-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 28px;
+      margin: 14px 0 8px;
+      font-size: 14px;
+    }
+    .exam-info label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .exam-info input {
+      width: 8.5em;
+      border: none;
+      border-bottom: 1px solid #333;
+      background: transparent;
+      font: inherit;
+      font-size: 14px;
+      padding: 2px 4px;
+      color: #1a1a1a;
+    }
+    .exam-info input:focus {
+      outline: none;
+      background: #fff6c8;
+    }
+    .exam-note {
+      margin: 0 0 18px;
+      font-size: 12.5px;
+      color: #5f4b32;
+      text-align: left;
+    }
+    .exam-part {
+      margin: 22px 0 8px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .exam-part-desc {
+      margin: 0 0 14px;
+      font-size: 13px;
+      color: #444;
+    }
+    .exam-q {
+      margin: 0 0 16px;
+    }
+    .exam-stem {
+      margin: 0 0 6px;
+      font-size: 15px;
+      text-indent: 0;
+    }
+    .exam-opts {
+      margin: 0 0 4px;
+      padding: 0;
+    }
+    .exam-stem {
+      overflow-wrap: anywhere;
+    }
+    .exam-opt {
+      display: flex;
+      width: 100%;
+      align-items: flex-start;
+      gap: 6px;
+      margin: 0;
+      padding: 5px 8px 5px 1.6em;
+      border: none;
+      border-radius: 4px;
+      background: none;
+      font: inherit;
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+      color: inherit;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .exam-opt:hover,
+    .exam-opt:active { background: rgba(198, 40, 40, 0.05); }
+    .exam-opt.is-picked {
+      background: #f4ebc8;
+    }
+    .exam-opt-k {
+      flex-shrink: 0;
+      width: 1.5em;
+    }
+    .exam-q.is-right .exam-stem::before,
+    .exam-q.is-wrong .exam-stem::before {
+      font-family: Georgia, serif;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .exam-q.is-right .exam-stem::before { content: "√"; color: #c62828; }
+    .exam-q.is-wrong .exam-stem::before { content: "×"; color: #c62828; }
+    .exam-q.is-wrong .exam-opt.is-key {
+      color: #1b5e20;
+    }
+    .exam-q.is-wrong .exam-opt.is-picked:not(.is-key) {
+      color: #c62828;
+      text-decoration: line-through;
+    }
+    .exam-blank {
+      display: inline-block;
+      min-width: 5.2em;
+      margin: 0 1px;
+      padding: 0 7px 1px;
+      border: none;
+      border-bottom: 1px solid #222;
+      border-radius: 0;
+      background: transparent;
+      font: inherit;
+      font-size: inherit;
+      line-height: 1.5;
+      text-align: center;
+      color: #1a73e8;
+      cursor: pointer;
+      vertical-align: baseline;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .exam-blank.is-active {
+      background: #fff3c4;
+      border-bottom-color: #c62828;
+    }
+    .exam-blank.is-empty { color: transparent; }
+    .exam-blank.is-empty::after {
+      content: "　　";
+      color: transparent;
+    }
+    .exam-blank.is-right { color: #1b5e20; }
+    .exam-blank.is-wrong { color: #c62828; }
+    .exam-key-hint {
+      font-size: 12px;
+      color: #1b5e20;
+      margin-left: 2px;
+    }
+    .exam-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 4px 0.2em;
+    }
+    .exam-chip {
+      margin: 0;
+      padding: 6px 11px;
+      border: 1px dashed #8a7a5a;
+      border-radius: 999px;
+      background: #f7f1de;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      color: #333;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .exam-chip:hover { background: #efe4c4; }
+    .exam-chip.is-used {
+      display: none;
+    }
+    .exam-chip:disabled,
+    .exam-opt:disabled,
+    .exam-blank:disabled {
+      cursor: default;
+    }
+    .exam-essay-pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #5f4b32;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .exam-essay-pick input { accent-color: #c62828; }
+    .exam-essay.is-skipped {
+      opacity: 0.55;
+    }
+    .exam-stamp {
+      position: absolute;
+      right: 28px;
+      top: 52px;
+      width: 108px;
+      height: 108px;
+      border: 4px solid #c62828;
+      color: #c62828;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      transform: rotate(-18deg);
+      opacity: 0.88;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.08);
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+    }
+    .exam-stamp--fail {
+      border-color: #6d4c41;
+      color: #6d4c41;
+      font-size: 22px;
+    }
+    .exam-copy-ok {
+      font-size: 13px;
+      color: #188038;
+      margin-left: 4px;
     }
 
     /* 马克思主义 · 与近代史区分的章节列表样式 */
@@ -1111,6 +1481,107 @@
         color: var(--accent);
       }
       .main { padding: 20px 16px 32px; }
+      .sidebar {
+        padding-top: calc(10px + env(safe-area-inset-top, 0px));
+      }
+    }
+
+    /* 手机考卷：竖屏 + iPhone Pro Max 横屏都按大拇指点选用 */
+    @media (max-width: 640px), (max-width: 980px) and (pointer: coarse) {
+      .exam-view {
+        max-width: none;
+        padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+      }
+      .exam-toolbar {
+        width: 100%;
+        flex: 1 1 100%;
+        padding: 0;
+        gap: 8px;
+      }
+      .exam-toolbar .back-to-chapters {
+        min-height: 44px;
+        align-items: center;
+      }
+      .exam-toolbar__actions {
+        width: 100%;
+      }
+      .exam-toolbar__actions button {
+        min-height: 44px;
+        padding: 10px 14px;
+      }
+      .exam-dock {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 30;
+        flex-wrap: nowrap;
+        gap: 8px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: rgba(255, 255, 255, 0.94);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
+      }
+      .exam-dock button {
+        flex: 1 1 0;
+        min-height: 48px;
+        font-size: 16px;
+      }
+      .exam-dock .exam-btn-ghost[hidden] {
+        display: none !important;
+      }
+      .exam-seal { display: none; }
+      .exam-desk { display: block; }
+      .exam-sheet {
+        padding: 16px 12px 28px;
+        box-shadow: none;
+      }
+      .exam-sheet::before { display: none; }
+      .exam-head { padding: 0; }
+      .exam-kicker {
+        font-size: 11px;
+        letter-spacing: 0.04em;
+      }
+      .exam-title {
+        font-size: 1.12rem;
+        letter-spacing: 0.04em;
+      }
+      .exam-info {
+        gap: 10px 16px;
+      }
+      .exam-info input {
+        font-size: 16px;
+        width: 7.2em;
+      }
+      .exam-note { font-size: 12px; }
+      .exam-part { font-size: 15px; }
+      .exam-stem { font-size: 15px; }
+      .exam-opt {
+        padding: 10px 8px 10px 0.2em;
+        min-height: 44px;
+        font-size: 15px;
+      }
+      .exam-chip {
+        padding: 10px 12px;
+        min-height: 44px;
+        font-size: 14px;
+      }
+      .exam-blank {
+        min-width: 4.6em;
+        min-height: 36px;
+        padding: 4px 8px;
+      }
+      .exam-essay-pick {
+        min-height: 44px;
+        font-size: 14px;
+      }
+      .exam-stamp { display: none; }
+      .exam-score { font-size: 14px; }
+      .list-card__wrong-btn {
+        min-height: 40px;
+      }
     }
   </style>
 </head>
@@ -1142,7 +1613,10 @@
         <div class="list-card">
           <h2 class="list-card__head">
             <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
-            <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="收录各章答错的题目">错题回顾</button>
+            <span class="list-card__head-actions">
+              <button type="button" class="list-card__wrong-btn" id="btn-history-exam" title="从题库抽一套，像真卷一样点选作答">模拟考卷</button>
+              <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="收录各章答错的题目">错题回顾</button>
+            </span>
           </h2>
           <div class="list-card__body">
             <ul class="lecture-list" aria-label="章节目录">
@@ -1309,6 +1783,27 @@
               <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="chapter-resume-restart">重开</button>
               <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="chapter-resume-continue">继续</button>
             </div>
+          </div>
+        </div>
+
+        <div id="history-exam-view" class="exam-view" hidden>
+          <div class="exam-chrome">
+          <div class="exam-toolbar">
+            <button type="button" class="back-to-chapters" id="history-exam-back">← 返回章节目录</button>
+            <div class="exam-toolbar__actions">
+              <button type="button" class="exam-btn-ghost" id="history-exam-new">再来一套</button>
+              <span id="history-exam-hint" class="exam-copy-ok"></span>
+            </div>
+          </div>
+          <div class="exam-dock">
+            <button type="button" class="exam-btn-ghost" id="history-exam-copy" hidden>复制交卷摘要</button>
+            <button type="button" class="exam-btn-submit" id="history-exam-submit">交卷</button>
+          </div>
+          </div>
+          <div id="history-exam-score" class="exam-score" hidden></div>
+          <div class="exam-desk">
+            <aside class="exam-seal" aria-hidden="true">密封线内不要答题</aside>
+            <article class="exam-sheet" id="history-exam-sheet"></article>
           </div>
         </div>
       </section>
@@ -17649,6 +18144,8 @@
     }
 
     function openHistoryQuiz(chapterNum, opts) {
+      const examViewEl = document.getElementById("history-exam-view");
+      if (examViewEl) examViewEl.hidden = true;
       const choice = opts && opts.choice;
       if (chapterNum === WRONG_REVIEW_CHAPTER) historyQuizMode = "mcq";
 
@@ -17843,6 +18340,549 @@
     if (btnWrongReview) {
       btnWrongReview.addEventListener("click", () => openHistoryQuiz(WRONG_REVIEW_CHAPTER));
     }
+
+    /* 近代史 · 模拟考卷（纸质卷面 + 括号点选） */
+    const HISTORY_EXAM_LS = "pansan2-history-exam-v1";
+    const HISTORY_EXAM_SHORT_BANK = {
+      weixin: {
+        title: "简述资产阶级维新派自身弱点和局限的主要表现。",
+        tpl: "维新派不敢否定（{{0}}），对（{{1}}）抱有幻想，并且惧怕（{{2}}）。",
+        keys: ["封建主义", "帝国主义", "人民群众"],
+        distractors: ["资本主义", "封建土地所有制", "洋务派", "无产阶级", "立宪派"],
+      },
+      xinwenhua: {
+        title: "简述新文化运动的历史意义。",
+        tpl: "它以进化论和个性解放为武器批判孔学，动摇了（{{0}}）的统治地位；提倡（{{1}}）、反对专制，提倡（{{2}}）、反对迷信盲从；冲决了禁锢人们思想的闸门。",
+        keys: ["封建正统思想", "民主", "科学"],
+        distractors: ["儒学", "自由", "人权", "进化论", "白话文"],
+      },
+      zunyi: {
+        title: "简述遵义会议的历史意义。",
+        tpl: "遵义会议开始确立以（{{0}}）为主要代表的马克思主义正确路线在党中央的领导地位；在最危急关头挽救了党、挽救了红军、挽救了（{{1}}）；标志着中国共产党在政治上开始走向（{{2}}）。",
+        keys: ["毛泽东", "中国革命", "成熟"],
+        distractors: ["陈独秀", "周恩来", "新民主主义", "胜利", "长征"],
+      },
+      kangzhan: {
+        title: "简述中国人民抗日战争胜利的历史意义。",
+        tpl: "这是近代以来中国抗击外敌入侵的第一次（{{0}}）；彻底粉碎了日本军国主义殖民奴役中国的图谋；重新确立了中国在世界上的（{{1}}）；促进了中华民族的（{{2}}），开辟了中华民族伟大复兴的光明前景。",
+        keys: ["完全胜利", "大国地位", "觉醒"],
+        distractors: ["局部胜利", "国际地位", "独立", "解放", "团结"],
+      },
+      sixiang: {
+        title: "简述1979年邓小平提出的坚持四项基本原则。",
+        tpl: "必须坚持（{{0}}），坚持（{{1}}），坚持（{{2}}），坚持马克思列宁主义、毛泽东思想。这是实现四个现代化的根本前提。",
+        keys: ["社会主义道路", "人民民主专政", "共产党的领导"],
+        distractors: ["改革开放", "民主集中制", "社会主义市场经济", "爱国统一战线"],
+      },
+      yangwu: {
+        title: "简述洋务运动失败的原因。",
+        tpl: "洋务派具有（{{0}}），对外国又有（{{1}}）；企图以封建制度为体、西方技术为用，无法使中国（{{2}}）。",
+        keys: ["封建性", "依赖性", "富强"],
+        distractors: ["革命性", "买办性", "独立", "工业化", "立宪"],
+      },
+      wusi: {
+        title: "简述五四运动的历史意义。",
+        tpl: "它以彻底反帝反封建的姿态出现；工人阶级开始作为独立力量登上（{{0}}）；促进了（{{1}}）在中国的传播及其与中国工人运动的结合；是中国（{{2}}）的开端。",
+        keys: ["政治舞台", "马克思主义", "新民主主义革命"],
+        distractors: ["历史舞台", "三民主义", "旧民主主义革命", "社会主义革命", "新文化运动"],
+      },
+      nongcun: {
+        title: "简述农村包围城市、武装夺取政权道路的主要内容。",
+        tpl: "（{{0}}）是基本内容，（{{1}}）是主要形式，（{{2}}）是战略阵地。",
+        keys: ["土地革命", "武装斗争", "农村根据地"],
+        distractors: ["统一战线", "党的建设", "城市暴动", "议会斗争", "工人运动"],
+      },
+      yiguo: {
+        title: "简述邓小平提出的「一个国家、两种制度」的构想。",
+        tpl: "（{{0}}）是前提和核心；国家的主体坚持（{{1}}）；香港、澳门、台湾保持原有的（{{2}}）长期不变。",
+        keys: ["一个中国", "社会主义制度", "资本主义制度"],
+        distractors: ["高度自治", "人民民主专政", "联邦制", "一国两府"],
+      },
+      zhengfeng: {
+        title: "简述延安整风运动的主要内容。",
+        tpl: "反对（{{0}}）以整顿学风、反对（{{1}}）以整顿党风、反对（{{2}}）以整顿文风。",
+        keys: ["主观主义", "宗派主义", "党八股"],
+        distractors: ["官僚主义", "形式主义", "经验主义", "教条主义", "关门主义"],
+      },
+    };
+    const HISTORY_EXAM_ESSAY_BANK = {
+      xinhai: {
+        title: "论述辛亥革命的历史意义。",
+        tpl: "辛亥革命推翻了清王朝，结束了在中国延续两千多年的（{{0}}）；建立了中国历史上第一个（{{1}}），使民主共和观念开始深入人心；推动了中国社会变革，促使中国的（{{2}}）和社会风俗演进。",
+        keys: ["封建君主专制制度", "资产阶级共和政府", "思想解放"],
+        distractors: ["封建土地制度", "工农苏维埃政府", "工业化", "半殖民地半封建社会"],
+      },
+      fabao: {
+        title: "论述新民主主义革命胜利的基本经验。",
+        tpl: "就是三大法宝：建立广泛的（{{0}}），坚持革命的（{{1}}），加强共产党（{{2}}）。",
+        keys: ["统一战线", "武装斗争", "自身建设"],
+        distractors: ["土地革命", "农村根据地", "群众路线", "党的领导"],
+      },
+      sanjie: {
+        title: "论述中共十一届三中全会的历史意义。",
+        tpl: "它结束了徘徊局面，开始全面纠正「文化大革命」及其以前的「左」倾错误；重新确立了马克思主义的思想路线、政治路线、组织路线；作出把工作重点转移到（{{0}}）上来和实行（{{1}}）的决策。这是新中国成立以来党的历史上具有深远意义的伟大（{{2}}）。",
+        keys: ["社会主义现代化建设", "改革开放", "转折"],
+        distractors: ["阶级斗争", "计划经济", "飞跃", "调整", "四个现代化"],
+      },
+      shehui: {
+        title: "论述社会主义基本制度在中国确立的意义。",
+        tpl: "这是中国历史上最深刻最伟大的（{{0}}）；为当代中国一切发展进步奠定了根本政治前提和（{{1}}）；使广大劳动人民真正成为国家的（{{2}}）。",
+        keys: ["社会变革", "制度基础", "主人"],
+        distractors: ["思想解放", "物质基础", "领导", "改革"],
+      },
+      xinshidai: {
+        title: "论述中国特色社会主义进入新时代的重大意义。",
+        tpl: "意味着近代以来久经磨难的中华民族迎来了从站起来、富起来到（{{0}}）的伟大飞跃；意味着（{{1}}）在二十一世纪的中国焕发出强大生机活力；意味着中国特色社会主义不断发展，为解决人类问题贡献（{{2}}）和中国方案。",
+        keys: ["强起来", "科学社会主义", "中国智慧"],
+        distractors: ["富起来", "民主社会主义", "中国经验", "中国道路"],
+      },
+    };
+    const HISTORY_EXAM_SHORT_IDS = Object.keys(HISTORY_EXAM_SHORT_BANK);
+    const HISTORY_EXAM_ESSAY_IDS = Object.keys(HISTORY_EXAM_ESSAY_BANK);
+    const historyExamView = document.getElementById("history-exam-view");
+    const historyExamSheet = document.getElementById("history-exam-sheet");
+    const historyExamScore = document.getElementById("history-exam-score");
+    const historyExamSubmitBtn = document.getElementById("history-exam-submit");
+    const historyExamCopyBtn = document.getElementById("history-exam-copy");
+    let historyExam = null;
+    let historyExamHintTimer = null;
+
+    function examEscape(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function examRng(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a += 0x6d2b79f5;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function examShuffle(arr, rng) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+      }
+      return a;
+    }
+    function examPick(arr, n, rng) {
+      return examShuffle(arr, rng).slice(0, Math.min(n, arr.length));
+    }
+    function examMakeChips(keys, distractors, rng) {
+      const out = [];
+      const seen = {};
+      keys.concat(distractors).forEach((t) => {
+        if (!t || seen[t]) return;
+        seen[t] = true;
+        out.push(t);
+      });
+      return examShuffle(out, rng);
+    }
+    function examStemText(raw) {
+      let t = ch1StripQuestionPrefix(raw);
+      t = t.replace(/（\s*）\s*$/, "").replace(/\(\s*\)\s*$/, "").trim();
+      return t + "（　）";
+    }
+    function examMcqQ(item) {
+      const qs = questionsForChapter(item.ch);
+      return qs && qs[item.i] ? qs[item.i] : null;
+    }
+    function persistHistoryExam() {
+      if (!historyExam) return;
+      try {
+        localStorage.setItem(HISTORY_EXAM_LS, JSON.stringify(historyExam));
+      } catch (err) {}
+    }
+    function examBuildPaper(seed) {
+      const rng = examRng(seed);
+      const quotas = [3, 3, 2, 3, 2, 3, 2, 2, 2, 3];
+      const mcq = [];
+      quotas.forEach((n, idx) => {
+        const ch = idx + 1;
+        const qs = questionsForChapter(ch) || [];
+        examPick(qs.map((_, i) => i), n, rng).forEach((i) => mcq.push({ ch, i, picked: "" }));
+      });
+      const shorts = examPick(HISTORY_EXAM_SHORT_IDS, 5, rng).map((id) => {
+        const form = HISTORY_EXAM_SHORT_BANK[id];
+        return { id, fills: form.keys.map(function () { return ""; }), chips: examMakeChips(form.keys, form.distractors, rng) };
+      });
+      const essays = examPick(HISTORY_EXAM_ESSAY_IDS, 3, rng).map((id) => {
+        const form = HISTORY_EXAM_ESSAY_BANK[id];
+        return { id, chosen: false, fills: form.keys.map(function () { return ""; }), chips: examMakeChips(form.keys, form.distractors, rng) };
+      });
+      return { seed, name: "", seat: "", mcq: examShuffle(mcq, rng), shorts, essays, submitted: false, active: null };
+    }
+    function examPaperValid(p) {
+      if (!p || !Array.isArray(p.mcq) || p.mcq.length !== 25) return false;
+      if (!Array.isArray(p.shorts) || p.shorts.length !== 5) return false;
+      if (!Array.isArray(p.essays) || p.essays.length !== 3) return false;
+      if (p.shorts.some((s) => !HISTORY_EXAM_SHORT_BANK[s.id])) return false;
+      if (p.essays.some((s) => !HISTORY_EXAM_ESSAY_BANK[s.id])) return false;
+      if (p.mcq.some((m) => !examMcqQ(m))) return false;
+      return true;
+    }
+    function loadHistoryExam() {
+      try {
+        const p = JSON.parse(localStorage.getItem(HISTORY_EXAM_LS) || "null");
+        if (examPaperValid(p)) return p;
+      } catch (err) {}
+      return null;
+    }
+    function examEnsureEssayChoice() {
+      let nChosen = 0;
+      historyExam.essays.forEach((e) => {
+        if (!e.chosen) return;
+        nChosen += 1;
+        if (nChosen > 2) e.chosen = false;
+      });
+      if (historyExam.essays.filter((e) => e.chosen).length >= 2) return;
+      historyExam.essays
+        .map((e, i) => ({ e: e, i: i, n: e.fills.filter(Boolean).length }))
+        .filter((x) => !x.e.chosen)
+        .sort((a, b) => b.n - a.n)
+        .forEach((x) => {
+          if (historyExam.essays.filter((e) => e.chosen).length >= 2) return;
+          if (x.n > 0) x.e.chosen = true;
+        });
+    }
+    function examScore() {
+      if (!historyExam) return null;
+      let mcq = 0;
+      const mcqWrong = [];
+      historyExam.mcq.forEach((item, idx) => {
+        const q = examMcqQ(item);
+        if (!q) return;
+        if (item.picked && item.picked === q.correct) mcq += 2;
+        else mcqWrong.push(idx + 1);
+      });
+      let short = 0;
+      historyExam.shorts.forEach((item) => {
+        const form = HISTORY_EXAM_SHORT_BANK[item.id];
+        form.keys.forEach((k, bi) => {
+          if (item.fills[bi] === k) short += 2;
+        });
+      });
+      examEnsureEssayChoice();
+      let essay = 0;
+      const essayPts = [4, 3, 3];
+      const essayPicked = [];
+      historyExam.essays.forEach((item, qi) => {
+        if (!item.chosen) return;
+        essayPicked.push(31 + qi);
+        const form = HISTORY_EXAM_ESSAY_BANK[item.id];
+        form.keys.forEach((k, bi) => {
+          if (item.fills[bi] === k) essay += essayPts[bi] || 3;
+        });
+      });
+      const total = mcq + short + essay;
+      return { mcq: mcq, short: short, essay: essay, total: total, pass: total >= 60, mcqWrong: mcqWrong, essayPicked: essayPicked };
+    }
+    function examHasWork() {
+      if (!historyExam) return false;
+      if (historyExam.mcq.some((m) => m.picked)) return true;
+      if (historyExam.shorts.some((s) => s.fills.some(Boolean))) return true;
+      if (historyExam.essays.some((s) => s.fills.some(Boolean) || s.chosen)) return true;
+      return false;
+    }
+    function examSetHint(msg) {
+      const el = document.getElementById("history-exam-hint");
+      if (!el) return;
+      el.textContent = msg || "";
+      if (historyExamHintTimer) clearTimeout(historyExamHintTimer);
+      if (msg) {
+        historyExamHintTimer = setTimeout(() => { el.textContent = ""; }, 2600);
+      }
+    }
+    function examAdvanceActive(kind, qi, fills) {
+      const next = fills.findIndex((v) => !v);
+      historyExam.active = next >= 0 ? { kind: kind, qi: qi, bi: next } : null;
+    }
+    function examClozeHtml(tpl, fills, kind, qi, keys, submitted, active) {
+      return tpl.replace(/\{\{(\d+)\}\}/g, (_, n) => {
+        const bi = +n;
+        const val = fills[bi] || "";
+        const cls = ["exam-blank"];
+        if (!val) cls.push("is-empty");
+        if (active && active.kind === kind && active.qi === qi && active.bi === bi && !submitted) cls.push("is-active");
+        if (submitted) cls.push(val === keys[bi] ? "is-right" : "is-wrong");
+        const hint = submitted && val !== keys[bi] ? `<span class="exam-key-hint">〔${examEscape(keys[bi])}〕</span>` : "";
+        const disabled = submitted ? " disabled" : "";
+        return `<button type="button" class="${cls.join(" ")}" data-exam-blank="${kind}" data-qi="${qi}" data-bi="${bi}"${disabled} aria-label="${examEscape(val || "空括号")}">${examEscape(val)}</button>${hint}`;
+      });
+    }
+    function examChipsHtml(item, kind, qi, submitted) {
+      const used = {};
+      (item.fills || []).forEach((v) => { if (v) used[v] = true; });
+      return `<div class="exam-chips">${item.chips.map((t) => {
+        const cls = used[t] ? "exam-chip is-used" : "exam-chip";
+        const disabled = submitted ? " disabled" : "";
+        return `<button type="button" class="${cls}" data-exam-chip="${kind}" data-qi="${qi}" data-text="${examEscape(t)}"${disabled}>${examEscape(t)}</button>`;
+      }).join("")}</div>`;
+    }
+    function renderHistoryExam() {
+      if (!historyExam || !historyExamSheet) return;
+      const submitted = !!historyExam.submitted;
+      const sc = submitted ? examScore() : null;
+      const no = String(historyExam.seed % 10000).padStart(4, "0");
+      const stamp = submitted ? `<div class="exam-stamp${sc.pass ? "" : " exam-stamp--fail"}">${sc.pass ? "及格" : "不及格"}</div>` : "";
+      const mcqHtml = historyExam.mcq.map((item, idx) => {
+        const q = examMcqQ(item);
+        if (!q) return "";
+        const ok = submitted && item.picked === q.correct;
+        const qcls = submitted ? (ok ? "exam-q is-right" : "exam-q is-wrong") : "exam-q";
+        const opts = (q.options || []).map((op) => {
+          const picked = item.picked === op.key;
+          const cls = ["exam-opt"];
+          if (picked) cls.push("is-picked");
+          if (submitted && op.key === q.correct) cls.push("is-key");
+          const disabled = submitted ? " disabled" : "";
+          return `<button type="button" class="${cls.join(" ")}" data-exam-mcq="${idx}" data-k="${op.key}"${disabled}><span class="exam-opt-k">${op.key}．</span><span>${examEscape(op.label)}</span></button>`;
+        }).join("");
+        return `<div class="${qcls}"><p class="exam-stem">${idx + 1}. ${examEscape(examStemText(q.text))}</p><div class="exam-opts">${opts}</div></div>`;
+      }).join("");
+      const shortHtml = historyExam.shorts.map((item, qi) => {
+        const form = HISTORY_EXAM_SHORT_BANK[item.id];
+        const body = examClozeHtml(form.tpl, item.fills, "short", qi, form.keys, submitted, historyExam.active);
+        return `<div class="exam-q"><p class="exam-stem">${26 + qi}. ${examEscape(form.title)}</p><p class="exam-stem">${body}</p>${examChipsHtml(item, "short", qi, submitted)}</div>`;
+      }).join("");
+      const essayHtml = historyExam.essays.map((item, qi) => {
+        const form = HISTORY_EXAM_ESSAY_BANK[item.id];
+        const skipped = submitted && !item.chosen;
+        const body = examClozeHtml(form.tpl, item.fills, "essay", qi, form.keys, submitted, historyExam.active);
+        const chk = item.chosen ? " checked" : "";
+        const disabled = submitted ? " disabled" : "";
+        return `<div class="exam-q exam-essay${skipped ? " is-skipped" : ""}"><label class="exam-essay-pick"><input type="checkbox" data-exam-essay-pick="${qi}"${chk}${disabled}/>本题作答</label><p class="exam-stem">${31 + qi}. ${examEscape(form.title)}</p><p class="exam-stem">${body}</p>${examChipsHtml(item, "essay", qi, submitted)}</div>`;
+      }).join("");
+      historyExamSheet.innerHTML = stamp +
+        `<header class="exam-head"><p class="exam-kicker">高等教育自学考试全国统一命题考试 · 模拟卷</p><h1 class="exam-title">中国近现代史纲要</h1><p class="exam-code">课程代码 15043　试卷代号 ${no}</p><p class="exam-meta">本试卷满分 100 分，考试时间 150 分钟。及格线 60 分。</p></header>` +
+        `<div class="exam-info"><label>姓名 <input id="history-exam-name" maxlength="16" value="${examEscape(historyExam.name || "")}" ${submitted ? "disabled" : ""}/></label><label>座位号 <input id="history-exam-seat" maxlength="8" value="${examEscape(historyExam.seat || "")}" ${submitted ? "disabled" : ""}/></label></div>` +
+        `<p class="exam-note">作答说明：单项选择题直接点 A–D。简答、论述先点括号（亮黄），再点下方词条填入；点已填括号可清空。论述任选 2 题，请勾选「本题作答」。本卷由题库现场抽题，仅供自测。</p>` +
+        `<h2 class="exam-part">一、单项选择题（本大题共 25 小题，每小题 2 分，共 50 分）</h2>` +
+        `<p class="exam-part-desc">在每小题列出的四个备选项中只有一个是符合题目要求的，请将其选出。</p>` +
+        mcqHtml +
+        `<h2 class="exam-part">二、简答题（本大题共 5 小题，每小题 6 分，共 30 分）</h2>` +
+        `<p class="exam-part-desc">请将词条填入括号。每空 2 分。</p>` +
+        shortHtml +
+        `<h2 class="exam-part">三、论述题（本大题共 3 小题，请任选其中 2 小题作答，每小题 10 分，共 20 分）</h2>` +
+        `<p class="exam-part-desc">多答按已勾选的前 2 题计分。每题三个括号，分值 4、3、3 分。</p>` +
+        essayHtml;
+      if (historyExamScore) {
+        if (submitted && sc) {
+          historyExamScore.hidden = false;
+          historyExamScore.className = "exam-score" + (sc.pass ? " exam-score--pass" : "");
+          historyExamScore.innerHTML =
+            `单选 <strong>${sc.mcq}</strong>/50　简答 <strong>${sc.short}</strong>/30　论述 <strong>${sc.essay}</strong>/20　合计 <strong>${sc.total}</strong>/100　及格线 60　<strong>${sc.pass ? "及格" : "不及格"}</strong>` +
+            `<br/>把「复制交卷摘要」贴回对话，我按阅卷老师口吻再批一笔。`;
+        } else {
+          historyExamScore.hidden = true;
+          historyExamScore.innerHTML = "";
+        }
+      }
+      if (historyExamSubmitBtn) {
+        historyExamSubmitBtn.disabled = submitted;
+        historyExamSubmitBtn.textContent = submitted ? "已交卷" : "交卷";
+      }
+      if (historyExamCopyBtn) historyExamCopyBtn.hidden = !submitted;
+    }
+    function examFillChip(kind, qi, text) {
+      if (!historyExam || historyExam.submitted) return;
+      const bag = kind === "short" ? historyExam.shorts : historyExam.essays;
+      const item = bag[qi];
+      if (!item) return;
+      let active = historyExam.active;
+      if (!active || active.kind !== kind || active.qi !== qi) {
+        const firstEmpty = item.fills.findIndex((v) => !v);
+        if (firstEmpty < 0) return;
+        active = { kind: kind, qi: qi, bi: firstEmpty };
+      }
+      if (item.fills[active.bi]) return;
+      if (item.fills.includes(text)) return;
+      item.fills[active.bi] = text;
+      if (kind === "essay" && !item.chosen) {
+        const n = historyExam.essays.filter((e) => e.chosen).length;
+        if (n < 2) item.chosen = true;
+      }
+      examAdvanceActive(kind, qi, item.fills);
+      persistHistoryExam();
+      renderHistoryExam();
+    }
+    function examClearBlank(kind, qi, bi) {
+      if (!historyExam || historyExam.submitted) return;
+      const bag = kind === "short" ? historyExam.shorts : historyExam.essays;
+      const item = bag[qi];
+      if (!item) return;
+      item.fills[bi] = "";
+      historyExam.active = { kind: kind, qi: qi, bi: bi };
+      persistHistoryExam();
+      renderHistoryExam();
+    }
+    function historyExamSummaryText() {
+      const sc = examScore();
+      if (!historyExam || !sc) return "";
+      const lines = [];
+      lines.push("【近代史模拟考卷交卷】");
+      lines.push("姓名：" + (historyExam.name || "（未填）") + "　座位号：" + (historyExam.seat || "（未填）"));
+      lines.push("试卷代号：" + String(historyExam.seed % 10000).padStart(4, "0") + "　seed=" + historyExam.seed);
+      lines.push("一、单选 " + sc.mcq + "/50" + (sc.mcqWrong.length ? "　错题：" + sc.mcqWrong.join("、") : "　全对"));
+      lines.push("二、简答 " + sc.short + "/30");
+      lines.push("三、论述 " + sc.essay + "/20　计入第 " + (sc.essayPicked.join("、") || "无") + " 题");
+      lines.push("合计 " + sc.total + "/100　及格线 60　" + (sc.pass ? "及格" : "不及格"));
+      lines.push("");
+      lines.push("单选明细：");
+      historyExam.mcq.forEach((item, idx) => {
+        const q = examMcqQ(item);
+        if (!q) return;
+        const stem = examStemText(q.text).slice(0, 42);
+        const mark = item.picked === q.correct ? "√" : "×";
+        lines.push((idx + 1) + ". " + mark + " " + stem + " 我的:" + (item.picked || "未选") + " 正确:" + q.correct);
+      });
+      lines.push("");
+      lines.push("简答明细：");
+      historyExam.shorts.forEach((item, qi) => {
+        const form = HISTORY_EXAM_SHORT_BANK[item.id];
+        lines.push((26 + qi) + ". " + form.title);
+        lines.push("  填：" + item.fills.map((v) => v || "□").join(" / "));
+        lines.push("  标：" + form.keys.join(" / "));
+      });
+      lines.push("");
+      lines.push("论述明细：");
+      historyExam.essays.forEach((item, qi) => {
+        const form = HISTORY_EXAM_ESSAY_BANK[item.id];
+        lines.push((31 + qi) + ". " + (item.chosen ? "[作答] " : "[未选] ") + form.title);
+        lines.push("  填：" + item.fills.map((v) => v || "□").join(" / "));
+        lines.push("  标：" + form.keys.join(" / "));
+      });
+      return lines.join("\n");
+    }
+    function submitHistoryExam() {
+      if (!historyExam || historyExam.submitted) return;
+      const blankMcq = historyExam.mcq.filter((m) => !m.picked).length;
+      const blankShort = historyExam.shorts.reduce((n, s) => n + s.fills.filter((v) => !v).length, 0);
+      if (blankMcq || blankShort) {
+        if (!window.confirm("还有 " + blankMcq + " 道单选、" + blankShort + " 个简答空没填。确定交卷？")) return;
+      }
+      examEnsureEssayChoice();
+      historyExam.submitted = true;
+      historyExam.active = null;
+      persistHistoryExam();
+      renderHistoryExam();
+      if (historyExamScore) historyExamScore.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    function openHistoryExam() {
+      if (!ch1QuizEl.hidden) {
+        rememberHistoryIndex();
+        rememberHistoryShortIndex();
+        ch1QuizEl.hidden = true;
+        ch1QuizEl.classList.remove("is-submitted");
+      }
+      historyListEl.hidden = true;
+      if (historyExamView) historyExamView.hidden = false;
+      historyExam = loadHistoryExam();
+      if (!historyExam) {
+        historyExam = examBuildPaper(Date.now() % 2147483647);
+        persistHistoryExam();
+      }
+      renderHistoryExam();
+      window.scrollTo(0, 0);
+    }
+    function closeHistoryExam() {
+      if (historyExamView) historyExamView.hidden = true;
+      if (ch1QuizEl.hidden) historyListEl.hidden = false;
+    }
+    function resetHistoryExam() {
+      if (historyExam && !historyExam.submitted && examHasWork()) {
+        if (!window.confirm("当前卷还没交，确定作废再抽一套？")) return;
+      }
+      historyExam = examBuildPaper(Date.now() % 2147483647);
+      persistHistoryExam();
+      renderHistoryExam();
+      window.scrollTo(0, 0);
+      examSetHint("已换一套新卷。");
+    }
+    if (historyExamSheet) {
+      historyExamSheet.addEventListener("click", (e) => {
+        const opt = e.target.closest("[data-exam-mcq]");
+        if (opt && historyExam && !historyExam.submitted) {
+          const idx = +opt.getAttribute("data-exam-mcq");
+          const k = opt.getAttribute("data-k");
+          if (historyExam.mcq[idx]) {
+            historyExam.mcq[idx].picked = k;
+            persistHistoryExam();
+            renderHistoryExam();
+          }
+          return;
+        }
+        const blank = e.target.closest("[data-exam-blank]");
+        if (blank && historyExam && !historyExam.submitted) {
+          const kind = blank.getAttribute("data-exam-blank");
+          const qi = +blank.getAttribute("data-qi");
+          const bi = +blank.getAttribute("data-bi");
+          const bag = kind === "short" ? historyExam.shorts : historyExam.essays;
+          const item = bag[qi];
+          if (item && item.fills[bi]) examClearBlank(kind, qi, bi);
+          else {
+            historyExam.active = { kind: kind, qi: qi, bi: bi };
+            renderHistoryExam();
+          }
+          return;
+        }
+        const chip = e.target.closest("[data-exam-chip]");
+        if (chip && historyExam && !historyExam.submitted) {
+          examFillChip(chip.getAttribute("data-exam-chip"), +chip.getAttribute("data-qi"), chip.getAttribute("data-text"));
+        }
+      });
+      historyExamSheet.addEventListener("change", (e) => {
+        const box = e.target.closest("[data-exam-essay-pick]");
+        if (!box || !historyExam || historyExam.submitted) return;
+        const qi = +box.getAttribute("data-exam-essay-pick");
+        const item = historyExam.essays[qi];
+        if (!item) return;
+        if (box.checked) {
+          const n = historyExam.essays.filter((x) => x.chosen).length;
+          if (n >= 2) {
+            box.checked = false;
+            examSetHint("论述只计两题，先取消一题再勾选。");
+            return;
+          }
+          item.chosen = true;
+        } else item.chosen = false;
+        persistHistoryExam();
+        renderHistoryExam();
+      });
+      historyExamSheet.addEventListener("input", (e) => {
+        if (!historyExam) return;
+        if (e.target.id === "history-exam-name") historyExam.name = e.target.value;
+        else if (e.target.id === "history-exam-seat") historyExam.seat = e.target.value;
+        else return;
+        persistHistoryExam();
+      });
+    }
+    const btnHistoryExam = document.getElementById("btn-history-exam");
+    if (btnHistoryExam) btnHistoryExam.addEventListener("click", openHistoryExam);
+    const btnExamBack = document.getElementById("history-exam-back");
+    if (btnExamBack) btnExamBack.addEventListener("click", closeHistoryExam);
+    const btnExamNew = document.getElementById("history-exam-new");
+    if (btnExamNew) btnExamNew.addEventListener("click", resetHistoryExam);
+    if (historyExamSubmitBtn) historyExamSubmitBtn.addEventListener("click", submitHistoryExam);
+    if (historyExamCopyBtn) {
+      historyExamCopyBtn.addEventListener("click", () => {
+        const text = historyExamSummaryText();
+        const done = () => examSetHint("摘要已复制，贴到对话里即可。");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(() => { window.prompt("复制下面全文：", text); });
+        } else window.prompt("复制下面全文：", text);
+      });
+    }
+
     updateWrongReviewButtonBadge();
     recomputeChapterMasteryBadges();
     updateMarxWrongReviewButtonBadge();
