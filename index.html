@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-07 history short-answer cards -->
+  <!-- gh-deploy: 2026-09-07 short-answer lead is hint not key -->
   <style>
     :root {
       --bg: #ffffff;
@@ -442,15 +442,23 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
     }
-    .short-key .short-lead {
-      margin: 0 0 8px;
-      font-size: 14px;
-      color: #202124;
+    .short-key .short-hint-label {
+      margin: 0 0 4px;
+      font-size: 12px;
       font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
     }
+    .short-key .short-hint-label + .short-hint-label,
     .short-key ol {
+      margin-top: 10px;
+    }
+    .short-key .short-lead {
       margin: 0;
-      padding-left: 1.35em;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 400;
+      line-height: 1.55;
     }
     .short-key li {
       margin: 0 0 6px;
@@ -1263,7 +1271,9 @@
               <button type="button" class="btn-submit" id="history-short-reveal">看采分点</button>
             </div>
             <div class="short-key" id="history-short-key" hidden>
+              <p class="short-hint-label" id="history-short-lead-label" hidden>思路 · 不用背</p>
               <p class="short-lead" id="history-short-lead"></p>
+              <p class="short-hint-label">采分点 · 按点给分，写上这些</p>
               <ol id="history-short-points"></ol>
             </div>
           </div>
@@ -16261,6 +16271,7 @@
     const historyShortRevealWrap = document.getElementById("history-short-reveal-wrap");
     const historyShortKey = document.getElementById("history-short-key");
     const historyShortLead = document.getElementById("history-short-lead");
+    const historyShortLeadLabel = document.getElementById("history-short-lead-label");
     const historyShortPoints = document.getElementById("history-short-points");
     const ch1QuizStats = document.getElementById("ch1-quiz-stats");
 
@@ -16641,6 +16652,7 @@
       if (historyShortRevealWrap) historyShortRevealWrap.hidden = !!historyShortRevealed;
       if (historyShortRevealed) {
         if (historyShortLead) historyShortLead.textContent = item.lead || "";
+        if (historyShortLeadLabel) historyShortLeadLabel.hidden = !item.lead;
         if (historyShortPoints) {
           historyShortPoints.innerHTML = "";
           (item.points || []).forEach((pt) => {
