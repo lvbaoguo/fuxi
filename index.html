@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-07 short-answer lead is hint not key -->
+  <!-- gh-deploy: 2026-09-07 xi short-answer cards -->
   <style>
     :root {
       --bg: #ffffff;
@@ -449,9 +449,12 @@
       color: var(--muted);
       letter-spacing: 0.02em;
     }
-    .short-key .short-hint-label + .short-hint-label,
-    .short-key ol {
+    .short-key .short-points-label {
       margin-top: 10px;
+    }
+    .short-key ol {
+      margin: 0;
+      padding-left: 1.35em;
     }
     .short-key .short-lead {
       margin: 0;
@@ -1273,7 +1276,7 @@
             <div class="short-key" id="history-short-key" hidden>
               <p class="short-hint-label" id="history-short-lead-label" hidden>思路 · 不用背</p>
               <p class="short-lead" id="history-short-lead"></p>
-              <p class="short-hint-label">采分点 · 按点给分，写上这些</p>
+              <p class="short-hint-label short-points-label">采分点 · 按点给分，写上这些</p>
               <ol id="history-short-points"></ol>
             </div>
           </div>
@@ -1459,6 +1462,11 @@
           <p class="quiz-stats" id="xq-stats">
             本次测试共<span id="xq-total">0</span>题，已做<span id="xq-done">0</span>题，做对<span class="stat-correct" id="xq-right">0</span>题，做错<span class="stat-wrong" id="xq-wrong">0</span>题
           </p>
+          <p class="quiz-stats" id="xi-short-stats" hidden></p>
+          <div class="quiz-mode-tabs" id="xi-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
+            <button type="button" class="quiz-mode-tab is-active" id="xi-mode-mcq" data-xi-mode="mcq">单选题</button>
+            <button type="button" class="quiz-mode-tab" id="xi-mode-short" data-xi-mode="short">简答题</button>
+          </div>
           <details class="xi-chapter-notes-fold" id="xi-chapter-notes-fold" hidden>
             <summary class="xi-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
             <div class="xi-chapter-notes-body" id="xi-chapter-notes-body">
@@ -1495,7 +1503,19 @@
           </div>
           <p class="quiz-type" id="xq-quiz-type">导论 · 单项选择题</p>
           <p class="quiz-question" id="xq-question-text"></p>
+          <p class="short-source" id="xi-short-source" hidden></p>
           <div class="quiz-options" id="xq-options" role="radiogroup" aria-label="选项"></div>
+          <div id="xi-short-panel" hidden>
+            <div class="btn-submit-wrap" id="xi-short-reveal-wrap">
+              <button type="button" class="btn-submit" id="xi-short-reveal">看采分点</button>
+            </div>
+            <div class="short-key" id="xi-short-key" hidden>
+              <p class="short-hint-label" id="xi-short-lead-label" hidden>思路 · 不用背</p>
+              <p class="short-lead" id="xi-short-lead"></p>
+              <p class="short-hint-label short-points-label">采分点 · 按点给分，写上这些</p>
+              <ol id="xi-short-points"></ol>
+            </div>
+          </div>
           <div class="btn-submit-wrap" id="xq-submit-wrap">
             <button type="button" class="btn-submit" id="xq-submit" disabled>
               <span class="btn-submit-icon" aria-hidden="true">
@@ -1715,6 +1735,10 @@
     let pendingResumeXiChapter = null;
     let xiQuizChapter = 1;
     let xiQuizIndex = 0;
+    let xiQuizMode = "mcq";
+    let xiShortIndex = 0;
+    let xiShortRevealed = false;
+    const xiShortLastIndex = {};
 
     function closeXiViews() {
       const list = document.getElementById("xi-chapter-list");
@@ -1723,6 +1747,8 @@
       if (quiz && !quiz.hidden) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
         if (typeof persistXiProgress === "function") persistXiProgress();
+        if (typeof rememberXiShortIndex === "function") rememberXiShortIndex();
+        xiQuizMode = "mcq";
       }
       if (stub) stub.hidden = true;
       if (quiz) {
@@ -9770,10 +9796,592 @@
     ];
 
     const WRONG_REVIEW_XI_CHAPTER = 20;
+
+    /** 习思想简答题：每章 3 道，真题优先。卷面简答每题 7 分。不进错题回顾。 */
+    const XI_SHORT_BY_CHAPTER = {
+      1: [
+        {
+          text: "简述「两个确立」的完整表述及其决定性意义。",
+          lead: "先写清确立了什么，再写它为什么是最大确定性。",
+          points: [
+            "确立习近平同志党中央的核心、全党的核心地位，确立习近平新时代中国特色社会主义思想的指导地位。",
+            "「两个确立」是新时代党和国家事业取得历史性成就、发生历史性变革的决定性因素。",
+            "是党和人民应对一切不确定性的最大确定性、最大底气、最大保证。",
+          ],
+          source: "2025年4月真题第26题",
+        },
+        {
+          text: "简述习近平新时代中国特色社会主义思想的历史地位。",
+          lead: "当代中国马克思主义、二十一世纪马克思主义，中华文化和中国精神的时代精华。",
+          points: [
+            "继承发展马列主义、毛泽东思想、邓小平理论、「三个代表」重要思想、科学发展观，开辟了马克思主义中国化时代化新境界。",
+            "坚持「两个结合」，是中华文化和中国精神的时代精华。",
+            "是全党全国各族人民为实现中华民族伟大复兴而奋斗的行动指南，是新时代党和国家事业发展的根本遵循。",
+          ],
+          source: "2025年4月真题第27题 / 大纲样卷",
+        },
+        {
+          text: "简述「两个结合」的完整表述。",
+          lead: "这是探索中国特色社会主义道路得出的规律性认识。",
+          points: [
+            "把马克思主义基本原理同中国具体实际相结合。",
+            "把马克思主义基本原理同中华优秀传统文化相结合。",
+            "「两个结合」是我们取得成功的最大法宝。",
+          ],
+          source: "2025年10月真题第26题",
+        },
+      ],
+      2: [
+        {
+          text: "简述中国特色社会主义进入新时代的重大意义。",
+          lead: "这是我国发展新的历史方位。",
+          points: [
+            "中华民族迎来了从站起来、富起来到强起来的伟大飞跃。",
+            "科学社会主义在二十一世纪的中国焕发出强大生机活力。",
+            "中国特色社会主义道路、理论、制度、文化不断发展，为解决人类问题贡献中国智慧和中国方案。",
+          ],
+          source: "大纲高频 · 第1章",
+        },
+        {
+          text: "简述新时代我国社会主要矛盾。",
+          lead: "主要矛盾变化没有改变我国仍处于社会主义初级阶段的基本国情。",
+          points: [
+            "人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾。",
+            "必须把发展质量问题摆在更为突出的位置，着力解决不平衡不充分问题。",
+            "我国仍处于并将长期处于社会主义初级阶段的基本国情没有变。",
+          ],
+          source: "大纲高频 · 第1章",
+        },
+        {
+          text: "简述「四个全面」战略布局。",
+          lead: "一个引领、三个战略举措。",
+          points: [
+            "全面建设社会主义现代化国家，在「四个全面」中居于引领地位。",
+            "全面深化改革、全面依法治国、全面从严治党是三大战略举措。",
+            "三者为全面建设社会主义现代化国家提供重要保障。",
+          ],
+          source: "2025年10月真题第27题",
+        },
+      ],
+      3: [
+        {
+          text: "简述中国式现代化的中国特色。",
+          lead: "人口规模巨大、共同富裕、物质文明精神文明相协调、人与自然和谐共生、走和平发展道路。",
+          points: [
+            "是人口规模巨大的现代化，是全体人民共同富裕的现代化。",
+            "是物质文明和精神文明相协调的现代化，是人与自然和谐共生的现代化。",
+            "是走和平发展道路的现代化。",
+          ],
+          source: "大纲高频 · 第2章",
+        },
+        {
+          text: "简述中国式现代化的本质要求。",
+          lead: "党的领导是首要，中国特色社会主义是旗帜。",
+          points: [
+            "坚持中国共产党领导，坚持中国特色社会主义。",
+            "实现高质量发展，发展全过程人民民主，丰富人民精神世界，实现全体人民共同富裕。",
+            "促进人与自然和谐共生，推动构建人类命运共同体，创造人类文明新形态。",
+          ],
+          source: "大纲高频 · 第2章",
+        },
+        {
+          text: "简述为什么推进中国式现代化是一个系统工程。",
+          lead: "要统筹兼顾、系统谋划、整体推进。",
+          points: [
+            "正确处理顶层设计与实践探索、战略与策略、守正与创新的关系。",
+            "正确处理效率与公平、活力与秩序、自立自强与对外开放的关系。",
+            "坚持党的领导，确保中国式现代化的正确方向。",
+          ],
+          source: "大纲样卷论述压缩 · 第2章",
+        },
+      ],
+      4: [
+        {
+          text: "简述为什么必须坚持党的全面领导。",
+          lead: "党的领导是中国特色社会主义最本质的特征和最大优势。",
+          points: [
+            "中国共产党领导是中国特色社会主义最本质的特征，是中国特色社会主义制度的最大优势。",
+            "坚持党的全面领导是坚持和发展中国特色社会主义的必由之路。",
+            "只有坚持党的全面领导，才能确保党和国家事业始终沿着正确方向前进。",
+          ],
+          source: "大纲高频 · 第3章",
+        },
+        {
+          text: "简述如何坚持和加强党的全面领导。",
+          lead: "核心是维护党中央权威和集中统一领导。",
+          points: [
+            "坚决维护党中央权威和集中统一领导。",
+            "完善党的领导制度体系，提高党科学执政、民主执政、依法执政水平。",
+            "发挥党总揽全局、协调各方的领导核心作用。",
+          ],
+          source: "大纲高频 · 第3章",
+        },
+        {
+          text: "简述中国特色社会主义最本质的特征。",
+          lead: "一句话：中国共产党领导。",
+          points: [
+            "中国特色社会主义最本质的特征是中国共产党领导。",
+            "中国特色社会主义制度的最大优势是中国共产党领导。",
+            "党是最高政治领导力量，坚持党中央集中统一领导是最高政治原则。",
+          ],
+          source: "大纲高频 · 第3章",
+        },
+      ],
+      5: [
+        {
+          text: "简述如何坚持人民立场。",
+          lead: "初心、血肉联系、热爱尊重敬畏人民。",
+          points: [
+            "始终牢记党的初心和使命。",
+            "始终保持党同人民群众的血肉联系。",
+            "热爱人民、尊重人民、敬畏人民。",
+          ],
+          source: "2025年4月真题第28题",
+        },
+        {
+          text: "如何理解人民对美好生活的向往就是党的奋斗目标？",
+          lead: "江山就是人民，人民就是江山。",
+          points: [
+            "中国共产党来自人民、植根人民，为人民而生、因人民而兴。",
+            "必须把人民对美好生活的向往作为奋斗目标，依靠人民创造历史伟业。",
+            "让现代化建设成果更多更公平惠及全体人民。",
+          ],
+          source: "2024年10月真题第27题",
+        },
+        {
+          text: "简述以人民为中心的发展思想的基本内容。",
+          lead: "发展为了人民、依靠人民、成果由人民共享。",
+          points: [
+            "坚持发展为了人民，把实现好维护好发展好最广大人民根本利益作为出发点和落脚点。",
+            "坚持发展依靠人民，尊重人民主体地位和首创精神。",
+            "坚持发展成果由人民共享，朝着共同富裕方向稳步前进。",
+          ],
+          source: "大纲高频 · 第4章",
+        },
+      ],
+      6: [
+        {
+          text: "简述为什么说改革开放是决定当代中国命运的关键一招。",
+          lead: "改革开放是党和人民大踏步赶上时代的重要法宝。",
+          points: [
+            "改革开放是决定当代中国命运的关键一招，也是决定中国式现代化成败的关键一招。",
+            "只有改革开放才能发展中国、发展社会主义、发展马克思主义。",
+            "全面深化改革要突出问题导向，破除深层次体制机制障碍。",
+          ],
+          source: "大纲高频 · 第5章",
+        },
+        {
+          text: "简述全面深化改革的总目标。",
+          lead: "完善和发展中国特色社会主义制度，推进国家治理体系和治理能力现代化。",
+          points: [
+            "完善和发展中国特色社会主义制度。",
+            "推进国家治理体系和治理能力现代化。",
+            "到2035年基本实现国家治理体系和治理能力现代化。",
+          ],
+          source: "大纲高频 · 第5章",
+        },
+        {
+          text: "如何构建初次分配、再分配、第三次分配协调配套的制度体系？",
+          lead: "三次分配各有侧重、相互配合。",
+          points: [
+            "发挥初次分配的基础性作用，努力提高居民收入在国民收入分配中的比重。",
+            "加大税收、社会保障、转移支付等再分配调节力度。",
+            "建立健全第三次分配机制，发展慈善等社会公益事业。",
+          ],
+          source: "大纲样卷简答 · 第5/6章",
+        },
+      ],
+      7: [
+        {
+          text: "简述高质量发展的重大战略意义。",
+          lead: "高质量发展是全面建设社会主义现代化国家的首要任务。",
+          points: [
+            "为全面建设社会主义现代化国家提供更为坚实的物质基础。",
+            "是不断满足人民对美好生活需要的重要保证。",
+            "是维护国家长治久安的必然要求。",
+          ],
+          source: "2025年4月真题第29题",
+        },
+        {
+          text: "简述社会主义基本经济制度的新概括。",
+          lead: "所有制、分配、市场经济体制三者共同构成。",
+          points: [
+            "公有制为主体、多种所有制经济共同发展。",
+            "按劳分配为主体、多种分配方式并存。",
+            "社会主义市场经济体制。三者共同作为社会主义基本经济制度。",
+          ],
+          source: "2024年10月真题第28题",
+        },
+        {
+          text: "简述构建新发展格局的重点着力方向。",
+          lead: "以国内大循环为主体、国内国际双循环相互促进。",
+          points: [
+            "把实施扩大内需战略同深化供给侧结构性改革有机结合。",
+            "着力发展实体经济，加快科技自立自强。",
+            "推动产业链供应链优化升级。",
+          ],
+          source: "2025年10月真题第28题",
+        },
+      ],
+      8: [
+        {
+          text: "简述实现高水平科技自立自强的重大意义。",
+          lead: "科技自立自强是国家强盛和民族复兴的战略基石。",
+          points: [
+            "是国家强盛和民族复兴的战略基石。",
+            "是应对风险挑战、维护国家利益的必然选择。",
+            "是构建新发展格局、推动高质量发展、满足人民美好生活需要的内在要求。",
+          ],
+          source: "2026年4月真题第26题",
+        },
+        {
+          text: "简述教育、科技、人才在现代化建设中的地位。",
+          lead: "三者是全面建设社会主义现代化国家的基础性、战略性支撑。",
+          points: [
+            "教育是民族振兴、社会进步的重要基石，是功在当代、利在千秋的德政工程。",
+            "科技是第一生产力，创新是第一动力。",
+            "人才是第一资源，必须坚持教育发展、科技创新、人才培养一体推进。",
+          ],
+          source: "大纲高频 · 第7章",
+        },
+        {
+          text: "简述为什么必须深入实施科教兴国战略、人才强国战略、创新驱动发展战略。",
+          lead: "中国式现代化关键在科技现代化。",
+          points: [
+            "科技自立自强是促进发展大局的根本支撑。",
+            "必须坚持科技是第一生产力、人才是第一资源、创新是第一动力。",
+            "开辟发展新领域新赛道，不断塑造发展新动能新优势。",
+          ],
+          source: "大纲高频 · 第7章",
+        },
+      ],
+      9: [
+        {
+          text: "简述我国的根本政治制度和基本政治制度。",
+          lead: "根本制度一个，基本制度三个。",
+          points: [
+            "根本政治制度是人民代表大会制度。",
+            "基本政治制度包括中国共产党领导的多党合作和政治协商制度、民族区域自治制度、基层群众自治制度。",
+            "这些制度保障人民当家作主，体现我国社会主义民主政治的独特优势。",
+          ],
+          source: "2024年10月真题第29题",
+        },
+        {
+          text: "简述全过程人民民主的鲜明特点。",
+          lead: "全链条、全方位、全覆盖的民主。",
+          points: [
+            "是最广泛、最真实、最管用的社会主义民主。",
+            "实现了过程民主和成果民主、程序民主和实质民主、直接民主和间接民主、人民民主和国家意志相统一。",
+            "是全链条、全方位、全覆盖的民主。",
+          ],
+          source: "大纲高频 · 第8章",
+        },
+        {
+          text: "简述社会主义协商民主的重要地位。",
+          lead: "协商民主是实践全过程人民民主的重要形式。",
+          points: [
+            "协商民主是中国社会主义民主政治的特有形式和独特优势。",
+            "是党的群众路线在政治领域的重要体现。",
+            "要统筹推进政党协商、人大协商、政府协商、政协协商、人民团体协商、基层协商以及社会组织协商。",
+          ],
+          source: "大纲高频 · 第8章",
+        },
+      ],
+      10: [
+        {
+          text: "简述中国特色社会主义法治道路的核心要义。",
+          lead: "党的领导、中国特色社会主义制度、中国特色社会主义法治理论。",
+          points: [
+            "坚持党的领导，这是社会主义法治最根本的保证。",
+            "坚持中国特色社会主义制度，这是法治体系的根本制度基础。",
+            "贯彻中国特色社会主义法治理论，这是全面依法治国的行动指南。",
+          ],
+          source: "2024年10月真题第30题",
+        },
+        {
+          text: "简述全面依法治国的总目标。",
+          lead: "建设中国特色社会主义法治体系，建设社会主义法治国家。",
+          points: [
+            "建设中国特色社会主义法治体系。",
+            "建设社会主义法治国家。",
+            "坚持依法治国、依法执政、依法行政共同推进，法治国家、法治政府、法治社会一体建设。",
+          ],
+          source: "大纲高频 · 第9章",
+        },
+        {
+          text: "简述全面依法治国的工作布局。",
+          lead: "科学立法、严格执法、公正司法、全民守法。",
+          points: [
+            "完善以宪法为核心的中国特色社会主义法律体系。",
+            "扎实推进依法行政，严格公正司法。",
+            "建设高素质法治工作队伍，推动全民守法。",
+          ],
+          source: "大纲高频 · 第9章",
+        },
+      ],
+      11: [
+        {
+          text: "简述中华文明的突出特性。",
+          lead: "五个突出特性共同塑造中华文明。",
+          points: [
+            "突出的连续性、创新性。",
+            "突出的统一性、包容性。",
+            "突出的和平性。",
+          ],
+          source: "2025年4月真题第30题",
+        },
+        {
+          text: "简述社会主义核心价值观的基本内容。",
+          lead: "三个层面 24 个字。",
+          points: [
+            "国家层面：富强、民主、文明、和谐。",
+            "社会层面：自由、平等、公正、法治。",
+            "公民层面：爱国、敬业、诚信、友善。",
+          ],
+          source: "2026年4月真题第27题",
+        },
+        {
+          text: "简述建设社会主义文化强国的基本要求。",
+          lead: "坚定文化自信，建设中华民族现代文明。",
+          points: [
+            "坚持马克思主义在意识形态领域指导地位的根本制度。",
+            "培育和践行社会主义核心价值观。",
+            "推动文化事业和文化产业繁荣发展，增强中华文明传播力影响力。",
+          ],
+          source: "大纲高频 · 第10章",
+        },
+      ],
+      12: [
+        {
+          text: "简述保障和改善民生的重点。",
+          lead: "从解决群众最关心最直接最现实的利益问题入手。",
+          points: [
+            "健全就业促进机制，推动实现高质量充分就业。",
+            "健全社会保障体系，推进健康中国建设。",
+            "办好人民满意的教育，加强住房、养老等基础民生保障。",
+          ],
+          source: "大纲高频 · 第11章",
+        },
+        {
+          text: "简述扎实推动共同富裕的基本要求。",
+          lead: "共同富裕是中国式现代化的本质要求。",
+          points: [
+            "鼓励勤劳创新致富，坚持基本经济制度。",
+            "尽力而为、量力而行，统筹需要和可能。",
+            "坚持循序渐进，允许一部分人先富起来，先富带后富、帮后富。",
+          ],
+          source: "大纲高频 · 第11章",
+        },
+        {
+          text: "简述加强和创新社会治理的主要要求。",
+          lead: "建设人人有责、人人尽责、人人享有的社会治理共同体。",
+          points: [
+            "完善社会治理体系，健全共建共治共享的社会治理制度。",
+            "提升社会治理效能，把矛盾纠纷化解在基层。",
+            "建设更高水平的平安中国。",
+          ],
+          source: "大纲高频 · 第11章",
+        },
+      ],
+      13: [
+        {
+          text: "简述「绿水青山就是金山银山」理念的内涵。",
+          lead: "生态本身就是经济，保护生态就是发展生产力。",
+          points: [
+            "绿水青山既是自然财富、生态财富，又是社会财富、经济财富。",
+            "保护生态环境就是保护生产力，改善生态环境就是发展生产力。",
+            "必须坚定不移走生态优先、绿色发展之路。",
+          ],
+          source: "大纲高频 · 第12章",
+        },
+        {
+          text: "简述建设社会主义生态文明的核心要求。",
+          lead: "人与自然和谐共生。",
+          points: [
+            "坚持人与自然和谐共生，尊重自然、顺应自然、保护自然。",
+            "坚持节约资源和保护环境的基本国策。",
+            "推动形成绿色发展方式和生活方式，积极稳妥推进碳达峰碳中和。",
+          ],
+          source: "大纲高频 · 第12章",
+        },
+        {
+          text: "简述我国生态文明建设的战略定力。",
+          lead: "生态环境是关系党的使命宗旨的重大政治问题。",
+          points: [
+            "生态环境是关系民生的重大社会问题。",
+            "必须站在人与自然和谐共生的高度谋划发展。",
+            "用最严格制度最严密法治保护生态环境。",
+          ],
+          source: "大纲高频 · 第12章",
+        },
+      ],
+      14: [
+        {
+          text: "简述为什么要统筹发展和安全。",
+          lead: "安全是发展的前提，发展是安全的保障。",
+          points: [
+            "国家安全是民族复兴的根基，社会稳定是国家强盛的前提。",
+            "必须坚持总体国家安全观，把维护国家安全贯穿党和国家工作各方面全过程。",
+            "以新安全格局保障新发展格局，实现高质量发展和高水平安全良性互动。",
+          ],
+          source: "大纲样卷简答 · 第13章",
+        },
+        {
+          text: "简述总体国家安全观的关键内涵。",
+          lead: "以人民安全为宗旨，以政治安全为根本。",
+          points: [
+            "以人民安全为宗旨，以政治安全为根本。",
+            "以经济安全为基础，以军事、科技、文化、社会安全为保障。",
+            "以促进国际安全为依托，统筹外部安全和内部安全、国土安全和国民安全、传统安全和非传统安全、自身安全和共同安全。",
+          ],
+          source: "大纲高频 · 第13章",
+        },
+        {
+          text: "简述维护和塑造国家安全的主要任务。",
+          lead: "既要维护安全，也要塑造安全。",
+          points: [
+            "坚定维护国家政权安全、制度安全、意识形态安全。",
+            "加强重点领域安全能力建设。",
+            "提高公共安全治理水平，完善社会治理体系。",
+          ],
+          source: "大纲高频 · 第13章",
+        },
+      ],
+      15: [
+        {
+          text: "简述党在新时代的强军目标。",
+          lead: "听党指挥、能打胜仗、作风优良。",
+          points: [
+            "听党指挥是灵魂，决定军队建设的政治方向。",
+            "能打胜仗是核心，反映军队的根本职能和军队建设的根本指向。",
+            "作风优良是保证，关系军队的性质、宗旨、本色。",
+          ],
+          source: "2025年10月真题第29题",
+        },
+        {
+          text: "简述坚持党对人民军队绝对领导的极端重要性。",
+          lead: "这是人民军队的建军之本、强军之魂。",
+          points: [
+            "党对军队绝对领导是中国特色社会主义的本质特征，是党和国家的重要政治优势。",
+            "是人民军队完全区别于一切旧军队的政治特质和根本优势。",
+            "必须全面贯彻军委主席负责制，确保枪杆子永远听党指挥。",
+          ],
+          source: "大纲高频 · 第14章",
+        },
+        {
+          text: "简述加快建设巩固国防和强大人民军队的战略要求。",
+          lead: "如期实现建军一百年奋斗目标。",
+          points: [
+            "全面加强练兵备战，提高人民军队打赢能力。",
+            "全面加强军事治理，巩固提高一体化国家战略体系和能力。",
+            "实现建军一百年奋斗目标，加快把人民军队建成世界一流军队。",
+          ],
+          source: "大纲高频 · 第14章",
+        },
+      ],
+      16: [
+        {
+          text: "简述如何坚持和完善「一国两制」制度体系。",
+          lead: "把坚持「一国」原则和尊重「两制」差异结合起来。",
+          points: [
+            "加强依法治理相关制度和机制建设。",
+            "健全中央行使全面管治权的制度。",
+            "为落实「爱国者治港」「爱国者治澳」提供制度保障。",
+          ],
+          source: "2026年4月真题第28题",
+        },
+        {
+          text: "简述「一国两制」的科学内涵。",
+          lead: "一个中国是前提，两制并存长期不变。",
+          points: [
+            "一个中国是前提和核心，「一国」是根，根深才能叶茂。",
+            "国家的主体坚持社会主义制度。",
+            "香港、澳门保持原有的资本主义制度长期不变，高度自治。",
+          ],
+          source: "大纲高频 · 第15章",
+        },
+        {
+          text: "简述推进祖国完全统一的坚定立场。",
+          lead: "解决台湾问题、实现祖国完全统一，是中国共产党矢志不渝的历史任务。",
+          points: [
+            "坚持一个中国原则和「九二共识」。",
+            "以最大诚意、尽最大努力争取和平统一前景。",
+            "决不承诺放弃使用武力，保留采取一切必要措施的选项。",
+          ],
+          source: "大纲高频 · 第15章",
+        },
+      ],
+      17: [
+        {
+          text: "简述四大全球倡议（全球发展、安全、文明及相关倡议）的基本内容。",
+          lead: "面向世界提供公共产品，推动构建人类命运共同体。",
+          points: [
+            "全球发展倡议：坚持以人民为中心，推动实现更加强劲、绿色、健康的全球发展。",
+            "全球安全倡议：坚持共同、综合、合作、可持续的安全观。",
+            "全球文明倡议：尊重世界文明多样性，弘扬全人类共同价值。",
+          ],
+          source: "2026年4月真题第30题",
+        },
+        {
+          text: "简述推动构建人类命运共同体的内涵。",
+          lead: "建设持久和平、普遍安全、共同繁荣、开放包容、清洁美丽的世界。",
+          points: [
+            "政治上相互尊重、平等协商，建设持久和平的世界。",
+            "安全上以对话解决争端，建设普遍安全的世界；经济上同舟共济，建设共同繁荣的世界。",
+            "文明上交流互鉴，建设开放包容的世界；生态上绿色低碳，建设清洁美丽的世界。",
+          ],
+          source: "大纲高频 · 第16章",
+        },
+        {
+          text: "如何理解当今世界百年未有之大变局？",
+          lead: "既有历史潮流不可阻挡的一面，也有不稳定不确定突出的一面。",
+          points: [
+            "世界多极化、经济全球化、社会信息化、文化多样化深入发展，和平、发展、合作、共赢的历史潮流不可阻挡。",
+            "世界面临的不稳定性不确定性突出，全球性问题加剧。",
+            "国际力量对比深刻变化，新一轮科技革命和产业变革深入发展，国际体系和国际秩序深度调整。",
+          ],
+          source: "2025年10月真题第30题",
+        },
+      ],
+      18: [
+        {
+          text: "简述为什么要以伟大自我革命引领伟大社会革命。",
+          lead: "党的自我革命是跳出治乱兴衰历史周期率的第二个答案。",
+          points: [
+            "全面从严治党是新时代党的自我革命的伟大实践。",
+            "以自我革命引领社会革命，才能确保党永远不变质、不变色、不变味。",
+            "必须时刻保持解决大党独有难题的清醒和坚定。",
+          ],
+          source: "大纲样卷简答 · 第17章",
+        },
+        {
+          text: "简述如何坚持标本兼治开展反腐败斗争。",
+          lead: "不敢腐、不能腐、不想腐一体推进。",
+          points: [
+            "构建起党全面领导的反腐败工作格局。",
+            "「打虎」「拍蝇」「猎狐」多管齐下。",
+            "把权力关进制度的笼子里，坚持不敢腐、不能腐、不想腐一体推进。",
+          ],
+          source: "2026年4月真题第29题",
+        },
+        {
+          text: "简述全面从严治党的核心要义。",
+          lead: "核心是加强党的领导，基础在全面，关键在严，要害在治。",
+          points: [
+            "全面从严治党核心是加强党的领导。",
+            "基础在全面，关键在严，要害在治。",
+            "以党的政治建设为统领，思想建党和制度治党同向发力。",
+          ],
+          source: "大纲高频 · 第17章",
+        },
+      ],
+    };
+
     const XI_WRONG_STORAGE_KEY = "pansan2-xi-wrong-v1";
     const XI_MASTERY_STORAGE_KEY = "pansan2-xi-mastery-v1";
     const XI_RESULT_STORAGE_KEY = "pansan2-xi-chapter-results-v1";
     const XI_PROGRESS_STORAGE_KEY = "pansan2-xi-chapter-progress-v1";
+    const XI_SHORT_PROGRESS_KEY = "pansan2-xi-short-progress-v1";
 
     const XI_QUIZ_TYPE_LABELS = [
       "",
@@ -10437,6 +11045,27 @@
       }
     }
 
+    function persistXiShortProgress() {
+      try {
+        const last = {};
+        for (let ch = 1; ch <= 18; ch++) {
+          if (typeof xiShortLastIndex[ch] === "number") last[ch] = xiShortLastIndex[ch];
+        }
+        localStorage.setItem(XI_SHORT_PROGRESS_KEY, JSON.stringify({ last }));
+      } catch (_) {}
+    }
+
+    function rememberXiShortIndex() {
+      if (xiQuizChapter >= 1 && xiQuizChapter <= 18) {
+        xiShortLastIndex[xiQuizChapter] = xiShortIndex;
+        persistXiShortProgress();
+      }
+    }
+
+    function shortXiQuestionsForChapter(ch) {
+      return XI_SHORT_BY_CHAPTER[ch] || [];
+    }
+
     (function initXiProgressFromStorage() {
       try {
         const raw = localStorage.getItem(XI_PROGRESS_STORAGE_KEY);
@@ -10454,6 +11083,19 @@
           if (typeof ix === "number") xiChapterLastIndex[ch] = ix;
           const o = order[ch] || order[String(ch)];
           if (Array.isArray(o)) xiDisplayOrder[ch] = o;
+        }
+      } catch (_) {}
+    })();
+
+    (function initXiShortProgressFromStorage() {
+      try {
+        const raw = localStorage.getItem(XI_SHORT_PROGRESS_KEY);
+        if (!raw) return;
+        const prog = JSON.parse(raw);
+        const last = (prog && prog.last) || {};
+        for (let ch = 1; ch <= 18; ch++) {
+          const ix = last[ch] != null ? last[ch] : last[String(ch)];
+          if (typeof ix === "number") xiShortLastIndex[ch] = ix;
         }
       } catch (_) {}
     })();
@@ -10541,6 +11183,19 @@
     const xiQuizOrderTools = document.getElementById("xi-quiz-order-tools");
     const btnXiShuffleOrder = document.getElementById("btn-xi-shuffle-order");
     const btnXiTimelineOrder = document.getElementById("btn-xi-timeline-order");
+    const xiModeTabs = document.getElementById("xi-quiz-mode-tabs");
+    const xiModeMcqBtn = document.getElementById("xi-mode-mcq");
+    const xiModeShortBtn = document.getElementById("xi-mode-short");
+    const xiShortStats = document.getElementById("xi-short-stats");
+    const xiShortPanel = document.getElementById("xi-short-panel");
+    const xiShortSource = document.getElementById("xi-short-source");
+    const xiShortReveal = document.getElementById("xi-short-reveal");
+    const xiShortRevealWrap = document.getElementById("xi-short-reveal-wrap");
+    const xiShortKey = document.getElementById("xi-short-key");
+    const xiShortLead = document.getElementById("xi-short-lead");
+    const xiShortLeadLabel = document.getElementById("xi-short-lead-label");
+    const xiShortPoints = document.getElementById("xi-short-points");
+    const xqStatsEl = document.getElementById("xq-stats");
 
     function updateXiOrderButtons() {
       const ch = xiQuizChapter;
@@ -10638,7 +11293,112 @@
       xqContinueWrap.hidden = !(saved && last && canContinue);
     }
 
+    function updateXiModeTabs() {
+      const canShort =
+        xiQuizChapter >= 1 &&
+        xiQuizChapter <= 18 &&
+        shortXiQuestionsForChapter(xiQuizChapter).length > 0;
+      if (xiModeTabs) xiModeTabs.hidden = !canShort;
+      if (!canShort && xiQuizMode === "short") xiQuizMode = "mcq";
+      if (xiModeMcqBtn) xiModeMcqBtn.classList.toggle("is-active", xiQuizMode === "mcq");
+      if (xiModeShortBtn) xiModeShortBtn.classList.toggle("is-active", xiQuizMode === "short");
+    }
+
+    function hideXiShortUi() {
+      if (xiShortPanel) xiShortPanel.hidden = true;
+      if (xiShortSource) xiShortSource.hidden = true;
+      if (xiShortStats) xiShortStats.hidden = true;
+      if (xqStatsEl) xqStatsEl.hidden = false;
+      if (xqOptionsEl) xqOptionsEl.hidden = false;
+    }
+
+    function renderXiShortQuiz() {
+      const qs = shortXiQuestionsForChapter(xiQuizChapter);
+      updateXiModeTabs();
+      if (!qs.length) {
+        xiQuizMode = "mcq";
+        renderXiQuiz();
+        return;
+      }
+      if (xiShortIndex < 0) xiShortIndex = 0;
+      if (xiShortIndex >= qs.length) xiShortIndex = qs.length - 1;
+
+      updateXiChapterNotesPanel();
+      if (xiQuizOrderTools) xiQuizOrderTools.hidden = true;
+      if (xqStatsEl) xqStatsEl.hidden = true;
+      if (xiShortStats) {
+        xiShortStats.hidden = false;
+        xiShortStats.textContent =
+          "本章简答共" + qs.length + "道，当前第" + (xiShortIndex + 1) + "道 · 先自己默点，再对照采分点（每题约7分）";
+      }
+      const typeLabel = document.getElementById("xq-quiz-type");
+      if (typeLabel) typeLabel.textContent = "简答题";
+      if (xqOptionsEl) {
+        xqOptionsEl.innerHTML = "";
+        xqOptionsEl.hidden = true;
+      }
+      if (xqSubmitWrap) xqSubmitWrap.classList.add("is-hidden");
+      if (xqFeedback) xqFeedback.style.display = "none";
+      if (xqContinueWrap) xqContinueWrap.hidden = true;
+      if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
+
+      const item = qs[xiShortIndex];
+      if (xqQuestionText) xqQuestionText.textContent = xiShortIndex + 1 + ". " + item.text;
+      if (xiShortSource) {
+        xiShortSource.hidden = false;
+        xiShortSource.textContent = item.source ? "出处：" + item.source : "";
+      }
+      if (xiShortPanel) xiShortPanel.hidden = false;
+      if (xiShortKey) xiShortKey.hidden = !xiShortRevealed;
+      if (xiShortRevealWrap) xiShortRevealWrap.hidden = !!xiShortRevealed;
+      if (xiShortRevealed) {
+        if (xiShortLead) xiShortLead.textContent = item.lead || "";
+        if (xiShortLeadLabel) xiShortLeadLabel.hidden = !item.lead;
+        if (xiShortPoints) {
+          xiShortPoints.innerHTML = "";
+          (item.points || []).forEach((pt) => {
+            const li = document.createElement("li");
+            li.textContent = pt;
+            xiShortPoints.appendChild(li);
+          });
+        }
+      }
+
+      if (xqPrev) xqPrev.disabled = xiShortIndex === 0;
+      if (xqNext) {
+        xqNext.disabled = xiShortIndex >= qs.length - 1;
+        xqNext.title = xiShortIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      }
+    }
+
+    function setXiQuizMode(mode) {
+      if (mode !== "mcq" && mode !== "short") return;
+      if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) mode = "mcq";
+      if (mode === "short") {
+        const qs = shortXiQuestionsForChapter(xiQuizChapter);
+        if (!qs.length) mode = "mcq";
+        else {
+          xiShortRevealed = false;
+          if (typeof xiShortLastIndex[xiQuizChapter] === "number") {
+            xiShortIndex = xiShortLastIndex[xiQuizChapter];
+          } else {
+            xiShortIndex = 0;
+          }
+        }
+      } else {
+        rememberXiShortIndex();
+      }
+      xiQuizMode = mode;
+      renderXiQuiz();
+    }
+
     function renderXiQuiz() {
+      updateXiModeTabs();
+      if (xiQuizMode === "short") {
+        renderXiShortQuiz();
+        return;
+      }
+      hideXiShortUi();
       const qs = xiQuestionsForChapter(xiQuizChapter);
       const res = xiCurrentResults();
       const typeLabel = document.getElementById("xq-quiz-type");
@@ -10739,6 +11499,7 @@
     function openXiQuiz(ch, opts) {
       const choice = opts && opts.choice;
       if (!xiChapterListEl || !xiQuizViewEl) return;
+      if (ch === WRONG_REVIEW_XI_CHAPTER) xiQuizMode = "mcq";
 
       if (!choice && hasUnfinishedXiChapterProgress(ch)) {
         pendingResumeXiChapter = ch;
@@ -10749,6 +11510,7 @@
       if (!xiQuizViewEl.hidden && xiQuizChapter !== ch) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
         persistXiProgress();
+        rememberXiShortIndex();
       }
 
       const resume =
@@ -10904,6 +11666,16 @@
 
     if (xqNext) {
       xqNext.addEventListener("click", () => {
+        if (xiQuizMode === "short") {
+          const qs = shortXiQuestionsForChapter(xiQuizChapter);
+          if (xiShortIndex < qs.length - 1) {
+            xiShortIndex += 1;
+            xiShortRevealed = false;
+            rememberXiShortIndex();
+            renderXiQuiz();
+          }
+          return;
+        }
         const qs = xiQuestionsForChapter(xiQuizChapter);
         if (xiQuizIndex < qs.length - 1) {
           xiQuizIndex += 1;
@@ -10915,11 +11687,33 @@
 
     if (xqPrev) {
       xqPrev.addEventListener("click", () => {
+        if (xiQuizMode === "short") {
+          if (xiShortIndex > 0) {
+            xiShortIndex -= 1;
+            xiShortRevealed = false;
+            rememberXiShortIndex();
+            renderXiQuiz();
+          }
+          return;
+        }
         if (xiQuizIndex > 0) {
           xiQuizIndex -= 1;
           rememberXiIndex();
           renderXiQuiz();
         }
+      });
+    }
+
+    if (xiModeMcqBtn) {
+      xiModeMcqBtn.addEventListener("click", () => setXiQuizMode("mcq"));
+    }
+    if (xiModeShortBtn) {
+      xiModeShortBtn.addEventListener("click", () => setXiQuizMode("short"));
+    }
+    if (xiShortReveal) {
+      xiShortReveal.addEventListener("click", () => {
+        xiShortRevealed = true;
+        renderXiQuiz();
       });
     }
 
@@ -17170,6 +17964,7 @@
         rememberHistoryShortIndex();
         rememberMarxIndex();
         rememberXiIndex();
+        rememberXiShortIndex();
       }
     });
     window.addEventListener("pagehide", () => {
@@ -17177,6 +17972,7 @@
       rememberHistoryShortIndex();
       rememberMarxIndex();
       rememberXiIndex();
+      rememberXiShortIndex();
     });
 
     chContinueBtn.addEventListener("click", () => {
