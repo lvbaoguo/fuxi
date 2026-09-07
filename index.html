@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-06 persist all 3 subjects progress -->
+  <!-- gh-deploy: 2026-09-07 shuffle persist + wrong-review identity -->
   <style>
     :root {
       --bg: #ffffff;
@@ -4005,6 +4005,16 @@
       return entries[canonIdx] || null;
     }
 
+    function removeMarxWrongBySource(src) {
+      if (!src) return;
+      const entries = getMarxWrongEntries();
+      const canonIdx = entries.findIndex((e) => e.ch === src.ch && e.i === src.i);
+      if (canonIdx < 0) return;
+      const order = getMarxDisplayOrder(WRONG_REVIEW_MARX_CHAPTER);
+      const displayIdx = order.indexOf(canonIdx);
+      removeMarxWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0);
+    }
+
     function removeMarxWrongReviewAtDisplayIndex(displayIdx) {
       const entries = getMarxWrongEntries();
       const n = entries.length;
@@ -4014,17 +4024,23 @@
       if (canonIdx < 0 || canonIdx >= n) return;
       entries.splice(canonIdx, 1);
       saveMarxWrongEntries(entries);
-      delete marxDisplayOrder[WRONG_REVIEW_MARX_CHAPTER];
-      const newQ = marxQuestionsForChapter(WRONG_REVIEW_MARX_CHAPTER);
-      marxChapterResults[String(WRONG_REVIEW_MARX_CHAPTER)] = newQ.length ? newQ.map(() => null) : [];
-      persistMarxResults();
+      const key = String(WRONG_REVIEW_MARX_CHAPTER);
+      const oldRes = marxChapterResults[key] || [];
+      const nextRes = oldRes.slice();
+      if (displayIdx >= 0 && displayIdx < nextRes.length) nextRes.splice(displayIdx, 1);
+      marxChapterResults[key] = nextRes;
+      const nextOrder = orderAfterRemovingDisplay(order, displayIdx);
+      if (nextOrder) marxDisplayOrder[WRONG_REVIEW_MARX_CHAPTER] = nextOrder;
+      else delete marxDisplayOrder[WRONG_REVIEW_MARX_CHAPTER];
+      persistMarxProgress();
       updateMarxWrongReviewButtonBadge();
       if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
-      if (newQ.length === 0) {
+      if (entries.length === 0) {
         closeMarxViews();
         return;
       }
-      marxQuizIndex = Math.min(displayIdx, newQ.length - 1);
+      marxQuizIndex = Math.min(displayIdx, entries.length - 1);
+      rememberMarxIndex();
       recomputeMarxStats();
       renderMarxQuiz();
     }
@@ -4059,7 +4075,9 @@
       try {
         const last = {};
         const order = {};
-        for (let ch = 1; ch <= 8; ch++) {
+        const chapters = [1, 2, 3, 4, 5, 6, 7, 8, WRONG_REVIEW_MARX_CHAPTER];
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
           if (typeof marxChapterLastIndex[ch] === "number") last[ch] = marxChapterLastIndex[ch];
           if (marxDisplayOrder[ch]) order[ch] = marxDisplayOrder[ch];
         }
@@ -4078,7 +4096,10 @@
     }
 
     function rememberMarxIndex() {
-      if (marxQuizChapter >= 1 && marxQuizChapter <= 8) {
+      if (
+        (marxQuizChapter >= 1 && marxQuizChapter <= 8) ||
+        marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER
+      ) {
         marxChapterLastIndex[marxQuizChapter] = marxQuizIndex;
         persistMarxProgress();
       }
@@ -4092,7 +4113,9 @@
         if (!prog || typeof prog !== "object") return;
         const last = prog.last || {};
         const order = prog.order || {};
-        for (let ch = 1; ch <= 8; ch++) {
+        const chapters = [1, 2, 3, 4, 5, 6, 7, 8, WRONG_REVIEW_MARX_CHAPTER];
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
           const ix = last[ch] != null ? last[ch] : last[String(ch)];
           if (typeof ix === "number") marxChapterLastIndex[ch] = ix;
           const o = order[ch] || order[String(ch)];
@@ -4124,6 +4147,16 @@
         if (res[i]) answered += 1;
       }
       return answered > 0 && answered < qs.length;
+    }
+
+    function marxChapterFullyAnswered(ch) {
+      const qs = marxQuestionsForChapter(ch);
+      const res = marxChapterResults[String(ch)];
+      if (!qs.length || !res || res.length !== qs.length) return false;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return false;
+      }
+      return true;
     }
 
     const marxChapterResumeOverlay = document.getElementById("marx-chapter-resume-overlay");
@@ -4399,7 +4432,13 @@
         persistMarxProgress();
       }
 
-      if (choice === "continue") {
+      const resume =
+        choice === "continue" ||
+        (!choice &&
+          (typeof marxChapterLastIndex[ch] === "number" || Array.isArray(marxDisplayOrder[ch])) &&
+          !marxChapterFullyAnswered(ch));
+
+      if (resume) {
         marxChapterListEl.hidden = true;
         if (marxChapterStubEl) marxChapterStubEl.hidden = true;
         marxQuizViewEl.hidden = false;
@@ -4498,7 +4537,7 @@
           const src = getMarxWrongSourceAtDisplayIndex(marxQuizIndex);
           const mastery = src ? updateMarxMasteryForQuestion(src.ch, src.i, ok) : null;
           res[marxQuizIndex] = { picked: picked.value, ok };
-          persistMarxResults();
+          persistMarxProgress();
           recomputeMarxStats();
           marxQuizViewEl.classList.add("is-submitted");
           mqOptionsEl.querySelectorAll("input").forEach((inp) => {
@@ -4510,11 +4549,12 @@
           mqNext.disabled = marxQuizIndex >= qs.length - 1;
           mqNext.title = marxQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
           updateMarxContinueChapterVisibility();
-          if (ok && mastery && mastery.rightStreak >= 2) {
-            const idxRemove = marxQuizIndex;
+          if (ok && src) {
+            const srcRemove = { ch: src.ch, i: src.i };
+            persistMarxProgress();
             setTimeout(() => {
               if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
-              removeMarxWrongReviewAtDisplayIndex(idxRemove);
+              removeMarxWrongBySource(srcRemove);
             }, 480);
           }
           return;
@@ -10218,6 +10258,16 @@
       return entries[canonIdx] || null;
     }
 
+    function removeXiWrongBySource(src) {
+      if (!src) return;
+      const entries = getXiWrongEntries();
+      const canonIdx = entries.findIndex((e) => e.ch === src.ch && e.i === src.i);
+      if (canonIdx < 0) return;
+      const order = getXiDisplayOrder(WRONG_REVIEW_XI_CHAPTER);
+      const displayIdx = order.indexOf(canonIdx);
+      removeXiWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0);
+    }
+
     function removeXiWrongReviewAtDisplayIndex(displayIdx) {
       const entries = getXiWrongEntries();
       const n = entries.length;
@@ -10227,17 +10277,23 @@
       if (canonIdx < 0 || canonIdx >= n) return;
       entries.splice(canonIdx, 1);
       saveXiWrongEntries(entries);
-      delete xiDisplayOrder[WRONG_REVIEW_XI_CHAPTER];
-      const newQ = xiQuestionsForChapter(WRONG_REVIEW_XI_CHAPTER);
-      xiChapterResults[String(WRONG_REVIEW_XI_CHAPTER)] = newQ.length ? newQ.map(() => null) : [];
-      persistXiResults();
+      const key = String(WRONG_REVIEW_XI_CHAPTER);
+      const oldRes = xiChapterResults[key] || [];
+      const nextRes = oldRes.slice();
+      if (displayIdx >= 0 && displayIdx < nextRes.length) nextRes.splice(displayIdx, 1);
+      xiChapterResults[key] = nextRes;
+      const nextOrder = orderAfterRemovingDisplay(order, displayIdx);
+      if (nextOrder) xiDisplayOrder[WRONG_REVIEW_XI_CHAPTER] = nextOrder;
+      else delete xiDisplayOrder[WRONG_REVIEW_XI_CHAPTER];
+      persistXiProgress();
       updateXiWrongReviewButtonBadge();
       if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
-      if (newQ.length === 0) {
+      if (entries.length === 0) {
         closeXiViews();
         return;
       }
-      xiQuizIndex = Math.min(displayIdx, newQ.length - 1);
+      xiQuizIndex = Math.min(displayIdx, entries.length - 1);
+      rememberXiIndex();
       recomputeXiStats();
       renderXiQuiz();
     }
@@ -10270,7 +10326,11 @@
       try {
         const last = {};
         const order = {};
-        for (let ch = 1; ch <= 18; ch++) {
+        const chapters = [];
+        for (let ch = 1; ch <= 18; ch++) chapters.push(ch);
+        chapters.push(WRONG_REVIEW_XI_CHAPTER);
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
           if (typeof xiChapterLastIndex[ch] === "number") last[ch] = xiChapterLastIndex[ch];
           if (xiDisplayOrder[ch]) order[ch] = xiDisplayOrder[ch];
         }
@@ -10289,7 +10349,10 @@
     }
 
     function rememberXiIndex() {
-      if (xiQuizChapter >= 1 && xiQuizChapter <= 18) {
+      if (
+        (xiQuizChapter >= 1 && xiQuizChapter <= 18) ||
+        xiQuizChapter === WRONG_REVIEW_XI_CHAPTER
+      ) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
         persistXiProgress();
       }
@@ -10303,7 +10366,11 @@
         if (!prog || typeof prog !== "object") return;
         const last = prog.last || {};
         const order = prog.order || {};
-        for (let ch = 1; ch <= 18; ch++) {
+        const chapters = [];
+        for (let ch = 1; ch <= 18; ch++) chapters.push(ch);
+        chapters.push(WRONG_REVIEW_XI_CHAPTER);
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
           const ix = last[ch] != null ? last[ch] : last[String(ch)];
           if (typeof ix === "number") xiChapterLastIndex[ch] = ix;
           const o = order[ch] || order[String(ch)];
@@ -10335,6 +10402,16 @@
         if (res[i]) answered += 1;
       }
       return answered > 0 && answered < qs.length;
+    }
+
+    function xiChapterFullyAnswered(ch) {
+      const qs = xiQuestionsForChapter(ch);
+      const res = xiChapterResults[String(ch)];
+      if (!qs.length || !res || res.length !== qs.length) return false;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return false;
+      }
+      return true;
     }
 
     const xiChapterResumeOverlay = document.getElementById("xi-chapter-resume-overlay");
@@ -10595,7 +10672,13 @@
         persistXiProgress();
       }
 
-      if (choice === "continue") {
+      const resume =
+        choice === "continue" ||
+        (!choice &&
+          (typeof xiChapterLastIndex[ch] === "number" || Array.isArray(xiDisplayOrder[ch])) &&
+          !xiChapterFullyAnswered(ch));
+
+      if (resume) {
         xiChapterListEl.hidden = true;
         if (xiChapterStubEl) xiChapterStubEl.hidden = true;
         xiQuizViewEl.hidden = false;
@@ -10694,7 +10777,7 @@
           const src = getXiWrongSourceAtDisplayIndex(xiQuizIndex);
           const mastery = src ? updateXiMasteryForQuestion(src.ch, src.i, ok) : null;
           res[xiQuizIndex] = { picked: picked.value, ok };
-          persistXiResults();
+          persistXiProgress();
           recomputeXiStats();
           xiQuizViewEl.classList.add("is-submitted");
           xqOptionsEl.querySelectorAll("input").forEach((inp) => {
@@ -10706,11 +10789,12 @@
           xqNext.disabled = xiQuizIndex >= qs.length - 1;
           xqNext.title = xiQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
           updateXiContinueChapterVisibility();
-          if (ok && mastery && mastery.rightStreak >= 2) {
-            const idxRemove = xiQuizIndex;
+          if (ok && src) {
+            const srcRemove = { ch: src.ch, i: src.i };
+            persistXiProgress();
             setTimeout(() => {
               if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
-              removeXiWrongReviewAtDisplayIndex(idxRemove);
+              removeXiWrongBySource(srcRemove);
             }, 480);
           }
           return;
@@ -15597,6 +15681,16 @@
       return entries[canonIdx] || null;
     }
 
+    function removeWrongBySource(src) {
+      if (!src) return;
+      const entries = getWrongReviewEntries();
+      const canonIdx = entries.findIndex((e) => e.ch === src.ch && e.i === src.i);
+      if (canonIdx < 0) return;
+      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const displayIdx = order.indexOf(canonIdx);
+      removeWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0);
+    }
+
     function removeWrongReviewAtDisplayIndex(displayIdx) {
       const entries = getWrongReviewEntries();
       const n = entries.length;
@@ -15606,18 +15700,24 @@
       if (canonIdx < 0 || canonIdx >= n) return;
       entries.splice(canonIdx, 1);
       saveWrongReviewEntries(entries);
-      delete historyDisplayOrder[WRONG_REVIEW_CHAPTER];
-      const newQ = questionsForChapter(WRONG_REVIEW_CHAPTER);
-      historyChapterResults[WRONG_REVIEW_CHAPTER] = newQ.length ? newQ.map(() => null) : [];
+      const oldRes = historyChapterResults[WRONG_REVIEW_CHAPTER] || [];
+      const nextRes = oldRes.slice();
+      if (displayIdx >= 0 && displayIdx < nextRes.length) nextRes.splice(displayIdx, 1);
+      historyChapterResults[WRONG_REVIEW_CHAPTER] = nextRes;
+      const nextOrder = orderAfterRemovingDisplay(order, displayIdx);
+      if (nextOrder) historyDisplayOrder[WRONG_REVIEW_CHAPTER] = nextOrder;
+      else delete historyDisplayOrder[WRONG_REVIEW_CHAPTER];
+      persistHistoryProgress();
       updateWrongReviewButtonBadge();
 
       if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
 
-      if (newQ.length === 0) {
+      if (entries.length === 0) {
         closeHistoryQuiz();
         return;
       }
-      historyQuizIndex = Math.min(displayIdx, newQ.length - 1);
+      historyQuizIndex = Math.min(displayIdx, entries.length - 1);
+      rememberHistoryIndex();
       recomputeHistoryStats();
       renderHistoryQuiz();
     }
@@ -15690,7 +15790,11 @@
         const resultsOnly = {};
         const lastOnly = {};
         const orderOnly = {};
-        for (let ch = 1; ch <= 10; ch++) {
+        const chapters = [];
+        for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
+        chapters.push(WRONG_REVIEW_CHAPTER);
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
           if (historyChapterResults[ch]) resultsOnly[ch] = historyChapterResults[ch];
           if (typeof historyChapterLastIndex[ch] === "number") lastOnly[ch] = historyChapterLastIndex[ch];
           if (historyDisplayOrder[ch]) orderOnly[ch] = historyDisplayOrder[ch];
@@ -15711,7 +15815,10 @@
     }
 
     function rememberHistoryIndex() {
-      if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
+      if (
+        (historyQuizChapter >= 1 && historyQuizChapter <= 10) ||
+        historyQuizChapter === WRONG_REVIEW_CHAPTER
+      ) {
         historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
         persistHistoryProgress();
       }
@@ -15722,7 +15829,11 @@
         const raw = localStorage.getItem(HISTORY_RESULT_STORAGE_KEY);
         if (raw) {
           const obj = JSON.parse(raw) || {};
-          for (let ch = 1; ch <= 10; ch++) {
+          const chapters = [];
+          for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
+          chapters.push(WRONG_REVIEW_CHAPTER);
+          for (let i = 0; i < chapters.length; i++) {
+            const ch = chapters[i];
             const row = obj[ch] || obj[String(ch)];
             if (Array.isArray(row)) historyChapterResults[ch] = row;
           }
@@ -15733,7 +15844,11 @@
           if (prog && typeof prog === "object") {
             const last = prog.last || {};
             const order = prog.order || {};
-            for (let ch = 1; ch <= 10; ch++) {
+            const chapters = [];
+            for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
+            chapters.push(WRONG_REVIEW_CHAPTER);
+            for (let i = 0; i < chapters.length; i++) {
+              const ch = chapters[i];
               const ix = last[ch] != null ? last[ch] : last[String(ch)];
               if (typeof ix === "number") historyChapterLastIndex[ch] = ix;
               const o = order[ch] || order[String(ch)];
@@ -15753,6 +15868,44 @@
         a[j] = t;
       }
       return a;
+    }
+
+    function remapResultsForNewOrder(oldResults, oldOrder, newOrder) {
+      const n = newOrder.length;
+      const prev =
+        Array.isArray(oldOrder) && oldOrder.length === n
+          ? oldOrder
+          : Array.from({ length: n }, (_, i) => i);
+      const byOrig = {};
+      const res = Array.isArray(oldResults) ? oldResults : [];
+      for (let i = 0; i < n; i++) {
+        byOrig[prev[i]] = i < res.length ? res[i] : null;
+      }
+      return newOrder.map((orig) => (Object.prototype.hasOwnProperty.call(byOrig, orig) ? byOrig[orig] : null));
+    }
+
+    function displayIndexAfterReorder(oldOrder, newOrder, oldDisplayIndex) {
+      const n = newOrder.length;
+      const prev =
+        Array.isArray(oldOrder) && oldOrder.length === n
+          ? oldOrder
+          : Array.from({ length: n }, (_, i) => i);
+      const orig = prev[oldDisplayIndex];
+      const ix = newOrder.indexOf(orig);
+      return ix >= 0 ? ix : 0;
+    }
+
+    function orderAfterRemovingDisplay(order, displayIdx) {
+      const canonIdx = order[displayIdx];
+      const next = [];
+      for (let d = 0; d < order.length; d++) {
+        if (d === displayIdx) continue;
+        let c = order[d];
+        if (c > canonIdx) c -= 1;
+        next.push(c);
+      }
+      if (!next.length || next.every((v, i) => v === i)) return null;
+      return next;
     }
 
     function getDisplayOrder(ch) {
@@ -15791,7 +15944,7 @@
       const qs = questionsForChapter(ch);
       if (!historyChapterResults[ch] || historyChapterResults[ch].length !== qs.length) {
         historyChapterResults[ch] = qs.map(() => null);
-        if (ch >= 1 && ch <= 10) persistHistoryProgress();
+        if ((ch >= 1 && ch <= 10) || ch === WRONG_REVIEW_CHAPTER) persistHistoryProgress();
       }
     }
 
@@ -16015,6 +16168,16 @@
       return answered > 0 && answered < qs.length;
     }
 
+    function historyChapterFullyAnswered(ch) {
+      const qs = questionsForChapter(ch);
+      const res = historyChapterResults[ch];
+      if (!qs.length || !res || res.length !== qs.length) return false;
+      for (let i = 0; i < res.length; i++) {
+        if (!res[i]) return false;
+      }
+      return true;
+    }
+
     const chapterResumeOverlay = document.getElementById("chapter-resume-overlay");
 
     function showChapterResumeDialog() {
@@ -16043,9 +16206,17 @@
 
       if (!ch1QuizEl.hidden && historyQuizChapter !== chapterNum) {
         historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
+        persistHistoryProgress();
       }
 
-      if (choice === "continue") {
+      const resume =
+        choice === "continue" ||
+        (!choice &&
+          (typeof historyChapterLastIndex[chapterNum] === "number" ||
+            Array.isArray(historyDisplayOrder[chapterNum])) &&
+          !historyChapterFullyAnswered(chapterNum));
+
+      if (resume) {
         historyListEl.hidden = true;
         ch1QuizEl.hidden = false;
         historyQuizChapter = chapterNum;
@@ -16075,7 +16246,7 @@
       delete historyChapterLastIndex[chapterNum];
       const qs = questionsForChapter(chapterNum);
       historyChapterResults[chapterNum] = qs.map(() => null);
-      if (chapterNum >= 1 && chapterNum <= 10) persistHistoryProgress();
+      persistHistoryProgress();
       recomputeHistoryStats();
       renderHistoryQuiz();
     }
@@ -16234,6 +16405,8 @@
         const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
         const mastery = src ? updateMasteryForQuestion(src.ch, src.i, ok) : null;
         res[historyQuizIndex] = { picked: picked.value, ok };
+        persistHistoryProgress();
+        rememberHistoryIndex();
         recomputeHistoryStats();
         ch1QuizEl.classList.add("is-submitted");
         ch1OptionsEl.querySelectorAll("input").forEach((inp) => {
@@ -16246,11 +16419,11 @@
         ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
         updateContinueChapterVisibility();
 
-        if (ok && mastery && mastery.rightStreak >= MASTERED_STREAK) {
-          const idxRemove = historyQuizIndex;
+        if (ok && src) {
+          const srcRemove = { ch: src.ch, i: src.i };
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
-            removeWrongReviewAtDisplayIndex(idxRemove);
+            removeWrongBySource(srcRemove);
           }, 480);
         }
         return;
@@ -16326,11 +16499,13 @@
       const qs = questionsForChapter(ch);
       const n = qs.length;
       if (n < 2) return;
-      historyDisplayOrder[ch] = shuffleIndices(n);
-      historyChapterResults[ch] = qs.map(() => null);
-      historyQuizIndex = 0;
-      historyChapterLastIndex[ch] = 0;
-      if (ch >= 1 && ch <= 10) persistHistoryProgress();
+      const oldOrder = getDisplayOrder(ch);
+      const newOrder = shuffleIndices(n);
+      historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
+      historyDisplayOrder[ch] = newOrder;
+      historyQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, historyQuizIndex);
+      historyChapterLastIndex[ch] = historyQuizIndex;
+      persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
       renderHistoryQuiz();
@@ -16338,12 +16513,15 @@
 
     btnTimelineOrder.addEventListener("click", () => {
       const ch = historyQuizChapter;
-      delete historyDisplayOrder[ch];
       const qs = questionsForChapter(ch);
-      historyChapterResults[ch] = qs.map(() => null);
-      historyQuizIndex = 0;
-      historyChapterLastIndex[ch] = 0;
-      if (ch >= 1 && ch <= 10) persistHistoryProgress();
+      const n = qs.length;
+      const oldOrder = getDisplayOrder(ch);
+      const newOrder = Array.from({ length: n }, (_, i) => i);
+      historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
+      delete historyDisplayOrder[ch];
+      historyQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, historyQuizIndex);
+      historyChapterLastIndex[ch] = historyQuizIndex;
+      persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
       renderHistoryQuiz();
@@ -16355,10 +16533,13 @@
         const qs = marxQuestionsForChapter(ch);
         const n = qs.length;
         if (n < 2) return;
-        marxDisplayOrder[ch] = shuffleIndices(n);
-        marxChapterResults[String(ch)] = qs.map(() => null);
-        marxQuizIndex = 0;
-        marxChapterLastIndex[ch] = 0;
+        const oldOrder = getMarxDisplayOrder(ch);
+        const newOrder = shuffleIndices(n);
+        const key = String(ch);
+        marxChapterResults[key] = remapResultsForNewOrder(marxChapterResults[key], oldOrder, newOrder);
+        marxDisplayOrder[ch] = newOrder;
+        marxQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, marxQuizIndex);
+        marxChapterLastIndex[ch] = marxQuizIndex;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
         persistMarxProgress();
         recomputeMarxStats();
@@ -16368,11 +16549,15 @@
     if (btnMarxTimelineOrder) {
       btnMarxTimelineOrder.addEventListener("click", () => {
         const ch = marxQuizChapter;
-        delete marxDisplayOrder[ch];
         const qs = marxQuestionsForChapter(ch);
-        marxChapterResults[String(ch)] = qs.map(() => null);
-        marxQuizIndex = 0;
-        marxChapterLastIndex[ch] = 0;
+        const n = qs.length;
+        const oldOrder = getMarxDisplayOrder(ch);
+        const newOrder = Array.from({ length: n }, (_, i) => i);
+        const key = String(ch);
+        marxChapterResults[key] = remapResultsForNewOrder(marxChapterResults[key], oldOrder, newOrder);
+        delete marxDisplayOrder[ch];
+        marxQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, marxQuizIndex);
+        marxChapterLastIndex[ch] = marxQuizIndex;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
         persistMarxProgress();
         recomputeMarxStats();
@@ -16386,10 +16571,13 @@
         const qs = xiQuestionsForChapter(ch);
         const n = qs.length;
         if (n < 2) return;
-        xiDisplayOrder[ch] = shuffleIndices(n);
-        xiChapterResults[String(ch)] = qs.map(() => null);
-        xiQuizIndex = 0;
-        xiChapterLastIndex[ch] = 0;
+        const oldOrder = getXiDisplayOrder(ch);
+        const newOrder = shuffleIndices(n);
+        const key = String(ch);
+        xiChapterResults[key] = remapResultsForNewOrder(xiChapterResults[key], oldOrder, newOrder);
+        xiDisplayOrder[ch] = newOrder;
+        xiQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, xiQuizIndex);
+        xiChapterLastIndex[ch] = xiQuizIndex;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         persistXiProgress();
         recomputeXiStats();
@@ -16399,11 +16587,15 @@
     if (btnXiTimelineOrder) {
       btnXiTimelineOrder.addEventListener("click", () => {
         const ch = xiQuizChapter;
-        delete xiDisplayOrder[ch];
         const qs = xiQuestionsForChapter(ch);
-        xiChapterResults[String(ch)] = qs.map(() => null);
-        xiQuizIndex = 0;
-        xiChapterLastIndex[ch] = 0;
+        const n = qs.length;
+        const oldOrder = getXiDisplayOrder(ch);
+        const newOrder = Array.from({ length: n }, (_, i) => i);
+        const key = String(ch);
+        xiChapterResults[key] = remapResultsForNewOrder(xiChapterResults[key], oldOrder, newOrder);
+        delete xiDisplayOrder[ch];
+        xiQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, xiQuizIndex);
+        xiChapterLastIndex[ch] = xiQuizIndex;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         persistXiProgress();
         recomputeXiStats();
