@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-07 shuffle persist + wrong-review identity -->
+  <!-- gh-deploy: 2026-09-07 history short-answer cards -->
   <style>
     :root {
       --bg: #ffffff;
@@ -406,6 +406,60 @@
       font-size: 16px;
       font-weight: 700;
       color: #202124;
+    }
+    .quiz-mode-tabs {
+      display: flex;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+    .quiz-mode-tab {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .quiz-mode-tab:hover {
+      border-color: #c5c9d0;
+    }
+    .quiz-mode-tab.is-active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .short-source {
+      margin: -10px 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .short-key {
+      margin: 0 0 20px;
+      padding: 12px 14px;
+      background: var(--sidebar);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .short-key .short-lead {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #202124;
+      font-weight: 600;
+    }
+    .short-key ol {
+      margin: 0;
+      padding-left: 1.35em;
+    }
+    .short-key li {
+      margin: 0 0 6px;
+      font-size: 14px;
+      color: #3c4043;
+      line-height: 1.55;
+    }
+    .short-key li:last-child {
+      margin-bottom: 0;
     }
     .quiz-question {
       margin: 0 0 22px;
@@ -1161,6 +1215,11 @@
           <p class="quiz-stats" id="ch1-quiz-stats">
             本次测试共<span id="ch1-total">29</span>题，已做<span id="ch1-done">0</span>题，做对<span class="stat-correct" id="ch1-right">0</span>题，做错<span class="stat-wrong" id="ch1-wrong">0</span>题
           </p>
+          <p class="quiz-stats" id="history-short-stats" hidden></p>
+          <div class="quiz-mode-tabs" id="history-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
+            <button type="button" class="quiz-mode-tab is-active" id="history-mode-mcq" data-history-mode="mcq">单选题</button>
+            <button type="button" class="quiz-mode-tab" id="history-mode-short" data-history-mode="short">简答题</button>
+          </div>
           <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
             <summary class="history-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
             <div class="history-chapter-notes-body" id="hist-chapter-notes-body">
@@ -1197,7 +1256,17 @@
           </div>
           <p class="quiz-type" id="quiz-type-label">单项选择题</p>
           <p class="quiz-question" id="ch1-question-text"></p>
+          <p class="short-source" id="history-short-source" hidden></p>
           <div class="quiz-options" id="ch1-options" role="radiogroup" aria-label="选项"></div>
+          <div id="history-short-panel" hidden>
+            <div class="btn-submit-wrap" id="history-short-reveal-wrap">
+              <button type="button" class="btn-submit" id="history-short-reveal">看采分点</button>
+            </div>
+            <div class="short-key" id="history-short-key" hidden>
+              <p class="short-lead" id="history-short-lead"></p>
+              <ol id="history-short-points"></ol>
+            </div>
+          </div>
           <div class="btn-submit-wrap" id="ch1-submit-wrap">
             <button type="button" class="btn-submit" id="ch1-submit" disabled>
               <span class="btn-submit-icon" aria-hidden="true">
@@ -15313,6 +15382,431 @@
 
     const WRONG_REVIEW_CHAPTER = 11;
 
+    /** 近代史简答题：每章 4 道，真题优先，供默点对照。不进错题回顾。 */
+    const HISTORY_SHORT_BY_CHAPTER = {
+      1: [
+        {
+          text: "简述鸦片战争成为中国近代史起点的原因。",
+          lead: "列强入侵使中国社会性质开始根本变化。",
+          points: [
+            "中国主权和领土完整遭到破坏，开始沦为半殖民地半封建社会。",
+            "自然经济逐步解体，中国被卷入资本主义世界市场。",
+            "社会主要矛盾变为帝国主义与中华民族、封建主义与人民大众的矛盾，反帝反封建成为近代中国的双重任务。",
+          ],
+          source: "大纲高频 · 第1章",
+        },
+        {
+          text: "简述近代中国社会的两对主要矛盾。",
+          lead: "两对矛盾贯穿近代全过程，民族矛盾往往更突出。",
+          points: [
+            "帝国主义和中华民族的矛盾。",
+            "封建主义和人民大众的矛盾。",
+            "当资本—帝国主义发动侵略战争时，民族矛盾上升为主要矛盾。",
+          ],
+          source: "大纲考核点 · 第1章",
+        },
+        {
+          text: "简述近代中国民族资产阶级的两面性。",
+          lead: "既有革命要求，又有软弱妥协。",
+          points: [
+            "受帝国主义压迫和封建主义束缚，有反帝反封建的革命要求。",
+            "同帝国主义、封建主义并未完全断绝经济联系，没有彻底的反帝反封建勇气。",
+            "这种两面性决定了它不能领导中国革命取得胜利。",
+          ],
+          source: "大纲样卷简答 · 第1章",
+        },
+        {
+          text: "简述近代中国反侵略战争失败的根本原因。",
+          lead: "失败首先是社会制度腐败，其次是经济技术落后。",
+          points: [
+            "根本原因是中国封建王朝的腐朽，统治集团妥协苟安。",
+            "经济技术落后也是重要原因，但不是决定性的。",
+            "正因如此，要争得民族独立，必须首先改变中国的社会制度。",
+          ],
+          source: "大纲高频 · 第1章",
+        },
+      ],
+      2: [
+        {
+          text: "简述洋务运动失败的原因。",
+          lead: "想在不改变封建制度的前提下发展近代企业，决定了它必然失败。",
+          points: [
+            "洋务派具有封建性，对外国又有依赖性。",
+            "中央缺乏健全有力的领导核心，地方各自为政。",
+            "企图以封建制度为体、西方技术为用，无法使中国富强。",
+          ],
+          source: "大纲样卷论述压缩 · 第2章",
+        },
+        {
+          text: "简述资产阶级维新派自身弱点和局限的主要表现。",
+          lead: "维新派的局限集中为三点。",
+          points: [
+            "不敢否定封建主义。",
+            "对帝国主义抱有幻想。",
+            "惧怕人民群众。",
+          ],
+          source: "2025年4月真题第26题",
+        },
+        {
+          text: "简述戊戌维新运动是一场思想启蒙运动的意义。",
+          lead: "它传播新学，冲击封建思想文化的独占地位。",
+          points: [
+            "维新派大力传播西方资产阶级的社会政治学说和自然科学知识。",
+            "批判封建君权和封建纲常伦理，有利于民主思想传播，形成思想解放潮流。",
+            "主张采用西方近代教育制度、兴办新式学堂，推动了中国教育的近代化。",
+          ],
+          source: "2026年4月真题第26题",
+        },
+        {
+          text: "简述太平天国农民战争的历史意义。",
+          lead: "它是中国旧式农民战争的最高峰。",
+          points: [
+            "沉重打击了清王朝的封建统治。",
+            "冲击了孔子和儒家经典的正统权威。",
+            "有力打击了外国侵略势力，显示了农民阶级的反抗力量。",
+          ],
+          source: "大纲高频 · 第2章",
+        },
+      ],
+      3: [
+        {
+          text: "简述中华民国南京临时政府的性质。",
+          lead: "它是资产阶级共和国性质的革命政权。",
+          points: [
+            "人员构成上，资产阶级革命派控制着这个政权。",
+            "各项政策措施集中体现了中国民族资产阶级的愿望和利益。",
+            "临时参议院颁布《中华民国临时约法》，是中国历史上第一部具有资产阶级共和国宪法性质的法典。",
+          ],
+          source: "大纲样卷简答 · 第3章",
+        },
+        {
+          text: "简述辛亥革命的历史意义。",
+          lead: "它是一次比较完全意义上的资产阶级民主革命。",
+          points: [
+            "推翻了清王朝，结束了在中国延续两千多年的封建君主专制制度。",
+            "建立了中国历史上第一个资产阶级共和政府，使民主共和观念开始深入人心。",
+            "推动了中国社会变革，促使中国的思想解放和社会风俗演进。",
+          ],
+          source: "2026年4月论述高频 / 大纲 · 第3章",
+        },
+        {
+          text: "简述辛亥革命时期资产阶级革命派的骨干力量。",
+          lead: "骨干是一批资产阶级、小资产阶级知识分子。",
+          points: [
+            "骨干力量是一批资产阶级、小资产阶级知识分子。",
+            "他们宣传民主革命思想，组织革命团体。",
+            "并进而发动反清武装起义，成为革命派的中坚。",
+          ],
+          source: "2024年10月真题第26题",
+        },
+        {
+          text: "简述辛亥革命失败的原因。",
+          lead: "客观是中外反动势力联合；主观是民族资产阶级的软弱。",
+          points: [
+            "不能提出彻底的反帝反封建纲领。",
+            "不能充分发动和依靠人民群众，尤其是广大农民。",
+            "不能建立坚强的革命政党，作为团结一切革命力量的强有力的核心。",
+          ],
+          source: "大纲高频 · 第3章",
+        },
+      ],
+      4: [
+        {
+          text: "简述新文化运动的历史意义。",
+          lead: "它在中国社会掀起一股思想解放的潮流。",
+          points: [
+            "以进化论和个性解放为武器批判孔学，动摇了封建正统思想的统治地位。",
+            "提倡民主、反对专制，提倡科学、反对迷信盲从，切中时弊。",
+            "冲决了禁锢人们思想的闸门，为各种新思想的涌流打开了通道。",
+          ],
+          source: "2025年4月真题第27题",
+        },
+        {
+          text: "简述中国共产党早期组织的工作。",
+          lead: "早期组织从研究和宣传马克思主义走向建党。",
+          points: [
+            "研究和宣传马克思主义。",
+            "到工人中去开展宣传和组织工作。",
+            "进行建党问题的讨论和实际组织工作。",
+          ],
+          source: "2026年4月真题第27题",
+        },
+        {
+          text: "简述中国早期信仰马克思主义的三类代表人物。",
+          lead: "三类人共同构成早期马克思主义者队伍。",
+          points: [
+            "五四运动以前的新文化运动的精神领袖。",
+            "五四运动中的左翼骨干。",
+            "一部分原中国同盟会会员、辛亥革命时期的活动家。",
+          ],
+          source: "2024年10月真题第27题",
+        },
+        {
+          text: "简述五四运动的历史意义。",
+          lead: "它是中国新民主主义革命的开端。",
+          points: [
+            "以彻底反帝反封建的姿态出现，比辛亥革命更彻底。",
+            "真正成为群众性的革命运动，工人阶级开始作为独立力量登上政治舞台。",
+            "促进了马克思主义在中国的传播及其与中国工人运动的结合。",
+          ],
+          source: "大纲高频 · 第4章",
+        },
+      ],
+      5: [
+        {
+          text: "简述遵义会议的历史意义。",
+          lead: "这是党的历史上一个生死攸关的转折点。",
+          points: [
+            "开始确立以毛泽东为主要代表的马克思主义正确路线在党中央的领导地位。",
+            "在最危急关头挽救了党、挽救了红军、挽救了中国革命。",
+            "标志着中国共产党在政治上开始走向成熟。",
+          ],
+          source: "2026年4月真题第28题",
+        },
+        {
+          text: "简述1927年建立的国民党政权在全国实行独裁统治的主要表现。",
+          lead: "对内独裁，维护买办豪绅阶级统治。",
+          points: [
+            "建立了庞大的军队和全国性特务系统。",
+            "大力推行保甲制度。",
+            "厉行文化专制主义。",
+          ],
+          source: "2025年4月真题第28题",
+        },
+        {
+          text: "简述中华苏维埃共和国实行的各级工农兵代表大会制度。",
+          lead: "由乡到全国逐级选举，工农群众当家作主。",
+          points: [
+            "由苏维埃共和国公民直接选举产生乡工农兵代表大会代表，选举乡苏维埃政府组成人员。",
+            "在此基础上逐级召开区、县、省和全国工农兵代表大会，选举各级政府。",
+            "各级苏维埃政府广泛吸收工农群众代表参加政权管理。",
+          ],
+          source: "2024年10月真题第28题",
+        },
+        {
+          text: "简述农村包围城市、武装夺取政权道路的主要内容。",
+          lead: "这是中国革命新道路的核心概括。",
+          points: [
+            "土地革命是基本内容。",
+            "武装斗争是主要形式。",
+            "农村根据地是战略阵地。",
+          ],
+          source: "大纲高频 · 第5章",
+        },
+      ],
+      6: [
+        {
+          text: "简述中国人民抗日战争胜利的历史意义。",
+          lead: "这是近代以来中国抗击外敌入侵的第一次完全胜利。",
+          points: [
+            "彻底粉碎了日本军国主义殖民奴役中国的图谋，捍卫了国家主权和领土完整，洗刷了民族耻辱。",
+            "重新确立了中国在世界上的大国地位，为世界反法西斯战争作出重大贡献。",
+            "促进了中华民族的觉醒，开辟了中华民族伟大复兴的光明前景。",
+          ],
+          source: "2024年4月论述 / 简答高频",
+        },
+        {
+          text: "简述延安整风运动的主要内容及其意义。",
+          lead: "整风是一次深刻的马克思主义思想教育运动。",
+          points: [
+            "主要内容：反对主观主义以整顿学风、反对宗派主义以整顿党风、反对党八股以整顿文风。",
+            "方针是「惩前毖后、治病救人」，通过批评与自我批评达到团结。",
+            "意义：使全党确立了实事求是的思想路线，为抗战胜利和新民主主义革命胜利奠定思想基础。",
+          ],
+          source: "大纲样卷简答 · 第6章",
+        },
+        {
+          text: "简述抗日战争时期新民主主义理论系统阐明的意义。",
+          lead: "它回答了中国向何处去，标志毛泽东思想走向成熟。",
+          points: [
+            "揭示了中国革命的发展规律，回答了革命的一系列基本问题。",
+            "为中国革命胜利提供了理论指导。",
+            "标志着毛泽东思想得到多方面展开而达到成熟。",
+          ],
+          source: "2026年4月真题第29题",
+        },
+        {
+          text: "简述抗日民族统一战线的特点。",
+          lead: "它是最广泛的民族统一战线。",
+          points: [
+            "广泛的民族性和复杂的阶级矛盾。",
+            "国共双方有政权有军队的合作。",
+            "没有正式的固定的组织形式和协商一致的具体的共同纲领。",
+          ],
+          source: "大纲高频 · 第6章",
+        },
+      ],
+      7: [
+        {
+          text: "简述抗日战争胜利后美国实施的扶蒋反共政策。",
+          lead: "和谈诱降与武力扶蒋并用。",
+          points: [
+            "形势对国民党不利时，力促国共谈判，企图用和平手段诱骗中共向国民党投降。",
+            "从各方面大力加强国民党的力量。",
+            "一旦和谈目的不能实现，便帮助国民党与中共决战，使中国成为美国的附庸。",
+          ],
+          source: "2024年10月真题第29题",
+        },
+        {
+          text: "简述新民主主义革命胜利的基本经验。",
+          lead: "就是统一战线、武装斗争、党的建设三大法宝。",
+          points: [
+            "建立广泛的统一战线。",
+            "坚持革命的武装斗争。",
+            "加强共产党自身建设。",
+          ],
+          source: "2026年4月论述压缩 · 第7章",
+        },
+        {
+          text: "简述中共七届二中全会的主要内容。",
+          lead: "它为革命转变和执政作了准备。",
+          points: [
+            "提出党的工作重心由乡村转移到城市。",
+            "规定了革命胜利后党在政治、经济、外交方面的基本政策。",
+            "提出「两个务必」，警惕资产阶级糖衣炮弹的攻击。",
+          ],
+          source: "大纲高频 · 第7章",
+        },
+        {
+          text: "简述新中国成立的历史意义。",
+          lead: "中国人民从此站起来了。",
+          points: [
+            "结束了帝国主义、封建主义和官僚资本主义的统治，结束了极少数剥削者统治广大劳动人民的历史。",
+            "实现了民族独立和人民解放，人民当家作主。",
+            "是马克思主义在中国的胜利，改变了世界政治格局，鼓舞了被压迫民族的解放斗争。",
+          ],
+          source: "大纲高频 · 第7/8章交界",
+        },
+      ],
+      8: [
+        {
+          text: "简述新中国成立初期中国共产党面临的问题和考验。",
+          lead: "能不能守住人民的胜利，是对执政的第一场大考。",
+          points: [
+            "能不能保卫住人民胜利的成果，巩固新生的人民政权。",
+            "能不能战胜严重的经济困难，迅速恢复和发展国民经济。",
+            "能不能巩固民族独立，维护国家主权和安全；能不能经受执政考验、继续保持谦虚谨慎不骄不躁和艰苦奋斗作风。",
+          ],
+          source: "2026年4月真题第30题",
+        },
+        {
+          text: "简述1952年我国开展的「五反」运动的内容。",
+          lead: "针对不法资本家的五项违法行为。",
+          points: [
+            "反对行贿。",
+            "反对偷税漏税。",
+            "反对盗窃国家财产。",
+            "反对偷工减料。",
+            "反对盗窃经济情报。",
+          ],
+          source: "2025年4月真题第29题",
+        },
+        {
+          text: "简述抗美援朝战争胜利的意义。",
+          lead: "打出了国威军威，巩固了新生人民共和国。",
+          points: [
+            "粉碎了帝国主义扩大侵略的野心，维护了亚洲和世界和平。",
+            "保卫了新生的人民共和国，提高了新中国的国际威望。",
+            "使中国人民极大地增强了民族自信心和自豪感，赢得相对稳定的和平环境。",
+          ],
+          source: "大纲样卷简答 · 第8章",
+        },
+        {
+          text: "简述社会主义基本制度在中国确立的意义。",
+          lead: "这是中国历史上最深刻最伟大的社会变革。",
+          points: [
+            "为当代中国一切发展进步奠定了根本政治前提和制度基础。",
+            "使广大劳动人民真正成为国家的主人。",
+            "是马克思列宁主义关于社会主义革命理论在中国的正确运用和创造性发展的结果。",
+          ],
+          source: "大纲高频 · 第8章",
+        },
+      ],
+      9: [
+        {
+          text: "简述1979年邓小平提出的坚持四项基本原则及其重要性。",
+          lead: "四项基本原则是实现四个现代化的根本前提。",
+          points: [
+            "坚持社会主义道路，坚持人民民主专政，坚持共产党的领导，坚持马克思列宁主义、毛泽东思想。",
+            "这是实现四个现代化的根本前提。",
+            "如果动摇了这四项基本原则中的任何一项，那就动摇了整个社会主义事业、整个现代化建设事业。",
+          ],
+          source: "2025年4月真题第30题",
+        },
+        {
+          text: "简述邓小平提出的「一个国家、两种制度」的构想。",
+          lead: "在一个中国前提下，国家主体坚持社会主义，港澳台保持原有制度。",
+          points: [
+            "一个中国是前提和核心。",
+            "国家的主体坚持社会主义制度。",
+            "香港、澳门、台湾保持原有的资本主义制度长期不变。",
+          ],
+          source: "大纲样卷简答 · 第9章",
+        },
+        {
+          text: "简述中共十一届三中全会的历史意义。",
+          lead: "它实现了新中国成立以来党的历史上具有深远意义的伟大转折。",
+          points: [
+            "结束了徘徊局面，开始全面纠正「文化大革命」及其以前的「左」倾错误。",
+            "重新确立了马克思主义的思想路线、政治路线、组织路线。",
+            "作出把工作重点转移到社会主义现代化建设上来和实行改革开放的决策。",
+          ],
+          source: "大纲高频 · 第9章",
+        },
+        {
+          text: "简述邓小平南方谈话的主要内容。",
+          lead: "南方谈话科学回答了什么是社会主义、怎样建设社会主义。",
+          points: [
+            "计划和市场都是经济手段，社会主义也可以搞市场经济。",
+            "提出判断改革和各方面工作是非得失的「三个有利于」标准。",
+            "强调坚持党的基本路线一百年不动摇，发展才是硬道理。",
+          ],
+          source: "大纲高频 · 第9章",
+        },
+      ],
+      10: [
+        {
+          text: "简述中共十九大确定的决胜全面建成小康社会、开启全面建设社会主义现代化国家新征程的目标。",
+          lead: "分两个十五年安排。",
+          points: [
+            "从2020年到2035年，在全面建成小康社会的基础上，再奋斗十五年，基本实现社会主义现代化。",
+            "从2035年到本世纪中叶，在基本实现现代化的基础上，再奋斗十五年，把我国建成富强民主文明和谐美丽的社会主义现代化强国。",
+          ],
+          source: "2024年10月真题第30题",
+        },
+        {
+          text: "简述推进中国式现代化是一个系统工程。",
+          lead: "要统筹兼顾、系统谋划、整体推进。",
+          points: [
+            "正确处理好顶层设计与实践探索、战略与策略、守正与创新的关系。",
+            "正确处理好效率与公平、活力与秩序、自立自强与对外开放的关系。",
+            "坚持党的领导，确保中国式现代化的正确方向。",
+          ],
+          source: "大纲样卷论述压缩 · 第10章",
+        },
+        {
+          text: "简述新时代十年伟大变革的里程碑意义。",
+          lead: "在党史、新中国史、改革开放史、社会主义发展史、中华民族发展史上具有里程碑意义。",
+          points: [
+            "中国共产党在革命性锻造中更加坚强有力。",
+            "中国人民焕发出更为强烈的历史自觉和主动精神。",
+            "实现中华民族伟大复兴进入了不可逆转的历史进程。",
+          ],
+          source: "2026年4月论述压缩 · 第10章",
+        },
+        {
+          text: "简述中国特色社会主义进入新时代的重大意义。",
+          lead: "这是我国发展新的历史方位。",
+          points: [
+            "意味着近代以来久经磨难的中华民族迎来了从站起来、富起来到强起来的伟大飞跃。",
+            "意味着科学社会主义在二十一世纪的中国焕发出强大生机活力。",
+            "意味着中国特色社会主义道路、理论、制度、文化不断发展，为解决人类问题贡献中国智慧和中国方案。",
+          ],
+          source: "大纲高频 · 第10章",
+        },
+      ],
+    };
+
     /** 近代史各章助学纲要（章次与题库一致：1–10）——篇幅加长便于对照大量刷题 */
     const HISTORY_CHAPTER_NOTES_HTML = {
       1:
@@ -15733,6 +16227,10 @@
       return questionsForChapter(historyQuizChapter);
     }
 
+    function shortQuestionsForChapter(ch) {
+      return HISTORY_SHORT_BY_CHAPTER[ch] || [];
+    }
+
     const historyListEl = document.getElementById("history-chapter-list");
     const ch1QuizEl = document.getElementById("history-ch1-quiz");
     const ch1QuestionText = document.getElementById("ch1-question-text");
@@ -15753,6 +16251,18 @@
     const quizOrderTools = document.getElementById("quiz-order-tools");
     const btnShuffleOrder = document.getElementById("btn-shuffle-order");
     const btnTimelineOrder = document.getElementById("btn-timeline-order");
+    const historyModeTabs = document.getElementById("history-quiz-mode-tabs");
+    const historyModeMcqBtn = document.getElementById("history-mode-mcq");
+    const historyModeShortBtn = document.getElementById("history-mode-short");
+    const historyShortStats = document.getElementById("history-short-stats");
+    const historyShortPanel = document.getElementById("history-short-panel");
+    const historyShortSource = document.getElementById("history-short-source");
+    const historyShortReveal = document.getElementById("history-short-reveal");
+    const historyShortRevealWrap = document.getElementById("history-short-reveal-wrap");
+    const historyShortKey = document.getElementById("history-short-key");
+    const historyShortLead = document.getElementById("history-short-lead");
+    const historyShortPoints = document.getElementById("history-short-points");
+    const ch1QuizStats = document.getElementById("ch1-quiz-stats");
 
     (function syncQuizOrderFoldOnResize() {
       const mq = window.matchMedia("(min-width: 641px)");
@@ -15775,6 +16285,11 @@
 
     let historyQuizChapter = 1;
     let historyQuizIndex = 0;
+    let historyQuizMode = "mcq";
+    let historyShortIndex = 0;
+    let historyShortRevealed = false;
+    const historyShortLastIndex = {};
+    const HISTORY_SHORT_PROGRESS_KEY = "pansan2-history-short-progress-v1";
     /** 弹窗「重开/继续」待打开的章节 */
     let pendingResumeChapter = null;
     const historyChapterResults = {};
@@ -15824,6 +16339,23 @@
       }
     }
 
+    function persistHistoryShortProgress() {
+      try {
+        const last = {};
+        for (let ch = 1; ch <= 10; ch++) {
+          if (typeof historyShortLastIndex[ch] === "number") last[ch] = historyShortLastIndex[ch];
+        }
+        localStorage.setItem(HISTORY_SHORT_PROGRESS_KEY, JSON.stringify({ last }));
+      } catch (_) {}
+    }
+
+    function rememberHistoryShortIndex() {
+      if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
+        historyShortLastIndex[historyQuizChapter] = historyShortIndex;
+        persistHistoryShortProgress();
+      }
+    }
+
     (function initHistoryResultsFromStorage() {
       try {
         const raw = localStorage.getItem(HISTORY_RESULT_STORAGE_KEY);
@@ -15855,6 +16387,19 @@
               if (Array.isArray(o)) historyDisplayOrder[ch] = o;
             }
           }
+        }
+      } catch (_) {}
+    })();
+
+    (function initHistoryShortProgressFromStorage() {
+      try {
+        const raw = localStorage.getItem(HISTORY_SHORT_PROGRESS_KEY);
+        if (!raw) return;
+        const prog = JSON.parse(raw);
+        const last = (prog && prog.last) || {};
+        for (let ch = 1; ch <= 10; ch++) {
+          const ix = last[ch] != null ? last[ch] : last[String(ch)];
+          if (typeof ix === "number") historyShortLastIndex[ch] = ix;
         }
       } catch (_) {}
     })();
@@ -16036,7 +16581,109 @@
       body.innerHTML = HISTORY_CHAPTER_NOTES_HTML[historyQuizChapter] || "";
     }
 
+    function updateHistoryModeTabs() {
+      const canShort =
+        historyQuizChapter >= 1 &&
+        historyQuizChapter <= 10 &&
+        shortQuestionsForChapter(historyQuizChapter).length > 0;
+      if (historyModeTabs) historyModeTabs.hidden = !canShort;
+      if (!canShort && historyQuizMode === "short") historyQuizMode = "mcq";
+      if (historyModeMcqBtn) historyModeMcqBtn.classList.toggle("is-active", historyQuizMode === "mcq");
+      if (historyModeShortBtn) historyModeShortBtn.classList.toggle("is-active", historyQuizMode === "short");
+    }
+
+    function hideHistoryShortUi() {
+      if (historyShortPanel) historyShortPanel.hidden = true;
+      if (historyShortSource) historyShortSource.hidden = true;
+      if (historyShortStats) historyShortStats.hidden = true;
+      if (ch1QuizStats) ch1QuizStats.hidden = false;
+      if (ch1OptionsEl) ch1OptionsEl.hidden = false;
+    }
+
+    function renderHistoryShortQuiz() {
+      const qs = shortQuestionsForChapter(historyQuizChapter);
+      updateHistoryModeTabs();
+      if (!qs.length) {
+        historyQuizMode = "mcq";
+        renderHistoryQuiz();
+        return;
+      }
+      if (historyShortIndex < 0) historyShortIndex = 0;
+      if (historyShortIndex >= qs.length) historyShortIndex = qs.length - 1;
+
+      updateHistoryChapterNotesPanel();
+      if (quizOrderTools) quizOrderTools.hidden = true;
+      if (ch1QuizStats) ch1QuizStats.hidden = true;
+      if (historyShortStats) {
+        historyShortStats.hidden = false;
+        historyShortStats.textContent =
+          "本章简答共" + qs.length + "道，当前第" + (historyShortIndex + 1) + "道 · 先自己默点，再对照采分点";
+      }
+      const quizTypeLabel = document.getElementById("quiz-type-label");
+      if (quizTypeLabel) quizTypeLabel.textContent = "简答题";
+      if (ch1OptionsEl) {
+        ch1OptionsEl.innerHTML = "";
+        ch1OptionsEl.hidden = true;
+      }
+      if (ch1SubmitWrap) ch1SubmitWrap.classList.add("is-hidden");
+      if (ch1Feedback) ch1Feedback.style.display = "none";
+      if (chContinueWrap) chContinueWrap.hidden = true;
+      ch1QuizEl.classList.remove("is-submitted");
+
+      const item = qs[historyShortIndex];
+      ch1QuestionText.textContent = historyShortIndex + 1 + ". " + item.text;
+      if (historyShortSource) {
+        historyShortSource.hidden = false;
+        historyShortSource.textContent = item.source ? "出处：" + item.source : "";
+      }
+      if (historyShortPanel) historyShortPanel.hidden = false;
+      if (historyShortKey) historyShortKey.hidden = !historyShortRevealed;
+      if (historyShortRevealWrap) historyShortRevealWrap.hidden = !!historyShortRevealed;
+      if (historyShortRevealed) {
+        if (historyShortLead) historyShortLead.textContent = item.lead || "";
+        if (historyShortPoints) {
+          historyShortPoints.innerHTML = "";
+          (item.points || []).forEach((pt) => {
+            const li = document.createElement("li");
+            li.textContent = pt;
+            historyShortPoints.appendChild(li);
+          });
+        }
+      }
+
+      ch1Prev.disabled = historyShortIndex === 0;
+      ch1Next.disabled = historyShortIndex >= qs.length - 1;
+      ch1Next.title = historyShortIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+    }
+
+    function setHistoryQuizMode(mode) {
+      if (mode !== "mcq" && mode !== "short") return;
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) mode = "mcq";
+      if (mode === "short") {
+        const qs = shortQuestionsForChapter(historyQuizChapter);
+        if (!qs.length) mode = "mcq";
+        else {
+          historyShortRevealed = false;
+          if (typeof historyShortLastIndex[historyQuizChapter] === "number") {
+            historyShortIndex = historyShortLastIndex[historyQuizChapter];
+          } else {
+            historyShortIndex = 0;
+          }
+        }
+      } else {
+        rememberHistoryShortIndex();
+      }
+      historyQuizMode = mode;
+      renderHistoryQuiz();
+    }
+
     function renderHistoryQuiz() {
+      updateHistoryModeTabs();
+      if (historyQuizMode === "short") {
+        renderHistoryShortQuiz();
+        return;
+      }
+      hideHistoryShortUi();
       const qs = getHistoryQuestions();
       const res = currentResults();
 
@@ -16197,6 +16844,7 @@
 
     function openHistoryQuiz(chapterNum, opts) {
       const choice = opts && opts.choice;
+      if (chapterNum === WRONG_REVIEW_CHAPTER) historyQuizMode = "mcq";
 
       if (!choice && hasUnfinishedChapterProgress(chapterNum)) {
         pendingResumeChapter = chapterNum;
@@ -16207,6 +16855,7 @@
       if (!ch1QuizEl.hidden && historyQuizChapter !== chapterNum) {
         historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
         persistHistoryProgress();
+        rememberHistoryShortIndex();
       }
 
       const resume =
@@ -16253,6 +16902,8 @@
 
     function closeHistoryQuiz() {
       rememberHistoryIndex();
+      rememberHistoryShortIndex();
+      historyQuizMode = "mcq";
       ch1QuizEl.hidden = true;
       historyListEl.hidden = false;
       ch1QuizEl.classList.remove("is-submitted");
@@ -16453,6 +17104,16 @@
     });
 
     ch1Next.addEventListener("click", () => {
+      if (historyQuizMode === "short") {
+        const qs = shortQuestionsForChapter(historyQuizChapter);
+        if (historyShortIndex < qs.length - 1) {
+          historyShortIndex += 1;
+          historyShortRevealed = false;
+          rememberHistoryShortIndex();
+          renderHistoryQuiz();
+        }
+        return;
+      }
       const qs = getHistoryQuestions();
       if (historyQuizIndex < qs.length - 1) {
         historyQuizIndex += 1;
@@ -16462,6 +17123,15 @@
     });
 
     ch1Prev.addEventListener("click", () => {
+      if (historyQuizMode === "short") {
+        if (historyShortIndex > 0) {
+          historyShortIndex -= 1;
+          historyShortRevealed = false;
+          rememberHistoryShortIndex();
+          renderHistoryQuiz();
+        }
+        return;
+      }
       if (historyQuizIndex > 0) {
         historyQuizIndex -= 1;
         rememberHistoryIndex();
@@ -16469,15 +17139,30 @@
       }
     });
 
+    if (historyModeMcqBtn) {
+      historyModeMcqBtn.addEventListener("click", () => setHistoryQuizMode("mcq"));
+    }
+    if (historyModeShortBtn) {
+      historyModeShortBtn.addEventListener("click", () => setHistoryQuizMode("short"));
+    }
+    if (historyShortReveal) {
+      historyShortReveal.addEventListener("click", () => {
+        historyShortRevealed = true;
+        renderHistoryQuiz();
+      });
+    }
+
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
         rememberHistoryIndex();
+        rememberHistoryShortIndex();
         rememberMarxIndex();
         rememberXiIndex();
       }
     });
     window.addEventListener("pagehide", () => {
       rememberHistoryIndex();
+      rememberHistoryShortIndex();
       rememberMarxIndex();
       rememberXiIndex();
     });
