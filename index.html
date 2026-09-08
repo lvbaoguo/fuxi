@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 wrong-review two-streak -->
+  <!-- gh-deploy: 2026-09-08 shuffle jump to first -->
   <style>
     :root {
       --bg: #ffffff;
@@ -1723,7 +1723,7 @@
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；可打乱自测。</span>
+                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；打乱后从第 1 题起按新顺序刷。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-timeline-order" disabled title="恢复教材时间线顺序">顺序</button>
@@ -1980,7 +1980,7 @@
             <details class="quiz-order-fold" id="xi-quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="xi-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；可打乱自测。</span>
+                <span id="xi-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；打乱后从第 1 题起按新顺序刷。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-xi-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-xi-timeline-order" disabled title="恢复教材顺序">顺序</button>
@@ -2149,7 +2149,7 @@
             <details class="quiz-order-fold" id="marx-quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="marx-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；可打乱自测。</span>
+                <span id="marx-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；打乱后从第 1 题起按新顺序刷。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-marx-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-marx-timeline-order" disabled title="恢复教材顺序">顺序</button>
@@ -19210,8 +19210,9 @@
       const newOrder = shuffleIndices(n);
       historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
       historyDisplayOrder[ch] = newOrder;
-      historyQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, historyQuizIndex);
-      historyChapterLastIndex[ch] = historyQuizIndex;
+      /* 打乱后回到第 1 题，立刻看到新顺序；不要贴着同一道题只改题号 */
+      historyQuizIndex = 0;
+      historyChapterLastIndex[ch] = 0;
       persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
@@ -19226,8 +19227,8 @@
       const newOrder = Array.from({ length: n }, (_, i) => i);
       historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
       delete historyDisplayOrder[ch];
-      historyQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, historyQuizIndex);
-      historyChapterLastIndex[ch] = historyQuizIndex;
+      historyQuizIndex = 0;
+      historyChapterLastIndex[ch] = 0;
       persistHistoryProgress();
       ch1QuizEl.classList.remove("is-submitted");
       recomputeHistoryStats();
@@ -19245,8 +19246,8 @@
         const key = String(ch);
         marxChapterResults[key] = remapResultsForNewOrder(marxChapterResults[key], oldOrder, newOrder);
         marxDisplayOrder[ch] = newOrder;
-        marxQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, marxQuizIndex);
-        marxChapterLastIndex[ch] = marxQuizIndex;
+        marxQuizIndex = 0;
+        marxChapterLastIndex[ch] = 0;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
         persistMarxProgress();
         recomputeMarxStats();
@@ -19263,8 +19264,8 @@
         const key = String(ch);
         marxChapterResults[key] = remapResultsForNewOrder(marxChapterResults[key], oldOrder, newOrder);
         delete marxDisplayOrder[ch];
-        marxQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, marxQuizIndex);
-        marxChapterLastIndex[ch] = marxQuizIndex;
+        marxQuizIndex = 0;
+        marxChapterLastIndex[ch] = 0;
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
         persistMarxProgress();
         recomputeMarxStats();
@@ -19283,8 +19284,8 @@
         const key = String(ch);
         xiChapterResults[key] = remapResultsForNewOrder(xiChapterResults[key], oldOrder, newOrder);
         xiDisplayOrder[ch] = newOrder;
-        xiQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, xiQuizIndex);
-        xiChapterLastIndex[ch] = xiQuizIndex;
+        xiQuizIndex = 0;
+        xiChapterLastIndex[ch] = 0;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         persistXiProgress();
         recomputeXiStats();
@@ -19301,8 +19302,8 @@
         const key = String(ch);
         xiChapterResults[key] = remapResultsForNewOrder(xiChapterResults[key], oldOrder, newOrder);
         delete xiDisplayOrder[ch];
-        xiQuizIndex = displayIndexAfterReorder(oldOrder, newOrder, xiQuizIndex);
-        xiChapterLastIndex[ch] = xiQuizIndex;
+        xiQuizIndex = 0;
+        xiChapterLastIndex[ch] = 0;
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         persistXiProgress();
         recomputeXiStats();
