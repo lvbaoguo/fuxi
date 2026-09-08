@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 chapter medal one pass -->
+  <!-- gh-deploy: 2026-09-08 mobile focus and exam scroll lock -->
   <style>
     :root {
       --bg: #ffffff;
@@ -781,7 +783,97 @@
     .quiz-mode-tabs {
       display: flex;
       gap: 8px;
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .quiz-chrome-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       margin: 0 0 14px;
+      flex-wrap: wrap;
+    }
+    .quiz-focus-btn {
+      flex-shrink: 0;
+      margin-left: auto;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .quiz-focus-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .quiz-focus-btn.is-on {
+      border-color: #c62828;
+      color: #c62828;
+      background: #fff8f6;
+    }
+    @media (min-width: 641px) {
+      .quiz-focus-btn {
+        display: none !important;
+      }
+    }
+    .quiz-view.is-focus > .back-to-chapters,
+    .quiz-view.is-focus > .quiz-stats,
+    .quiz-view.is-focus > .history-chapter-notes-fold,
+    .quiz-view.is-focus > .xi-chapter-notes-fold,
+    .quiz-view.is-focus > .marx-chapter-notes-fold,
+    .quiz-view.is-focus > .quiz-order-tools,
+    .quiz-view.is-focus > .quiz-type,
+    .quiz-view.is-focus .quiz-mode-tabs,
+    .quiz-view.is-focus > .short-source {
+      display: none !important;
+    }
+    .quiz-view.is-focus > .quiz-chrome-row {
+      margin-bottom: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--bg);
+      padding: 4px 0;
+    }
+    body.quiz-focus-on .sidebar,
+    body.quiz-focus-on .sidebar-mini {
+      display: none !important;
+    }
+    body.quiz-focus-on .main {
+      padding-top: 10px;
+    }
+    html.fuxi-immersive,
+    html.fuxi-immersive body {
+      overflow: hidden;
+      height: 100%;
+      overscroll-behavior: none;
+      touch-action: pan-y;
+    }
+    html.fuxi-immersive .exam-view:not([hidden]) {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      max-width: none;
+      margin: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      background: var(--bg);
+      padding: 10px 12px calc(96px + env(safe-area-inset-bottom, 0px));
+    }
+    html.fuxi-immersive .exam-dock {
+      background: #fff;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
     }
     .quiz-mode-tab {
       border: 1px solid var(--border);
@@ -1515,13 +1607,13 @@
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 30;
+        z-index: 50;
         flex-wrap: nowrap;
         gap: 8px;
         padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-        background: rgba(255, 255, 255, 0.94);
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
+        background: #fff;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
         border-top: 1px solid var(--border);
         box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
       }
@@ -1702,9 +1794,12 @@
             本次测试共<span id="ch1-total">29</span>题，已做<span id="ch1-done">0</span>题，做对<span class="stat-correct" id="ch1-right">0</span>题，做错<span class="stat-wrong" id="ch1-wrong">0</span>题
           </p>
           <p class="quiz-stats" id="history-short-stats" hidden></p>
-          <div class="quiz-mode-tabs" id="history-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
-            <button type="button" class="quiz-mode-tab is-active" id="history-mode-mcq" data-history-mode="mcq">单选题</button>
-            <button type="button" class="quiz-mode-tab" id="history-mode-short" data-history-mode="short">简答题</button>
+          <div class="quiz-chrome-row" id="history-quiz-chrome">
+            <div class="quiz-mode-tabs" id="history-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
+              <button type="button" class="quiz-mode-tab is-active" id="history-mode-mcq" data-history-mode="mcq">单选题</button>
+              <button type="button" class="quiz-mode-tab" id="history-mode-short" data-history-mode="short">简答题</button>
+            </div>
+            <button type="button" class="quiz-focus-btn" id="history-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
           <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
             <summary class="history-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
@@ -1959,9 +2054,12 @@
             本次测试共<span id="xq-total">0</span>题，已做<span id="xq-done">0</span>题，做对<span class="stat-correct" id="xq-right">0</span>题，做错<span class="stat-wrong" id="xq-wrong">0</span>题
           </p>
           <p class="quiz-stats" id="xi-short-stats" hidden></p>
-          <div class="quiz-mode-tabs" id="xi-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
-            <button type="button" class="quiz-mode-tab is-active" id="xi-mode-mcq" data-xi-mode="mcq">单选题</button>
-            <button type="button" class="quiz-mode-tab" id="xi-mode-short" data-xi-mode="short">简答题</button>
+          <div class="quiz-chrome-row" id="xi-quiz-chrome">
+            <div class="quiz-mode-tabs" id="xi-quiz-mode-tabs" hidden role="tablist" aria-label="题型">
+              <button type="button" class="quiz-mode-tab is-active" id="xi-mode-mcq" data-xi-mode="mcq">单选题</button>
+              <button type="button" class="quiz-mode-tab" id="xi-mode-short" data-xi-mode="short">简答题</button>
+            </div>
+            <button type="button" class="quiz-focus-btn" id="xi-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
           <details class="xi-chapter-notes-fold" id="xi-chapter-notes-fold" hidden>
             <summary class="xi-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
@@ -2132,6 +2230,9 @@
           <p class="quiz-stats" id="mq-stats">
             本次测试共<span id="mq-total">0</span>题，已做<span id="mq-done">0</span>题，做对<span class="stat-correct" id="mq-right">0</span>题，做错<span class="stat-wrong" id="mq-wrong">0</span>题
           </p>
+          <div class="quiz-chrome-row" id="marx-quiz-chrome">
+            <button type="button" class="quiz-focus-btn" id="marx-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
+          </div>
           <details class="marx-chapter-notes-fold" id="mq-chapter-notes-fold" hidden>
             <summary class="marx-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
             <div class="marx-chapter-notes-body" id="mq-chapter-notes-body">
@@ -2236,6 +2337,47 @@
     let xiShortRevealed = false;
     const xiShortLastIndex = {};
 
+    /** 竖屏：答题收起 / 考卷内滚动，减轻 Safari 底栏乱晃 */
+    function setFuxiImmersive(on) {
+      document.documentElement.classList.toggle("fuxi-immersive", !!on);
+    }
+    function clearQuizFocus() {
+      document.body.classList.remove("quiz-focus-on");
+      document.querySelectorAll(".quiz-view.is-focus").forEach((el) => el.classList.remove("is-focus"));
+      document.querySelectorAll(".quiz-focus-btn").forEach((btn) => {
+        btn.classList.remove("is-on");
+        btn.textContent = "收起";
+      });
+    }
+    function setQuizFocus(viewEl, btn, on) {
+      if (!viewEl) return;
+      document.querySelectorAll(".quiz-view.is-focus").forEach((el) => {
+        if (el !== viewEl) el.classList.remove("is-focus");
+      });
+      viewEl.classList.toggle("is-focus", !!on);
+      document.body.classList.toggle("quiz-focus-on", !!on);
+      if (btn) {
+        btn.classList.toggle("is-on", !!on);
+        btn.textContent = on ? "展开" : "收起";
+      }
+      if (on) {
+        const q = viewEl.querySelector(".quiz-question");
+        if (q) {
+          requestAnimationFrame(() => {
+            q.scrollIntoView({ block: "start", behavior: "smooth" });
+          });
+        }
+      }
+    }
+    function wireQuizFocusToggle(btnId, viewId) {
+      const btn = document.getElementById(btnId);
+      const view = document.getElementById(viewId);
+      if (!btn || !view) return;
+      btn.addEventListener("click", () => {
+        setQuizFocus(view, btn, !view.classList.contains("is-focus"));
+      });
+    }
+
     function closeXiViews() {
       const list = document.getElementById("xi-chapter-list");
       const stub = document.getElementById("xi-chapter-stub");
@@ -2253,6 +2395,7 @@
       }
       if (list) list.hidden = false;
       hideXiChapterResumeDialog();
+      clearQuizFocus();
     }
 
     function closeMarxViews() {
@@ -2270,6 +2413,7 @@
       }
       if (list) list.hidden = false;
       hideMarxChapterResumeDialog();
+      clearQuizFocus();
     }
 
     function showPanel(key) {
@@ -18379,6 +18523,7 @@
       historyListEl.hidden = false;
       ch1QuizEl.classList.remove("is-submitted");
       chContinueWrap.hidden = true;
+      clearQuizFocus();
     }
 
     document.querySelector(".back-to-chapters").addEventListener("click", closeHistoryQuiz);
@@ -18952,6 +19097,7 @@
         ch1QuizEl.hidden = true;
         ch1QuizEl.classList.remove("is-submitted");
       }
+      clearQuizFocus();
       historyListEl.hidden = true;
       if (historyExamView) historyExamView.hidden = false;
       historyExam = loadHistoryExam();
@@ -18960,9 +19106,11 @@
         persistHistoryExam();
       }
       renderHistoryExam();
-      window.scrollTo(0, 0);
+      setFuxiImmersive(true);
+      if (historyExamView) historyExamView.scrollTop = 0;
     }
     function closeHistoryExam() {
+      setFuxiImmersive(false);
       if (historyExamView) historyExamView.hidden = true;
       if (ch1QuizEl.hidden) historyListEl.hidden = false;
     }
@@ -18973,7 +19121,7 @@
       historyExam = examBuildPaper(Date.now() % 2147483647);
       persistHistoryExam();
       renderHistoryExam();
-      window.scrollTo(0, 0);
+      if (historyExamView) historyExamView.scrollTop = 0;
       examSetHint("已换一套新卷。");
     }
     if (historyExamSheet) {
@@ -19050,6 +19198,9 @@
         } else window.prompt("复制下面全文：", text);
       });
     }
+    wireQuizFocusToggle("history-focus-toggle", "history-ch1-quiz");
+    wireQuizFocusToggle("xi-focus-toggle", "xi-quiz-view");
+    wireQuizFocusToggle("marx-focus-toggle", "marx-quiz-view");
 
     updateWrongReviewButtonBadge();
     recomputeChapterMasteryBadges();
