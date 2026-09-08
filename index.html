@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 strip source tags -->
+  <!-- gh-deploy: 2026-09-08 exam option no wrap dot -->
   <style>
     :root {
       --bg: #ffffff;
@@ -419,7 +419,8 @@
     }
     .exam-opt-k {
       flex-shrink: 0;
-      width: 1.5em;
+      min-width: 1.6em;
+      white-space: nowrap;
     }
     .exam-q.is-right .exam-stem::before,
     .exam-q.is-wrong .exam-stem::before {
@@ -18809,7 +18810,7 @@
           if (picked) cls.push("is-picked");
           if (submitted && op.key === q.correct) cls.push("is-key");
           const disabled = submitted ? " disabled" : "";
-          return `<button type="button" class="${cls.join(" ")}" data-exam-mcq="${idx}" data-k="${op.key}"${disabled}><span class="exam-opt-k">${op.key}．</span><span>${examEscape(op.label)}</span></button>`;
+          return `<button type="button" class="${cls.join(" ")}" data-exam-mcq="${idx}" data-k="${op.key}"${disabled}><span class="exam-opt-k">${op.key}.</span><span>${examEscape(op.label)}</span></button>`;
         }).join("");
         return `<div class="${qcls}"><p class="exam-stem">${idx + 1}. ${examEscape(examStemText(q.text))}</p><div class="exam-opts">${opts}</div></div>`;
       }).join("");
