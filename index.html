@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-07 history mock exam phone -->
+  <!-- gh-deploy: 2026-09-08 wrong-review two-streak -->
   <style>
     :root {
       --bg: #ffffff;
@@ -4410,7 +4410,11 @@
         const k = e.ch + "-" + e.i;
         if (seen.has(k)) continue;
         seen.add(k);
-        out.push({ ch: e.ch, i: e.i });
+        out.push({
+          ch: e.ch,
+          i: e.i,
+          streak: typeof e.streak === "number" && e.streak > 0 ? Math.floor(e.streak) : 0,
+        });
       }
       return out;
     }
@@ -4589,10 +4593,44 @@
       const qs = marxBaseQuestionsForChapter(ch);
       if (origIdx < 0 || origIdx >= qs.length) return;
       const entries = getMarxWrongEntries();
-      if (entries.some((e) => e.ch === ch && e.i === origIdx)) return;
-      entries.push({ ch, i: origIdx });
+      const exist = entries.find((e) => e.ch === ch && e.i === origIdx);
+      if (exist) {
+        exist.streak = 0;
+        saveMarxWrongEntries(entries);
+        return;
+      }
+      entries.push({ ch, i: origIdx, streak: 0 });
       saveMarxWrongEntries(entries);
       updateMarxWrongReviewButtonBadge();
+    }
+
+    function bumpMarxWrongStreak(src, ok) {
+      if (!src) return 0;
+      const entries = getMarxWrongEntries();
+      const e = entries.find((x) => x.ch === src.ch && x.i === src.i);
+      if (!e) return 0;
+      e.streak = ok ? (e.streak || 0) + 1 : 0;
+      saveMarxWrongEntries(entries);
+      return e.streak;
+    }
+
+    function advanceMarxWrongReviewKeep() {
+      const qs = marxQuestionsForChapter(marxQuizChapter);
+      const n = qs.length;
+      if (n <= 0) {
+        closeMarxViews();
+        return;
+      }
+      if (n === 1) {
+        const res = marxCurrentResults();
+        res[0] = null;
+        persistMarxProgress();
+        renderMarxQuiz();
+        return;
+      }
+      marxQuizIndex = (marxQuizIndex + 1) % n;
+      rememberMarxIndex();
+      renderMarxQuiz();
     }
 
     function getMarxWrongSourceAtDisplayIndex(displayIdx) {
@@ -4850,15 +4888,15 @@
       if (elTotal) elTotal.textContent = String(total);
     }
 
-    function applyMarxFeedback(q, ok) {
+    function applyMarxFeedback(q, ok, extra) {
       if (!marxQuizViewEl) return;
       marxQuizViewEl.classList.add("is-submitted");
       if (ok) {
         mqFeedbackResult.className = "feedback-result right";
-        mqFeedbackResult.textContent = "✓ 答对了！";
+        mqFeedbackResult.textContent = "✓ 答对了！" + (extra || "");
       } else {
         mqFeedbackResult.className = "feedback-result wrong";
-        mqFeedbackResult.textContent = "✘答错了！";
+        mqFeedbackResult.textContent = "✘答错了！" + (extra || "");
       }
       mqFeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
       mqFeedbackRef.className = "feedback-ref";
@@ -4952,7 +4990,7 @@
       if (mqFeedback) mqFeedback.style.display = "";
       const q = getMarxQuestionAtDisplayIndex(marxQuizChapter, marxQuizIndex);
       if (!q) return;
-      const saved = res[marxQuizIndex];
+      const saved = marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER ? null : res[marxQuizIndex];
 
       mqQuestionText.textContent = mqFormatQuestionLine(marxQuizIndex, q.text);
       mqOptionsEl.innerHTML = "";
@@ -5130,12 +5168,16 @@
         const q = getMarxQuestionAtDisplayIndex(marxQuizChapter, marxQuizIndex);
         const res = marxCurrentResults();
         const picked = mqOptionsEl.querySelector('input[type="radio"]:checked');
-        if (!picked || !q || res[marxQuizIndex]) return;
+        if (!picked || !q) return;
+        if (marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER) {
+          if (marxQuizViewEl && marxQuizViewEl.classList.contains("is-submitted")) return;
+        } else if (res[marxQuizIndex]) return;
         const ok = picked.value === q.correct;
 
         if (marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER) {
           const src = getMarxWrongSourceAtDisplayIndex(marxQuizIndex);
-          const mastery = src ? updateMarxMasteryForQuestion(src.ch, src.i, ok) : null;
+          if (src) updateMarxMasteryForQuestion(src.ch, src.i, ok);
+          const streak = bumpMarxWrongStreak(src, ok);
           res[marxQuizIndex] = { picked: picked.value, ok };
           persistMarxProgress();
           recomputeMarxStats();
@@ -5144,17 +5186,27 @@
             inp.disabled = true;
           });
           mqSubmitWrap.classList.add("is-hidden");
-          applyMarxFeedback(q, ok);
+          const extra = ok
+            ? streak >= 2
+              ? " 连对 2 次，已移出。"
+              : " 再对 1 次才移出。"
+            : " 需重新连对 2 次。";
+          applyMarxFeedback(q, ok, extra);
           mqPrev.disabled = marxQuizIndex === 0;
-          mqNext.disabled = marxQuizIndex >= qs.length - 1;
-          mqNext.title = marxQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+          mqNext.disabled = qs.length <= 1;
+          mqNext.title = qs.length <= 1 ? "已是最后一题" : "下一题";
           updateMarxContinueChapterVisibility();
-          if (ok && src) {
+          if (ok && src && streak >= 2) {
             const srcRemove = { ch: src.ch, i: src.i };
             persistMarxProgress();
             setTimeout(() => {
               if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
               removeMarxWrongBySource(srcRemove);
+            }, 480);
+          } else if (ok && src) {
+            setTimeout(() => {
+              if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
+              advanceMarxWrongReviewKeep();
             }, 480);
           }
           return;
@@ -5186,6 +5238,12 @@
     if (mqNext) {
       mqNext.addEventListener("click", () => {
         const qs = marxQuestionsForChapter(marxQuizChapter);
+        if (marxQuizChapter === WRONG_REVIEW_MARX_CHAPTER && qs.length > 1) {
+          marxQuizIndex = (marxQuizIndex + 1) % qs.length;
+          rememberMarxIndex();
+          renderMarxQuiz();
+          return;
+        }
         if (marxQuizIndex < qs.length - 1) {
           marxQuizIndex += 1;
           rememberMarxIndex();
@@ -11246,7 +11304,11 @@
         const k = e.ch + "-" + e.i;
         if (seen.has(k)) continue;
         seen.add(k);
-        out.push({ ch: e.ch, i: e.i });
+        out.push({
+          ch: e.ch,
+          i: e.i,
+          streak: typeof e.streak === "number" && e.streak > 0 ? Math.floor(e.streak) : 0,
+        });
       }
       return out;
     }
@@ -11424,10 +11486,44 @@
       const qs = xiBaseQuestionsForChapter(ch);
       if (origIdx < 0 || origIdx >= qs.length) return;
       const entries = getXiWrongEntries();
-      if (entries.some((e) => e.ch === ch && e.i === origIdx)) return;
-      entries.push({ ch, i: origIdx });
+      const exist = entries.find((e) => e.ch === ch && e.i === origIdx);
+      if (exist) {
+        exist.streak = 0;
+        saveXiWrongEntries(entries);
+        return;
+      }
+      entries.push({ ch, i: origIdx, streak: 0 });
       saveXiWrongEntries(entries);
       updateXiWrongReviewButtonBadge();
+    }
+
+    function bumpXiWrongStreak(src, ok) {
+      if (!src) return 0;
+      const entries = getXiWrongEntries();
+      const e = entries.find((x) => x.ch === src.ch && x.i === src.i);
+      if (!e) return 0;
+      e.streak = ok ? (e.streak || 0) + 1 : 0;
+      saveXiWrongEntries(entries);
+      return e.streak;
+    }
+
+    function advanceXiWrongReviewKeep() {
+      const qs = xiQuestionsForChapter(xiQuizChapter);
+      const n = qs.length;
+      if (n <= 0) {
+        closeXiViews();
+        return;
+      }
+      if (n === 1) {
+        const res = xiCurrentResults();
+        res[0] = null;
+        persistXiProgress();
+        renderXiQuiz();
+        return;
+      }
+      xiQuizIndex = (xiQuizIndex + 1) % n;
+      rememberXiIndex();
+      renderXiQuiz();
     }
 
     function getXiWrongSourceAtDisplayIndex(displayIdx) {
@@ -11734,15 +11830,15 @@
       if (elTotal) elTotal.textContent = String(total);
     }
 
-    function applyXiFeedback(q, ok) {
+    function applyXiFeedback(q, ok, extra) {
       if (!xiQuizViewEl) return;
       xiQuizViewEl.classList.add("is-submitted");
       if (ok) {
         xqFeedbackResult.className = "feedback-result right";
-        xqFeedbackResult.textContent = "✓ 答对了！";
+        xqFeedbackResult.textContent = "✓ 答对了！" + (extra || "");
       } else {
         xqFeedbackResult.className = "feedback-result wrong";
-        xqFeedbackResult.textContent = "✘答错了！";
+        xqFeedbackResult.textContent = "✘答错了！" + (extra || "");
       }
       xqFeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
       xqFeedbackRef.className = "feedback-ref";
@@ -11927,7 +12023,7 @@
       if (xqFeedback) xqFeedback.style.display = "";
       const q = getXiQuestionAtDisplayIndex(xiQuizChapter, xiQuizIndex);
       if (!q) return;
-      const saved = res[xiQuizIndex];
+      const saved = xiQuizChapter === WRONG_REVIEW_XI_CHAPTER ? null : res[xiQuizIndex];
 
       xqQuestionText.textContent = xqFormatQuestionLine(xiQuizIndex, q.text);
       xqOptionsEl.innerHTML = "";
@@ -12106,12 +12202,16 @@
         const q = getXiQuestionAtDisplayIndex(xiQuizChapter, xiQuizIndex);
         const res = xiCurrentResults();
         const picked = xqOptionsEl.querySelector('input[type="radio"]:checked');
-        if (!picked || !q || res[xiQuizIndex]) return;
+        if (!picked || !q) return;
+        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+          if (xiQuizViewEl && xiQuizViewEl.classList.contains("is-submitted")) return;
+        } else if (res[xiQuizIndex]) return;
         const ok = picked.value === q.correct;
 
         if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
           const src = getXiWrongSourceAtDisplayIndex(xiQuizIndex);
-          const mastery = src ? updateXiMasteryForQuestion(src.ch, src.i, ok) : null;
+          if (src) updateXiMasteryForQuestion(src.ch, src.i, ok);
+          const streak = bumpXiWrongStreak(src, ok);
           res[xiQuizIndex] = { picked: picked.value, ok };
           persistXiProgress();
           recomputeXiStats();
@@ -12120,17 +12220,27 @@
             inp.disabled = true;
           });
           xqSubmitWrap.classList.add("is-hidden");
-          applyXiFeedback(q, ok);
+          const extra = ok
+            ? streak >= 2
+              ? " 连对 2 次，已移出。"
+              : " 再对 1 次才移出。"
+            : " 需重新连对 2 次。";
+          applyXiFeedback(q, ok, extra);
           xqPrev.disabled = xiQuizIndex === 0;
-          xqNext.disabled = xiQuizIndex >= qs.length - 1;
-          xqNext.title = xiQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+          xqNext.disabled = qs.length <= 1;
+          xqNext.title = qs.length <= 1 ? "已是最后一题" : "下一题";
           updateXiContinueChapterVisibility();
-          if (ok && src) {
+          if (ok && src && streak >= 2) {
             const srcRemove = { ch: src.ch, i: src.i };
             persistXiProgress();
             setTimeout(() => {
               if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
               removeXiWrongBySource(srcRemove);
+            }, 480);
+          } else if (ok && src) {
+            setTimeout(() => {
+              if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
+              advanceXiWrongReviewKeep();
             }, 480);
           }
           return;
@@ -12172,6 +12282,12 @@
           return;
         }
         const qs = xiQuestionsForChapter(xiQuizChapter);
+        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER && qs.length > 1) {
+          xiQuizIndex = (xiQuizIndex + 1) % qs.length;
+          rememberXiIndex();
+          renderXiQuiz();
+          return;
+        }
         if (xiQuizIndex < qs.length - 1) {
           xiQuizIndex += 1;
           rememberXiIndex();
@@ -17289,7 +17405,11 @@
         const qs = questionsForChapter(e.ch);
         if (e.i < 0 || e.i >= qs.length) continue;
         seen.add(k);
-        out.push({ ch: e.ch, i: e.i });
+        out.push({
+          ch: e.ch,
+          i: e.i,
+          streak: typeof e.streak === "number" && e.streak > 0 ? Math.floor(e.streak) : 0,
+        });
       }
       return out;
     }
@@ -17458,10 +17578,44 @@
       const qs = questionsForChapter(ch);
       if (origIdx < 0 || origIdx >= qs.length) return;
       const entries = getWrongReviewEntries();
-      if (entries.some((e) => e.ch === ch && e.i === origIdx)) return;
-      entries.push({ ch, i: origIdx });
+      const exist = entries.find((e) => e.ch === ch && e.i === origIdx);
+      if (exist) {
+        exist.streak = 0;
+        saveWrongReviewEntries(entries);
+        return;
+      }
+      entries.push({ ch, i: origIdx, streak: 0 });
       saveWrongReviewEntries(entries);
       updateWrongReviewButtonBadge();
+    }
+
+    function bumpHistoryWrongStreak(src, ok) {
+      if (!src) return 0;
+      const entries = getWrongReviewEntries();
+      const e = entries.find((x) => x.ch === src.ch && x.i === src.i);
+      if (!e) return 0;
+      e.streak = ok ? (e.streak || 0) + 1 : 0;
+      saveWrongReviewEntries(entries);
+      return e.streak;
+    }
+
+    function advanceHistoryWrongReviewKeep() {
+      const qs = getHistoryQuestions();
+      const n = qs.length;
+      if (n <= 0) {
+        closeHistoryQuiz();
+        return;
+      }
+      if (n === 1) {
+        const res = currentResults();
+        res[0] = null;
+        persistHistoryProgress();
+        renderHistoryQuiz();
+        return;
+      }
+      historyQuizIndex = (historyQuizIndex + 1) % n;
+      rememberHistoryIndex();
+      renderHistoryQuiz();
     }
 
     function getWrongSourceAtDisplayIndex(displayIdx) {
@@ -17815,14 +17969,14 @@
       ch1Wrong.textContent = String(wrong);
     }
 
-    function applyCh1Feedback(q, ok) {
+    function applyCh1Feedback(q, ok, extra) {
       ch1QuizEl.classList.add("is-submitted");
       if (ok) {
         ch1FeedbackResult.className = "feedback-result right";
-        ch1FeedbackResult.textContent = "✓ 答对了！";
+        ch1FeedbackResult.textContent = "✓ 答对了！" + (extra || "");
       } else {
         ch1FeedbackResult.className = "feedback-result wrong";
-        ch1FeedbackResult.textContent = "✘答错了！";
+        ch1FeedbackResult.textContent = "✘答错了！" + (extra || "");
       }
       ch1FeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
 
@@ -18046,7 +18200,7 @@
 
       const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
       if (!q) return;
-      const saved = res[historyQuizIndex];
+      const saved = historyQuizChapter === WRONG_REVIEW_CHAPTER ? null : res[historyQuizIndex];
 
       ch1QuestionText.textContent = ch1FormatQuestionLine(historyQuizIndex, q.text);
       ch1OptionsEl.innerHTML = "";
@@ -18895,12 +19049,16 @@
       const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
       const res = currentResults();
       const picked = ch1OptionsEl.querySelector('input[type="radio"]:checked');
-      if (!picked || res[historyQuizIndex]) return;
+      if (!picked) return;
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+        if (ch1QuizEl.classList.contains("is-submitted")) return;
+      } else if (res[historyQuizIndex]) return;
       const ok = picked.value === q.correct;
 
       if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
         const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
-        const mastery = src ? updateMasteryForQuestion(src.ch, src.i, ok) : null;
+        if (src) updateMasteryForQuestion(src.ch, src.i, ok);
+        const streak = bumpHistoryWrongStreak(src, ok);
         res[historyQuizIndex] = { picked: picked.value, ok };
         persistHistoryProgress();
         rememberHistoryIndex();
@@ -18910,17 +19068,27 @@
           inp.disabled = true;
         });
         ch1SubmitWrap.classList.add("is-hidden");
-        applyCh1Feedback(q, ok);
+        const extra = ok
+          ? streak >= MASTERED_STREAK
+            ? " 连对 2 次，已移出。"
+            : " 再对 1 次才移出。"
+          : " 需重新连对 2 次。";
+        applyCh1Feedback(q, ok, extra);
         ch1Prev.disabled = historyQuizIndex === 0;
-        ch1Next.disabled = historyQuizIndex >= qs.length - 1;
-        ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+        ch1Next.disabled = qs.length <= 1;
+        ch1Next.title = qs.length <= 1 ? "已是最后一题" : "下一题";
         updateContinueChapterVisibility();
 
-        if (ok && src) {
+        if (ok && src && streak >= MASTERED_STREAK) {
           const srcRemove = { ch: src.ch, i: src.i };
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
             removeWrongBySource(srcRemove);
+          }, 480);
+        } else if (ok && src) {
+          setTimeout(() => {
+            if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+            advanceHistoryWrongReviewKeep();
           }, 480);
         }
         return;
@@ -18961,6 +19129,12 @@
         return;
       }
       const qs = getHistoryQuestions();
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER && qs.length > 1) {
+        historyQuizIndex = (historyQuizIndex + 1) % qs.length;
+        rememberHistoryIndex();
+        renderHistoryQuiz();
+        return;
+      }
       if (historyQuizIndex < qs.length - 1) {
         historyQuizIndex += 1;
         rememberHistoryIndex();
