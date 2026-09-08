@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 shuffle jump to first -->
+  <!-- gh-deploy: 2026-09-08 strip source tags -->
   <style>
     :root {
       --bg: #ffffff;
@@ -4816,7 +4816,10 @@
 
     function mqStripQuestionPrefix(raw) {
       if (!raw) return "";
-      const stripped = raw.replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E]\s*/, "").trim();
+      const stripped = raw
+        .replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E．]\s*/, "")
+        .replace(/^\[[^\]]+\]\s*/, "")
+        .trim();
       return stripped || raw.trim();
     }
 
@@ -11745,7 +11748,10 @@
 
     function xqStripQuestionPrefix(raw) {
       if (!raw) return "";
-      const stripped = raw.replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E]\s*/, "").trim();
+      const stripped = raw
+        .replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E．]\s*/, "")
+        .replace(/^\[[^\]]+\]\s*/, "")
+        .trim();
       return stripped || raw.trim();
     }
 
@@ -17992,7 +17998,11 @@
 
     function ch1StripQuestionPrefix(raw) {
       if (!raw) return "";
-      const stripped = raw.replace(/^\[[^\]]+\]\s*\d+\.\s*/, "").trim();
+      /* 录入时带来源标签如 [自测单选]、[202510单选]，答题页不显示 */
+      const stripped = raw
+        .replace(/^\[[^\]]+\]\s*\d+[\.\uFF0E．]\s*/, "")
+        .replace(/^\[[^\]]+\]\s*/, "")
+        .trim();
       return stripped || raw.trim();
     }
 
