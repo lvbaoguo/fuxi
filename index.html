@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 mobile focus and exam scroll lock -->
+  <!-- gh-deploy: 2026-09-08 focus keep course bar -->
   <style>
     :root {
       --bg: #ffffff;
@@ -836,19 +836,32 @@
       display: none !important;
     }
     .quiz-view.is-focus > .quiz-chrome-row {
-      margin-bottom: 8px;
+      margin: 2px 0 18px;
       position: sticky;
       top: 0;
       z-index: 5;
       background: var(--bg);
-      padding: 4px 0;
+      padding: 2px 0 6px;
     }
-    body.quiz-focus-on .sidebar,
-    body.quiz-focus-on .sidebar-mini {
+    .quiz-view.is-focus > .quiz-question {
+      margin-top: 2px;
+    }
+    /* 收起后保留「当前：近代史 / 换课」，只藏中间杂项，题目才不顶头 */
+    body.quiz-focus-on .sidebar-top,
+    body.quiz-focus-on .sidebar-tabs-inner,
+    body.quiz-focus-on .sidebar-collapse-btn {
       display: none !important;
     }
+    body.quiz-focus-on .sidebar-mini {
+      display: flex !important;
+    }
+    body.quiz-focus-on .sidebar {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
     body.quiz-focus-on .main {
-      padding-top: 10px;
+      padding-top: 12px;
+      padding-bottom: 28px;
     }
     html.fuxi-immersive,
     html.fuxi-immersive body {
@@ -2420,6 +2433,8 @@
       Object.entries(panels).forEach(([k, el]) => {
         el.hidden = k !== key;
       });
+      setFuxiImmersive(false);
+      clearQuizFocus();
       if (key !== "marx") {
         closeMarxViews();
         hideMarxChapterResumeDialog();
@@ -18458,6 +18473,8 @@
     function openHistoryQuiz(chapterNum, opts) {
       const examViewEl = document.getElementById("history-exam-view");
       if (examViewEl) examViewEl.hidden = true;
+      setFuxiImmersive(false);
+      clearQuizFocus();
       const choice = opts && opts.choice;
       if (chapterNum === WRONG_REVIEW_CHAPTER) historyQuizMode = "mcq";
 
