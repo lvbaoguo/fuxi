@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-08 focus keep course bar -->
+  <!-- gh-deploy: 2026-09-10 history shuffle skip answered (local) -->
   <style>
     :root {
       --bg: #ffffff;
@@ -1011,6 +1011,139 @@
     .quiz-view.is-submitted .radio-line input:disabled + .radio-ui {
       opacity: 0.85;
     }
+    /* 近代史交卷后：错选红圈、正解绿圈（覆盖默认 checked 绿点） */
+    .quiz-view.is-submitted .radio-line.is-correct .radio-ui,
+    .quiz-view.is-submitted .radio-line.is-correct input:checked + .radio-ui,
+    .quiz-view.is-submitted .radio-line.is-correct input:disabled + .radio-ui {
+      border-color: #34a853;
+      background: #e6f4ea;
+      opacity: 1;
+    }
+    .quiz-view.is-submitted .radio-line.is-correct .radio-ui::after,
+    .quiz-view.is-submitted .radio-line.is-correct input:checked + .radio-ui::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #34a853;
+    }
+    .quiz-view.is-submitted .radio-line.is-correct .radio-text {
+      color: #137333;
+      font-weight: 600;
+    }
+    .quiz-view.is-submitted .radio-line.is-wrong .radio-ui,
+    .quiz-view.is-submitted .radio-line.is-wrong input:checked + .radio-ui,
+    .quiz-view.is-submitted .radio-line.is-wrong input:disabled + .radio-ui {
+      border-color: #ea4335;
+      background: #fce8e6;
+      opacity: 1;
+    }
+    .quiz-view.is-submitted .radio-line.is-wrong .radio-ui::after,
+    .quiz-view.is-submitted .radio-line.is-wrong input:checked + .radio-ui::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ea4335;
+    }
+    .quiz-view.is-submitted .radio-line.is-wrong .radio-text {
+      color: #c5221f;
+      font-weight: 600;
+    }
+
+    /* 近代史 · 连击 HUD + 通关庆祝 */
+    .history-combo-chip {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%);
+      color: #e65100;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 1px 4px rgba(230, 81, 0, 0.18);
+      transform-origin: center;
+    }
+    .history-combo-chip.is-pulse {
+      animation: history-combo-pop 0.42s ease;
+    }
+    .history-combo-chip.is-break {
+      background: linear-gradient(135deg, #fce8e6 0%, #f5c6c2 100%);
+      color: #c5221f;
+      box-shadow: 0 1px 4px rgba(197, 34, 31, 0.16);
+    }
+    @keyframes history-combo-pop {
+      0% { transform: scale(0.82); }
+      55% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    .history-play-fx {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .history-play-fx[hidden] {
+      display: none !important;
+    }
+    .history-play-toast {
+      position: fixed;
+      left: 50%;
+      top: 14%;
+      transform: translateX(-50%) translateY(-8px);
+      padding: 10px 18px;
+      border-radius: 14px;
+      background: rgba(26, 26, 26, 0.88);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+      opacity: 0;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      max-width: min(90vw, 360px);
+      text-align: center;
+    }
+    .history-play-toast.is-show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .history-play-toast.is-cele {
+      background: linear-gradient(135deg, #1a73e8 0%, #0b57d0 55%, #34a853 120%);
+      font-size: 16px;
+      padding: 12px 22px;
+    }
+    .history-confetti-piece {
+      position: absolute;
+      top: -12px;
+      width: 8px;
+      height: 11px;
+      border-radius: 2px;
+      opacity: 0.95;
+      animation: history-confetti-fall 1.25s ease-in forwards;
+    }
+    @keyframes history-confetti-fall {
+      0% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(var(--dx, 0), 110vh, 0) rotate(540deg);
+        opacity: 0.15;
+      }
+    }
     .btn-submit-wrap {
       margin-bottom: 24px;
     }
@@ -1812,6 +1945,7 @@
               <button type="button" class="quiz-mode-tab is-active" id="history-mode-mcq" data-history-mode="mcq">单选题</button>
               <button type="button" class="quiz-mode-tab" id="history-mode-short" data-history-mode="short">简答题</button>
             </div>
+            <span class="history-combo-chip" id="history-combo-chip" hidden aria-live="polite"></span>
             <button type="button" class="quiz-focus-btn" id="history-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
           <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
@@ -1832,7 +1966,7 @@
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；打乱后从第 1 题起按新顺序刷。</span>
+                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；打乱只洗未做的题，已做过的不会再出现。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-timeline-order" disabled title="恢复教材时间线顺序">顺序</button>
@@ -2372,6 +2506,12 @@
       if (btn) {
         btn.classList.toggle("is-on", !!on);
         btn.textContent = on ? "展开" : "收起";
+      }
+      if (on && window.matchMedia("(max-width: 640px)").matches) {
+        const sb = document.getElementById("course-sidebar");
+        const mini = document.getElementById("sidebar-mini");
+        if (sb) sb.classList.add("sidebar--collapsed");
+        if (mini) mini.setAttribute("aria-hidden", "false");
       }
       if (on) {
         const q = viewEl.querySelector(".quiz-question");
@@ -17561,6 +17701,137 @@
     const MASTERED_STREAK = 1;
     /** 错题回顾：同一题连对 2 次才移出 */
     const WRONG_CLEAR_STREAK = 2;
+    /** 近代史答题连击（本标签页 session，刷新还在） */
+    const HISTORY_COMBO_STORAGE_KEY = "pansan2-history-combo-v1";
+    let historyCombo = 0;
+    let historyPlayToastTimer = 0;
+    let historyCeleTimer = 0;
+    try {
+      historyCombo = Math.max(0, parseInt(sessionStorage.getItem(HISTORY_COMBO_STORAGE_KEY) || "0", 10) || 0);
+    } catch (_) {
+      historyCombo = 0;
+    }
+
+    function saveHistoryCombo() {
+      try {
+        sessionStorage.setItem(HISTORY_COMBO_STORAGE_KEY, String(historyCombo));
+      } catch (_) {}
+    }
+
+    function historyComboTitle(n) {
+      if (n >= 12) return "纲要附体";
+      if (n >= 8) return "手感爆炸";
+      if (n >= 5) return "稳了";
+      if (n >= 3) return "连击起步";
+      return "";
+    }
+
+    function refreshHistoryComboChip(pulse) {
+      const chip = document.getElementById("history-combo-chip");
+      if (!chip) return;
+      chip.classList.remove("is-break");
+      if (historyCombo <= 0) {
+        chip.hidden = true;
+        chip.textContent = "";
+        chip.classList.remove("is-pulse");
+        return;
+      }
+      chip.hidden = false;
+      const title = historyComboTitle(historyCombo);
+      chip.textContent = title ? "连击 ×" + historyCombo + " · " + title : "连击 ×" + historyCombo;
+      if (pulse) {
+        chip.classList.remove("is-pulse");
+        void chip.offsetWidth;
+        chip.classList.add("is-pulse");
+      }
+    }
+
+    function showHistoryPlayToast(text, isCele) {
+      const fx = document.getElementById("history-play-fx");
+      const toast = document.getElementById("history-play-toast");
+      if (!fx || !toast) return;
+      fx.hidden = false;
+      toast.textContent = text;
+      toast.classList.toggle("is-cele", !!isCele);
+      toast.classList.remove("is-show");
+      void toast.offsetWidth;
+      toast.classList.add("is-show");
+      if (historyPlayToastTimer) clearTimeout(historyPlayToastTimer);
+      historyPlayToastTimer = setTimeout(() => {
+        toast.classList.remove("is-show");
+        setTimeout(() => {
+          if (!toast.classList.contains("is-show")) {
+            const confetti = document.getElementById("history-confetti");
+            if (confetti && !confetti.childElementCount) fx.hidden = true;
+          }
+        }, 220);
+      }, isCele ? 1600 : 1100);
+    }
+
+    function spawnHistoryConfetti() {
+      const fx = document.getElementById("history-play-fx");
+      const layer = document.getElementById("history-confetti");
+      if (!fx || !layer) return;
+      fx.hidden = false;
+      layer.innerHTML = "";
+      const colors = ["#ea4335", "#fbbc04", "#34a853", "#4285f4", "#ff6d00", "#a142f4", "#f06292"];
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement("span");
+        p.className = "history-confetti-piece";
+        p.style.left = Math.random() * 100 + "%";
+        p.style.background = colors[i % colors.length];
+        p.style.animationDelay = Math.random() * 0.35 + "s";
+        p.style.setProperty("--dx", Math.floor(Math.random() * 200 - 100) + "px");
+        layer.appendChild(p);
+      }
+      if (historyCeleTimer) clearTimeout(historyCeleTimer);
+      historyCeleTimer = setTimeout(() => {
+        layer.innerHTML = "";
+        const toast = document.getElementById("history-play-toast");
+        if (toast && !toast.classList.contains("is-show")) fx.hidden = true;
+      }, 1500);
+    }
+
+    function celebrateHistory(message) {
+      spawnHistoryConfetti();
+      showHistoryPlayToast(message, true);
+    }
+
+    function bumpHistoryCombo(ok) {
+      const chip = document.getElementById("history-combo-chip");
+      if (ok) {
+        historyCombo += 1;
+        saveHistoryCombo();
+        refreshHistoryComboChip(true);
+        if (historyCombo === 3 || historyCombo === 5 || historyCombo === 8 || historyCombo === 12) {
+          const title = historyComboTitle(historyCombo);
+          showHistoryPlayToast("连击 ×" + historyCombo + (title ? " · " + title : "") + "！");
+        }
+        return;
+      }
+      const broken = historyCombo >= 2;
+      historyCombo = 0;
+      saveHistoryCombo();
+      if (broken && chip) {
+        chip.hidden = false;
+        chip.classList.remove("is-pulse");
+        chip.classList.add("is-break");
+        chip.textContent = "连击中断";
+        showHistoryPlayToast("连击中断");
+        setTimeout(() => refreshHistoryComboChip(false), 900);
+      } else {
+        refreshHistoryComboChip(false);
+      }
+    }
+
+    function isHistoryChapterCleared(map, ch) {
+      const qs = questionsForChapter(ch);
+      if (!qs.length) return false;
+      for (let i = 0; i < qs.length; i++) {
+        if (!isMastered(map, ch, i)) return false;
+      }
+      return true;
+    }
 
     function normalizeWrongEntries(raw) {
       if (!Array.isArray(raw)) return [];
@@ -17920,6 +18191,8 @@
     const historyChapterLastIndex = {};
     /** @type {Record<number, number[]|undefined>} 每章题目的显示顺序（下标数组，未打乱则为 undefined） */
     const historyDisplayOrder = {};
+    /** @type {Record<number, number|undefined>} 打乱后「未做牌堆」长度：只刷前 deck 题，已做题压在后面不出现 */
+    const historyShuffleDeck = {};
     const HISTORY_RESULT_STORAGE_KEY = "pansan2-history-chapter-results-v1";
     const HISTORY_PROGRESS_STORAGE_KEY = "pansan2-history-chapter-progress-v1";
 
@@ -17928,6 +18201,7 @@
         const resultsOnly = {};
         const lastOnly = {};
         const orderOnly = {};
+        const deckOnly = {};
         const chapters = [];
         for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
         chapters.push(WRONG_REVIEW_CHAPTER);
@@ -17936,9 +18210,13 @@
           if (historyChapterResults[ch]) resultsOnly[ch] = historyChapterResults[ch];
           if (typeof historyChapterLastIndex[ch] === "number") lastOnly[ch] = historyChapterLastIndex[ch];
           if (historyDisplayOrder[ch]) orderOnly[ch] = historyDisplayOrder[ch];
+          if (typeof historyShuffleDeck[ch] === "number") deckOnly[ch] = historyShuffleDeck[ch];
         }
         localStorage.setItem(HISTORY_RESULT_STORAGE_KEY, JSON.stringify(resultsOnly));
-        localStorage.setItem(HISTORY_PROGRESS_STORAGE_KEY, JSON.stringify({ last: lastOnly, order: orderOnly }));
+        localStorage.setItem(
+          HISTORY_PROGRESS_STORAGE_KEY,
+          JSON.stringify({ last: lastOnly, order: orderOnly, deck: deckOnly })
+        );
       } catch (_) {}
     }
 
@@ -17946,10 +18224,12 @@
       const qs = questionsForChapter(ch);
       const res = historyChapterResults[ch];
       if (!res || !qs.length) return 0;
-      for (let i = 0; i < res.length; i++) {
+      const playable = historyPlayableLen(ch);
+      const lim = Math.min(res.length, playable > 0 ? playable : res.length);
+      for (let i = 0; i < lim; i++) {
         if (!res[i]) return i;
       }
-      return Math.max(0, qs.length - 1);
+      return Math.max(0, lim - 1);
     }
 
     function rememberHistoryIndex() {
@@ -17999,6 +18279,7 @@
           if (prog && typeof prog === "object") {
             const last = prog.last || {};
             const order = prog.order || {};
+            const deck = prog.deck || {};
             const chapters = [];
             for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
             chapters.push(WRONG_REVIEW_CHAPTER);
@@ -18008,6 +18289,8 @@
               if (typeof ix === "number") historyChapterLastIndex[ch] = ix;
               const o = order[ch] || order[String(ch)];
               if (Array.isArray(o)) historyDisplayOrder[ch] = o;
+              const d = deck[ch] != null ? deck[ch] : deck[String(ch)];
+              if (typeof d === "number" && d >= 0) historyShuffleDeck[ch] = d;
             }
           }
         }
@@ -18036,6 +18319,25 @@
         a[j] = t;
       }
       return a;
+    }
+
+    function shuffleArrayInPlace(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+      }
+      return a;
+    }
+
+    /** 打乱牌堆模式下，本章还能刷到的题数（已做压后不进入导航） */
+    function historyPlayableLen(ch) {
+      const n = questionsForChapter(ch).length;
+      if (!n) return 0;
+      const deck = historyShuffleDeck[ch];
+      if (typeof deck === "number" && deck >= 0 && deck <= n) return deck;
+      return n;
     }
 
     function remapResultsForNewOrder(oldResults, oldOrder, newOrder) {
@@ -18138,6 +18440,21 @@
       ch1Wrong.textContent = String(wrong);
     }
 
+    function markHistoryOptionVerdict(q, picked, ok) {
+      if (!ch1OptionsEl || !q) return;
+      const correct = q.correct;
+      ch1OptionsEl.querySelectorAll(".radio-line").forEach((line) => {
+        line.classList.remove("is-correct", "is-wrong");
+        const input = line.querySelector('input[type="radio"]');
+        if (!input) return;
+        if (input.value === correct) {
+          line.classList.add("is-correct");
+        } else if (!ok && picked && input.value === picked) {
+          line.classList.add("is-wrong");
+        }
+      });
+    }
+
     function applyCh1Feedback(q, ok, extra) {
       ch1QuizEl.classList.add("is-submitted");
       if (ok) {
@@ -18149,6 +18466,10 @@
       }
       ch1FeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
 
+      const pickedEl = ch1OptionsEl && ch1OptionsEl.querySelector('input[type="radio"]:checked');
+      const picked = pickedEl ? pickedEl.value : null;
+      markHistoryOptionVerdict(q, picked, ok);
+
       ch1FeedbackRef.className = "feedback-ref";
       const ex = q.explain && String(q.explain).trim();
       let mbr = q.bookRef && String(q.bookRef).trim();
@@ -18156,7 +18477,13 @@
         mbr = mbr.replace(/^教材章节\/页面[：:]\s*[\d\-–—\s]+\s*[。]?\s*/u, "").trim();
       }
       const refBody = ex || mbr;
-      ch1FeedbackRef.textContent = refBody ? "解析：" + refBody : "";
+      const orig =
+        q._wrongSkin && q._origText
+          ? "原题：" + q._origText.replace(/[（(]\s*[）)]\s*$/, "") + "（）"
+          : "";
+      if (orig && refBody) ch1FeedbackRef.textContent = orig + "\n解析：" + refBody;
+      else if (orig) ch1FeedbackRef.textContent = orig;
+      else ch1FeedbackRef.textContent = refBody ? "解析：" + refBody : "";
     }
 
     function ch1StripQuestionPrefix(raw) {
@@ -18173,11 +18500,118 @@
       return index + 1 + ". " + ch1StripQuestionPrefix(raw);
     }
 
+    /** 近代史错题回顾 · 换皮（只动本题库显示，不改正文题） */
+    const historyWrongSkinByKey = {};
+    function historySkinSeed(ch, i, streak) {
+      let h = ((ch * 131 + i * 17 + (streak || 0) * 97) ^ 0x9e3779b9) >>> 0;
+      return h || 1;
+    }
+    function historySkinRng(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
+        return a / 4294967296;
+      };
+    }
+    function historyParaphraseStem(stem, seed) {
+      let s = String(stem || "")
+        .replace(/[（(]\s*[）)]\s*$/, "")
+        .trim();
+      if (!s) return "（）";
+      const v = seed % 5;
+
+      if (/是在$/.test(s)) {
+        const body = s.slice(0, -2);
+        if (v === 0) return body + "发生在（）";
+        if (v === 1) return body + "的时间是（）";
+        if (v === 2) return "请判断时间：" + body + "（）";
+        if (v === 3) return body + "，正确时间是（）";
+        return "同一考点再问：" + body + "是在（）";
+      }
+
+      if (/[是为]$/.test(s)) {
+        const body = s.slice(0, -1);
+        if (v === 0) return body + "指的是（）";
+        if (v === 1) return body + "应为（）";
+        if (v === 2) return "请判断：" + body + "（）";
+        if (v === 3) return body + "，正确选项是（）";
+        return "换个问法：" + body + "是（）";
+      }
+
+      if (/(根本原因|主要原因|直接原因|重要原因)$/.test(s)) {
+        if (v % 2 === 0) return s + "在于（）";
+        return "下列哪一项是" + s + "（）";
+      }
+
+      if (/(标志|开端|起点|高潮|口号|主张|内容|性质|矛盾)$/.test(s)) {
+        if (v === 0) return "下列哪一项属于" + s + "（）";
+        if (v === 1) return s + "对应的是（）";
+        return "请选出：" + s + "（）";
+      }
+
+      if (v === 0) return "换个问法：" + s + "（）";
+      if (v === 1) return "不看原表述，直接判断：" + s + "（）";
+      if (v === 2) return "同一考点：" + s + "（）";
+      if (v === 3) return s + "——正确的是（）";
+      return "请再答一次（问法已换）：" + s + "（）";
+    }
+    function historyShuffleOptionKeys(q, seed) {
+      const rng = historySkinRng(seed ^ 0x5f3759df);
+      const src = (q.options || []).map((o) => ({ key: o.key, label: o.label }));
+      const correctLabel = (src.find((o) => o.key === q.correct) || {}).label;
+      for (let i = src.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const t = src[i];
+        src[i] = src[j];
+        src[j] = t;
+      }
+      const keys = ["A", "B", "C", "D"];
+      const options = src.map((it, idx) => ({
+        key: keys[idx] || String.fromCharCode(65 + idx),
+        label: it.label,
+      }));
+      let correct = "A";
+      options.forEach((o) => {
+        if (o.label === correctLabel) correct = o.key;
+      });
+      return { options: options, correct: correct };
+    }
+    function historyMakeWrongSkin(q, seed) {
+      const stem = ch1StripQuestionPrefix(q.text);
+      const pack = historyShuffleOptionKeys(q, seed);
+      return {
+        text: historyParaphraseStem(stem, seed),
+        options: pack.options,
+        correct: pack.correct,
+        explain: q.explain,
+        bookRef: q.bookRef,
+        _wrongSkin: true,
+        _origText: stem,
+      };
+    }
+    function getOrBuildHistoryWrongSkin(displayIndex, baseQ) {
+      const src = getWrongSourceAtDisplayIndex(displayIndex);
+      if (!src || !baseQ) return baseQ;
+      const streak = src.streak || 0;
+      const cacheKey = src.ch + "-" + src.i + "@" + streak;
+      if (historyWrongSkinByKey[cacheKey]) return historyWrongSkinByKey[cacheKey];
+      const seed = historySkinSeed(src.ch, src.i, streak);
+      const skin = historyMakeWrongSkin(baseQ, seed);
+      historyWrongSkinByKey[cacheKey] = skin;
+      return skin;
+    }
+    function getHistoryActiveQuestion() {
+      const base = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
+      if (!base) return null;
+      if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return base;
+      return getOrBuildHistoryWrongSkin(historyQuizIndex, base);
+    }
+
     function updateContinueChapterVisibility() {
       const qs = getHistoryQuestions();
       const res = currentResults();
       const saved = res[historyQuizIndex];
-      const last = historyQuizIndex >= qs.length - 1;
+      const last = historyQuizIndex >= historyPlayableLen(historyQuizChapter) - 1;
       const canContinue =
         historyQuizChapter !== WRONG_REVIEW_CHAPTER &&
         (historyQuizChapter === 1 ||
@@ -18307,6 +18741,7 @@
 
     function renderHistoryQuiz() {
       updateHistoryModeTabs();
+      refreshHistoryComboChip(false);
       if (historyQuizMode === "short") {
         renderHistoryShortQuiz();
         return;
@@ -18371,9 +18806,12 @@
           historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
       }
 
-      const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
+      const q = getHistoryActiveQuestion();
       if (!q) return;
-      const saved = historyQuizChapter === WRONG_REVIEW_CHAPTER ? null : res[historyQuizIndex];
+      /* 错题回顾允许同一题反复练：界面不锁「已作答」，但 res[] 仍记统计，
+         因此选选项时不能用 res[i] 判断是否可提交（否则做过的题再选就解不开提交）。 */
+      const isWrongReview = historyQuizChapter === WRONG_REVIEW_CHAPTER;
+      const saved = isWrongReview ? null : res[historyQuizIndex];
 
       ch1QuestionText.textContent = ch1FormatQuestionLine(historyQuizIndex, q.text);
       ch1OptionsEl.innerHTML = "";
@@ -18403,7 +18841,7 @@
         if (saved && saved.picked === opt.key) input.checked = true;
         if (saved) input.disabled = true;
         input.addEventListener("change", () => {
-          if (!currentResults()[historyQuizIndex]) ch1Submit.disabled = false;
+          if (isWrongReview || !currentResults()[historyQuizIndex]) ch1Submit.disabled = false;
         });
         const ui = document.createElement("span");
         ui.className = "radio-ui";
@@ -18418,10 +18856,15 @@
 
       document.getElementById("ch1-total").textContent = String(qs.length);
 
+      const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
+      if (historyQuizIndex >= playable) {
+        historyQuizIndex = Math.max(0, playable - 1);
+      }
+
       ch1Prev.disabled = historyQuizIndex === 0;
       if (saved) {
-        ch1Next.disabled = historyQuizIndex >= qs.length - 1;
-        ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+        ch1Next.disabled = historyQuizIndex >= playable - 1;
+        ch1Next.title = historyQuizIndex >= playable - 1 ? "已是剩余题最后一题" : "下一题";
       } else {
         ch1Next.disabled = true;
         ch1Next.title = "请先提交本题答案";
@@ -18524,6 +18967,7 @@
       historyQuizChapter = chapterNum;
       historyQuizIndex = 0;
       delete historyDisplayOrder[chapterNum];
+      delete historyShuffleDeck[chapterNum];
       delete historyChapterLastIndex[chapterNum];
       const qs = questionsForChapter(chapterNum);
       historyChapterResults[chapterNum] = qs.map(() => null);
@@ -19228,10 +19672,10 @@
 
     ch1Submit.addEventListener("click", () => {
       const qs = getHistoryQuestions();
-      const q = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
+      const q = getHistoryActiveQuestion();
       const res = currentResults();
       const picked = ch1OptionsEl.querySelector('input[type="radio"]:checked');
-      if (!picked) return;
+      if (!picked || !q) return;
       if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
         if (ch1QuizEl.classList.contains("is-submitted")) return;
       } else if (res[historyQuizIndex]) return;
@@ -19239,8 +19683,15 @@
 
       if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
         const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
-        if (src) updateMasteryForQuestion(src.ch, src.i, ok);
+        let clearedChapter = false;
+        if (src) {
+          const mapBefore = loadMasteryMap();
+          const beforeClear = isHistoryChapterCleared(mapBefore, src.ch);
+          updateMasteryForQuestion(src.ch, src.i, ok);
+          clearedChapter = !beforeClear && isHistoryChapterCleared(loadMasteryMap(), src.ch);
+        }
         const streak = bumpHistoryWrongStreak(src, ok);
+        bumpHistoryCombo(ok);
         res[historyQuizIndex] = { picked: picked.value, ok };
         persistHistoryProgress();
         rememberHistoryIndex();
@@ -19257,19 +19708,31 @@
           : " 需重新连对 2 次。";
         applyCh1Feedback(q, ok, extra);
         ch1Prev.disabled = historyQuizIndex === 0;
-        ch1Next.disabled = qs.length <= 1;
-        ch1Next.title = qs.length <= 1 ? "已是最后一题" : "下一题";
+        {
+          const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
+          ch1Next.disabled = playable <= 1;
+          ch1Next.title = playable <= 1 ? "已是最后一题" : "下一题";
+        }
         updateContinueChapterVisibility();
 
+        if (clearedChapter && src) {
+          celebrateHistory("第" + src.ch + "章勋章点亮！");
+        } else if (ok && src && streak >= WRONG_CLEAR_STREAK) {
+          celebrateHistory("错题移出 · 少一道坑");
+        }
+
+        const submittedAtIndex = historyQuizIndex;
         if (ok && src && streak >= WRONG_CLEAR_STREAK) {
           const srcRemove = { ch: src.ch, i: src.i };
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+            if (historyQuizIndex !== submittedAtIndex) return;
             removeWrongBySource(srcRemove);
           }, 480);
         } else if (ok && src) {
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+            if (historyQuizIndex !== submittedAtIndex) return;
             advanceHistoryWrongReviewKeep();
           }, 480);
         }
@@ -19280,10 +19743,17 @@
       if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
         const order = getDisplayOrder(historyQuizChapter);
         const origIdx = order[historyQuizIndex];
-        const mastery = updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
+        const mapBefore = loadMasteryMap();
+        const beforeClear = isHistoryChapterCleared(mapBefore, historyQuizChapter);
+        updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
+        bumpHistoryCombo(ok);
         if (!ok) {
           addWrongQuestion(historyQuizChapter, origIdx);
+        } else if (!beforeClear && isHistoryChapterCleared(loadMasteryMap(), historyQuizChapter)) {
+          celebrateHistory("第" + historyQuizChapter + "章勋章点亮！");
         }
+      } else {
+        bumpHistoryCombo(ok);
       }
       recomputeHistoryStats();
       ch1QuizEl.classList.add("is-submitted");
@@ -19293,8 +19763,11 @@
       ch1SubmitWrap.classList.add("is-hidden");
       applyCh1Feedback(q, ok);
       ch1Prev.disabled = historyQuizIndex === 0;
-      ch1Next.disabled = historyQuizIndex >= qs.length - 1;
-      ch1Next.title = historyQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      {
+        const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
+        ch1Next.disabled = historyQuizIndex >= playable - 1;
+        ch1Next.title = historyQuizIndex >= playable - 1 ? "已是剩余题最后一题" : "下一题";
+      }
       updateContinueChapterVisibility();
       rememberHistoryIndex();
     });
@@ -19311,13 +19784,14 @@
         return;
       }
       const qs = getHistoryQuestions();
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER && qs.length > 1) {
-        historyQuizIndex = (historyQuizIndex + 1) % qs.length;
+      const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER && playable > 1) {
+        historyQuizIndex = (historyQuizIndex + 1) % playable;
         rememberHistoryIndex();
         renderHistoryQuiz();
         return;
       }
-      if (historyQuizIndex < qs.length - 1) {
+      if (historyQuizIndex < playable - 1) {
         historyQuizIndex += 1;
         rememberHistoryIndex();
         renderHistoryQuiz();
@@ -19388,11 +19862,32 @@
       const qs = questionsForChapter(ch);
       const n = qs.length;
       if (n < 2) return;
+      ensureHistoryResults(ch);
       const oldOrder = getDisplayOrder(ch);
-      const newOrder = shuffleIndices(n);
-      historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
+      const oldRes = historyChapterResults[ch] || [];
+      const unansweredOrig = [];
+      const answeredOrig = [];
+      for (let d = 0; d < n; d++) {
+        const orig = oldOrder[d];
+        if (oldRes[d]) answeredOrig.push(orig);
+        else unansweredOrig.push(orig);
+      }
+      if (!unansweredOrig.length) {
+        if (typeof showHistoryPlayToast === "function") showHistoryPlayToast("没有未做的题可打乱了");
+        return;
+      }
+      shuffleArrayInPlace(unansweredOrig);
+      const newOrder = unansweredOrig.concat(answeredOrig);
+      const byOrig = {};
+      for (let d = 0; d < n; d++) {
+        byOrig[oldOrder[d]] = d < oldRes.length ? oldRes[d] : null;
+      }
+      historyChapterResults[ch] = newOrder.map((orig) =>
+        Object.prototype.hasOwnProperty.call(byOrig, orig) ? byOrig[orig] : null
+      );
       historyDisplayOrder[ch] = newOrder;
-      /* 打乱后回到第 1 题，立刻看到新顺序；不要贴着同一道题只改题号 */
+      historyShuffleDeck[ch] = unansweredOrig.length;
+      /* 打乱后从剩余牌堆第 1 题开始；已做的压在后面，导航进不去 */
       historyQuizIndex = 0;
       historyChapterLastIndex[ch] = 0;
       persistHistoryProgress();
@@ -19409,6 +19904,7 @@
       const newOrder = Array.from({ length: n }, (_, i) => i);
       historyChapterResults[ch] = remapResultsForNewOrder(historyChapterResults[ch], oldOrder, newOrder);
       delete historyDisplayOrder[ch];
+      delete historyShuffleDeck[ch];
       historyQuizIndex = 0;
       historyChapterLastIndex[ch] = 0;
       persistHistoryProgress();
@@ -19493,5 +19989,9 @@
       });
     }
   </script>
+<div id="history-play-fx" class="history-play-fx" hidden aria-live="polite">
+  <div class="history-play-toast" id="history-play-toast"></div>
+  <div id="history-confetti" aria-hidden="true"></div>
+</div>
 </body>
 </html>
