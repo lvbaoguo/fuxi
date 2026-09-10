@@ -6,7 +6,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>考前复习 · 本地练习</title>
-  <!-- gh-deploy: 2026-09-10 history shuffle skip answered (local) -->
+  <!-- gh-deploy: 2026-09-10 pixel celeste sky (local) -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("pansan2-ui-theme-v1") || "default";
+        if (t === "pixel") document.documentElement.setAttribute("data-theme", "pixel");
+      } catch (_) {}
+    })();
+  </script>
   <style>
     :root {
       --bg: #ffffff;
@@ -1059,7 +1067,7 @@
       font-weight: 600;
     }
 
-    /* 近代史 · 连击 HUD + 通关庆祝 */
+    /* 近代史 · 连击 HUD + 通关庆祝（无中间飘字打扰） */
     .history-combo-chip {
       margin-left: auto;
       display: inline-flex;
@@ -1074,6 +1082,14 @@
       letter-spacing: 0.02em;
       box-shadow: 0 1px 4px rgba(230, 81, 0, 0.18);
       transform-origin: center;
+      min-width: 72px;
+      justify-content: center;
+    }
+    .history-combo-chip.is-empty {
+      background: #f1f3f4;
+      color: #9aa0a6;
+      box-shadow: none;
+      font-weight: 600;
     }
     .history-combo-chip.is-pulse {
       animation: history-combo-pop 0.42s ease;
@@ -1099,31 +1115,7 @@
       display: none !important;
     }
     .history-play-toast {
-      position: fixed;
-      left: 50%;
-      top: 14%;
-      transform: translateX(-50%) translateY(-8px);
-      padding: 10px 18px;
-      border-radius: 14px;
-      background: rgba(26, 26, 26, 0.88);
-      color: #fff;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-      opacity: 0;
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      max-width: min(90vw, 360px);
-      text-align: center;
-    }
-    .history-play-toast.is-show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-    .history-play-toast.is-cele {
-      background: linear-gradient(135deg, #1a73e8 0%, #0b57d0 55%, #34a853 120%);
-      font-size: 16px;
-      padding: 12px 22px;
+      display: none !important; /* 不再用中间黑飘字，避免分心 */
     }
     .history-confetti-piece {
       position: absolute;
@@ -1822,6 +1814,377 @@
         min-height: 40px;
       }
     }
+
+    /* ========== 主题：像素风（土黄废土，浅卡片不套框） ========== */
+    html[data-theme="pixel"] {
+      --bg: rgba(255, 244, 214, 0.82);
+      --sidebar: rgba(255, 236, 180, 0.45);
+      --border: rgba(110, 78, 22, 0.28);
+      --text: #2d220e;
+      --muted: #6e5728;
+      --accent: #c47a12;
+      --accent-soft: rgba(255, 220, 120, 0.9);
+      --radius: 0px;
+      --px-yellow: #f0c43a;
+      --px-ink: #3a2a10;
+      --px-pink: #c44a28;
+      --px-green: #4a7a32;
+    }
+    html[data-theme="pixel"],
+    html[data-theme="pixel"] body {
+      color: var(--text);
+      background-color: #f3e08a;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 88%, rgba(255, 246, 200, 0.5) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 35% at 82% 12%, rgba(160, 110, 30, 0.16) 0%, transparent 55%),
+        linear-gradient(180deg, #c9a24a 0%, #e2c25c 36%, #f0da82 68%, #f8ecc0 100%);
+      background-attachment: fixed;
+    }
+    html[data-theme="pixel"] body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          118deg,
+          transparent 0 17px,
+          rgba(70, 48, 10, 0.07) 17px 18px,
+          transparent 18px 41px
+        );
+      opacity: 0.85;
+    }
+    html[data-theme="pixel"] .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .sidebar {
+      background: rgba(255, 232, 160, 0.42);
+      border-right: 2px solid rgba(90, 62, 18, 0.22);
+      backdrop-filter: blur(6px);
+    }
+    html[data-theme="pixel"] .sidebar-title {
+      color: #6a4a12;
+      letter-spacing: 0.12em;
+    }
+    html[data-theme="pixel"] .tab {
+      border-left: 4px solid transparent;
+      color: var(--muted);
+    }
+    html[data-theme="pixel"] .tab:hover {
+      background: rgba(255, 248, 210, 0.45);
+      color: var(--text);
+    }
+    html[data-theme="pixel"] .tab[aria-selected="true"] {
+      background: rgba(255, 246, 200, 0.72);
+      border-left-color: #c47a12;
+      color: #5a3a0c;
+      font-weight: 700;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .tab[aria-selected="true"]::before {
+      content: "> ";
+    }
+    html[data-theme="pixel"] .sidebar-collapse-btn,
+    html[data-theme="pixel"] .sidebar-mini-expand,
+    html[data-theme="pixel"] .quiz-focus-btn {
+      border-radius: 0 !important;
+      border: 2px solid var(--px-ink) !important;
+      background: #fff6d0 !important;
+      color: var(--px-ink) !important;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .main {
+      background: transparent;
+    }
+    html[data-theme="pixel"] .main .subtitle {
+      color: var(--px-ink);
+    }
+    html[data-theme="pixel"] .list-card,
+    html[data-theme="pixel"] .quiz-view,
+    html[data-theme="pixel"] .panel {
+      background: rgba(255, 246, 214, 0.88);
+      border: 2px solid rgba(90, 62, 18, 0.28);
+      border-radius: 0;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .quiz-view {
+      max-width: 720px;
+      padding: 22px 24px 28px;
+    }
+    html[data-theme="pixel"] .list-card__head,
+    html[data-theme="pixel"] .list-card--xi .list-card__head,
+    html[data-theme="pixel"] .list-card--marx .list-card__head {
+      background: #b88418;
+      color: #fff8dc;
+      border-radius: 0;
+      border-bottom: 2px solid rgba(70, 48, 10, 0.3);
+      letter-spacing: 0.02em;
+    }
+    html[data-theme="pixel"] .list-card__wrong-btn {
+      border-radius: 0;
+      border: 2px solid rgba(255, 248, 210, 0.75);
+      background: rgba(255, 248, 210, 0.2);
+      color: #fff8dc;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .list-card__wrong-btn:hover {
+      background: rgba(255, 248, 210, 0.38);
+    }
+    html[data-theme="pixel"] .list-card__body {
+      background: transparent;
+    }
+    html[data-theme="pixel"] .lecture-row {
+      border-bottom: 1px solid rgba(90, 62, 18, 0.16);
+      color: var(--text);
+    }
+    html[data-theme="pixel"] .lecture-row:hover {
+      background: rgba(232, 196, 90, 0.28);
+    }
+    html[data-theme="pixel"] .lecture-link {
+      color: #3a2a10;
+    }
+    html[data-theme="pixel"] .chapter-badge--in-progress {
+      color: #8a5a10;
+      border-color: #d4a63a;
+    }
+    html[data-theme="pixel"] .chapter-badge--not-started {
+      color: var(--muted);
+      border-color: var(--border);
+    }
+    html[data-theme="pixel"] .chapter-badge--cleared {
+      color: var(--px-green);
+      border-color: var(--px-green);
+    }
+    html[data-theme="pixel"] .quiz-stats,
+    html[data-theme="pixel"] .quiz-type,
+    html[data-theme="pixel"] .quiz-question,
+    html[data-theme="pixel"] .radio-text,
+    html[data-theme="pixel"] .feedback-ref {
+      color: var(--text);
+    }
+    html[data-theme="pixel"] .quiz-stats .stat-correct { color: var(--px-green); }
+    html[data-theme="pixel"] .quiz-stats .stat-wrong { color: var(--px-pink); }
+    html[data-theme="pixel"] .quiz-mode-tab {
+      border-radius: 0;
+      border: 2px solid var(--px-ink);
+      background: #fff6d0;
+      color: var(--px-ink);
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .quiz-mode-tab.is-active {
+      background: var(--px-yellow);
+      color: var(--px-ink);
+    }
+    html[data-theme="pixel"] .history-combo-chip {
+      border-radius: 0;
+      border: 2px solid var(--px-ink);
+      background: rgba(255, 246, 200, 0.75);
+      color: var(--muted);
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .history-combo-chip.is-empty {
+      background: rgba(255, 246, 200, 0.55);
+      color: #8a7540;
+    }
+    html[data-theme="pixel"] .history-combo-chip:not(.is-empty):not(.is-break) {
+      background: var(--px-yellow);
+      color: var(--px-ink);
+    }
+    html[data-theme="pixel"] .history-combo-chip.is-break {
+      background: #f3d0c0;
+      color: var(--px-pink);
+    }
+    html[data-theme="pixel"] .history-chapter-notes-fold,
+    html[data-theme="pixel"] .xi-chapter-notes-fold,
+    html[data-theme="pixel"] .marx-chapter-notes-fold {
+      border-radius: 0;
+      border: 2px solid rgba(90, 62, 18, 0.28);
+      background: rgba(255, 246, 210, 0.6);
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .radio-ui {
+      border-radius: 0 !important;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--px-ink);
+      background: #fff8dc;
+    }
+    html[data-theme="pixel"] .radio-line input:checked + .radio-ui {
+      border-color: var(--px-ink);
+      background: var(--px-yellow);
+    }
+    html[data-theme="pixel"] .radio-line input:checked + .radio-ui::after {
+      border-radius: 0;
+      width: 8px;
+      height: 8px;
+      background: var(--px-ink);
+    }
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-correct .radio-ui,
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-correct input:checked + .radio-ui {
+      border-color: var(--px-green);
+      background: #e8f0d8;
+    }
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-correct .radio-ui::after,
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-correct input:checked + .radio-ui::after {
+      background: var(--px-green);
+      border-radius: 0;
+    }
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-wrong .radio-ui,
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-wrong input:checked + .radio-ui {
+      border-color: var(--px-pink);
+      background: #f8e0d4;
+    }
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-wrong .radio-ui::after,
+    html[data-theme="pixel"] .quiz-view.is-submitted .radio-line.is-wrong input:checked + .radio-ui::after {
+      background: var(--px-pink);
+      border-radius: 0;
+    }
+    html[data-theme="pixel"] .btn-submit {
+      border-radius: 0;
+      border: 2px solid var(--px-ink);
+      background: var(--px-yellow);
+      color: var(--px-ink);
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .btn-submit:disabled {
+      background: #e8dcb0;
+      color: #8a7540;
+      box-shadow: none;
+      opacity: 1;
+    }
+    html[data-theme="pixel"] .quiz-nav button,
+    html[data-theme="pixel"] .btn-continue-chapter,
+    html[data-theme="pixel"] .quiz-order-buttons button,
+    html[data-theme="pixel"] .exam-btn-ghost {
+      border-radius: 0 !important;
+      border: 2px solid var(--px-ink) !important;
+      background: #fff8dc !important;
+      color: var(--px-ink) !important;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .back-to-chapters {
+      border: none !important;
+      background: none !important;
+      color: #6a4a12 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    html[data-theme="pixel"] .exam-btn-submit {
+      border-radius: 0 !important;
+      border: 2px solid var(--px-ink) !important;
+      background: var(--px-yellow) !important;
+      color: var(--px-ink) !important;
+      box-shadow: none;
+    }
+    html[data-theme="pixel"] .feedback-result.wrong { color: var(--px-pink); }
+    html[data-theme="pixel"] .feedback-result.right { color: var(--px-green); }
+    html[data-theme="pixel"] .chapter-resume-dialog,
+    html[data-theme="pixel"] .theme-picker-dialog {
+      border-radius: 0;
+      background: rgba(255, 246, 214, 0.96);
+      border: 2px solid var(--px-ink);
+      box-shadow: none;
+      color: var(--text);
+    }
+    html[data-theme="pixel"] .chapter-resume-btn,
+    html[data-theme="pixel"] .theme-picker-opt {
+      border-radius: 0;
+      border: 2px solid var(--px-ink);
+      box-shadow: none;
+    }
+    html[data-theme="pixel"].fuxi-immersive .exam-view:not([hidden]) {
+      background: transparent;
+    }
+    html[data-theme="pixel"] .exam-dock {
+      background: rgba(255, 244, 200, 0.92) !important;
+      border-top: 2px solid rgba(90, 62, 18, 0.22);
+    }
+    html[data-theme="pixel"] .exam-chrome {
+      background: transparent;
+    }
+
+    .theme-picker-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 11000;
+      background: rgba(10, 12, 24, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .theme-picker-overlay[hidden] {
+      display: none !important;
+    }
+    .theme-picker-dialog {
+      width: 100%;
+      max-width: 420px;
+      padding: 22px 22px 18px;
+      border-radius: var(--radius);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+    .theme-picker-title {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .theme-picker-hint {
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .theme-picker-opts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .theme-picker-opt {
+      margin: 0;
+      padding: 14px 12px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+    }
+    .theme-picker-opt:hover {
+      border-color: var(--accent);
+    }
+    .theme-picker-opt.is-on {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    .theme-picker-opt small {
+      display: block;
+      margin-top: 4px;
+      font-weight: 500;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .theme-picker-close {
+      margin: 0;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1853,6 +2216,7 @@
           <h2 class="list-card__head">
             <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
             <span class="list-card__head-actions">
+              <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
               <button type="button" class="list-card__wrong-btn" id="btn-history-exam" title="从题库抽一套，像真卷一样点选作答">模拟考卷</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="收录各章答错的题目">错题回顾</button>
             </span>
@@ -1945,7 +2309,7 @@
               <button type="button" class="quiz-mode-tab is-active" id="history-mode-mcq" data-history-mode="mcq">单选题</button>
               <button type="button" class="quiz-mode-tab" id="history-mode-short" data-history-mode="short">简答题</button>
             </div>
-            <span class="history-combo-chip" id="history-combo-chip" hidden aria-live="polite"></span>
+            <span class="history-combo-chip is-empty" id="history-combo-chip" aria-live="polite">连击 ×—</span>
             <button type="button" class="quiz-focus-btn" id="history-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
           <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
@@ -1958,8 +2322,8 @@
             (function () {
               var el = document.getElementById("hist-chapter-notes-fold");
               if (!el) return;
-              if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
-              else el.removeAttribute("open");
+              /* 进入章节默认收起，需要时再点开 */
+              el.removeAttribute("open");
             })();
           </script>
           <div class="quiz-order-tools" id="quiz-order-tools" hidden>
@@ -2026,6 +2390,24 @@
               <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="chapter-resume-restart">重开</button>
               <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="chapter-resume-continue">继续</button>
             </div>
+          </div>
+        </div>
+
+        <div id="theme-picker-overlay" class="theme-picker-overlay" hidden aria-hidden="true">
+          <div class="theme-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="theme-picker-title" tabindex="-1">
+            <p id="theme-picker-title" class="theme-picker-title">主题设计</p>
+            <p class="theme-picker-hint">选完立刻生效，下次打开还记得。答题数据不受影响。</p>
+            <div class="theme-picker-opts">
+              <button type="button" class="theme-picker-opt" data-theme="default" id="theme-opt-default">
+                默认
+                <small>现在这套白底蓝条</small>
+              </button>
+              <button type="button" class="theme-picker-opt" data-theme="pixel" id="theme-opt-pixel">
+                像素风
+                <small>土黄废土 · 像素菜单</small>
+              </button>
+            </div>
+            <button type="button" class="theme-picker-close" id="theme-picker-close">关闭</button>
           </div>
         </div>
 
@@ -17729,14 +18111,15 @@
     function refreshHistoryComboChip(pulse) {
       const chip = document.getElementById("history-combo-chip");
       if (!chip) return;
+      chip.hidden = false;
       chip.classList.remove("is-break");
       if (historyCombo <= 0) {
-        chip.hidden = true;
-        chip.textContent = "";
+        chip.classList.add("is-empty");
         chip.classList.remove("is-pulse");
+        chip.textContent = "连击 ×—";
         return;
       }
-      chip.hidden = false;
+      chip.classList.remove("is-empty");
       const title = historyComboTitle(historyCombo);
       chip.textContent = title ? "连击 ×" + historyCombo + " · " + title : "连击 ×" + historyCombo;
       if (pulse) {
@@ -17746,26 +18129,8 @@
       }
     }
 
-    function showHistoryPlayToast(text, isCele) {
-      const fx = document.getElementById("history-play-fx");
-      const toast = document.getElementById("history-play-toast");
-      if (!fx || !toast) return;
-      fx.hidden = false;
-      toast.textContent = text;
-      toast.classList.toggle("is-cele", !!isCele);
-      toast.classList.remove("is-show");
-      void toast.offsetWidth;
-      toast.classList.add("is-show");
-      if (historyPlayToastTimer) clearTimeout(historyPlayToastTimer);
-      historyPlayToastTimer = setTimeout(() => {
-        toast.classList.remove("is-show");
-        setTimeout(() => {
-          if (!toast.classList.contains("is-show")) {
-            const confetti = document.getElementById("history-confetti");
-            if (confetti && !confetti.childElementCount) fx.hidden = true;
-          }
-        }, 220);
-      }, isCele ? 1600 : 1100);
+    function showHistoryPlayToast() {
+      /* 中间飘字已停用：连击只改右上角 chip */
     }
 
     function spawnHistoryConfetti() {
@@ -17787,14 +18152,13 @@
       if (historyCeleTimer) clearTimeout(historyCeleTimer);
       historyCeleTimer = setTimeout(() => {
         layer.innerHTML = "";
-        const toast = document.getElementById("history-play-toast");
-        if (toast && !toast.classList.contains("is-show")) fx.hidden = true;
+        fx.hidden = true;
       }, 1500);
     }
 
-    function celebrateHistory(message) {
+    function celebrateHistory() {
+      /* 通关/移出错题：只撒彩屑，不再弹中间字 */
       spawnHistoryConfetti();
-      showHistoryPlayToast(message, true);
     }
 
     function bumpHistoryCombo(ok) {
@@ -17803,10 +18167,6 @@
         historyCombo += 1;
         saveHistoryCombo();
         refreshHistoryComboChip(true);
-        if (historyCombo === 3 || historyCombo === 5 || historyCombo === 8 || historyCombo === 12) {
-          const title = historyComboTitle(historyCombo);
-          showHistoryPlayToast("连击 ×" + historyCombo + (title ? " · " + title : "") + "！");
-        }
         return;
       }
       const broken = historyCombo >= 2;
@@ -17814,10 +18174,9 @@
       saveHistoryCombo();
       if (broken && chip) {
         chip.hidden = false;
-        chip.classList.remove("is-pulse");
+        chip.classList.remove("is-empty", "is-pulse");
         chip.classList.add("is-break");
         chip.textContent = "连击中断";
-        showHistoryPlayToast("连击中断");
         setTimeout(() => refreshHistoryComboChip(false), 900);
       } else {
         refreshHistoryComboChip(false);
@@ -18166,7 +18525,6 @@
           "marx-quiz-order-fold",
           "xi-quiz-order-fold",
           "mq-chapter-notes-fold",
-          "hist-chapter-notes-fold",
           "xi-chapter-notes-fold",
         ].forEach((id) => {
           const fold = document.getElementById(id);
@@ -18174,6 +18532,9 @@
           if (mq.matches) fold.setAttribute("open", "");
           else fold.removeAttribute("open");
         });
+        /* 近代史助学：始终保持默认收起策略，窗口缩放不强行展开 */
+        const histNotes = document.getElementById("hist-chapter-notes-fold");
+        if (histNotes && !mq.matches) histNotes.removeAttribute("open");
       });
     })();
 
@@ -18640,6 +19001,8 @@
       }
       fold.hidden = false;
       body.innerHTML = HISTORY_CHAPTER_NOTES_HTML[historyQuizChapter] || "";
+      /* 每次进入/切换章节都默认收起，避免带着上一章的展开状态 */
+      fold.removeAttribute("open");
     }
 
     function updateHistoryModeTabs() {
@@ -19988,6 +20351,56 @@
         renderXiQuiz();
       });
     }
+
+    (function wireUiThemePicker() {
+      const THEME_KEY = "pansan2-ui-theme-v1";
+      const overlay = document.getElementById("theme-picker-overlay");
+      const openBtn = document.getElementById("btn-ui-theme");
+      const closeBtn = document.getElementById("theme-picker-close");
+      function currentTheme() {
+        try {
+          return localStorage.getItem(THEME_KEY) || "default";
+        } catch (_) {
+          return "default";
+        }
+      }
+      function applyTheme(id) {
+        const t = id === "pixel" ? "pixel" : "default";
+        if (t === "pixel") document.documentElement.setAttribute("data-theme", "pixel");
+        else document.documentElement.removeAttribute("data-theme");
+        try {
+          localStorage.setItem(THEME_KEY, t);
+        } catch (_) {}
+        document.querySelectorAll(".theme-picker-opt").forEach((btn) => {
+          btn.classList.toggle("is-on", btn.getAttribute("data-theme") === t);
+        });
+      }
+      function openPicker() {
+        if (!overlay) return;
+        applyTheme(currentTheme());
+        overlay.hidden = false;
+        overlay.setAttribute("aria-hidden", "false");
+      }
+      function closePicker() {
+        if (!overlay) return;
+        overlay.hidden = true;
+        overlay.setAttribute("aria-hidden", "true");
+      }
+      applyTheme(currentTheme());
+      if (openBtn) openBtn.addEventListener("click", openPicker);
+      if (closeBtn) closeBtn.addEventListener("click", closePicker);
+      if (overlay) {
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) closePicker();
+        });
+      }
+      document.querySelectorAll(".theme-picker-opt").forEach((btn) => {
+        btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay && !overlay.hidden) closePicker();
+      });
+    })();
   </script>
 <div id="history-play-fx" class="history-play-fx" hidden aria-live="polite">
   <div class="history-play-toast" id="history-play-toast"></div>
