@@ -631,6 +631,23 @@
       opacity: 1;
       filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
     }
+    .chapter-laps {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      margin-left: 4px;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      user-select: none;
+    }
+    .chapter-laps.is-done {
+      color: #92400e;
+    }
 
     /* 章节未答完 · 重开/继续 */
     .chapter-resume-overlay {
@@ -835,6 +852,7 @@
     .quiz-view.is-focus > .back-to-chapters,
     .quiz-view.is-focus > .quiz-stats,
     .quiz-view.is-focus > .history-chapter-notes-fold,
+    .quiz-view.is-focus > .history-timeline-fold,
     .quiz-view.is-focus > .xi-chapter-notes-fold,
     .quiz-view.is-focus > .marx-chapter-notes-fold,
     .quiz-view.is-focus > .quiz-order-tools,
@@ -1435,6 +1453,81 @@
       font-weight: 600;
     }
 
+    /* 近代史 · 时间轴小抄（只含考点和卡住关系） */
+    .history-timeline-fold {
+      margin: 0 0 16px;
+      border-radius: 10px;
+      border: 1px solid #f0c36d;
+      background: linear-gradient(165deg, #fff8e1 0%, #faf8f2 55%, #fff 100%);
+      box-shadow: 0 1px 0 rgba(146, 64, 14, 0.06);
+    }
+    .history-timeline-fold[hidden] {
+      display: none !important;
+    }
+    .history-timeline-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: #92400e;
+      padding: 10px 12px;
+      letter-spacing: 0.02em;
+    }
+    .history-timeline-summary::-webkit-details-marker {
+      display: none;
+    }
+    .history-timeline-summary::before {
+      content: "⏱ ";
+    }
+    .history-timeline-body {
+      padding: 0 12px 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text);
+      border-top: 1px dashed rgba(180, 83, 9, 0.28);
+      max-height: min(70vh, 780px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .history-timeline-body > p {
+      margin: 8px 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .hist-tl {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .hist-tl li {
+      display: grid;
+      grid-template-columns: 8.2em 1fr;
+      column-gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px dashed rgba(146, 64, 14, 0.16);
+    }
+    .hist-tl li:last-child {
+      border-bottom: 0;
+    }
+    .hist-tl time {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      color: #b45309;
+      font-size: 12.5px;
+    }
+    .hist-tl b {
+      color: #1c1917;
+      font-weight: 650;
+    }
+    .hist-tl span {
+      display: block;
+      grid-column: 2;
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
     /* 习思想 · 本章助学要点 */
     .xi-chapter-notes-fold {
       margin: 0 0 16px;
@@ -1565,11 +1658,13 @@
       }
       .marx-chapter-notes-fold,
       .history-chapter-notes-fold,
+      .history-timeline-fold,
       .xi-chapter-notes-fold {
         margin-bottom: 12px;
       }
       .marx-chapter-notes-summary,
       .history-chapter-notes-summary,
+      .history-timeline-summary,
       .xi-chapter-notes-summary {
         font-size: 12px;
         padding: 6px 10px;
@@ -1580,6 +1675,7 @@
       }
       .marx-chapter-notes-body,
       .history-chapter-notes-body,
+      .history-timeline-body,
       .xi-chapter-notes-body {
         max-height: min(42vh, 360px);
       }
@@ -1961,6 +2057,12 @@
       color: var(--px-green);
       border-color: var(--px-green);
     }
+    html[data-theme="pixel"] .chapter-laps {
+      color: #8a7540;
+    }
+    html[data-theme="pixel"] .chapter-laps.is-done {
+      color: var(--px-ink);
+    }
     html[data-theme="pixel"] .quiz-stats,
     html[data-theme="pixel"] .quiz-type,
     html[data-theme="pixel"] .quiz-question,
@@ -2001,6 +2103,7 @@
       color: var(--px-pink);
     }
     html[data-theme="pixel"] .history-chapter-notes-fold,
+    html[data-theme="pixel"] .history-timeline-fold,
     html[data-theme="pixel"] .xi-chapter-notes-fold,
     html[data-theme="pixel"] .marx-chapter-notes-fold {
       border-radius: 0;
@@ -2317,6 +2420,10 @@
             <div class="history-chapter-notes-body" id="hist-chapter-notes-body">
               <p>刷题前可展开看一眼，把章节在脑子里「挂个钩」，再做题会顺一点。不能替代教材与系统学习。</p>
             </div>
+          </details>
+          <details class="history-timeline-fold" id="hist-timeline-fold" hidden>
+            <summary class="history-timeline-summary">时间轴小抄 · 题库里带年份的大事</summary>
+            <div class="history-timeline-body" id="hist-timeline-body"></div>
           </details>
           <script>
             (function () {
@@ -18077,6 +18184,209 @@
         "</ul>",
     };
 
+    /** 近代史时间轴小抄：题库里「大事+时间」都收，按年卡住 */
+    const HISTORY_TIMELINE_CHEAT_HTML = {
+      1:
+        "<p>战争→条约→危害程度：「大大加深」=甲午马关，「完全沦为」=辛丑。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1840</time><b>鸦片战争</b><span>近代史开端；开始沦为半殖民地半封建社会</span></li>" +
+        "<li><time>1842</time><b>中英《南京条约》</b><span>近代第一个不平等条约</span></li>" +
+        "<li><time>1843</time><b>魏源《海国图志》</b><span>「师夷长技以制夷」</span></li>" +
+        "<li><time>1844</time><b>中美《望厦条约》</b><span>扩大领事裁判权等</span></li>" +
+        "<li><time>1858</time><b>《天津条约》/中俄《瑷珲条约》</b><span>第二次鸦片战争；沙俄割黑龙江以北</span></li>" +
+        "<li><time>1860</time><b>《北京条约》/火烧圆明园</b><span>英法联军；割九龙司地方一区</span></li>" +
+        "<li><time>1885</time><b>镇南关大捷</b><span>冯子材；中法战争「不败而败」</span></li>" +
+        "<li><time>1894</time><b>甲午战争 / 黄海海战</b><span>邓世昌殉国；次年《马关条约》</span></li>" +
+        "<li><time>1895</time><b>《马关条约》/严复《救亡决论》</b><span>割台澎；「大大加深」；首次喊出「救亡」</span></li>" +
+        "<li><time>1900</time><b>八国联军侵华</b><span>进攻北京</span></li>" +
+        "<li><time>1901</time><b>《辛丑条约》</b><span>清政府成「洋人的朝廷」；完全沦为两半社会</span></li>" +
+        "</ol>",
+      2:
+        "<p>农民起义 → 洋务 → 维新。天京事变=转衰，天京陷落=失败。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1851.1</time><b>金田起义 / 永安建制</b><span>建号太平天国；分封诸王</span></li>" +
+        "<li><time>1853</time><b>定都天京</b><span>占领南京改称天京</span></li>" +
+        "<li><time>1856</time><b>天京事变</b><span>由盛转衰的分水岭（不是失败时间）</span></li>" +
+        "<li><time>1859</time><b>洪仁玕《资政新篇》</b><span>近代最早发展资本主义方案，未实行</span></li>" +
+        "<li><time>1862</time><b>京师同文馆</b><span>洋务教育开端，培养翻译</span></li>" +
+        "<li><time>1864</time><b>天京陷落</b><span>太平天国失败</span></li>" +
+        "<li><time>1865</time><b>江南制造总局</b><span>洋务最大兵工厂；李鸿章上海</span></li>" +
+        "<li><time>1872</time><b>轮船招商局</b><span>洋务民用航运代表</span></li>" +
+        "<li><time>1895</time><b>公车上书</b><span>康有为；揭开维新序幕</span></li>" +
+        "<li><time>1896</time><b>上海《时务报》</b><span>梁启超主笔；维新派影响最大报刊之一</span></li>" +
+        "<li><time>1898.6.11</time><b>「明定国是」/百日维新</b><span>9月21日戊戌政变结束</span></li>" +
+        "<li><time>1898</time><b>张之洞《劝学篇》</b><span>系统阐发「中体西用」</span></li>" +
+        "<li><time>1901</time><b>清末新政</b><span>《辛丑条约》后；后又预备立宪</span></li>" +
+        "</ol>",
+      3:
+        "<p>兴中会≠同盟会；二次革命≠护国≠护法。结束君主专制≠消灭封建制度。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1894</time><b>兴中会（檀香山）</b><span>第一个资产阶级革命组织；「振兴中华」</span></li>" +
+        "<li><time>1904–05</time><b>日俄战争</b><span>在中国东北抢权益；清政府「局外中立」</span></li>" +
+        "<li><time>1905.8</time><b>中国同盟会（东京）</b><span>第一个全国性资产阶级革命政党；《民报》讲三民主义</span></li>" +
+        "<li><time>1911.4</time><b>黄花岗起义</b><span>黄兴广州；黄花岗七十二烈士</span></li>" +
+        "<li><time>1911</time><b>保路运动</b><span>四川规模最大；为武昌起义创造条件</span></li>" +
+        "<li><time>1911.10.10</time><b>武昌起义</b><span>辛亥革命爆发</span></li>" +
+        "<li><time>1912.1.1</time><b>南京临时政府</b><span>孙中山就任；资产阶级共和国性质</span></li>" +
+        "<li><time>1913</time><b>二次革命</b><span>宋教仁案后反袁，很快失败</span></li>" +
+        "<li><time>1914</time><b>中华革命党</b><span>孙中山在日本组建；1919年改组为中国国民党</span></li>" +
+        "<li><time>1915</time><b>二十一条 / 护国运动</b><span>袁接受日本部分条款；蔡锷云南起兵反帝制</span></li>" +
+        "<li><time>1917</time><b>护法运动 / 张勋复辟</b><span>维护《临时约法》；府院之争后复辟十二天失败</span></li>" +
+        "</ol>",
+      4:
+        "<p>开端/建党/纲领不要串：五四=新民主主义开端；一大=建党；二大=民主革命纲领。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1915.9</time><b>《青年杂志》（陈独秀）</b><span>后改《新青年》；新文化运动发端</span></li>" +
+        "<li><time>1918</time><b>鲁迅《狂人日记》</b><span>第一篇现代白话文小说</span></li>" +
+        "<li><time>1919.5.4</time><b>五四运动</b><span>新民主主义革命开端；6月5日后工人成主力</span></li>" +
+        "<li><time>1919</time><b>李大钊《我的马克思主义观》</b><span>较系统介绍马列；杨匏安《马克思主义》同期</span></li>" +
+        "<li><time>1920.3</time><b>北大马克思学说研究会</b><span>李大钊等；最早学习研究团体之一</span></li>" +
+        "<li><time>1920.8</time><b>上海共产党早期组织</b><span>陈独秀；陈望道译出《共产党宣言》首个中文全译本</span></li>" +
+        "<li><time>1921.7</time><b>中共一大</b><span>开天辟地；上海开幕、嘉兴南湖闭幕</span></li>" +
+        "<li><time>1921.8</time><b>中国劳动组合书记部</b><span>领导工人运动的公开机关</span></li>" +
+        "<li><time>1921.9</time><b>衙前农民协会</b><span>沈定一；中国第一个农会</span></li>" +
+        "<li><time>1922</time><b>中共二大 / 香港海员罢工</b><span>反帝反封建民主革命纲领；工人运动第一次高潮起点</span></li>" +
+        "<li><time>1923</time><b>中共三大 / 二七惨案</b><span>共产党员以个人身份加入国民党；京汉铁路罢工被镇压</span></li>" +
+        "<li><time>1924</time><b>国民党一大 / 黄埔军校</b><span>合作正式形成（联俄联共扶助农工）；5月创办黄埔</span></li>" +
+        "<li><time>1925</time><b>中共四大 / 五卅运动</b><span>提出领导权与工农联盟；五卅是大革命高潮起点</span></li>" +
+        "<li><time>1925.8</time><b>改编国民革命军</b><span>广州国民政府；为北伐作军事准备</span></li>" +
+        "<li><time>1927.4.12</time><b>四一二政变</b><span>蒋介石上海；7月15日汪精卫武汉分共，大革命失败</span></li>" +
+        "</ol>",
+      5:
+        "<p>武装开端→上山→遵义救命→西安事变收内战。长征开始1934.10，结束1936.10会宁。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1927.8.1</time><b>南昌起义</b><span>武装反抗国民党第一枪；创建人民军队开端</span></li>" +
+        "<li><time>1927.8.7</time><b>八七会议</b><span>土地革命+武装反抗总方针；「枪杆子里出政权」</span></li>" +
+        "<li><time>1927.10</time><b>井冈山根据地</b><span>秋收起义后上山；第一块农村革命根据地</span></li>" +
+        "<li><time>1927.12</time><b>广州起义</b><span>张太雷等</span></li>" +
+        "<li><time>1928.4</time><b>井冈山会师</b><span>朱毛会师，编为红军第四军</span></li>" +
+        "<li><time>1928底</time><b>东北易帜</b><span>张学良；国民党形式上统一全国</span></li>" +
+        "<li><time>1929</time><b>古田会议</b><span>思想建党、政治建军</span></li>" +
+        "<li><time>1930</time><b>《星星之火》/《反对本本主义》</b><span>乡村中心；没有调查没有发言权</span></li>" +
+        "<li><time>1931.11</time><b>中华苏维埃共和国</b><span>瑞金；第一个全国性工农民主政权</span></li>" +
+        "<li><time>1931–34</time><b>王明「左」倾教条主义</b><span>导致第五次反「围剿」失败</span></li>" +
+        "<li><time>1933</time><b>福建事变</b><span>蔡廷锴、蒋光鼐等抗日反蒋</span></li>" +
+        "<li><time>1934.10</time><b>中央红军长征开始</b><span>撤离中央苏区</span></li>" +
+        "<li><time>1935.1</time><b>遵义会议</b><span>生死攸关转折；纠正军事错误；新三人团毛周王</span></li>" +
+        "<li><time>1935.6</time><b>懋功会师</b><span>红一、红四方面军；会宁才是长征结束</span></li>" +
+        "<li><time>1935.12</time><b>瓦窑堡会议 / 一二九运动</b><span>抗日民族统一战线策略；北平学生抗日救亡</span></li>" +
+        "<li><time>1936.5</time><b>全国各界救国会</b><span>宋庆龄等；停战抗日</span></li>" +
+        "<li><time>1936.10</time><b>会宁会师</b><span>三大主力会师，长征胜利结束</span></li>" +
+        "<li><time>1936.12</time><b>西安事变和平解决</b><span>十年内战基本结束；转向抗日</span></li>" +
+        "</ol>",
+      6:
+        "<p>九一八=局部抗战起点；七七=全民族抗战。9月3日是胜利纪念日。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1931.9.18</time><b>九一八事变</b><span>局部抗战开始；揭开世界反法西斯序幕</span></li>" +
+        "<li><time>1933.5</time><b>察哈尔抗日同盟军</b><span>冯玉祥、吉鸿昌；张家口</span></li>" +
+        "<li><time>1933.11</time><b>福建事变</b><span>蔡廷锴等福州抗日反蒋</span></li>" +
+        "<li><time>1935</time><b>华北事变</b><span>策动华北五省自治；民族危机空前</span></li>" +
+        "<li><time>1935.12</time><b>瓦窑堡会议</b><span>抗日民族统一战线新政策</span></li>" +
+        "<li><time>1937.7.7</time><b>卢沟桥事变</b><span>日本全面侵华；中国全民族抗战开始</span></li>" +
+        "<li><time>1937.8</time><b>洛川会议</b><span>《抗日救国十大纲领》；全面抗战路线</span></li>" +
+        "<li><time>1937.8.13</time><b>八一三 / 淞沪会战</b><span>谢晋元「八百壮士」守四行仓库</span></li>" +
+        "<li><time>1937.9</time><b>平型关大捷 / 统一战线正式形成</b><span>全面抗战后第一次重大胜利；国民党公布中共合作宣言</span></li>" +
+        "<li><time>1937.12</time><b>南京大屠杀</b><span>屠杀30万人以上</span></li>" +
+        "<li><time>1938.3</time><b>台儿庄战役</b><span>正面战场重大胜利（徐州会战）</span></li>" +
+        "<li><time>1938</time><b>《论持久战》</b><span>三阶段；驳亡国论、速胜论</span></li>" +
+        "<li><time>1938.10</time><b>进入战略相持</b><span>日本对国民党改为政治诱降为主</span></li>" +
+        "<li><time>1940.5</time><b>枣宜会战</b><span>张自忠殉国</span></li>" +
+        "<li><time>1940</time><b>百团大战</b><span>彭德怀；华北破袭战</span></li>" +
+        "<li><time>1941</time><b>皖南事变</b><span>国民党第二次反共高潮高峰</span></li>" +
+        "<li><time>1945.4</time><b>中共七大</b><span>毛泽东思想确立为指导思想</span></li>" +
+        "<li><time>1945.8.15</time><b>日本宣布投降</b><span>9月2日签投降书；9月3日抗战胜利纪念日</span></li>" +
+        "</ol>",
+      7:
+        "<p>先争和平，再打仗，再建国。1949是新民主主义革命基本胜利，社会主义制度要到1956。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1941.3</time><b>中国民主政团同盟</b><span>后改民盟；大后方抗日民主运动中诞生</span></li>" +
+        "<li><time>1945.8</time><b>「和平、民主、团结」</b><span>抗战胜利后中共三大口号</span></li>" +
+        "<li><time>1945.8–10</time><b>重庆谈判 / 《双十协定》</b><span>军队和解放区政权问题未解决</span></li>" +
+        "<li><time>1945.12</time><b>一二一运动</b><span>昆明；反对内战、争取自由</span></li>" +
+        "<li><time>1946.5</time><b>《五四指示》</b><span>减租减息改为没收地主土地</span></li>" +
+        "<li><time>1946.6</time><b>全面内战爆发</b><span>国民党进攻中原解放区</span></li>" +
+        "<li><time>1946.8</time><b>「一切反动派都是纸老虎」</b><span>毛泽东同斯特朗谈话</span></li>" +
+        "<li><time>1947.5</time><b>五二〇运动</b><span>反饥饿反内战反迫害；南京为中心</span></li>" +
+        "<li><time>1947.6</time><b>挺进大别山</b><span>刘邓；战略进攻序幕</span></li>" +
+        "<li><time>1947.7–9</time><b>《中国土地法大纲》</b><span>西柏坡全国土地会议；耕者有其田</span></li>" +
+        "<li><time>1947.10.10</time><b>《中国人民解放军宣言》</b><span>打倒蒋介石、解放全中国</span></li>" +
+        "<li><time>1947</time><b>民盟被宣布非法</b><span>中间路线破产</span></li>" +
+        "<li><time>1948.1.1</time><b>民革在香港成立</b><span>国民党民主派</span></li>" +
+        "<li><time>1948.9–49.1</time><b>辽沈→淮海→平津</b><span>三大战役这个顺序</span></li>" +
+        "<li><time>1949.3</time><b>七届二中全会（西柏坡）</b><span>工作重心乡村→城市；两个务必</span></li>" +
+        "<li><time>1949.4</time><b>渡江战役</b><span>4月23日占领南京，国民党统治覆灭</span></li>" +
+        "<li><time>1949.6.30</time><b>《论人民民主专政》</b><span>阐明国体：人民民主专政</span></li>" +
+        "<li><time>1949.9</time><b>政协《共同纲领》</b><span>起临时宪法作用</span></li>" +
+        "<li><time>1949.10.1</time><b>开国大典</b><span>民族独立、人民解放基本实现</span></li>" +
+        "</ol>",
+      8:
+        "<p>1956=制度确立；1976.10=文革结束（还没转弯）；1978才是改革开放。两弹一星年份常考。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1950</time><b>《土地改革法》</b><span>新解放区土改依据；保存富农经济等</span></li>" +
+        "<li><time>1950–53</time><b>抗美援朝</b><span>巩固新生政权；不是三大改造</span></li>" +
+        "<li><time>1951–52</time><b>三反 / 五反</b><span>三反在机关；五反在工商业者</span></li>" +
+        "<li><time>1953</time><b>过渡时期总路线 / 一五计划</b><span>一化三改；一五中心是重工业</span></li>" +
+        "<li><time>1953–54</time><b>和平共处五项原则</b><span>中印、中缅共同倡导</span></li>" +
+        "<li><time>1954</time><b>一届全国人大 / 五四宪法</b><span>人大是最高国家权力机关；第一部社会主义类型宪法</span></li>" +
+        "<li><time>1956</time><b>三大改造完成 / 中共八大 / 《论十大关系》</b><span>进入社会主义社会；探索良好开端</span></li>" +
+        "<li><time>1957.2</time><b>《关于正确处理人民内部矛盾的问题》</b><span>4月全党整风；6月反右扩大化</span></li>" +
+        "<li><time>1958</time><b>总路线、大跃进、人民公社</b><span>八大二次会议；忽视客观规律</span></li>" +
+        "<li><time>1961</time><b>八届九中全会</b><span>调整、巩固、充实、提高</span></li>" +
+        "<li><time>1962初</time><b>七千人大会</b><span>总结教训、发扬民主</span></li>" +
+        "<li><time>1964.10.16</time><b>第一颗原子弹</b><span>三届人大提出四个现代化</span></li>" +
+        "<li><time>1965</time><b>《评〈海瑞罢官〉》</b><span>文革导火线；《五一六通知》标志全面发动</span></li>" +
+        "<li><time>1966–76</time><b>文化大革命</b><span>全局性长时间「左」倾错误</span></li>" +
+        "<li><time>1967</time><b>第一颗氢弹 / 「二月逆流」</b><span>老一辈抗争被诬称</span></li>" +
+        "<li><time>1970.4.24</time><b>「东方红一号」</b><span>第一颗人造地球卫星</span></li>" +
+        "<li><time>1971</time><b>恢复联合国合法席位</b><span>第26届联大2758号决议</span></li>" +
+        "<li><time>1972</time><b>尼克松访华</b><span>中美上海公报；关系开始正常化</span></li>" +
+        "<li><time>1976.10</time><b>粉碎「四人帮」</b><span>文革结束；十一届三中全会才是1978</span></li>" +
+        "</ol>",
+      9:
+        "<p>1978：5月思想破冰→12月政治转弯。六中全会才出《历史决议》。市场经济是1992，不是1978。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>1978.5</time><b>真理标准大讨论</b><span>冲破「两个凡是」；给三中全会做思想准备</span></li>" +
+        "<li><time>1978.12</time><b>十一届三中全会</b><span>伟大转折；以经济建设为中心；改革开放</span></li>" +
+        "<li><time>1979.1.1</time><b>《告台湾同胞书》</b><span>全国人大常委会；和平统一、通邮通商通航</span></li>" +
+        "<li><time>1979.3</time><b>四项基本原则</b><span>理论工作务虚会；邓小平提出</span></li>" +
+        "<li><time>1981.6</time><b>十一届六中全会</b><span>通过《关于建国以来党的若干历史问题的决议》；科学评价毛泽东和毛泽东思想</span></li>" +
+        "<li><time>1982</time><b>十二大</b><span>「走自己的道路，建设有中国特色的社会主义」</span></li>" +
+        "<li><time>1984</time><b>十二届三中全会</b><span>《关于经济体制改革的决定》；有计划的商品经济</span></li>" +
+        "<li><time>1987</time><b>十三大</b><span>社会主义初级阶段；一个中心两个基本点；三步走</span></li>" +
+        "<li><time>1988</time><b>海南经济特区</b><span>七届全国人大一次会议批准；当时全国最大特区</span></li>" +
+        "<li><time>1990</time><b>开发开放浦东</b><span>90年代对外开放标志</span></li>" +
+        "<li><time>1992</time><b>南方谈话 / 十四大</b><span>姓社姓资、三个有利于；社会主义市场经济目标</span></li>" +
+        "<li><time>1997.7.1</time><b>香港回归 / 十五大</b><span>邓小平理论写入党章</span></li>" +
+        "<li><time>1999.12.20</time><b>澳门回归</b><span>不要和香港的7月1日搞混</span></li>" +
+        "<li><time>2001</time><b>加入世界贸易组织</b><span>对外开放新阶段</span></li>" +
+        "<li><time>2002</time><b>十六大</b><span>全面建设小康社会；「三个代表」写入党章</span></li>" +
+        "<li><time>2003</time><b>十六届三中全会</b><span>提出科学发展观；完善社会主义市场经济体制</span></li>" +
+        "<li><time>2005.3</time><b>《反分裂国家法》</b><span>十届全国人大三次会议</span></li>" +
+        "<li><time>2006</time><b>全国取消农业税</b><span>减轻农民负担</span></li>" +
+        "<li><time>2007</time><b>十七大</b><span>科学发展观写入党章（十八大才确立为指导思想）</span></li>" +
+        "<li><time>2008</time><b>北京奥运会</b><span>2010年是上海世博、成为世界第二大经济体</span></li>" +
+        "<li><time>2010</time><b>世界第二大经济体</b><span>GDP超日本（按汇率）</span></li>" +
+        "<li><time>2012</time><b>十八大</b><span>科学发展观确立为党的指导思想；进入全面建成小康决定性阶段</span></li>" +
+        "</ol>",
+      10:
+        "<p>「新时期」=1978；「新时代」=十八大以来。第三个历史决议是2021十九届六中全会。</p>" +
+        "<ol class=\"hist-tl\">" +
+        "<li><time>2012</time><b>十八大</b><span>开启新时代；到2020年全面建成小康社会</span></li>" +
+        "<li><time>2013.11</time><b>十八届三中全会</b><span>全面深化改革；治理体系和治理能力现代化</span></li>" +
+        "<li><time>2013</time><b>人类命运共同体</b><span>习近平在国际场合提出并不断丰富</span></li>" +
+        "<li><time>2013.12</time><b>社会主义核心价值观</b><span>中办印发；国家/社会/公民三层面</span></li>" +
+        "<li><time>2016</time><b>十八届六中全会</b><span>全面从严治党；党内政治生活准则、党内监督条例</span></li>" +
+        "<li><time>2017.4</time><b>设立河北雄安新区</b><span>中共中央、国务院决定</span></li>" +
+        "<li><time>2017</time><b>十九大</b><span>主要矛盾转化；两步走：2035基本实现现代化，本世纪中叶强国</span></li>" +
+        "<li><time>2018.3</time><b>十三届全国人大一次会议</b><span>宪法修正案：习近平新时代中国特色社会主义思想入宪</span></li>" +
+        "<li><time>2018.12</time><b>庆祝改革开放40周年</b><span>从1978年算起</span></li>" +
+        "<li><time>2020</time><b>抗疫 / 全面小康收官</b><span>第一个百年目标完成</span></li>" +
+        "<li><time>2021.7.1</time><b>建党100周年</b><span>宣布全面建成小康社会</span></li>" +
+        "<li><time>2021</time><b>十九届六中全会</b><span>第三个历史决议</span></li>" +
+        "<li><time>2022.10</time><b>中共二十大（北京）</b><span>以中国式现代化全面推进中华民族伟大复兴</span></li>" +
+        "</ol>",
+    };
+
     const WRONG_STORAGE_KEY = "pansan2-history-wrong-v1";
     const MASTERY_STORAGE_KEY = "pansan2-history-mastery-v1";
     /** 章节勋章：本章每题答对 1 次即可点亮 */
@@ -18085,6 +18395,8 @@
     const WRONG_CLEAR_STREAK = 2;
     /** 近代史答题连击（本标签页 session，刷新还在） */
     const HISTORY_COMBO_STORAGE_KEY = "pansan2-history-combo-v1";
+    /** 整章作答遍数：全过完 1 遍 +1（对错都算） */
+    const HISTORY_LAPS_STORAGE_KEY = "pansan2-history-chapter-laps-v1";
     let historyCombo = 0;
     let historyPlayToastTimer = 0;
     let historyCeleTimer = 0;
@@ -18249,6 +18561,51 @@
       } catch (_) {}
     }
 
+    function loadHistoryChapterLaps() {
+      try {
+        const raw = localStorage.getItem(HISTORY_LAPS_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveHistoryChapterLaps(map) {
+      try {
+        localStorage.setItem(HISTORY_LAPS_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function getHistoryChapterLapCount(ch) {
+      const map = loadHistoryChapterLaps();
+      const n = Number(map[ch] != null ? map[ch] : map[String(ch)]);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    }
+
+    function migrateHistoryChapterLaps() {
+      const map = loadHistoryChapterLaps();
+      let changed = false;
+      for (let ch = 1; ch <= 10; ch++) {
+        if (getHistoryChapterLapCount(ch) > 0) continue;
+        if (historyChapterFullyAnswered(ch)) {
+          map[ch] = 1;
+          changed = true;
+        }
+      }
+      if (changed) saveHistoryChapterLaps(map);
+    }
+
+    function maybeIncrementHistoryChapterLap(ch) {
+      if (ch < 1 || ch > 10) return;
+      if (!historyChapterFullyAnswered(ch)) return;
+      const map = loadHistoryChapterLaps();
+      const next = getHistoryChapterLapCount(ch) + 1;
+      map[ch] = next;
+      saveHistoryChapterLaps(map);
+    }
+
     function masteryKey(ch, idx) {
       return ch + "-" + idx;
     }
@@ -18354,6 +18711,20 @@
           medal.title =
             "本章尚未通关；全部题目答对一次即可点亮。若之后又答错，勋章会重新置灰。";
         }
+
+        let lapsEl = row.querySelector(".chapter-laps");
+        if (!lapsEl) {
+          lapsEl = document.createElement("span");
+          lapsEl.className = "chapter-laps";
+          row.insertBefore(lapsEl, medal);
+        }
+        const lapCount = getHistoryChapterLapCount(ch);
+        lapsEl.textContent = "×" + lapCount;
+        lapsEl.classList.toggle("is-done", lapCount > 0);
+        lapsEl.title =
+          lapCount > 0
+            ? "本章已完整作答 " + lapCount + " 遍（对错都算，整章过完 +1）"
+            : "本章还没完整过完一遍";
       }
     }
 
@@ -18990,19 +19361,29 @@
     function updateHistoryChapterNotesPanel() {
       const fold = document.getElementById("hist-chapter-notes-fold");
       const body = document.getElementById("hist-chapter-notes-body");
+      const tlFold = document.getElementById("hist-timeline-fold");
+      const tlBody = document.getElementById("hist-timeline-body");
       if (!fold || !body) return;
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+      if (historyQuizChapter === WRONG_REVIEW_CHAPTER || historyQuizChapter < 1 || historyQuizChapter > 10) {
         fold.hidden = true;
-        return;
-      }
-      if (historyQuizChapter < 1 || historyQuizChapter > 10) {
-        fold.hidden = true;
+        if (tlFold) tlFold.hidden = true;
         return;
       }
       fold.hidden = false;
       body.innerHTML = HISTORY_CHAPTER_NOTES_HTML[historyQuizChapter] || "";
       /* 每次进入/切换章节都默认收起，避免带着上一章的展开状态 */
       fold.removeAttribute("open");
+
+      if (tlFold && tlBody) {
+        const sameCh = tlFold.dataset.ch === String(historyQuizChapter);
+        tlFold.hidden = false;
+        if (!sameCh) {
+          tlFold.dataset.ch = String(historyQuizChapter);
+          tlBody.innerHTML = HISTORY_TIMELINE_CHEAT_HTML[historyQuizChapter] || "";
+          /* 换章默认展开小抄，方便对照；同一章翻题保持用户开合 */
+          tlFold.setAttribute("open", "");
+        }
+      }
     }
 
     function updateHistoryModeTabs() {
@@ -19156,6 +19537,8 @@
         }
         const histNotesFoldEmpty = document.getElementById("hist-chapter-notes-fold");
         if (histNotesFoldEmpty) histNotesFoldEmpty.hidden = true;
+        const histTlFoldEmpty = document.getElementById("hist-timeline-fold");
+        if (histTlFoldEmpty) histTlFoldEmpty.hidden = true;
         return;
       }
 
@@ -20027,6 +20410,7 @@
     wireQuizFocusToggle("marx-focus-toggle", "marx-quiz-view");
 
     updateWrongReviewButtonBadge();
+    migrateHistoryChapterLaps();
     recomputeChapterMasteryBadges();
     updateMarxWrongReviewButtonBadge();
     recomputeMarxChapterMasteryBadges();
@@ -20102,6 +20486,7 @@
         return;
       }
 
+      const wasFullLap = historyChapterFullyAnswered(historyQuizChapter);
       res[historyQuizIndex] = { picked: picked.value, ok };
       if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
         const order = getDisplayOrder(historyQuizChapter);
@@ -20114,6 +20499,10 @@
           addWrongQuestion(historyQuizChapter, origIdx);
         } else if (!beforeClear && isHistoryChapterCleared(loadMasteryMap(), historyQuizChapter)) {
           celebrateHistory("第" + historyQuizChapter + "章勋章点亮！");
+        }
+        if (!wasFullLap && historyChapterFullyAnswered(historyQuizChapter)) {
+          maybeIncrementHistoryChapterLap(historyQuizChapter);
+          recomputeChapterMasteryBadges();
         }
       } else {
         bumpHistoryCombo(ok);
