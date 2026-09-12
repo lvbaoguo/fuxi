@@ -5989,11 +5989,6 @@
               if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
               removeMarxWrongBySource(srcRemove);
             }, 480);
-          } else if (ok && src) {
-            setTimeout(() => {
-              if (marxQuizChapter !== WRONG_REVIEW_MARX_CHAPTER) return;
-              advanceMarxWrongReviewKeep();
-            }, 480);
           }
           return;
         }
@@ -13026,11 +13021,6 @@
               if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
               removeXiWrongBySource(srcRemove);
             }, 480);
-          } else if (ok && src) {
-            setTimeout(() => {
-              if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
-              advanceXiWrongReviewKeep();
-            }, 480);
           }
           return;
         }
@@ -18229,6 +18219,8 @@
     const MASTERED_STREAK = 1;
     /** 错题练：同一题连对 2 次才移出 */
     const WRONG_CLEAR_STREAK = 2;
+    /** 错题练连对 2 次后先停在本题，点下一题再切走 */
+    let historyWrongStayAfterRemove = false;
     /** 近代史答题连击（本标签页 session，刷新还在） */
     const HISTORY_COMBO_STORAGE_KEY = "pansan2-history-combo-v1";
     /** 整章作答遍数：全过完 1 遍 +1（对错都算） */
@@ -18687,7 +18679,7 @@
       return entries[canonIdx] || null;
     }
 
-    function removeWrongBySource(src, listCh) {
+    function removeWrongBySource(src, listCh, opts) {
       if (!src) return;
       const ch = listCh != null ? listCh : historyQuizChapter;
       const entries = getWrongEntriesForCh(ch);
@@ -18695,10 +18687,10 @@
       if (canonIdx < 0) return;
       const order = getDisplayOrder(ch);
       const displayIdx = order.indexOf(canonIdx);
-      removeWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0, ch);
+      removeWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0, ch, opts);
     }
 
-    function removeWrongReviewAtDisplayIndex(displayIdx, listCh) {
+    function removeWrongReviewAtDisplayIndex(displayIdx, listCh, opts) {
       const ch = listCh != null ? listCh : historyQuizChapter;
       if (!isHistoryWrongReviewCh(ch)) return;
       const entries = getWrongEntriesForCh(ch);
@@ -18719,6 +18711,7 @@
       persistHistoryProgress();
       updateWrongReviewButtonBadge();
 
+      if (opts && opts.stay) return;
       if (historyQuizChapter !== ch) return;
 
       if (entries.length === 0) {
@@ -19615,6 +19608,7 @@
     }
 
     function closeHistoryQuiz() {
+      historyWrongStayAfterRemove = false;
       rememberHistoryIndex();
       rememberHistoryShortIndex();
       historyQuizMode = "mcq";
@@ -20362,15 +20356,15 @@
           ? " 错题本不自动移出，要点「移除本题」。"
           : ok
             ? streak >= WRONG_CLEAR_STREAK
-              ? " 连对 2 次，已移出。"
+              ? " 连对 2 次，点下一题后移出。"
               : " 再对 1 次才移出。"
             : " 需重新连对 2 次。";
         applyCh1Feedback(q, ok, extra);
         ch1Prev.disabled = historyQuizIndex === 0;
         {
           const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
-          ch1Next.disabled = playable <= 1;
-          ch1Next.title = playable <= 1 ? "已是最后一题" : "下一题";
+          ch1Next.disabled = false;
+          ch1Next.title = playable <= 1 ? "返回目录" : "下一题";
         }
         updateContinueChapterVisibility();
 
@@ -20380,20 +20374,9 @@
           celebrateHistory("错题移出 · 少一道坑");
         }
 
-        const submittedAtIndex = historyQuizIndex;
         if (!isKeep && ok && src && streak >= WRONG_CLEAR_STREAK) {
-          const srcRemove = { ch: src.ch, i: src.i };
-          setTimeout(() => {
-            if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
-            if (historyQuizIndex !== submittedAtIndex) return;
-            removeWrongBySource(srcRemove, WRONG_REVIEW_CHAPTER);
-          }, 480);
-        } else if (!isKeep && ok && src) {
-          setTimeout(() => {
-            if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
-            if (historyQuizIndex !== submittedAtIndex) return;
-            advanceHistoryWrongReviewKeep();
-          }, 480);
+          removeWrongBySource({ ch: src.ch, i: src.i }, WRONG_REVIEW_CHAPTER, { stay: true });
+          historyWrongStayAfterRemove = true;
         }
         return;
       }
@@ -20447,6 +20430,18 @@
         }
         return;
       }
+      if (historyWrongStayAfterRemove && historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+        historyWrongStayAfterRemove = false;
+        const left = getWrongReviewEntries().length;
+        if (left === 0) {
+          closeHistoryQuiz();
+          return;
+        }
+        historyQuizIndex = Math.min(historyQuizIndex, left - 1);
+        rememberHistoryIndex();
+        renderHistoryQuiz();
+        return;
+      }
       const qs = getHistoryQuestions();
       const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
       if (isHistoryWrongReviewCh(historyQuizChapter) && playable > 1) {
@@ -20470,6 +20465,19 @@
           rememberHistoryShortIndex();
           renderHistoryQuiz();
         }
+        return;
+      }
+      if (historyWrongStayAfterRemove && historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+        historyWrongStayAfterRemove = false;
+        const left = getWrongReviewEntries().length;
+        if (left === 0) {
+          closeHistoryQuiz();
+          return;
+        }
+        if (historyQuizIndex > 0) historyQuizIndex -= 1;
+        historyQuizIndex = Math.min(historyQuizIndex, left - 1);
+        rememberHistoryIndex();
+        renderHistoryQuiz();
         return;
       }
       if (historyQuizIndex > 0) {
