@@ -851,7 +851,6 @@
     }
     .quiz-view.is-focus > .back-to-chapters,
     .quiz-view.is-focus > .quiz-stats,
-    .quiz-view.is-focus > .history-chapter-notes-fold,
     .quiz-view.is-focus > .history-timeline-fold,
     .quiz-view.is-focus > .xi-chapter-notes-fold,
     .quiz-view.is-focus > .marx-chapter-notes-fold,
@@ -1255,6 +1254,13 @@
     .quiz-nav button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
+    }
+    #ch1-remove-wrong {
+      border-color: #e8b86d;
+      color: #92400e;
+    }
+    #ch1-remove-wrong:hover:not(:disabled) {
+      background: #fff8e1;
     }
     .btn-submit-wrap.is-hidden {
       display: none;
@@ -2321,7 +2327,8 @@
             <span class="list-card__head-actions">
               <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
               <button type="button" class="list-card__wrong-btn" id="btn-history-exam" title="从题库抽一套，像真卷一样点选作答">模拟考卷</button>
-              <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="收录各章答错的题目">错题回顾</button>
+              <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章答错收录；连对 2 次自动移出">错题练</button>
+              <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除">错题本</button>
             </span>
           </h2>
           <div class="list-card__body">
@@ -2415,24 +2422,10 @@
             <span class="history-combo-chip is-empty" id="history-combo-chip" aria-live="polite">连击 ×—</span>
             <button type="button" class="quiz-focus-btn" id="history-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
-          <details class="history-chapter-notes-fold" id="hist-chapter-notes-fold" hidden>
-            <summary class="history-chapter-notes-summary">本章要点 · 先搭个知识架子（助学）</summary>
-            <div class="history-chapter-notes-body" id="hist-chapter-notes-body">
-              <p>刷题前可展开看一眼，把章节在脑子里「挂个钩」，再做题会顺一点。不能替代教材与系统学习。</p>
-            </div>
-          </details>
           <details class="history-timeline-fold" id="hist-timeline-fold" hidden>
             <summary class="history-timeline-summary">时间轴小抄 · 题库里带年份的大事</summary>
             <div class="history-timeline-body" id="hist-timeline-body"></div>
           </details>
-          <script>
-            (function () {
-              var el = document.getElementById("hist-chapter-notes-fold");
-              if (!el) return;
-              /* 进入章节默认收起，需要时再点开 */
-              el.removeAttribute("open");
-            })();
-          </script>
           <div class="quiz-order-tools" id="quiz-order-tools" hidden>
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
@@ -2483,6 +2476,7 @@
           </div>
           <div class="quiz-nav">
             <button type="button" id="ch1-prev" disabled>« 上一题</button>
+            <button type="button" id="ch1-remove-wrong" hidden>移除本题</button>
             <button type="button" id="ch1-next" disabled>» 下一题</button>
           </div>
           <div class="quiz-continue-chapter" id="ch-continue-next-chapter-wrap" hidden>
@@ -17591,6 +17585,13 @@
     ];
 
     const WRONG_REVIEW_CHAPTER = 11;
+    const WRONG_KEEP_CHAPTER = 12;
+    function isHistoryWrongReviewCh(ch) {
+      return ch === WRONG_REVIEW_CHAPTER || ch === WRONG_KEEP_CHAPTER;
+    }
+    function historyWrongReviewChapters() {
+      return [WRONG_REVIEW_CHAPTER, WRONG_KEEP_CHAPTER];
+    }
 
     /** 近代史简答题：每章 4 道，真题优先，供默点对照。不进错题回顾。 */
     const HISTORY_SHORT_BY_CHAPTER = {
@@ -18017,173 +18018,6 @@
       ],
     };
 
-    /** 近代史各章助学纲要（章次与题库一致：1–10）——篇幅加长便于对照大量刷题 */
-    const HISTORY_CHAPTER_NOTES_HTML = {
-      1:
-        "<p><strong>第1章 进入近代后中华民族的磨难与抗争</strong>：从鸦片战争到八国联军，列强侵华与「两半」社会形成；各阶层反抗与早期探索线索。</p>" +
-        "<ul>" +
-        "<li><strong>鸦片战争（1840–1842）</strong>：中国近代史起点；中国开始沦为半殖民地半封建社会。</li>" +
-        "<li><strong>《南京条约》</strong>：割香港岛、赔款、五口通商、协定关税等；第一个不平等条约。</li>" +
-        "<li><strong>第二次鸦片战争</strong>：英法联军；火烧圆明园；《天津条约》《北京条约》等；半殖民地化加深。</li>" +
-        "<li><strong>甲午战争与《马关条约》</strong>：割台澎、巨额赔款、开埠；允许设厂；大大加深半殖民地化。</li>" +
-        "<li><strong>八国联军与《辛丑条约》</strong>：巨额赔款、驻军、使馆区；清政府成为「洋人的朝廷」；中国完全沦为半殖民地半封建社会（对表教材表述）。</li>" +
-        "<li><strong>社会性质</strong>：半殖民地半封建；主要矛盾：帝国主义与中华民族、封建主义与人民大众。</li>" +
-        "<li><strong>两大历史任务</strong>：民族独立、人民解放；国家富强、人民富裕。</li>" +
-        "<li><strong>林则徐、魏源</strong>：开眼看世界；「师夷长技以制夷」。</li>" +
-        "<li><strong>太平天国</strong>：《天朝田亩制度》《资政新篇》；农民战争最高峰；阶级局限。</li>" +
-        "<li><strong>洋务运动</strong>：自强求富；官办军事/民用工业；未触动封建制度根本；甲午战败标志洋务破产。</li>" +
-        "<li><strong>戊戌维新</strong>：资产阶级改良；短暂百日维新；思想启蒙意义。</li>" +
-        "<li><strong>义和团</strong>：反帝爱国；笼统排外局限。</li>" +
-        "<li><strong>易混</strong>：「近代史开端」常考鸦片战争；各条约对应侵略战争与危害程度要一一对应。</li>" +
-        "<li><strong>做题技巧</strong>：选项里若出现「中国完全沦为两半社会」常关联《辛丑条约》；「大大加深」常关联甲午。</li>" +
-        "</ul>",
-      2:
-        "<p><strong>第2章 不同社会力量对国家出路的早期探索</strong>：洋务、维新、义和团等（教材章次划分）；重点把握各阶级主张、实践与失败教训。</p>" +
-        "<ul>" +
-        "<li><strong>太平天国</strong>：《天朝田亩制度》平均理想；洪仁玕《资政新篇》资本主义色彩方案；天京事变由盛转衰。</li>" +
-        "<li><strong>洋务运动指导思想</strong>：「中学为体、西学为用」；自强（军事工业）求富（民用）</li>" +
-        "<li><strong>洋务派代表</strong>：奕䜣、曾国藩、李鸿章、左宗棠、张之洞等。</li>" +
-        "<li><strong>洋务成就与局限</strong>：近代工业/海军起步；未触及封建制度；管理腐败；甲午战败标志洋务破产。</li>" +
-        "<li><strong>戊戌维新背景</strong>：甲午战败、民族危机；民族资产阶级登上政治舞台。</li>" +
-        "<li><strong>百日维新</strong>：光绪帝；政治经济军事文化教育改革；慈禧太后发动戊戌政变。</li>" +
-        "<li><strong>戊戌意义</strong>：爱国救亡；思想启蒙；改革社会风气。</li>" +
-        "<li><strong>义和团运动</strong>：反帝爱国；笼统排外局限；被封建势力利用。</li>" +
-        "<li><strong>清末「新政」</strong>：预备立宪等（对表教材）。</li>" +
-        "<li><strong>易混</strong>：洋务派≠维新派≠革命派；改良与革命、君主立宪与民主共和要分清。</li>" +
-        "<li><strong>做题技巧</strong>：问「早期探索」失败教训：阶级局限、未发动群众、未触及根本制度等。</li>" +
-        "</ul>",
-      3:
-        "<p><strong>第3章 辛亥革命与君主专制制度的终结</strong>：三民主义、同盟会、武昌起义、南京临时政府、袁世凯窃国；旧民主主义革命高峰与失败原因。</p>" +
-        "<ul>" +
-        "<li><strong>兴中会、同盟会</strong>：孙中山；「驱除鞑虏，恢复中华，创立民国，平均地权」。</li>" +
-        "<li><strong>三民主义</strong>：民族、民权、民生；民族主义（反帝反清）、民权主义（民主共和）、民生主义（平均地权）。</li>" +
-        "<li><strong>革命与改良论战</strong>：革命派与维新派。</li>" +
-        "<li><strong>武装起义</strong>：黄花岗起义等。</li>" +
-        "<li><strong>武昌起义</strong>：1911.10.10；各省响应。</li>" +
-        "<li><strong>中华民国临时政府</strong>：南京；资产阶级共和国性质；《临时约法》。</li>" +
-        "<li><strong>辛亥革命意义</strong>：推翻清朝；结束两千多年封建君主专制；建立共和；思想解放；打击帝国主义。</li>" +
-        "<li><strong>局限</strong>：未改变半殖民地半封建社会性质；未充分发动群众；革命果实被袁世凯篡夺；未反帝反封建彻底。</li>" +
-        "<li><strong>北洋军阀统治</strong>：旧民主主义革命陷入低潮。</li>" +
-        "<li><strong>易混</strong>：「结束君主专制制度」≠「消灭封建制度」；封建经济制度仍存。</li>" +
-        "<li><strong>做题技巧</strong>：选项说「辛亥革命完成反帝反封建任务」多为错误。</li>" +
-        "</ul>",
-      4:
-        "<p><strong>第4章 中国共产党成立和中国革命新局面</strong>：新文化运动、五四运动、建党、国共合作、北伐、大革命失败与教训。</p>" +
-        "<ul>" +
-        "<li><strong>新文化运动</strong>：民主与科学；思想启蒙；为马克思主义传播创造条件。</li>" +
-        "<li><strong>五四运动</strong>：1919；反帝反封建；工人阶级独立登上政治舞台；新民主主义革命开端。</li>" +
-        "<li><strong>马克思主义传播</strong>：李大钊等；与工人运动结合。</li>" +
-        "<li><strong>中共一大</strong>：1921；中国共产党成立；开天辟地大事变；中国革命面貌焕然一新。</li>" +
-        "<li><strong>中共二大</strong>：民主革命纲领（反帝反封建）；最高纲领与最低纲领。</li>" +
-        "<li><strong>工人运动与罢工</strong>：京汉铁路等；血的教训：需革命同盟。</li>" +
-        "<li><strong>中共三大</strong>：国共合作方针。</li>" +
-        "<li><strong>国民党一大</strong>：新三民主义；第一次国共合作形成。</li>" +
-        "<li><strong>北伐</strong>：打倒列强除军阀；工农运动高涨。</li>" +
-        "<li><strong>大革命失败</strong>：四一二、七一五反革命政变；陈独秀右倾机会主义错误。</li>" +
-        "<li><strong>教训</strong>：无产阶级领导权、武装斗争、农民问题极端重要。</li>" +
-        "<li><strong>易混</strong>：「开端」五四；「建党」1921；「民主革命纲领」二大。</li>" +
-        "<li><strong>做题技巧</strong>：新民主主义革命与旧民主主义革命分界以五四为标志；领导阶级不同。</li>" +
-        "</ul>",
-      5:
-        "<p><strong>第5章 中国革命的新道路</strong>：农村包围城市、武装夺取政权；土地革命、长征、遵义会议、抗日民族统一战线。</p>" +
-        "<ul>" +
-        "<li><strong>八七会议</strong>：土地革命和武装反抗国民党反动派总方针；毛泽东「枪杆子里出政权」。</li>" +
-        "<li><strong>南昌起义、秋收起义、广州起义</strong>：武装斗争开端。</li>" +
-        "<li><strong>井冈山革命根据地</strong>：工农武装割据；农村包围城市、武装夺取政权。</li>" +
-        "<li><strong>土地革命</strong>：打土豪分田地；消灭封建地主土地所有制。</li>" +
-        "<li><strong>反「围剿」与长征</strong>：第五次反「围剿」失败；长征开始。</li>" +
-        "<li><strong>遵义会议</strong>：1935；事实上确立毛泽东领导地位；生死攸关转折点；独立自主解决中国革命问题。</li>" +
-        "<li><strong>长征胜利</strong>：1936 会宁会师；锻炼保存骨干。</li>" +
-        "<li><strong>瓦窑堡会议</strong>：抗日民族统一战线策略。</li>" +
-        "<li><strong>西安事变</strong>：和平解决；逼蒋抗日；十年内战基本结束。</li>" +
-        "<li><strong>左倾错误</strong>：王明等；危害与教训。</li>" +
-        "<li><strong>易混</strong>：「工作重心转移」不同时期表述不同；农村革命根据地与中心城市暴动区别。</li>" +
-        "<li><strong>做题技巧</strong>：「马克思主义中国化」萌芽、形成、成熟节点与教材表述对应。</li>" +
-        "</ul>",
-      6:
-        "<p><strong>第6章 中华民族的抗日战争</strong>：抗日民族统一战线、全面抗战与片面抗战、持久战、敌后根据地、中共中流砥柱、抗战胜利意义。</p>" +
-        "<ul>" +
-        "<li><strong>九一八事变</strong>：局部抗战开始（对表教材表述）。</li>" +
-        "<li><strong>七七事变</strong>：卢沟桥事变；全民族抗战爆发。</li>" +
-        "<li><strong>抗日民族统一战线</strong>：第二次国共合作；全民族抗战。</li>" +
-        "<li><strong>两条路线</strong>：中共全面抗战路线（动员群众）；国民党片面抗战路线（单纯政府和军队）。</li>" +
-        "<li><strong>《论持久战》</strong>：毛泽东；驳亡国论与速胜论；战略防御、相持、反攻三阶段。</li>" +
-        "<li><strong>平型关大捷、台儿庄战役</strong>：正面战场重大战役（对表教材列举）。</li>" +
-        "<li><strong>敌后战场</strong>：游击战；根据地；百团大战等。</li>" +
-        "<li><strong>中共七大</strong>：毛泽东思想确立为党的指导思想。</li>" +
-        "<li><strong>抗战胜利</strong>：1945.8.15 日本宣布无条件投降；台湾回归。</li>" +
-        "<li><strong>胜利意义</strong>：近代以来第一次反侵略完全胜利；民族由衰败走向复兴转折点；世界反法西斯战争东方主战场；国际地位提高。</li>" +
-        "<li><strong>中流砥柱</strong>：倡导促成维护统一战线；全面抗战路线；敌后战场；坚持抗战到底。</li>" +
-        "<li><strong>易混</strong>：「十四年抗战」与「八年全面抗战」表述；以教材为准。</li>" +
-        "<li><strong>做题技巧</strong>：否定中共中流砥柱、否定敌后战场作用的选项多为错误。</li>" +
-        "</ul>",
-      7:
-        "<p><strong>第7章 为建立新中国而奋斗</strong>：重庆谈判、解放战争、土地改革、三大战役、七届二中全会、共同纲领、新中国成立。</p>" +
-        "<ul>" +
-        "<li><strong>重庆谈判</strong>：1945；双十协定；争取和平民主。</li>" +
-        "<li><strong>内战爆发</strong>：国民党进攻中原解放区。</li>" +
-        "<li><strong>土地改革</strong>：《五四指示》《中国土地法大纲》；「耕者有其田」；农民支援解放战争。</li>" +
-        "<li><strong>战略转折</strong>：三路大军挺进中原。</li>" +
-        "<li><strong>三大战役</strong>：辽沈、淮海、平津；国民党主力被歼。</li>" +
-        "<li><strong>渡江战役</strong>：南京解放；国民党统治覆灭。</li>" +
-        "<li><strong>七届二中全会</strong>：工作重心由乡村到城市；「两个务必」。</li>" +
-        "<li><strong>《论人民民主专政》</strong>：人民民主专政理论。</li>" +
-        "<li><strong>中国人民政治协商会议</strong>：《共同纲领》；临时宪法作用。</li>" +
-        "<li><strong>新中国成立</strong>：1949.10.1；新民主主义革命基本胜利；民族独立人民解放第一步。</li>" +
-        "<li><strong>三大法宝</strong>：统一战线、武装斗争、党的建设。</li>" +
-        "<li><strong>易混</strong>：新民主主义革命胜利与社会主义制度建立时间不同。</li>" +
-        "<li><strong>做题技巧</strong>：「两个务必」内容；工作重心转移表述。</li>" +
-        "</ul>",
-      8:
-        "<p><strong>第8章 中华人民共和国的成立与中国社会主义建设道路的探索</strong>：过渡时期总路线、三大改造、社会主义制度确立、八大、探索成就与曲折。</p>" +
-        "<ul>" +
-        "<li><strong>新中国成立初期任务</strong>：完成民主革命遗留任务；恢复国民经济；抗美援朝等。</li>" +
-        "<li><strong>过渡时期总路线</strong>：「一化三改」；社会主义工业化与社会主义改造并举。</li>" +
-        "<li><strong>三大改造</strong>：农业、手工业、资本主义工商业；1956 基本完成。</li>" +
-        "<li><strong>社会主义制度确立</strong>：进入社会主义社会；中国历史上最深刻最伟大的社会变革。</li>" +
-        "<li><strong>中共八大</strong>：主要矛盾判断；经济建设方针；探索良好开端。</li>" +
-        "<li><strong>探索成就</strong>：独立比较完整工业体系；两弹一星；国际地位提高。</li>" +
-        "<li><strong>曲折</strong>：大跃进、人民公社化；「文化大革命」严重错误与教训。</li>" +
-        "<li><strong>社会主义初级阶段</strong>：十三大系统阐述；「一个中心两个基本点」。</li>" +
-        "<li><strong>易混</strong>：1956 社会主义制度确立；1978 十一届三中开启改革开放新时期。</li>" +
-        "<li><strong>做题技巧</strong>：问「最深刻社会变革」常指三大改造完成；问「伟大转折」常指十一届三中全会。</li>" +
-        "</ul>",
-      9:
-        "<p><strong>第9章 改革开放与中国特色社会主义的开创和发展</strong>：真理标准讨论、十一届三中全会、南方谈话、社会主义市场经济、加入世贸、理论体系与时俱进。</p>" +
-        "<ul>" +
-        "<li><strong>真理标准大讨论</strong>：解放思想；为十一届三中全会准备思想条件。</li>" +
-        "<li><strong>十一届三中全会</strong>：1978；停止使用「以阶级斗争为纲」；以经济建设为中心；改革开放；伟大历史转折。</li>" +
-        "<li><strong>农村改革</strong>：家庭联产承包责任制；乡镇企业。</li>" +
-        "<li><strong>经济特区</strong>：深圳等；对外开放窗口。</li>" +
-        "<li><strong>十二大</strong>：中国特色社会主义命题。</li>" +
-        "<li><strong>十四大</strong>：社会主义市场经济体制目标。</li>" +
-        "<li><strong>南方谈话</strong>：社会主义本质；三个有利于；计划与市场都是手段。</li>" +
-        "<li><strong>加入世贸</strong>：2001；对外开放里程碑。</li>" +
-        "<li><strong>邓小平理论</strong>：十五大写入党章；指导思想。</li>" +
-        "<li><strong>「三个代表」</strong>：十六大；立党之本、执政之基、力量之源。</li>" +
-        "<li><strong>科学发展观</strong>：十七大；以人为本、全面协调可持续。</li>" +
-        "<li><strong>易混</strong>：改革开放前后两个历史时期不能相互否定；都是探索建设社会主义。</li>" +
-        "<li><strong>做题技巧</strong>：「伟大转折」固定搭配十一届三中全会；「社会主义市场经济」十四大。</li>" +
-        "</ul>",
-      10:
-        "<p><strong>第10章 中国特色社会主义进入新时代</strong>：新时代历史方位、主要矛盾、「两个一百年」、脱贫攻坚、全面建成小康社会、新征程与现代化。</p>" +
-        "<ul>" +
-        "<li><strong>新时代</strong>：十八大以来；我国发展新的历史方位。</li>" +
-        "<li><strong>社会主要矛盾转化</strong>：人民日益增长的美好生活需要和不平衡不充分的发展之间的矛盾。</li>" +
-        "<li><strong>「两个一百年」奋斗目标</strong>：建党百年全面建成小康社会；新中国成立百年全面建成社会主义现代化强国。</li>" +
-        "<li><strong>脱贫攻坚</strong>：近一亿农村贫困人口脱贫；历史性解决绝对贫困问题。</li>" +
-        "<li><strong>全面建成小康社会</strong>：第一个百年奋斗目标实现。</li>" +
-        "<li><strong>新发展阶段</strong>：全面建设社会主义现代化国家、向第二个百年奋斗目标进军的阶段。</li>" +
-        "<li><strong>新发展理念</strong>：创新、协调、绿色、开放、共享。</li>" +
-        "<li><strong>新发展格局</strong>：以国内大循环为主体、国内国际双循环相互促进。</li>" +
-        "<li><strong>「四个全面」战略布局</strong>：全面建设社会主义现代化国家、全面深化改革、全面依法治国、全面从严治党（对表最新表述）。</li>" +
-        "<li><strong>中国式现代化</strong>：人口规模巨大、共同富裕、两个文明协调、人与自然和谐、和平发展。</li>" +
-        "<li><strong>「两步走」</strong>：2035 基本实现社会主义现代化；本世纪中叶建成现代化强国。</li>" +
-        "<li><strong>易混</strong>：「新时代」与「新时期」；「全面建成小康社会」与「全面建设社会主义现代化国家」。</li>" +
-        "<li><strong>做题技巧</strong>：题干出现「新的历史方位」「主要矛盾转化」优先对应本章；注意时间线与会议节点。</li>" +
-        "</ul>",
-    };
-
     /** 近代史时间轴小抄：题库里「大事+时间」都收，按年卡住 */
     const HISTORY_TIMELINE_CHEAT_HTML = {
       1:
@@ -18388,10 +18222,12 @@
     };
 
     const WRONG_STORAGE_KEY = "pansan2-history-wrong-v1";
+    const WRONG_KEEP_STORAGE_KEY = "pansan2-history-wrong-keep-v1";
+    const WRONG_KEEP_SEEDED_KEY = "pansan2-history-wrong-keep-seeded-v1";
     const MASTERY_STORAGE_KEY = "pansan2-history-mastery-v1";
     /** 章节勋章：本章每题答对 1 次即可点亮 */
     const MASTERED_STREAK = 1;
-    /** 错题回顾：同一题连对 2 次才移出 */
+    /** 错题练：同一题连对 2 次才移出 */
     const WRONG_CLEAR_STREAK = 2;
     /** 近代史答题连击（本标签页 session，刷新还在） */
     const HISTORY_COMBO_STORAGE_KEY = "pansan2-history-combo-v1";
@@ -18540,8 +18376,53 @@
       } catch (_) {}
     }
 
-    function buildWrongReviewQuestions() {
-      return getWrongReviewEntries().map((e) => questionsForChapter(e.ch)[e.i]);
+    function getWrongKeepEntries() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(WRONG_KEEP_STORAGE_KEY) || "[]");
+        return normalizeWrongEntries(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function saveWrongKeepEntries(entries) {
+      try {
+        localStorage.setItem(WRONG_KEEP_STORAGE_KEY, JSON.stringify(entries));
+      } catch (_) {}
+    }
+
+    function getWrongEntriesForCh(ch) {
+      return ch === WRONG_KEEP_CHAPTER ? getWrongKeepEntries() : getWrongReviewEntries();
+    }
+
+    function saveWrongEntriesForCh(ch, entries) {
+      if (ch === WRONG_KEEP_CHAPTER) saveWrongKeepEntries(entries);
+      else saveWrongReviewEntries(entries);
+    }
+
+    function buildWrongQuestionsForCh(ch) {
+      return getWrongEntriesForCh(ch)
+        .map((e) => questionsForChapter(e.ch)[e.i])
+        .filter(Boolean);
+    }
+
+    function seedWrongKeepFromDrillOnce() {
+      try {
+        if (localStorage.getItem(WRONG_KEEP_SEEDED_KEY)) return;
+        if (!getWrongKeepEntries().length) {
+          const drill = getWrongReviewEntries();
+          if (drill.length) {
+            saveWrongKeepEntries(drill.map((e) => ({ ch: e.ch, i: e.i })));
+          }
+        }
+        localStorage.setItem(WRONG_KEEP_SEEDED_KEY, "1");
+      } catch (_) {}
+    }
+
+    function historyWrongReviewTitle(ch) {
+      if (ch === WRONG_KEEP_CHAPTER) return "错题本 · 永久记录";
+      if (ch === WRONG_REVIEW_CHAPTER) return "错题练 · 连对2次移出";
+      return "单项选择题";
     }
 
     function loadMasteryMap() {
@@ -18683,12 +18564,14 @@
         badge.className = "chapter-badge";
         const chapterCleared = masteredCount >= qs.length && qs.length > 0;
         if (chapterCleared) {
+          badge.hidden = false;
           badge.classList.add("chapter-badge--cleared");
           badge.textContent = "已通关";
         } else if (triedCount > 0) {
-          badge.classList.add("chapter-badge--in-progress");
-          badge.textContent = "练习中";
+          badge.hidden = true;
+          badge.textContent = "";
         } else {
+          badge.hidden = false;
           badge.classList.add("chapter-badge--not-started");
           badge.textContent = "未开始";
         }
@@ -18739,7 +18622,7 @@
       if (ch === 8) return CH8_QUESTIONS;
       if (ch === 9) return CH9_QUESTIONS;
       if (ch === 10) return CH10_QUESTIONS;
-      if (ch === WRONG_REVIEW_CHAPTER) return buildWrongReviewQuestions();
+      if (isHistoryWrongReviewCh(ch)) return buildWrongQuestionsForCh(ch);
       return CH10_QUESTIONS;
     }
 
@@ -18752,10 +18635,15 @@
       if (exist) {
         exist.streak = 0;
         saveWrongReviewEntries(entries);
-        return;
+      } else {
+        entries.push({ ch, i: origIdx, streak: 0 });
+        saveWrongReviewEntries(entries);
       }
-      entries.push({ ch, i: origIdx, streak: 0 });
-      saveWrongReviewEntries(entries);
+      const keep = getWrongKeepEntries();
+      if (!keep.some((e) => e.ch === ch && e.i === origIdx)) {
+        keep.push({ ch, i: origIdx });
+        saveWrongKeepEntries(keep);
+      }
       updateWrongReviewButtonBadge();
     }
 
@@ -18788,46 +18676,50 @@
       renderHistoryQuiz();
     }
 
-    function getWrongSourceAtDisplayIndex(displayIdx) {
-      const entries = getWrongReviewEntries();
+    function getWrongSourceAtDisplayIndex(displayIdx, ch) {
+      const listCh = ch != null ? ch : historyQuizChapter;
+      const entries = getWrongEntriesForCh(listCh);
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return null;
-      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const order = getDisplayOrder(listCh);
       const canonIdx = order[displayIdx];
       if (canonIdx < 0 || canonIdx >= n) return null;
       return entries[canonIdx] || null;
     }
 
-    function removeWrongBySource(src) {
+    function removeWrongBySource(src, listCh) {
       if (!src) return;
-      const entries = getWrongReviewEntries();
+      const ch = listCh != null ? listCh : historyQuizChapter;
+      const entries = getWrongEntriesForCh(ch);
       const canonIdx = entries.findIndex((e) => e.ch === src.ch && e.i === src.i);
       if (canonIdx < 0) return;
-      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const order = getDisplayOrder(ch);
       const displayIdx = order.indexOf(canonIdx);
-      removeWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0);
+      removeWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0, ch);
     }
 
-    function removeWrongReviewAtDisplayIndex(displayIdx) {
-      const entries = getWrongReviewEntries();
+    function removeWrongReviewAtDisplayIndex(displayIdx, listCh) {
+      const ch = listCh != null ? listCh : historyQuizChapter;
+      if (!isHistoryWrongReviewCh(ch)) return;
+      const entries = getWrongEntriesForCh(ch);
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return;
-      const order = getDisplayOrder(WRONG_REVIEW_CHAPTER);
+      const order = getDisplayOrder(ch);
       const canonIdx = order[displayIdx];
       if (canonIdx < 0 || canonIdx >= n) return;
       entries.splice(canonIdx, 1);
-      saveWrongReviewEntries(entries);
-      const oldRes = historyChapterResults[WRONG_REVIEW_CHAPTER] || [];
+      saveWrongEntriesForCh(ch, entries);
+      const oldRes = historyChapterResults[ch] || [];
       const nextRes = oldRes.slice();
       if (displayIdx >= 0 && displayIdx < nextRes.length) nextRes.splice(displayIdx, 1);
-      historyChapterResults[WRONG_REVIEW_CHAPTER] = nextRes;
+      historyChapterResults[ch] = nextRes;
       const nextOrder = orderAfterRemovingDisplay(order, displayIdx);
-      if (nextOrder) historyDisplayOrder[WRONG_REVIEW_CHAPTER] = nextOrder;
-      else delete historyDisplayOrder[WRONG_REVIEW_CHAPTER];
+      if (nextOrder) historyDisplayOrder[ch] = nextOrder;
+      else delete historyDisplayOrder[ch];
       persistHistoryProgress();
       updateWrongReviewButtonBadge();
 
-      if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
+      if (historyQuizChapter !== ch) return;
 
       if (entries.length === 0) {
         closeHistoryQuiz();
@@ -18840,10 +18732,16 @@
     }
 
     function updateWrongReviewButtonBadge() {
-      const btn = document.getElementById("btn-wrong-review");
-      if (!btn) return;
-      const n = getWrongReviewEntries().length;
-      btn.textContent = n > 0 ? "错题回顾（" + n + "）" : "错题回顾";
+      const drillBtn = document.getElementById("btn-wrong-review");
+      if (drillBtn) {
+        const n = getWrongReviewEntries().length;
+        drillBtn.textContent = n > 0 ? "错题练（" + n + "）" : "错题练";
+      }
+      const keepBtn = document.getElementById("btn-wrong-keep");
+      if (keepBtn) {
+        const n = getWrongKeepEntries().length;
+        keepBtn.textContent = n > 0 ? "错题本（" + n + "）" : "错题本";
+      }
     }
 
     function getHistoryQuestions() {
@@ -18903,9 +18801,6 @@
           if (mq.matches) fold.setAttribute("open", "");
           else fold.removeAttribute("open");
         });
-        /* 近代史助学：始终保持默认收起策略，窗口缩放不强行展开 */
-        const histNotes = document.getElementById("hist-chapter-notes-fold");
-        if (histNotes && !mq.matches) histNotes.removeAttribute("open");
       });
     })();
 
@@ -18936,7 +18831,7 @@
         const deckOnly = {};
         const chapters = [];
         for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
-        chapters.push(WRONG_REVIEW_CHAPTER);
+        historyWrongReviewChapters().forEach((c) => chapters.push(c));
         for (let i = 0; i < chapters.length; i++) {
           const ch = chapters[i];
           if (historyChapterResults[ch]) resultsOnly[ch] = historyChapterResults[ch];
@@ -18967,7 +18862,7 @@
     function rememberHistoryIndex() {
       if (
         (historyQuizChapter >= 1 && historyQuizChapter <= 10) ||
-        historyQuizChapter === WRONG_REVIEW_CHAPTER
+        isHistoryWrongReviewCh(historyQuizChapter)
       ) {
         historyChapterLastIndex[historyQuizChapter] = historyQuizIndex;
         persistHistoryProgress();
@@ -18998,7 +18893,7 @@
           const obj = JSON.parse(raw) || {};
           const chapters = [];
           for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
-          chapters.push(WRONG_REVIEW_CHAPTER);
+          historyWrongReviewChapters().forEach((c) => chapters.push(c));
           for (let i = 0; i < chapters.length; i++) {
             const ch = chapters[i];
             const row = obj[ch] || obj[String(ch)];
@@ -19014,7 +18909,7 @@
             const deck = prog.deck || {};
             const chapters = [];
             for (let ch = 1; ch <= 10; ch++) chapters.push(ch);
-            chapters.push(WRONG_REVIEW_CHAPTER);
+            historyWrongReviewChapters().forEach((c) => chapters.push(c));
             for (let i = 0; i < chapters.length; i++) {
               const ch = chapters[i];
               const ix = last[ch] != null ? last[ch] : last[String(ch)];
@@ -19146,7 +19041,7 @@
       const qs = questionsForChapter(ch);
       if (!historyChapterResults[ch] || historyChapterResults[ch].length !== qs.length) {
         historyChapterResults[ch] = qs.map(() => null);
-        if ((ch >= 1 && ch <= 10) || ch === WRONG_REVIEW_CHAPTER) persistHistoryProgress();
+        if ((ch >= 1 && ch <= 10) || isHistoryWrongReviewCh(ch)) persistHistoryProgress();
       }
     }
 
@@ -19335,7 +19230,7 @@
     function getHistoryActiveQuestion() {
       const base = getQuestionAtDisplayIndex(historyQuizChapter, historyQuizIndex);
       if (!base) return null;
-      if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return base;
+      if (!isHistoryWrongReviewCh(historyQuizChapter)) return base;
       return getOrBuildHistoryWrongSkin(historyQuizIndex, base);
     }
 
@@ -19345,7 +19240,7 @@
       const saved = res[historyQuizIndex];
       const last = historyQuizIndex >= historyPlayableLen(historyQuizChapter) - 1;
       const canContinue =
-        historyQuizChapter !== WRONG_REVIEW_CHAPTER &&
+        !isHistoryWrongReviewCh(historyQuizChapter) &&
         (historyQuizChapter === 1 ||
           (historyQuizChapter === 2 && CH3_QUESTIONS.length > 0) ||
           (historyQuizChapter === 3 && CH4_QUESTIONS.length > 0) ||
@@ -19359,30 +19254,19 @@
     }
 
     function updateHistoryChapterNotesPanel() {
-      const fold = document.getElementById("hist-chapter-notes-fold");
-      const body = document.getElementById("hist-chapter-notes-body");
       const tlFold = document.getElementById("hist-timeline-fold");
       const tlBody = document.getElementById("hist-timeline-body");
-      if (!fold || !body) return;
+      if (!tlFold || !tlBody) return;
       if (historyQuizChapter === WRONG_REVIEW_CHAPTER || historyQuizChapter < 1 || historyQuizChapter > 10) {
-        fold.hidden = true;
-        if (tlFold) tlFold.hidden = true;
+        tlFold.hidden = true;
         return;
       }
-      fold.hidden = false;
-      body.innerHTML = HISTORY_CHAPTER_NOTES_HTML[historyQuizChapter] || "";
-      /* 每次进入/切换章节都默认收起，避免带着上一章的展开状态 */
-      fold.removeAttribute("open");
-
-      if (tlFold && tlBody) {
-        const sameCh = tlFold.dataset.ch === String(historyQuizChapter);
-        tlFold.hidden = false;
-        if (!sameCh) {
-          tlFold.dataset.ch = String(historyQuizChapter);
-          tlBody.innerHTML = HISTORY_TIMELINE_CHEAT_HTML[historyQuizChapter] || "";
-          /* 换章默认展开小抄，方便对照；同一章翻题保持用户开合 */
-          tlFold.setAttribute("open", "");
-        }
+      const sameCh = tlFold.dataset.ch === String(historyQuizChapter);
+      tlFold.hidden = false;
+      if (!sameCh) {
+        tlFold.dataset.ch = String(historyQuizChapter);
+        tlBody.innerHTML = HISTORY_TIMELINE_CHEAT_HTML[historyQuizChapter] || "";
+        tlFold.setAttribute("open", "");
       }
     }
 
@@ -19464,7 +19348,7 @@
 
     function setHistoryQuizMode(mode) {
       if (mode !== "mcq" && mode !== "short") return;
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) mode = "mcq";
+      if (isHistoryWrongReviewCh(historyQuizChapter)) mode = "mcq";
       if (mode === "short") {
         const qs = shortQuestionsForChapter(historyQuizChapter);
         if (!qs.length) mode = "mcq";
@@ -19516,8 +19400,10 @@
                           : historyQuizChapter === 10
                             ? "第10章尚未录入题目。可在 index.html 的 CH10_QUESTIONS 中粘贴题目，或返回章节目录。"
                             : historyQuizChapter === WRONG_REVIEW_CHAPTER
-                              ? "暂无错题。在各章练习中答错的题目会自动收录到「错题回顾」。"
-                              : "本章暂无题目。";
+                              ? "暂无待练错题。各章答错会进「错题练」，连对 2 次自动移出。"
+                              : historyQuizChapter === WRONG_KEEP_CHAPTER
+                                ? "错题本是空的。各章答错会永久记在这里，点「移除本题」才拿掉。"
+                                : "本章暂无题目。";
         ch1OptionsEl.innerHTML = "";
         ch1SubmitWrap.classList.add("is-hidden");
         ch1QuizEl.classList.remove("is-submitted");
@@ -19533,12 +19419,14 @@
         const quizTypeEmpty = document.getElementById("quiz-type-label");
         if (quizTypeEmpty) {
           quizTypeEmpty.textContent =
-            historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
+            isHistoryWrongReviewCh(historyQuizChapter)
+              ? historyWrongReviewTitle(historyQuizChapter)
+              : "单项选择题";
         }
-        const histNotesFoldEmpty = document.getElementById("hist-chapter-notes-fold");
-        if (histNotesFoldEmpty) histNotesFoldEmpty.hidden = true;
         const histTlFoldEmpty = document.getElementById("hist-timeline-fold");
         if (histTlFoldEmpty) histTlFoldEmpty.hidden = true;
+        const removeEmpty = document.getElementById("ch1-remove-wrong");
+        if (removeEmpty) removeEmpty.hidden = true;
         return;
       }
 
@@ -19548,15 +19436,15 @@
 
       const quizTypeLabel = document.getElementById("quiz-type-label");
       if (quizTypeLabel) {
-        quizTypeLabel.textContent =
-          historyQuizChapter === WRONG_REVIEW_CHAPTER ? "错题回顾 · 单项选择题" : "单项选择题";
+        quizTypeLabel.textContent = isHistoryWrongReviewCh(historyQuizChapter)
+          ? historyWrongReviewTitle(historyQuizChapter)
+          : "单项选择题";
       }
 
       const q = getHistoryActiveQuestion();
       if (!q) return;
-      /* 错题回顾允许同一题反复练：界面不锁「已作答」，但 res[] 仍记统计，
-         因此选选项时不能用 res[i] 判断是否可提交（否则做过的题再选就解不开提交）。 */
-      const isWrongReview = historyQuizChapter === WRONG_REVIEW_CHAPTER;
+      /* 错题练/错题本允许同一题反复练：界面不锁「已作答」，但 res[] 仍记统计 */
+      const isWrongReview = isHistoryWrongReviewCh(historyQuizChapter);
       const saved = isWrongReview ? null : res[historyQuizIndex];
 
       ch1QuestionText.textContent = ch1FormatQuestionLine(historyQuizIndex, q.text);
@@ -19618,6 +19506,10 @@
 
       updateContinueChapterVisibility();
       updateOrderButtons();
+      const removeBtn = document.getElementById("ch1-remove-wrong");
+      if (removeBtn) {
+        removeBtn.hidden = historyQuizChapter !== WRONG_KEEP_CHAPTER;
+      }
     }
 
     function hasUnfinishedChapterProgress(ch) {
@@ -19665,7 +19557,7 @@
       setFuxiImmersive(false);
       clearQuizFocus();
       const choice = opts && opts.choice;
-      if (chapterNum === WRONG_REVIEW_CHAPTER) historyQuizMode = "mcq";
+      if (isHistoryWrongReviewCh(chapterNum)) historyQuizMode = "mcq";
 
       if (!choice && hasUnfinishedChapterProgress(chapterNum)) {
         pendingResumeChapter = chapterNum;
@@ -19859,6 +19751,22 @@
     const btnWrongReview = document.getElementById("btn-wrong-review");
     if (btnWrongReview) {
       btnWrongReview.addEventListener("click", () => openHistoryQuiz(WRONG_REVIEW_CHAPTER));
+    }
+    const btnWrongKeep = document.getElementById("btn-wrong-keep");
+    if (btnWrongKeep) {
+      btnWrongKeep.addEventListener("click", () => openHistoryQuiz(WRONG_KEEP_CHAPTER));
+    }
+    const btnRemoveWrong = document.getElementById("ch1-remove-wrong");
+    if (btnRemoveWrong) {
+      btnRemoveWrong.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (historyQuizChapter !== WRONG_KEEP_CHAPTER) return;
+        const src = getWrongSourceAtDisplayIndex(historyQuizIndex, WRONG_KEEP_CHAPTER);
+        if (!src) return;
+        if (!window.confirm("从错题本移除这道题？错题练里的同一题不受影响。")) return;
+        removeWrongBySource(src, WRONG_KEEP_CHAPTER);
+      });
     }
 
     /* 近代史 · 模拟考卷（纸质卷面 + 括号点选） */
@@ -20409,6 +20317,7 @@
     wireQuizFocusToggle("xi-focus-toggle", "xi-quiz-view");
     wireQuizFocusToggle("marx-focus-toggle", "marx-quiz-view");
 
+    seedWrongKeepFromDrillOnce();
     updateWrongReviewButtonBadge();
     migrateHistoryChapterLaps();
     recomputeChapterMasteryBadges();
@@ -20423,13 +20332,14 @@
       const res = currentResults();
       const picked = ch1OptionsEl.querySelector('input[type="radio"]:checked');
       if (!picked || !q) return;
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+      if (isHistoryWrongReviewCh(historyQuizChapter)) {
         if (ch1QuizEl.classList.contains("is-submitted")) return;
       } else if (res[historyQuizIndex]) return;
       const ok = picked.value === q.correct;
 
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER) {
+      if (isHistoryWrongReviewCh(historyQuizChapter)) {
         const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
+        const isKeep = historyQuizChapter === WRONG_KEEP_CHAPTER;
         let clearedChapter = false;
         if (src) {
           const mapBefore = loadMasteryMap();
@@ -20437,7 +20347,7 @@
           updateMasteryForQuestion(src.ch, src.i, ok);
           clearedChapter = !beforeClear && isHistoryChapterCleared(loadMasteryMap(), src.ch);
         }
-        const streak = bumpHistoryWrongStreak(src, ok);
+        const streak = isKeep ? 0 : bumpHistoryWrongStreak(src, ok);
         bumpHistoryCombo(ok);
         res[historyQuizIndex] = { picked: picked.value, ok };
         persistHistoryProgress();
@@ -20448,11 +20358,13 @@
           inp.disabled = true;
         });
         ch1SubmitWrap.classList.add("is-hidden");
-        const extra = ok
-          ? streak >= WRONG_CLEAR_STREAK
-            ? " 连对 2 次，已移出。"
-            : " 再对 1 次才移出。"
-          : " 需重新连对 2 次。";
+        const extra = isKeep
+          ? " 错题本不自动移出，要点「移除本题」。"
+          : ok
+            ? streak >= WRONG_CLEAR_STREAK
+              ? " 连对 2 次，已移出。"
+              : " 再对 1 次才移出。"
+            : " 需重新连对 2 次。";
         applyCh1Feedback(q, ok, extra);
         ch1Prev.disabled = historyQuizIndex === 0;
         {
@@ -20464,19 +20376,19 @@
 
         if (clearedChapter && src) {
           celebrateHistory("第" + src.ch + "章勋章点亮！");
-        } else if (ok && src && streak >= WRONG_CLEAR_STREAK) {
+        } else if (!isKeep && ok && src && streak >= WRONG_CLEAR_STREAK) {
           celebrateHistory("错题移出 · 少一道坑");
         }
 
         const submittedAtIndex = historyQuizIndex;
-        if (ok && src && streak >= WRONG_CLEAR_STREAK) {
+        if (!isKeep && ok && src && streak >= WRONG_CLEAR_STREAK) {
           const srcRemove = { ch: src.ch, i: src.i };
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
             if (historyQuizIndex !== submittedAtIndex) return;
-            removeWrongBySource(srcRemove);
+            removeWrongBySource(srcRemove, WRONG_REVIEW_CHAPTER);
           }, 480);
-        } else if (ok && src) {
+        } else if (!isKeep && ok && src) {
           setTimeout(() => {
             if (historyQuizChapter !== WRONG_REVIEW_CHAPTER) return;
             if (historyQuizIndex !== submittedAtIndex) return;
@@ -20537,7 +20449,7 @@
       }
       const qs = getHistoryQuestions();
       const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
-      if (historyQuizChapter === WRONG_REVIEW_CHAPTER && playable > 1) {
+      if (isHistoryWrongReviewCh(historyQuizChapter) && playable > 1) {
         historyQuizIndex = (historyQuizIndex + 1) % playable;
         rememberHistoryIndex();
         renderHistoryQuiz();
