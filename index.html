@@ -2327,8 +2327,8 @@
             <span class="list-card__head-actions">
               <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
               <button type="button" class="list-card__wrong-btn" id="btn-history-exam" title="从题库抽一套，像真卷一样点选作答">模拟考卷</button>
-              <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章答错收录；连对 2 次自动移出">错题练</button>
-              <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除">错题本</button>
+              <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
+              <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
             </span>
           </h2>
           <div class="list-card__body">
@@ -18630,11 +18630,14 @@
       } else {
         entries.push({ ch, i: origIdx, streak: 0 });
         saveWrongReviewEntries(entries);
+        repairWrongListProgress(WRONG_REVIEW_CHAPTER);
       }
+      ensureWrongReviewQuestionVisible(ch, origIdx);
       const keep = getWrongKeepEntries();
       if (!keep.some((e) => e.ch === ch && e.i === origIdx)) {
         keep.push({ ch, i: origIdx });
         saveWrongKeepEntries(keep);
+        repairWrongListProgress(WRONG_KEEP_CHAPTER);
       }
       updateWrongReviewButtonBadge();
     }
@@ -19008,6 +19011,79 @@
       return stored;
     }
 
+    /** 错题练/错题本条目增减后，补齐题序、作答记录和打乱牌堆，避免新题被旧长度覆盖丢掉 */
+    function repairWrongListProgress(listCh) {
+      if (!isHistoryWrongReviewCh(listCh)) return;
+      const n = getWrongEntriesForCh(listCh).length;
+      const stored = historyDisplayOrder[listCh];
+      if (Array.isArray(stored) && stored.length !== n) {
+        if (stored.length < n) {
+          const used = new Set(stored);
+          const missing = [];
+          for (let i = 0; i < n; i++) {
+            if (!used.has(i)) missing.push(i);
+          }
+          const deck = historyShuffleDeck[listCh];
+          if (typeof deck === "number" && deck >= 0 && deck <= stored.length) {
+            historyDisplayOrder[listCh] = stored.slice(0, deck).concat(missing, stored.slice(deck));
+            historyShuffleDeck[listCh] = deck + missing.length;
+          } else {
+            historyDisplayOrder[listCh] = stored.concat(missing);
+          }
+        } else {
+          const seen = new Set();
+          const cleaned = [];
+          for (let i = 0; i < stored.length; i++) {
+            const c = stored[i];
+            if (typeof c !== "number" || c < 0 || c >= n || seen.has(c)) continue;
+            seen.add(c);
+            cleaned.push(c);
+          }
+          for (let i = 0; i < n; i++) {
+            if (!seen.has(i)) cleaned.push(i);
+          }
+          if (cleaned.length && !cleaned.every((v, i) => v === i)) historyDisplayOrder[listCh] = cleaned;
+          else delete historyDisplayOrder[listCh];
+        }
+      }
+      const res = historyChapterResults[listCh];
+      if (Array.isArray(res) && res.length !== n) {
+        if (res.length < n) {
+          while (res.length < n) res.push(null);
+        } else {
+          res.length = n;
+        }
+        historyChapterResults[listCh] = res;
+      }
+      const deck = historyShuffleDeck[listCh];
+      if (typeof deck === "number") {
+        if (deck > n) historyShuffleDeck[listCh] = n;
+        if (deck < 0) delete historyShuffleDeck[listCh];
+      }
+      persistHistoryProgress();
+    }
+
+    /** 答错后保证该题出现在错题练可刷范围内（避免打乱后压在已做牌堆里看不见） */
+    function ensureWrongReviewQuestionVisible(srcCh, origIdx) {
+      const entries = getWrongReviewEntries();
+      const canonIdx = entries.findIndex((e) => e.ch === srcCh && e.i === origIdx);
+      if (canonIdx < 0) return;
+      repairWrongListProgress(WRONG_REVIEW_CHAPTER);
+      const n = entries.length;
+      const order = historyDisplayOrder[WRONG_REVIEW_CHAPTER];
+      const displayOrder = order && order.length === n ? order.slice() : Array.from({ length: n }, (_, i) => i);
+      const displayIdx = displayOrder.indexOf(canonIdx);
+      if (displayIdx < 0) return;
+      const deck = historyShuffleDeck[WRONG_REVIEW_CHAPTER];
+      if (typeof deck === "number" && deck >= 0 && displayIdx >= deck) {
+        displayOrder.splice(displayIdx, 1);
+        displayOrder.splice(deck, 0, canonIdx);
+        historyDisplayOrder[WRONG_REVIEW_CHAPTER] = displayOrder;
+        historyShuffleDeck[WRONG_REVIEW_CHAPTER] = Math.min(n, deck + 1);
+        persistHistoryProgress();
+      }
+    }
+
     function isTimelineOrder(ch) {
       const o = getDisplayOrder(ch);
       return o.every((v, i) => v === i);
@@ -19032,10 +19108,25 @@
 
     function ensureHistoryResults(ch) {
       const qs = questionsForChapter(ch);
-      if (!historyChapterResults[ch] || historyChapterResults[ch].length !== qs.length) {
+      const n = qs.length;
+      if (!historyChapterResults[ch]) {
         historyChapterResults[ch] = qs.map(() => null);
         if ((ch >= 1 && ch <= 10) || isHistoryWrongReviewCh(ch)) persistHistoryProgress();
+        return;
       }
+      if (historyChapterResults[ch].length === n) return;
+      if (isHistoryWrongReviewCh(ch)) {
+        const res = historyChapterResults[ch];
+        if (res.length < n) {
+          while (res.length < n) res.push(null);
+        } else {
+          res.length = n;
+        }
+        persistHistoryProgress();
+        return;
+      }
+      historyChapterResults[ch] = qs.map(() => null);
+      persistHistoryProgress();
     }
 
     function currentResults() {
@@ -19393,7 +19484,7 @@
                           : historyQuizChapter === 10
                             ? "第10章尚未录入题目。可在 index.html 的 CH10_QUESTIONS 中粘贴题目，或返回章节目录。"
                             : historyQuizChapter === WRONG_REVIEW_CHAPTER
-                              ? "暂无待练错题。各章答错会进「错题练」，连对 2 次自动移出。"
+                              ? "暂无待练错题。各章或错题本答错会进「错题练」，连对 2 次自动移出，再答错会加回。"
                               : historyQuizChapter === WRONG_KEEP_CHAPTER
                                 ? "错题本是空的。各章答错会永久记在这里，点「移除本题」才拿掉。"
                                 : "本章暂无题目。";
@@ -19550,7 +19641,10 @@
       setFuxiImmersive(false);
       clearQuizFocus();
       const choice = opts && opts.choice;
-      if (isHistoryWrongReviewCh(chapterNum)) historyQuizMode = "mcq";
+      if (isHistoryWrongReviewCh(chapterNum)) {
+        historyQuizMode = "mcq";
+        repairWrongListProgress(chapterNum);
+      }
 
       if (!choice && hasUnfinishedChapterProgress(chapterNum)) {
         pendingResumeChapter = chapterNum;
@@ -20352,13 +20446,18 @@
           inp.disabled = true;
         });
         ch1SubmitWrap.classList.add("is-hidden");
+        if (src && !ok) {
+          addWrongQuestion(src.ch, src.i);
+        }
         const extra = isKeep
-          ? " 错题本不自动移出，要点「移除本题」。"
+          ? ok
+            ? " 错题本不自动移出，要点「移除本题」。"
+            : " 已加回「错题练」。错题本不自动移出，要点「移除本题」。"
           : ok
             ? streak >= WRONG_CLEAR_STREAK
               ? " 连对 2 次，点下一题后移出。"
               : " 再对 1 次才移出。"
-            : " 需重新连对 2 次。";
+            : " 已留在「错题练」，需重新连对 2 次。";
         applyCh1Feedback(q, ok, extra);
         ch1Prev.disabled = historyQuizIndex === 0;
         {
