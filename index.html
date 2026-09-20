@@ -2190,10 +2190,11 @@
             <details class="quiz-order-fold" id="xi-quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="xi-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；打乱后从第 1 题起按新顺序刷。</span>
+                <span id="xi-quiz-order-hint" class="quiz-order-hint">默认近年常考优先（每章最多 40）；打乱改顺序；刷新换同考点问法。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-xi-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-xi-timeline-order" disabled title="恢复教材顺序">顺序</button>
+                  <button type="button" id="btn-xi-refresh-ask" title="同考点换一种问法（如年份↔事件）">刷新</button>
                 </div>
               </div>
             </details>
@@ -11710,9 +11711,173 @@
       }
     }
 
+    const XI_MCQ_CAP = 40;
+    const xiChapterSlots = {};
+
+    function xiScoreMcq(q) {
+      const t = String((q && q.text) || "");
+      if (/\[2025/.test(t)) return 300;
+      if (/\[2024/.test(t)) return 200;
+      if (/\[2023/.test(t)) return 100;
+      if (/样卷/.test(t)) return 50;
+      return 10;
+    }
+
+    function xiMcqAnsLabel(q) {
+      const opts = (q && q.options) || [];
+      const i = "ABCD".indexOf(q && q.correct);
+      if (i < 0 || !opts[i]) return "";
+      return String(opts[i].label || "").replace(/\s+/g, "");
+    }
+
+    function xiExplainBigrams(s) {
+      s = String(s || "").replace(/\s+/g, "");
+      const set = new Set();
+      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+      return set;
+    }
+
+    function xiExplainJaccard(a, b) {
+      const A = xiExplainBigrams(a);
+      const B = xiExplainBigrams(b);
+      if (!A.size || !B.size) return 0;
+      let inter = 0;
+      A.forEach((x) => {
+        if (B.has(x)) inter += 1;
+      });
+      return inter / (A.size + B.size - inter);
+    }
+
+    function xiTagBaseIdx(q, baseIdx) {
+      return Object.assign({}, q, { _baseIdx: baseIdx });
+    }
+
+    function xiStemBigrams(s) {
+      s = String(s || "")
+        .replace(/\[[^\]]*\]/g, "")
+        .replace(/[0-9．.\s（）()____]/g, "");
+      const set = new Set();
+      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+      return set;
+    }
+
+    function xiStemJaccard(a, b) {
+      const A = xiStemBigrams(a);
+      const B = xiStemBigrams(b);
+      if (!A.size || !B.size) return 0;
+      let inter = 0;
+      A.forEach((x) => {
+        if (B.has(x)) inter += 1;
+      });
+      return inter / (A.size + B.size - inter);
+    }
+
+    function buildXiChapterSlots(ch) {
+      const raw = xiBaseQuestionsForChapter(ch) || [];
+      const byText = new Map();
+      raw.forEach((q, baseIdx) => {
+        const t = String(q.text || "");
+        const tagged = xiTagBaseIdx(q, baseIdx);
+        const prev = byText.get(t);
+        if (!prev || xiScoreMcq(tagged) > xiScoreMcq(prev)) byText.set(t, tagged);
+      });
+      const uniq = Array.from(byText.values());
+      const n = uniq.length;
+      const parent = Array.from({ length: n }, (_, i) => i);
+      const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+      const unite = (a, b) => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent[rb] = ra;
+      };
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const qi = uniq[i];
+          const qj = uniq[j];
+          const explainSim = xiExplainJaccard(qi.explain, qj.explain);
+          const stemSim = xiStemJaccard(qi.text, qj.text);
+          const sameAns = xiMcqAnsLabel(qi) && xiMcqAnsLabel(qi) === xiMcqAnsLabel(qj);
+          const yearCross =
+            (xiScoreMcq(qi) >= 100) !== (xiScoreMcq(qj) >= 100);
+          // 解析极像；或同答案且题干很像；或近年真题↔自测同答案换问法
+          if (
+            explainSim >= 0.55 ||
+            (sameAns && stemSim >= 0.38) ||
+            (sameAns && yearCross && stemSim >= 0.22)
+          ) {
+            unite(i, j);
+          }
+        }
+      }
+      const groups = new Map();
+      for (let i = 0; i < n; i++) {
+        const r = find(i);
+        if (!groups.has(r)) groups.set(r, []);
+        groups.get(r).push(uniq[i]);
+      }
+      let slots = Array.from(groups.values()).map((variants) => {
+        const sorted = variants.slice().sort((a, b) => xiScoreMcq(b) - xiScoreMcq(a));
+        return { variants: sorted, pick: 0 };
+      });
+      slots.sort((a, b) => xiScoreMcq(b.variants[0]) - xiScoreMcq(a.variants[0]));
+      if (slots.length > XI_MCQ_CAP) slots = slots.slice(0, XI_MCQ_CAP);
+      return slots;
+    }
+
+    function ensureXiChapterSlots(ch) {
+      if (ch === WRONG_REVIEW_XI_CHAPTER) return null;
+      if (!xiChapterSlots[ch]) xiChapterSlots[ch] = buildXiChapterSlots(ch);
+      return xiChapterSlots[ch];
+    }
+
+    function xiActiveFromSlot(slot) {
+      const vs = slot.variants;
+      return vs[((slot.pick % vs.length) + vs.length) % vs.length];
+    }
+
+    function xiRotateOptionsClone(q) {
+      const opts = ((q && q.options) || []).slice();
+      if (opts.length !== 4) return null;
+      const newOpts = [opts[1], opts[2], opts[3], opts[0]].map((o, i) => ({
+        key: "ABCD"[i],
+        label: o.label,
+      }));
+      const oldIdx = "ABCD".indexOf(q.correct);
+      if (oldIdx < 0) return null;
+      const newCorrect = "ABCD"[(oldIdx + 3) % 4];
+      return Object.assign({}, q, { options: newOpts, correct: newCorrect });
+    }
+
+    function refreshXiChapterAsks(ch) {
+      const slots = ensureXiChapterSlots(ch);
+      if (!slots || !slots.length) return false;
+      let moved = false;
+      for (const slot of slots) {
+        if (slot.variants.length > 1) {
+          slot.pick = (slot.pick + 1) % slot.variants.length;
+          moved = true;
+        } else {
+          const rotated = xiRotateOptionsClone(slot.variants[0]);
+          if (rotated) {
+            slot.variants[0] = rotated;
+            moved = true;
+          }
+        }
+      }
+      return moved;
+    }
+
     function xiQuestionsForChapter(ch) {
       if (ch === WRONG_REVIEW_XI_CHAPTER) return buildXiWrongReviewQuestions();
-      return xiBaseQuestionsForChapter(ch);
+      const slots = ensureXiChapterSlots(ch);
+      return slots.map(xiActiveFromSlot);
+    }
+
+    function xiBaseIdxFromDisplay(ch, displayOrigIdx) {
+      const qs = xiQuestionsForChapter(ch);
+      const q = qs[displayOrigIdx];
+      if (q && typeof q._baseIdx === "number") return q._baseIdx;
+      return displayOrigIdx;
     }
 
     const xiDisplayOrder = {};
@@ -12034,6 +12199,7 @@
     const xiQuizOrderTools = document.getElementById("xi-quiz-order-tools");
     const btnXiShuffleOrder = document.getElementById("btn-xi-shuffle-order");
     const btnXiTimelineOrder = document.getElementById("btn-xi-timeline-order");
+    const btnXiRefreshAsk = document.getElementById("btn-xi-refresh-ask");
     const xiModeTabs = document.getElementById("xi-quiz-mode-tabs");
     const xiModeMcqBtn = document.getElementById("xi-mode-mcq");
     const xiModeShortBtn = document.getElementById("xi-mode-short");
@@ -12058,6 +12224,13 @@
       }
       xiQuizOrderTools.hidden = false;
       btnXiTimelineOrder.disabled = isXiTimelineOrder(ch);
+      if (btnXiRefreshAsk) {
+        btnXiRefreshAsk.disabled = ch === WRONG_REVIEW_XI_CHAPTER;
+        btnXiRefreshAsk.title =
+          ch === WRONG_REVIEW_XI_CHAPTER
+            ? "错题本不支持刷新问法"
+            : "同考点换一种问法（如年份↔事件）；无变体时会轮换选项顺序";
+      }
     }
 
     function xiCurrentResults() {
@@ -12503,7 +12676,8 @@
 
         res[xiQuizIndex] = { picked: picked.value, ok };
         const order = getXiDisplayOrder(xiQuizChapter);
-        const origIdx = order[xiQuizIndex];
+        const displayOrigIdx = order[xiQuizIndex];
+        const origIdx = xiBaseIdxFromDisplay(xiQuizChapter, displayOrigIdx);
         updateXiMasteryForQuestion(xiQuizChapter, origIdx, ok);
         if (!ok) {
           addXiWrongQuestion(xiQuizChapter, origIdx);
@@ -19685,6 +19859,25 @@
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         persistXiProgress();
         recomputeXiStats();
+        renderXiQuiz();
+      });
+    }
+    if (btnXiRefreshAsk) {
+      btnXiRefreshAsk.addEventListener("click", () => {
+        const ch = xiQuizChapter;
+        if (ch === WRONG_REVIEW_XI_CHAPTER) return;
+        if (!refreshXiChapterAsks(ch)) return;
+        const qs = xiQuestionsForChapter(ch);
+        const n = qs.length;
+        const key = String(ch);
+        xiChapterResults[key] = Array.from({ length: n }, () => null);
+        delete xiDisplayOrder[ch];
+        xiQuizIndex = 0;
+        xiChapterLastIndex[ch] = 0;
+        if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
+        persistXiProgress();
+        recomputeXiStats();
+        updateXiOrderButtons();
         renderXiQuiz();
       });
     }
