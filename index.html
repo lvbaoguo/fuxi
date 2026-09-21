@@ -869,11 +869,13 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
-    #ch1-remove-wrong {
+    #ch1-remove-wrong,
+    #xq-remove-wrong {
       border-color: #e8b86d;
       color: #92400e;
     }
-    #ch1-remove-wrong:hover:not(:disabled) {
+    #ch1-remove-wrong:hover:not(:disabled),
+    #xq-remove-wrong:hover:not(:disabled) {
       background: #fff8e1;
     }
     .btn-submit-wrap.is-hidden {
@@ -1932,10 +1934,11 @@
             <details class="quiz-order-fold" id="quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；打乱只洗未做的题，已做过的不会再出现。</span>
+                <span id="quiz-order-hint" class="quiz-order-hint">默认按教材时间线；打乱只洗未做的题；刷新换同考点问法。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-timeline-order" disabled title="恢复教材时间线顺序">顺序</button>
+                  <button type="button" id="btn-history-refresh-ask" title="同考点换一种问法（如年份↔事件）">刷新</button>
                 </div>
               </div>
             </details>
@@ -2024,7 +2027,10 @@
           <div class="list-card list-card--xi">
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《习近平新时代中国特色社会主义思想概论》</span>章节列表</span>
-              <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
+              <span class="list-card__head-actions">
+                <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
+                <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
+              </span>
             </h2>
             <div class="list-card__body">
               <ul class="lecture-list" aria-label="习近平新时代中国特色社会主义思想章节目录">
@@ -2170,6 +2176,7 @@
               <button type="button" class="quiz-mode-tab is-active" id="xi-mode-mcq" data-xi-mode="mcq">单选题</button>
               <button type="button" class="quiz-mode-tab" id="xi-mode-short" data-xi-mode="short">简答题</button>
             </div>
+            <span class="history-combo-chip is-empty" id="xi-combo-chip" aria-live="polite">连击 ×—</span>
             <button type="button" class="quiz-focus-btn" id="xi-focus-toggle" title="竖屏专注：只留题目和提交/下一题">收起</button>
           </div>
           <details class="xi-chapter-notes-fold" id="xi-chapter-notes-fold" hidden>
@@ -2237,6 +2244,7 @@
           </div>
           <div class="quiz-nav">
             <button type="button" id="xq-prev" disabled>« 上一题</button>
+            <button type="button" id="xq-remove-wrong" hidden>移除本题</button>
             <button type="button" id="xq-next" disabled>» 下一题</button>
           </div>
           <div class="quiz-continue-chapter" id="xq-continue-next-chapter-wrap" hidden>
@@ -2363,10 +2371,11 @@
             <details class="quiz-order-fold" id="marx-quiz-order-fold">
               <summary class="quiz-order-summary">题序</summary>
               <div class="quiz-order-panel">
-                <span id="marx-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；打乱后从第 1 题起按新顺序刷。</span>
+                <span id="marx-quiz-order-hint" class="quiz-order-hint">默认按教材编章顺序；打乱改顺序；刷新换同考点问法。</span>
                 <div class="quiz-order-buttons">
                   <button type="button" id="btn-marx-shuffle-order" title="打乱题序">打乱</button>
                   <button type="button" id="btn-marx-timeline-order" disabled title="恢复教材顺序">顺序</button>
+                  <button type="button" id="btn-marx-refresh-ask" title="同考点换一种问法（如年份↔事件）">刷新</button>
                 </div>
               </div>
             </details>
@@ -4548,6 +4557,169 @@
       },
     ];
 
+    /** 三课共用：同考点换问法（刷新）槽位构建 */
+    function quizAskScoreMcq(q) {
+      const t = String((q && q.text) || "");
+      if (/\[2025/.test(t)) return 300;
+      if (/\[2024/.test(t)) return 200;
+      if (/\[2023/.test(t)) return 100;
+      if (/样卷/.test(t)) return 50;
+      return 10;
+    }
+
+    function quizAskAnsLabel(q) {
+      const opts = (q && q.options) || [];
+      const i = "ABCD".indexOf(q && q.correct);
+      if (i < 0 || !opts[i]) return "";
+      return String(opts[i].label || "").replace(/\s+/g, "");
+    }
+
+    function quizAskBigrams(s, stem) {
+      if (stem) {
+        s = String(s || "")
+          .replace(/\[[^\]]*\]/g, "")
+          .replace(/[0-9．.\s（）()____]/g, "");
+      } else {
+        s = String(s || "").replace(/\s+/g, "");
+      }
+      const set = new Set();
+      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+      return set;
+    }
+
+    function quizAskJaccard(a, b, stem) {
+      const A = quizAskBigrams(a, stem);
+      const B = quizAskBigrams(b, stem);
+      if (!A.size || !B.size) return 0;
+      let inter = 0;
+      A.forEach((x) => {
+        if (B.has(x)) inter += 1;
+      });
+      return inter / (A.size + B.size - inter);
+    }
+
+    function quizAskTagBaseIdx(q, baseIdx) {
+      return Object.assign({}, q, { _baseIdx: baseIdx });
+    }
+
+    function quizAskRotateOptions(q) {
+      const opts = ((q && q.options) || []).slice();
+      if (opts.length !== 4) return null;
+      const newOpts = [opts[1], opts[2], opts[3], opts[0]].map((o, i) => ({
+        key: "ABCD"[i],
+        label: o.label,
+      }));
+      const oldIdx = "ABCD".indexOf(q.correct);
+      if (oldIdx < 0) return null;
+      return Object.assign({}, q, {
+        options: newOpts,
+        correct: "ABCD"[(oldIdx + 3) % 4],
+      });
+    }
+
+    function quizAskActiveFromSlot(slot) {
+      const vs = slot.variants;
+      return vs[((slot.pick % vs.length) + vs.length) % vs.length];
+    }
+
+    /**
+     * @param {object[]} raw
+     * @param {{ preferYear?: boolean, cap?: number }} [opts]
+     */
+    function buildQuizAskSlots(raw, opts) {
+      opts = opts || {};
+      const preferYear = !!opts.preferYear;
+      const cap = typeof opts.cap === "number" && opts.cap > 0 ? opts.cap : 0;
+      const byText = new Map();
+      (raw || []).forEach((q, baseIdx) => {
+        const t = String(q.text || "");
+        const tagged = quizAskTagBaseIdx(q, baseIdx);
+        const prev = byText.get(t);
+        if (!prev || quizAskScoreMcq(tagged) > quizAskScoreMcq(prev)) byText.set(t, tagged);
+      });
+      const uniq = Array.from(byText.values());
+      const n = uniq.length;
+      const parent = Array.from({ length: n }, (_, i) => i);
+      const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+      const unite = (a, b) => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent[rb] = ra;
+      };
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const qi = uniq[i];
+          const qj = uniq[j];
+          const explainSim = quizAskJaccard(qi.explain, qj.explain, false);
+          const stemSim = quizAskJaccard(qi.text, qj.text, true);
+          const sameAns = quizAskAnsLabel(qi) && quizAskAnsLabel(qi) === quizAskAnsLabel(qj);
+          const yearCross = (quizAskScoreMcq(qi) >= 100) !== (quizAskScoreMcq(qj) >= 100);
+          if (
+            explainSim >= 0.55 ||
+            (sameAns && stemSim >= 0.38) ||
+            (sameAns && yearCross && stemSim >= 0.22)
+          ) {
+            unite(i, j);
+          }
+        }
+      }
+      const groups = new Map();
+      for (let i = 0; i < n; i++) {
+        const r = find(i);
+        if (!groups.has(r)) groups.set(r, []);
+        groups.get(r).push(uniq[i]);
+      }
+      let slots = Array.from(groups.values()).map((variants) => {
+        const sorted = variants.slice().sort((a, b) => {
+          const ds = quizAskScoreMcq(b) - quizAskScoreMcq(a);
+          if (ds) return ds;
+          return (a._baseIdx || 0) - (b._baseIdx || 0);
+        });
+        return { variants: sorted, pick: 0 };
+      });
+      if (preferYear) {
+        slots.sort((a, b) => quizAskScoreMcq(b.variants[0]) - quizAskScoreMcq(a.variants[0]));
+      } else {
+        slots.sort((a, b) => {
+          const ai = Math.min.apply(
+            null,
+            a.variants.map((v) => (typeof v._baseIdx === "number" ? v._baseIdx : 0))
+          );
+          const bi = Math.min.apply(
+            null,
+            b.variants.map((v) => (typeof v._baseIdx === "number" ? v._baseIdx : 0))
+          );
+          return ai - bi;
+        });
+      }
+      if (cap && slots.length > cap) slots = slots.slice(0, cap);
+      return slots;
+    }
+
+    function refreshQuizAskSlots(slots) {
+      if (!slots || !slots.length) return false;
+      let moved = false;
+      for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+        if (slot.variants.length > 1) {
+          slot.pick = (slot.pick + 1) % slot.variants.length;
+          moved = true;
+        } else {
+          const rotated = quizAskRotateOptions(slot.variants[0]);
+          if (rotated) {
+            slot.variants[0] = rotated;
+            moved = true;
+          }
+        }
+      }
+      return moved;
+    }
+
+    function quizAskBaseIdx(q, fallback) {
+      if (q && typeof q._baseIdx === "number") return q._baseIdx;
+      return fallback;
+    }
+
     const WRONG_REVIEW_MARX_CHAPTER = 12;
 
     /** 各章助学纲要（与题库章次一致：1=导论 … 8=第7章），考点精华+易混提示，便于选题 */
@@ -4819,9 +4991,26 @@
       }
     }
 
+    const marxChapterSlots = {};
+
+    function ensureMarxChapterSlots(ch) {
+      if (ch === WRONG_REVIEW_MARX_CHAPTER) return null;
+      if (!marxChapterSlots[ch]) {
+        marxChapterSlots[ch] = buildQuizAskSlots(marxBaseQuestionsForChapter(ch) || [], {
+          preferYear: false,
+        });
+      }
+      return marxChapterSlots[ch];
+    }
+
+    function refreshMarxChapterAsks(ch) {
+      return refreshQuizAskSlots(ensureMarxChapterSlots(ch));
+    }
+
     function marxQuestionsForChapter(ch) {
       if (ch === WRONG_REVIEW_MARX_CHAPTER) return buildMarxWrongReviewQuestions();
-      return marxBaseQuestionsForChapter(ch);
+      const slots = ensureMarxChapterSlots(ch);
+      return slots.map(quizAskActiveFromSlot);
     }
 
     /** 马原各章题目显示顺序（下标置换；未打乱则为 undefined） */
@@ -5108,6 +5297,7 @@
     const marxQuizOrderTools = document.getElementById("marx-quiz-order-tools");
     const btnMarxShuffleOrder = document.getElementById("btn-marx-shuffle-order");
     const btnMarxTimelineOrder = document.getElementById("btn-marx-timeline-order");
+    const btnMarxRefreshAsk = document.getElementById("btn-marx-refresh-ask");
 
     function updateMarxOrderButtons() {
       const ch = marxQuizChapter;
@@ -5119,6 +5309,13 @@
       }
       marxQuizOrderTools.hidden = false;
       btnMarxTimelineOrder.disabled = isMarxTimelineOrder(ch);
+      if (btnMarxRefreshAsk) {
+        btnMarxRefreshAsk.disabled = ch === WRONG_REVIEW_MARX_CHAPTER;
+        btnMarxRefreshAsk.title =
+          ch === WRONG_REVIEW_MARX_CHAPTER
+            ? "错题回顾不支持刷新问法"
+            : "同考点换一种问法（如年份↔事件）；无变体时会轮换选项顺序";
+      }
     }
 
     function marxCurrentResults() {
@@ -5472,7 +5669,9 @@
 
         res[marxQuizIndex] = { picked: picked.value, ok };
         const order = getMarxDisplayOrder(marxQuizChapter);
-        const origIdx = order[marxQuizIndex];
+        const displayOrigIdx = order[marxQuizIndex];
+        const qActive = getMarxQuestionAtDisplayIndex(marxQuizChapter, marxQuizIndex);
+        const origIdx = quizAskBaseIdx(qActive, displayOrigIdx);
         updateMarxMasteryForQuestion(marxQuizChapter, origIdx, ok);
         if (!ok) {
           addMarxWrongQuestion(marxQuizChapter, origIdx);
@@ -10607,6 +10806,16 @@
     ];
 
     const WRONG_REVIEW_XI_CHAPTER = 20;
+    const WRONG_KEEP_XI_CHAPTER = 21;
+    function isXiWrongReviewCh(ch) {
+      return ch === WRONG_REVIEW_XI_CHAPTER || ch === WRONG_KEEP_XI_CHAPTER;
+    }
+    function xiWrongReviewChapters() {
+      return [WRONG_REVIEW_XI_CHAPTER, WRONG_KEEP_XI_CHAPTER];
+    }
+    /** 错题练：同一题连对 2 次才移出 */
+    const XI_WRONG_CLEAR_STREAK = 2;
+    let xiWrongStayAfterRemove = false;
 
     /** 习思想简答题：每章 3 道，真题优先。卷面简答每题 7 分。不进错题回顾。 */
     const XI_SHORT_BY_CHAPTER = {
@@ -11189,10 +11398,81 @@
     };
 
     const XI_WRONG_STORAGE_KEY = "pansan2-xi-wrong-v1";
+    const XI_WRONG_KEEP_STORAGE_KEY = "pansan2-xi-wrong-keep-v1";
+    const XI_WRONG_KEEP_SEEDED_KEY = "pansan2-xi-wrong-keep-seeded-v1";
     const XI_MASTERY_STORAGE_KEY = "pansan2-xi-mastery-v1";
     const XI_RESULT_STORAGE_KEY = "pansan2-xi-chapter-results-v1";
     const XI_PROGRESS_STORAGE_KEY = "pansan2-xi-chapter-progress-v1";
     const XI_SHORT_PROGRESS_KEY = "pansan2-xi-short-progress-v1";
+    /** 习思想答题连击（本标签页 session） */
+    const XI_COMBO_STORAGE_KEY = "pansan2-xi-combo-v1";
+    let xiCombo = 0;
+    try {
+      xiCombo = Math.max(0, parseInt(sessionStorage.getItem(XI_COMBO_STORAGE_KEY) || "0", 10) || 0);
+    } catch (_) {
+      xiCombo = 0;
+    }
+
+    function saveXiCombo() {
+      try {
+        sessionStorage.setItem(XI_COMBO_STORAGE_KEY, String(xiCombo));
+      } catch (_) {}
+    }
+
+    function xiComboTitle(n) {
+      if (n >= 12) return "概论附体";
+      if (n >= 8) return "手感爆炸";
+      if (n >= 5) return "稳了";
+      if (n >= 3) return "连击起步";
+      return "";
+    }
+
+    function refreshXiComboChip(pulse) {
+      const chip = document.getElementById("xi-combo-chip");
+      if (!chip) return;
+      chip.hidden = false;
+      chip.classList.remove("is-break");
+      if (xiCombo <= 0) {
+        chip.classList.add("is-empty");
+        chip.classList.remove("is-pulse");
+        chip.textContent = "连击 ×—";
+        return;
+      }
+      chip.classList.remove("is-empty");
+      const title = xiComboTitle(xiCombo);
+      chip.textContent = title ? "连击 ×" + xiCombo + " · " + title : "连击 ×" + xiCombo;
+      if (pulse) {
+        chip.classList.remove("is-pulse");
+        void chip.offsetWidth;
+        chip.classList.add("is-pulse");
+      }
+    }
+
+    function bumpXiCombo(ok) {
+      const chip = document.getElementById("xi-combo-chip");
+      if (ok) {
+        xiCombo += 1;
+        saveXiCombo();
+        refreshXiComboChip(true);
+        return;
+      }
+      const broken = xiCombo >= 2;
+      xiCombo = 0;
+      saveXiCombo();
+      if (broken && chip) {
+        chip.hidden = false;
+        chip.classList.remove("is-empty", "is-pulse");
+        chip.classList.add("is-break");
+        chip.textContent = "连击中断";
+        setTimeout(() => refreshXiComboChip(false), 900);
+      } else {
+        refreshXiComboChip(false);
+      }
+    }
+
+    function celebrateXi() {
+      if (typeof celebrateHistory === "function") celebrateHistory();
+    }
 
     const XI_QUIZ_TYPE_LABELS = [
       "",
@@ -11571,7 +11851,7 @@
       return out;
     }
 
-    function getXiWrongEntries() {
+    function getXiWrongReviewEntries() {
       try {
         const raw = JSON.parse(localStorage.getItem(XI_WRONG_STORAGE_KEY) || "[]");
         return normalizeXiWrongEntries(raw);
@@ -11580,14 +11860,71 @@
       }
     }
 
-    function saveXiWrongEntries(entries) {
+    function saveXiWrongReviewEntries(entries) {
       try {
         localStorage.setItem(XI_WRONG_STORAGE_KEY, JSON.stringify(entries));
       } catch (_) {}
     }
 
+    /** @deprecated 兼容旧名：错题练 */
+    function getXiWrongEntries() {
+      return getXiWrongReviewEntries();
+    }
+    function saveXiWrongEntries(entries) {
+      saveXiWrongReviewEntries(entries);
+    }
+
+    function getXiWrongKeepEntries() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(XI_WRONG_KEEP_STORAGE_KEY) || "[]");
+        return normalizeXiWrongEntries(raw);
+      } catch {
+        return [];
+      }
+    }
+
+    function saveXiWrongKeepEntries(entries) {
+      try {
+        localStorage.setItem(XI_WRONG_KEEP_STORAGE_KEY, JSON.stringify(entries));
+      } catch (_) {}
+    }
+
+    function getXiWrongEntriesForCh(ch) {
+      return ch === WRONG_KEEP_XI_CHAPTER ? getXiWrongKeepEntries() : getXiWrongReviewEntries();
+    }
+
+    function saveXiWrongEntriesForCh(ch, entries) {
+      if (ch === WRONG_KEEP_XI_CHAPTER) saveXiWrongKeepEntries(entries);
+      else saveXiWrongReviewEntries(entries);
+    }
+
+    function buildXiWrongQuestionsForCh(ch) {
+      return getXiWrongEntriesForCh(ch)
+        .map((e) => xiBaseQuestionsForChapter(e.ch)[e.i])
+        .filter(Boolean);
+    }
+
     function buildXiWrongReviewQuestions() {
-      return getXiWrongEntries().map((e) => xiBaseQuestionsForChapter(e.ch)[e.i]);
+      return buildXiWrongQuestionsForCh(WRONG_REVIEW_XI_CHAPTER);
+    }
+
+    function seedXiWrongKeepFromDrillOnce() {
+      try {
+        if (localStorage.getItem(XI_WRONG_KEEP_SEEDED_KEY)) return;
+        if (!getXiWrongKeepEntries().length) {
+          const drill = getXiWrongReviewEntries();
+          if (drill.length) {
+            saveXiWrongKeepEntries(drill.map((e) => ({ ch: e.ch, i: e.i })));
+          }
+        }
+        localStorage.setItem(XI_WRONG_KEEP_SEEDED_KEY, "1");
+      } catch (_) {}
+    }
+
+    function xiWrongReviewTitle(ch) {
+      if (ch === WRONG_KEEP_XI_CHAPTER) return "错题本 · 永久记录";
+      if (ch === WRONG_REVIEW_XI_CHAPTER) return "错题练 · 连对2次移出";
+      return "单项选择题";
     }
 
     function loadXiMasteryMap() {
@@ -11641,6 +11978,15 @@
       const k = xiMasteryKey(ch, idx);
       const e = map[k];
       return !!(e && e.rightStreak >= 1 && e.lastOk);
+    }
+
+    function isXiChapterCleared(map, ch) {
+      const qs = xiBaseQuestionsForChapter(ch);
+      if (!qs.length) return false;
+      for (let i = 0; i < qs.length; i++) {
+        if (!isXiMastered(map, ch, i)) return false;
+      }
+      return true;
     }
 
     function recomputeXiChapterMasteryBadges(existingMap) {
@@ -11714,170 +12060,36 @@
     const XI_MCQ_CAP = 40;
     const xiChapterSlots = {};
 
-    function xiScoreMcq(q) {
-      const t = String((q && q.text) || "");
-      if (/\[2025/.test(t)) return 300;
-      if (/\[2024/.test(t)) return 200;
-      if (/\[2023/.test(t)) return 100;
-      if (/样卷/.test(t)) return 50;
-      return 10;
-    }
-
-    function xiMcqAnsLabel(q) {
-      const opts = (q && q.options) || [];
-      const i = "ABCD".indexOf(q && q.correct);
-      if (i < 0 || !opts[i]) return "";
-      return String(opts[i].label || "").replace(/\s+/g, "");
-    }
-
-    function xiExplainBigrams(s) {
-      s = String(s || "").replace(/\s+/g, "");
-      const set = new Set();
-      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
-      return set;
-    }
-
-    function xiExplainJaccard(a, b) {
-      const A = xiExplainBigrams(a);
-      const B = xiExplainBigrams(b);
-      if (!A.size || !B.size) return 0;
-      let inter = 0;
-      A.forEach((x) => {
-        if (B.has(x)) inter += 1;
-      });
-      return inter / (A.size + B.size - inter);
-    }
-
-    function xiTagBaseIdx(q, baseIdx) {
-      return Object.assign({}, q, { _baseIdx: baseIdx });
-    }
-
-    function xiStemBigrams(s) {
-      s = String(s || "")
-        .replace(/\[[^\]]*\]/g, "")
-        .replace(/[0-9．.\s（）()____]/g, "");
-      const set = new Set();
-      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
-      return set;
-    }
-
-    function xiStemJaccard(a, b) {
-      const A = xiStemBigrams(a);
-      const B = xiStemBigrams(b);
-      if (!A.size || !B.size) return 0;
-      let inter = 0;
-      A.forEach((x) => {
-        if (B.has(x)) inter += 1;
-      });
-      return inter / (A.size + B.size - inter);
-    }
-
     function buildXiChapterSlots(ch) {
-      const raw = xiBaseQuestionsForChapter(ch) || [];
-      const byText = new Map();
-      raw.forEach((q, baseIdx) => {
-        const t = String(q.text || "");
-        const tagged = xiTagBaseIdx(q, baseIdx);
-        const prev = byText.get(t);
-        if (!prev || xiScoreMcq(tagged) > xiScoreMcq(prev)) byText.set(t, tagged);
+      return buildQuizAskSlots(xiBaseQuestionsForChapter(ch) || [], {
+        preferYear: true,
+        cap: XI_MCQ_CAP,
       });
-      const uniq = Array.from(byText.values());
-      const n = uniq.length;
-      const parent = Array.from({ length: n }, (_, i) => i);
-      const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
-      const unite = (a, b) => {
-        const ra = find(a);
-        const rb = find(b);
-        if (ra !== rb) parent[rb] = ra;
-      };
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          const qi = uniq[i];
-          const qj = uniq[j];
-          const explainSim = xiExplainJaccard(qi.explain, qj.explain);
-          const stemSim = xiStemJaccard(qi.text, qj.text);
-          const sameAns = xiMcqAnsLabel(qi) && xiMcqAnsLabel(qi) === xiMcqAnsLabel(qj);
-          const yearCross =
-            (xiScoreMcq(qi) >= 100) !== (xiScoreMcq(qj) >= 100);
-          // 解析极像；或同答案且题干很像；或近年真题↔自测同答案换问法
-          if (
-            explainSim >= 0.55 ||
-            (sameAns && stemSim >= 0.38) ||
-            (sameAns && yearCross && stemSim >= 0.22)
-          ) {
-            unite(i, j);
-          }
-        }
-      }
-      const groups = new Map();
-      for (let i = 0; i < n; i++) {
-        const r = find(i);
-        if (!groups.has(r)) groups.set(r, []);
-        groups.get(r).push(uniq[i]);
-      }
-      let slots = Array.from(groups.values()).map((variants) => {
-        const sorted = variants.slice().sort((a, b) => xiScoreMcq(b) - xiScoreMcq(a));
-        return { variants: sorted, pick: 0 };
-      });
-      slots.sort((a, b) => xiScoreMcq(b.variants[0]) - xiScoreMcq(a.variants[0]));
-      if (slots.length > XI_MCQ_CAP) slots = slots.slice(0, XI_MCQ_CAP);
-      return slots;
     }
 
     function ensureXiChapterSlots(ch) {
-      if (ch === WRONG_REVIEW_XI_CHAPTER) return null;
+      if (ch === WRONG_REVIEW_XI_CHAPTER || ch === WRONG_KEEP_XI_CHAPTER) return null;
       if (!xiChapterSlots[ch]) xiChapterSlots[ch] = buildXiChapterSlots(ch);
       return xiChapterSlots[ch];
     }
 
     function xiActiveFromSlot(slot) {
-      const vs = slot.variants;
-      return vs[((slot.pick % vs.length) + vs.length) % vs.length];
-    }
-
-    function xiRotateOptionsClone(q) {
-      const opts = ((q && q.options) || []).slice();
-      if (opts.length !== 4) return null;
-      const newOpts = [opts[1], opts[2], opts[3], opts[0]].map((o, i) => ({
-        key: "ABCD"[i],
-        label: o.label,
-      }));
-      const oldIdx = "ABCD".indexOf(q.correct);
-      if (oldIdx < 0) return null;
-      const newCorrect = "ABCD"[(oldIdx + 3) % 4];
-      return Object.assign({}, q, { options: newOpts, correct: newCorrect });
+      return quizAskActiveFromSlot(slot);
     }
 
     function refreshXiChapterAsks(ch) {
-      const slots = ensureXiChapterSlots(ch);
-      if (!slots || !slots.length) return false;
-      let moved = false;
-      for (const slot of slots) {
-        if (slot.variants.length > 1) {
-          slot.pick = (slot.pick + 1) % slot.variants.length;
-          moved = true;
-        } else {
-          const rotated = xiRotateOptionsClone(slot.variants[0]);
-          if (rotated) {
-            slot.variants[0] = rotated;
-            moved = true;
-          }
-        }
-      }
-      return moved;
+      return refreshQuizAskSlots(ensureXiChapterSlots(ch));
     }
 
     function xiQuestionsForChapter(ch) {
-      if (ch === WRONG_REVIEW_XI_CHAPTER) return buildXiWrongReviewQuestions();
+      if (isXiWrongReviewCh(ch)) return buildXiWrongQuestionsForCh(ch);
       const slots = ensureXiChapterSlots(ch);
       return slots.map(xiActiveFromSlot);
     }
 
     function xiBaseIdxFromDisplay(ch, displayOrigIdx) {
       const qs = xiQuestionsForChapter(ch);
-      const q = qs[displayOrigIdx];
-      if (q && typeof q._baseIdx === "number") return q._baseIdx;
-      return displayOrigIdx;
+      return quizAskBaseIdx(qs[displayOrigIdx], displayOrigIdx);
     }
 
     const xiDisplayOrder = {};
@@ -11907,25 +12119,30 @@
       if (ch < 1 || ch > 18) return;
       const qs = xiBaseQuestionsForChapter(ch);
       if (origIdx < 0 || origIdx >= qs.length) return;
-      const entries = getXiWrongEntries();
+      const entries = getXiWrongReviewEntries();
       const exist = entries.find((e) => e.ch === ch && e.i === origIdx);
       if (exist) {
         exist.streak = 0;
-        saveXiWrongEntries(entries);
-        return;
+        saveXiWrongReviewEntries(entries);
+      } else {
+        entries.push({ ch, i: origIdx, streak: 0 });
+        saveXiWrongReviewEntries(entries);
       }
-      entries.push({ ch, i: origIdx, streak: 0 });
-      saveXiWrongEntries(entries);
+      const keep = getXiWrongKeepEntries();
+      if (!keep.some((e) => e.ch === ch && e.i === origIdx)) {
+        keep.push({ ch, i: origIdx });
+        saveXiWrongKeepEntries(keep);
+      }
       updateXiWrongReviewButtonBadge();
     }
 
     function bumpXiWrongStreak(src, ok) {
       if (!src) return 0;
-      const entries = getXiWrongEntries();
+      const entries = getXiWrongReviewEntries();
       const e = entries.find((x) => x.ch === src.ch && x.i === src.i);
       if (!e) return 0;
       e.streak = ok ? (e.streak || 0) + 1 : 0;
-      saveXiWrongEntries(entries);
+      saveXiWrongReviewEntries(entries);
       return e.streak;
     }
 
@@ -11948,48 +12165,58 @@
       renderXiQuiz();
     }
 
-    function getXiWrongSourceAtDisplayIndex(displayIdx) {
-      const entries = getXiWrongEntries();
+    function getXiWrongSourceAtDisplayIndex(displayIdx, listCh) {
+      const ch = listCh != null ? listCh : xiQuizChapter;
+      const entries = getXiWrongEntriesForCh(ch);
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return null;
-      const order = getXiDisplayOrder(WRONG_REVIEW_XI_CHAPTER);
+      const order = getXiDisplayOrder(ch);
       const canonIdx = order[displayIdx];
       if (canonIdx < 0 || canonIdx >= n) return null;
       return entries[canonIdx] || null;
     }
 
-    function removeXiWrongBySource(src) {
+    function removeXiWrongBySource(src, listCh, opts) {
       if (!src) return;
-      const entries = getXiWrongEntries();
+      const ch = listCh != null ? listCh : xiQuizChapter;
+      const entries = getXiWrongEntriesForCh(ch);
       const canonIdx = entries.findIndex((e) => e.ch === src.ch && e.i === src.i);
       if (canonIdx < 0) return;
-      const order = getXiDisplayOrder(WRONG_REVIEW_XI_CHAPTER);
+      const order = getXiDisplayOrder(ch);
       const displayIdx = order.indexOf(canonIdx);
-      removeXiWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0);
+      removeXiWrongReviewAtDisplayIndex(displayIdx >= 0 ? displayIdx : 0, ch, opts);
     }
 
-    function removeXiWrongReviewAtDisplayIndex(displayIdx) {
-      const entries = getXiWrongEntries();
+    function removeXiWrongReviewAtDisplayIndex(displayIdx, listCh, opts) {
+      const ch = listCh != null ? listCh : xiQuizChapter;
+      if (!isXiWrongReviewCh(ch)) return;
+      const entries = getXiWrongEntriesForCh(ch);
       const n = entries.length;
       if (n === 0 || displayIdx < 0 || displayIdx >= n) return;
-      const order = getXiDisplayOrder(WRONG_REVIEW_XI_CHAPTER);
+      const order = getXiDisplayOrder(ch);
       const canonIdx = order[displayIdx];
       if (canonIdx < 0 || canonIdx >= n) return;
       entries.splice(canonIdx, 1);
-      saveXiWrongEntries(entries);
-      const key = String(WRONG_REVIEW_XI_CHAPTER);
+      saveXiWrongEntriesForCh(ch, entries);
+      const key = String(ch);
       const oldRes = xiChapterResults[key] || [];
       const nextRes = oldRes.slice();
       if (displayIdx >= 0 && displayIdx < nextRes.length) nextRes.splice(displayIdx, 1);
       xiChapterResults[key] = nextRes;
       const nextOrder = orderAfterRemovingDisplay(order, displayIdx);
-      if (nextOrder) xiDisplayOrder[WRONG_REVIEW_XI_CHAPTER] = nextOrder;
-      else delete xiDisplayOrder[WRONG_REVIEW_XI_CHAPTER];
+      if (nextOrder) xiDisplayOrder[ch] = nextOrder;
+      else delete xiDisplayOrder[ch];
       persistXiProgress();
       updateXiWrongReviewButtonBadge();
-      if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
+      if (xiQuizChapter !== ch) return;
       if (entries.length === 0) {
         closeXiViews();
+        return;
+      }
+      if (opts && opts.stay) {
+        xiQuizIndex = Math.min(displayIdx, entries.length - 1);
+        rememberXiIndex();
+        recomputeXiStats();
         return;
       }
       xiQuizIndex = Math.min(displayIdx, entries.length - 1);
@@ -11999,10 +12226,16 @@
     }
 
     function updateXiWrongReviewButtonBadge() {
-      const btn = document.getElementById("btn-xi-wrong-review");
-      if (!btn) return;
-      const n = getXiWrongEntries().length;
-      btn.textContent = n > 0 ? "错题回顾（" + n + "）" : "错题回顾";
+      const drillBtn = document.getElementById("btn-xi-wrong-review");
+      if (drillBtn) {
+        const n = getXiWrongReviewEntries().length;
+        drillBtn.textContent = n > 0 ? "错题练（" + n + "）" : "错题练";
+      }
+      const keepBtn = document.getElementById("btn-xi-wrong-keep");
+      if (keepBtn) {
+        const n = getXiWrongKeepEntries().length;
+        keepBtn.textContent = n > 0 ? "错题本（" + n + "）" : "错题本";
+      }
     }
 
     let xiChapterResults = {};
@@ -12029,6 +12262,7 @@
         const chapters = [];
         for (let ch = 1; ch <= 18; ch++) chapters.push(ch);
         chapters.push(WRONG_REVIEW_XI_CHAPTER);
+        chapters.push(WRONG_KEEP_XI_CHAPTER);
         for (let i = 0; i < chapters.length; i++) {
           const ch = chapters[i];
           if (typeof xiChapterLastIndex[ch] === "number") last[ch] = xiChapterLastIndex[ch];
@@ -12049,10 +12283,7 @@
     }
 
     function rememberXiIndex() {
-      if (
-        (xiQuizChapter >= 1 && xiQuizChapter <= 18) ||
-        xiQuizChapter === WRONG_REVIEW_XI_CHAPTER
-      ) {
+      if ((xiQuizChapter >= 1 && xiQuizChapter <= 18) || isXiWrongReviewCh(xiQuizChapter)) {
         xiChapterLastIndex[xiQuizChapter] = xiQuizIndex;
         persistXiProgress();
       }
@@ -12090,6 +12321,7 @@
         const chapters = [];
         for (let ch = 1; ch <= 18; ch++) chapters.push(ch);
         chapters.push(WRONG_REVIEW_XI_CHAPTER);
+        chapters.push(WRONG_KEEP_XI_CHAPTER);
         for (let i = 0; i < chapters.length; i++) {
           const ch = chapters[i];
           const ix = last[ch] != null ? last[ch] : last[String(ch)];
@@ -12225,11 +12457,10 @@
       xiQuizOrderTools.hidden = false;
       btnXiTimelineOrder.disabled = isXiTimelineOrder(ch);
       if (btnXiRefreshAsk) {
-        btnXiRefreshAsk.disabled = ch === WRONG_REVIEW_XI_CHAPTER;
-        btnXiRefreshAsk.title =
-          ch === WRONG_REVIEW_XI_CHAPTER
-            ? "错题本不支持刷新问法"
-            : "同考点换一种问法（如年份↔事件）；无变体时会轮换选项顺序";
+        btnXiRefreshAsk.disabled = isXiWrongReviewCh(ch);
+        btnXiRefreshAsk.title = isXiWrongReviewCh(ch)
+          ? "错题练/错题本不支持刷新问法"
+          : "同考点换一种问法（如年份↔事件）；无变体时会轮换选项顺序";
       }
     }
 
@@ -12288,7 +12519,7 @@
       const fold = document.getElementById("xi-chapter-notes-fold");
       const body = document.getElementById("xi-chapter-notes-body");
       if (!fold || !body) return;
-      if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+      if (isXiWrongReviewCh(xiQuizChapter)) {
         fold.hidden = true;
         return;
       }
@@ -12311,7 +12542,7 @@
       const saved = res[xiQuizIndex];
       const last = xiQuizIndex >= qs.length - 1;
       let canContinue = false;
-      if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) canContinue = false;
+      if (isXiWrongReviewCh(xiQuizChapter)) canContinue = false;
       else if (xiQuizChapter >= 18) canContinue = false;
       else canContinue = xiQuestionsForChapter(xiQuizChapter + 1).length > 0;
       xqContinueWrap.hidden = !(saved && last && canContinue);
@@ -12397,7 +12628,7 @@
 
     function setXiQuizMode(mode) {
       if (mode !== "mcq" && mode !== "short") return;
-      if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) mode = "mcq";
+      if (isXiWrongReviewCh(xiQuizChapter)) mode = "mcq";
       if (mode === "short") {
         const qs = shortXiQuestionsForChapter(xiQuizChapter);
         if (!qs.length) mode = "mcq";
@@ -12427,8 +12658,8 @@
       const res = xiCurrentResults();
       const typeLabel = document.getElementById("xq-quiz-type");
       if (typeLabel) {
-        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
-          typeLabel.textContent = "错题回顾 · 单项选择题";
+        if (isXiWrongReviewCh(xiQuizChapter)) {
+          typeLabel.textContent = xiWrongReviewTitle(xiQuizChapter) + " · 单项选择题";
         } else {
           typeLabel.textContent = XI_QUIZ_TYPE_LABELS[xiQuizChapter] || "单项选择题";
         }
@@ -12438,16 +12669,19 @@
         if (xiQuizOrderTools) xiQuizOrderTools.hidden = true;
         if (xqContinueWrap) xqContinueWrap.hidden = true;
         if (xqQuestionText) {
-          xqQuestionText.textContent =
-            xiQuizChapter === WRONG_REVIEW_XI_CHAPTER
-              ? "暂无错题。在各章练习中答错的题目会自动收录到「错题回顾」。"
-              : "本章暂无题目。";
+          xqQuestionText.textContent = isXiWrongReviewCh(xiQuizChapter)
+            ? xiQuizChapter === WRONG_REVIEW_XI_CHAPTER
+              ? "暂无待练错题。各章或错题本答错会进「错题练」，连对 2 次自动移出，再答错会加回。"
+              : "错题本是空的。各章答错会永久记在这里，点「移除本题」才拿掉。"
+            : "本章暂无题目。";
         }
         if (xqOptionsEl) xqOptionsEl.innerHTML = "";
         if (xqSubmitWrap) xqSubmitWrap.classList.add("is-hidden");
         if (xiQuizViewEl) xiQuizViewEl.classList.remove("is-submitted");
         const xiNotesFoldEmpty = document.getElementById("xi-chapter-notes-fold");
         if (xiNotesFoldEmpty) xiNotesFoldEmpty.hidden = true;
+        const removeEmpty = document.getElementById("xq-remove-wrong");
+        if (removeEmpty) removeEmpty.hidden = true;
         return;
       }
 
@@ -12456,7 +12690,7 @@
       if (xqFeedback) xqFeedback.style.display = "";
       const q = getXiQuestionAtDisplayIndex(xiQuizChapter, xiQuizIndex);
       if (!q) return;
-      const saved = xiQuizChapter === WRONG_REVIEW_XI_CHAPTER ? null : res[xiQuizIndex];
+      const saved = isXiWrongReviewCh(xiQuizChapter) ? null : res[xiQuizIndex];
 
       xqQuestionText.textContent = xqFormatQuestionLine(xiQuizIndex, q.text);
       xqOptionsEl.innerHTML = "";
@@ -12485,7 +12719,9 @@
         if (saved && saved.picked === opt.key) input.checked = true;
         if (saved) input.disabled = true;
         input.addEventListener("change", () => {
-          if (!xiCurrentResults()[xiQuizIndex]) xqSubmit.disabled = false;
+          if (isXiWrongReviewCh(xiQuizChapter) || !xiCurrentResults()[xiQuizIndex]) {
+            xqSubmit.disabled = false;
+          }
         });
         const ui = document.createElement("span");
         ui.className = "radio-ui";
@@ -12502,12 +12738,20 @@
       if (saved) {
         xqNext.disabled = xiQuizIndex >= qs.length - 1;
         xqNext.title = xiQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
+      } else if (isXiWrongReviewCh(xiQuizChapter)) {
+        xqNext.disabled = true;
+        xqNext.title = "请先提交本题答案";
       } else {
         xqNext.disabled = true;
         xqNext.title = "请先提交本题答案";
       }
       updateXiOrderButtons();
       updateXiContinueChapterVisibility();
+      const removeBtn = document.getElementById("xq-remove-wrong");
+      if (removeBtn) {
+        removeBtn.hidden = xiQuizChapter !== WRONG_KEEP_XI_CHAPTER;
+      }
+      refreshXiComboChip(false);
     }
 
     function openXiChapterStub(row) {
@@ -12523,7 +12767,7 @@
     function openXiQuiz(ch, opts) {
       const choice = opts && opts.choice;
       if (!xiChapterListEl || !xiQuizViewEl) return;
-      if (ch === WRONG_REVIEW_XI_CHAPTER) xiQuizMode = "mcq";
+      if (isXiWrongReviewCh(ch)) xiQuizMode = "mcq";
 
       if (!choice && hasUnfinishedXiChapterProgress(ch)) {
         pendingResumeXiChapter = ch;
@@ -12628,6 +12872,22 @@
     if (btnXiWrongReview) {
       btnXiWrongReview.addEventListener("click", () => openXiQuiz(WRONG_REVIEW_XI_CHAPTER));
     }
+    const btnXiWrongKeep = document.getElementById("btn-xi-wrong-keep");
+    if (btnXiWrongKeep) {
+      btnXiWrongKeep.addEventListener("click", () => openXiQuiz(WRONG_KEEP_XI_CHAPTER));
+    }
+    const btnXiRemoveWrong = document.getElementById("xq-remove-wrong");
+    if (btnXiRemoveWrong) {
+      btnXiRemoveWrong.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (xiQuizChapter !== WRONG_KEEP_XI_CHAPTER) return;
+        const src = getXiWrongSourceAtDisplayIndex(xiQuizIndex, WRONG_KEEP_XI_CHAPTER);
+        if (!src) return;
+        if (!window.confirm("从错题本移除这道题？错题练里的同一题不受影响。")) return;
+        removeXiWrongBySource(src, WRONG_KEEP_XI_CHAPTER);
+      });
+    }
 
     if (xqSubmit) {
       xqSubmit.addEventListener("click", () => {
@@ -12636,15 +12896,23 @@
         const res = xiCurrentResults();
         const picked = xqOptionsEl.querySelector('input[type="radio"]:checked');
         if (!picked || !q) return;
-        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+        if (isXiWrongReviewCh(xiQuizChapter)) {
           if (xiQuizViewEl && xiQuizViewEl.classList.contains("is-submitted")) return;
         } else if (res[xiQuizIndex]) return;
         const ok = picked.value === q.correct;
 
-        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+        if (isXiWrongReviewCh(xiQuizChapter)) {
           const src = getXiWrongSourceAtDisplayIndex(xiQuizIndex);
-          if (src) updateXiMasteryForQuestion(src.ch, src.i, ok);
-          const streak = bumpXiWrongStreak(src, ok);
+          const isKeep = xiQuizChapter === WRONG_KEEP_XI_CHAPTER;
+          let clearedChapter = false;
+          if (src) {
+            const mapBefore = loadXiMasteryMap();
+            const beforeClear = isXiChapterCleared(mapBefore, src.ch);
+            updateXiMasteryForQuestion(src.ch, src.i, ok);
+            clearedChapter = !beforeClear && isXiChapterCleared(loadXiMasteryMap(), src.ch);
+          }
+          const streak = isKeep ? 0 : bumpXiWrongStreak(src, ok);
+          bumpXiCombo(ok);
           res[xiQuizIndex] = { picked: picked.value, ok };
           persistXiProgress();
           recomputeXiStats();
@@ -12653,23 +12921,31 @@
             inp.disabled = true;
           });
           xqSubmitWrap.classList.add("is-hidden");
-          const extra = ok
-            ? streak >= 2
-              ? " 连对 2 次，已移出。"
-              : " 再对 1 次才移出。"
-            : " 需重新连对 2 次。";
+          if (src && !ok) {
+            addXiWrongQuestion(src.ch, src.i);
+          }
+          const extra = isKeep
+            ? ok
+              ? " 错题本不自动移出，要点「移除本题」。"
+              : " 已加回「错题练」。错题本不自动移出，要点「移除本题」。"
+            : ok
+              ? streak >= XI_WRONG_CLEAR_STREAK
+                ? " 连对 2 次，点下一题后移出。"
+                : " 再对 1 次才移出。"
+              : " 已留在「错题练」，需重新连对 2 次。";
           applyXiFeedback(q, ok, extra);
           xqPrev.disabled = xiQuizIndex === 0;
-          xqNext.disabled = qs.length <= 1;
-          xqNext.title = qs.length <= 1 ? "已是最后一题" : "下一题";
+          xqNext.disabled = false;
+          xqNext.title = qs.length <= 1 ? "返回目录" : "下一题";
           updateXiContinueChapterVisibility();
-          if (ok && src && streak >= 2) {
-            const srcRemove = { ch: src.ch, i: src.i };
-            persistXiProgress();
-            setTimeout(() => {
-              if (xiQuizChapter !== WRONG_REVIEW_XI_CHAPTER) return;
-              removeXiWrongBySource(srcRemove);
-            }, 480);
+          if (clearedChapter && src) {
+            celebrateXi();
+          } else if (!isKeep && ok && src && streak >= XI_WRONG_CLEAR_STREAK) {
+            celebrateXi();
+          }
+          if (!isKeep && ok && src && streak >= XI_WRONG_CLEAR_STREAK) {
+            removeXiWrongBySource({ ch: src.ch, i: src.i }, WRONG_REVIEW_XI_CHAPTER, { stay: true });
+            xiWrongStayAfterRemove = true;
           }
           return;
         }
@@ -12678,9 +12954,14 @@
         const order = getXiDisplayOrder(xiQuizChapter);
         const displayOrigIdx = order[xiQuizIndex];
         const origIdx = xiBaseIdxFromDisplay(xiQuizChapter, displayOrigIdx);
+        const mapBefore = loadXiMasteryMap();
+        const beforeClear = isXiChapterCleared(mapBefore, xiQuizChapter);
         updateXiMasteryForQuestion(xiQuizChapter, origIdx, ok);
+        bumpXiCombo(ok);
         if (!ok) {
           addXiWrongQuestion(xiQuizChapter, origIdx);
+        } else if (!beforeClear && isXiChapterCleared(loadXiMasteryMap(), xiQuizChapter)) {
+          celebrateXi();
         }
         persistXiProgress();
         rememberXiIndex();
@@ -12711,10 +12992,23 @@
           return;
         }
         const qs = xiQuestionsForChapter(xiQuizChapter);
-        if (xiQuizChapter === WRONG_REVIEW_XI_CHAPTER && qs.length > 1) {
+        if (xiWrongStayAfterRemove && xiQuizChapter === WRONG_REVIEW_XI_CHAPTER) {
+          xiWrongStayAfterRemove = false;
+          if (qs.length <= 0) {
+            closeXiViews();
+            return;
+          }
+          advanceXiWrongReviewKeep();
+          return;
+        }
+        if (isXiWrongReviewCh(xiQuizChapter) && qs.length > 1) {
           xiQuizIndex = (xiQuizIndex + 1) % qs.length;
           rememberXiIndex();
           renderXiQuiz();
+          return;
+        }
+        if (isXiWrongReviewCh(xiQuizChapter) && qs.length <= 1) {
+          closeXiViews();
           return;
         }
         if (xiQuizIndex < qs.length - 1) {
@@ -17974,7 +18268,7 @@
     }
 
     function isHistoryChapterCleared(map, ch) {
-      const qs = questionsForChapter(ch);
+      const qs = historyBaseQuestionsForChapter(ch);
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
         if (!isMastered(map, ch, i)) return false;
@@ -17991,7 +18285,7 @@
         if (e.ch < 1 || e.ch > 10) continue;
         const k = e.ch + "-" + e.i;
         if (seen.has(k)) continue;
-        const qs = questionsForChapter(e.ch);
+        const qs = historyBaseQuestionsForChapter(e.ch);
         if (e.i < 0 || e.i >= qs.length) continue;
         seen.add(k);
         out.push({
@@ -18044,7 +18338,7 @@
 
     function buildWrongQuestionsForCh(ch) {
       return getWrongEntriesForCh(ch)
-        .map((e) => questionsForChapter(e.ch)[e.i])
+        .map((e) => historyBaseQuestionsForChapter(e.ch)[e.i])
         .filter(Boolean);
     }
 
@@ -18185,7 +18479,7 @@
     function recomputeChapterMasteryBadges(existingMap) {
       const map = existingMap || loadMasteryMap();
       for (let ch = 1; ch <= 10; ch++) {
-        const qs = questionsForChapter(ch);
+        const qs = historyBaseQuestionsForChapter(ch);
         if (!qs.length) continue;
         let masteredCount = 0;
         let triedCount = 0;
@@ -18253,7 +18547,7 @@
       }
     }
 
-    function questionsForChapter(ch) {
+    function historyBaseQuestionsForChapter(ch) {
       if (ch === 1) return CH1_QUESTIONS;
       if (ch === 2) return CH2_QUESTIONS;
       if (ch === 3) return CH3_QUESTIONS;
@@ -18264,13 +18558,35 @@
       if (ch === 8) return CH8_QUESTIONS;
       if (ch === 9) return CH9_QUESTIONS;
       if (ch === 10) return CH10_QUESTIONS;
+      return [];
+    }
+
+    const historyChapterSlots = {};
+
+    function ensureHistoryChapterSlots(ch) {
+      if (isHistoryWrongReviewCh(ch)) return null;
+      if (!historyChapterSlots[ch]) {
+        historyChapterSlots[ch] = buildQuizAskSlots(historyBaseQuestionsForChapter(ch) || [], {
+          preferYear: false,
+        });
+      }
+      return historyChapterSlots[ch];
+    }
+
+    function refreshHistoryChapterAsks(ch) {
+      return refreshQuizAskSlots(ensureHistoryChapterSlots(ch));
+    }
+
+    function questionsForChapter(ch) {
       if (isHistoryWrongReviewCh(ch)) return buildWrongQuestionsForCh(ch);
-      return CH10_QUESTIONS;
+      if (ch < 1 || ch > 10) return [];
+      const slots = ensureHistoryChapterSlots(ch);
+      return slots.map(quizAskActiveFromSlot);
     }
 
     function addWrongQuestion(ch, origIdx) {
       if (ch < 1 || ch > 10) return;
-      const qs = questionsForChapter(ch);
+      const qs = historyBaseQuestionsForChapter(ch);
       if (origIdx < 0 || origIdx >= qs.length) return;
       const entries = getWrongReviewEntries();
       const exist = entries.find((e) => e.ch === ch && e.i === origIdx);
@@ -18418,6 +18734,7 @@
     const quizOrderTools = document.getElementById("quiz-order-tools");
     const btnShuffleOrder = document.getElementById("btn-shuffle-order");
     const btnTimelineOrder = document.getElementById("btn-timeline-order");
+    const btnHistoryRefreshAsk = document.getElementById("btn-history-refresh-ask");
     const historyModeTabs = document.getElementById("history-quiz-mode-tabs");
     const historyModeMcqBtn = document.getElementById("history-mode-mcq");
     const historyModeShortBtn = document.getElementById("history-mode-short");
@@ -18754,6 +19071,12 @@
       }
       quizOrderTools.hidden = false;
       btnTimelineOrder.disabled = isTimelineOrder(ch);
+      if (btnHistoryRefreshAsk) {
+        btnHistoryRefreshAsk.disabled = isHistoryWrongReviewCh(ch);
+        btnHistoryRefreshAsk.title = isHistoryWrongReviewCh(ch)
+          ? "错题练/错题本不支持刷新问法"
+          : "同考点换一种问法（如年份↔事件）；无变体时会轮换选项顺序";
+      }
     }
 
     function ensureHistoryResults(ch) {
@@ -19514,8 +19837,10 @@
     recomputeChapterMasteryBadges();
     updateMarxWrongReviewButtonBadge();
     recomputeMarxChapterMasteryBadges();
+    seedXiWrongKeepFromDrillOnce();
     updateXiWrongReviewButtonBadge();
     recomputeXiChapterMasteryBadges();
+    refreshXiComboChip(false);
 
     ch1Submit.addEventListener("click", () => {
       const qs = getHistoryQuestions();
@@ -19587,7 +19912,8 @@
       res[historyQuizIndex] = { picked: picked.value, ok };
       if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
         const order = getDisplayOrder(historyQuizChapter);
-        const origIdx = order[historyQuizIndex];
+        const displayOrigIdx = order[historyQuizIndex];
+        const origIdx = quizAskBaseIdx(q, displayOrigIdx);
         const mapBefore = loadMasteryMap();
         const beforeClear = isHistoryChapterCleared(mapBefore, historyQuizChapter);
         updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
@@ -19787,6 +20113,26 @@
       renderHistoryQuiz();
     });
 
+    if (btnHistoryRefreshAsk) {
+      btnHistoryRefreshAsk.addEventListener("click", () => {
+        const ch = historyQuizChapter;
+        if (isHistoryWrongReviewCh(ch)) return;
+        if (!refreshHistoryChapterAsks(ch)) return;
+        const qs = questionsForChapter(ch);
+        const n = qs.length;
+        historyChapterResults[ch] = Array.from({ length: n }, () => null);
+        delete historyDisplayOrder[ch];
+        delete historyShuffleDeck[ch];
+        historyQuizIndex = 0;
+        historyChapterLastIndex[ch] = 0;
+        ch1QuizEl.classList.remove("is-submitted");
+        persistHistoryProgress();
+        recomputeHistoryStats();
+        updateOrderButtons();
+        renderHistoryQuiz();
+      });
+    }
+
     if (btnMarxShuffleOrder) {
       btnMarxShuffleOrder.addEventListener("click", () => {
         const ch = marxQuizChapter;
@@ -19821,6 +20167,25 @@
         if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
         persistMarxProgress();
         recomputeMarxStats();
+        renderMarxQuiz();
+      });
+    }
+    if (btnMarxRefreshAsk) {
+      btnMarxRefreshAsk.addEventListener("click", () => {
+        const ch = marxQuizChapter;
+        if (ch === WRONG_REVIEW_MARX_CHAPTER) return;
+        if (!refreshMarxChapterAsks(ch)) return;
+        const qs = marxQuestionsForChapter(ch);
+        const n = qs.length;
+        const key = String(ch);
+        marxChapterResults[key] = Array.from({ length: n }, () => null);
+        delete marxDisplayOrder[ch];
+        marxQuizIndex = 0;
+        marxChapterLastIndex[ch] = 0;
+        if (marxQuizViewEl) marxQuizViewEl.classList.remove("is-submitted");
+        persistMarxProgress();
+        recomputeMarxStats();
+        updateMarxOrderButtons();
         renderMarxQuiz();
       });
     }
@@ -19865,7 +20230,7 @@
     if (btnXiRefreshAsk) {
       btnXiRefreshAsk.addEventListener("click", () => {
         const ch = xiQuizChapter;
-        if (ch === WRONG_REVIEW_XI_CHAPTER) return;
+        if (isXiWrongReviewCh(ch)) return;
         if (!refreshXiChapterAsks(ch)) return;
         const qs = xiQuestionsForChapter(ch);
         const n = qs.length;
