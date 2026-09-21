@@ -11,7 +11,7 @@
     (function () {
       try {
         var t = localStorage.getItem("pansan2-ui-theme-v1") || "default";
-        if (t === "pixel") document.documentElement.setAttribute("data-theme", "pixel");
+        if (t === "pixel" || t === "mist") document.documentElement.setAttribute("data-theme", t);
       } catch (_) {}
     })();
   </script>
@@ -300,6 +300,41 @@
       padding: 24px;
     }
     .chapter-resume-overlay[hidden] {
+      display: none !important;
+    }
+    .wrong-sync-text {
+      width: 100%;
+      min-height: 140px;
+      margin: 0 0 12px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .wrong-sync-file {
+      display: block;
+      margin: 0 0 12px;
+      font-size: 0.88rem;
+    }
+    .wrong-sync-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      z-index: 10001;
+      max-width: min(520px, calc(100% - 32px));
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #1a1a1a;
+      color: #fff;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .wrong-sync-toast[hidden] {
       display: none !important;
     }
     .chapter-resume-dialog {
@@ -1436,6 +1471,31 @@
     }
 
     @media (max-width: 640px), (max-width: 980px) and (pointer: coarse) {
+      .list-card__head {
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow: hidden;
+      }
+      .list-card__head-title {
+        flex: 0 1 42%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .list-card__head-actions {
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+        scrollbar-width: none;
+      }
+      .list-card__head-actions::-webkit-scrollbar {
+        display: none;
+      }
       .list-card__wrong-btn {
         min-height: 40px;
       }
@@ -1723,6 +1783,205 @@
       border: 2px solid var(--px-ink);
       box-shadow: none;
     }
+
+    /* ========== 主题：雾灰护眼 → 实际是暖纸+薄荷（亮、不丧） ========== */
+    html[data-theme="mist"] {
+      --bg: #f7faf4;
+      --sidebar: #eef6ea;
+      --border: #d5e4cf;
+      --text: #243028;
+      --muted: #5a6d60;
+      --accent: #3d9a6a;
+      --accent-soft: #e3f5ea;
+      --radius: 12px;
+      --mist-head: #3f8f68;
+      --mist-head-xi: #c45c5c;
+      --mist-head-marx: #3d8a5c;
+      --mist-ok: #2f8f5b;
+      --mist-bad: #d35448;
+      --mist-warn: #c9922e;
+    }
+    html[data-theme="mist"],
+    html[data-theme="mist"] body {
+      color: var(--text);
+      background-color: #e8f3e2;
+      background-image:
+        radial-gradient(ellipse 65% 40% at 15% 0%, rgba(255, 255, 255, 0.85) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 90% 100%, rgba(120, 200, 150, 0.22) 0%, transparent 55%),
+        linear-gradient(165deg, #eaf6e4 0%, #f3f9ef 45%, #e2f0da 100%);
+      background-attachment: fixed;
+    }
+    html[data-theme="mist"] .sidebar {
+      background: rgba(238, 246, 234, 0.95);
+      border-right-color: var(--border);
+    }
+    html[data-theme="mist"] .tab:hover {
+      background: rgba(61, 154, 106, 0.1);
+    }
+    html[data-theme="mist"] .tab[aria-selected="true"] {
+      background: #f7faf4;
+      border-left-color: var(--accent);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+    html[data-theme="mist"] .list-card,
+    html[data-theme="mist"] .quiz-view,
+    html[data-theme="mist"] .panel {
+      background: rgba(252, 254, 250, 0.97);
+      border-color: var(--border);
+      box-shadow: 0 2px 10px rgba(45, 110, 70, 0.07);
+    }
+    html[data-theme="mist"] .quiz-view {
+      padding: 18px 22px 28px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-sizing: border-box;
+      overflow: hidden;
+      max-width: min(720px, 100%);
+    }
+    html[data-theme="mist"] .quiz-options {
+      margin-left: 0;
+      margin-right: 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    html[data-theme="mist"] .radio-line {
+      position: relative;
+      margin: 0;
+      padding: 2px 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    html[data-theme="mist"] .radio-line .radio-text {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-wrap: anywhere;
+    }
+    html[data-theme="mist"] .quiz-question,
+    html[data-theme="mist"] .quiz-type,
+    html[data-theme="mist"] .quiz-stats {
+      margin-left: 0;
+      margin-right: 0;
+    }
+    html[data-theme="mist"] .xi-chapter-notes-fold,
+    html[data-theme="mist"] .marx-chapter-notes-fold,
+    html[data-theme="mist"] .history-timeline-fold {
+      box-sizing: border-box;
+      max-width: 100%;
+    }
+    html[data-theme="mist"] .btn-submit-wrap,
+    html[data-theme="mist"] .quiz-nav {
+      box-sizing: border-box;
+      max-width: 100%;
+    }
+    html[data-theme="mist"] .list-card__head {
+      background: linear-gradient(135deg, #45a873 0%, #3d9a6a 100%);
+      color: #fff;
+    }
+    html[data-theme="mist"] .list-card--xi .list-card__head {
+      background: linear-gradient(135deg, #d66a6a 0%, #c45c5c 100%);
+    }
+    html[data-theme="mist"] .list-card--marx .list-card__head {
+      background: linear-gradient(135deg, #4aa86e 0%, #3d8a5c 100%);
+    }
+    html[data-theme="mist"] .list-card__wrong-btn {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+    html[data-theme="mist"] .list-card__wrong-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    html[data-theme="mist"] .lecture-row:hover {
+      background: rgba(61, 154, 106, 0.08);
+    }
+    html[data-theme="mist"] .lecture-link {
+      color: #2a6b4a;
+    }
+    html[data-theme="mist"] .chapter-badge--not-started {
+      background: #e8f0e4;
+      color: var(--muted);
+    }
+    html[data-theme="mist"] .chapter-badge--in-progress {
+      background: #d8f0e2;
+      color: #1f6b45;
+    }
+    html[data-theme="mist"] .chapter-badge--cleared {
+      background: #b8e6c8;
+      color: #1a5c38;
+    }
+    html[data-theme="mist"] .quiz-stats .stat-correct { color: var(--mist-ok); }
+    html[data-theme="mist"] .quiz-stats .stat-wrong { color: var(--mist-bad); }
+    html[data-theme="mist"] .quiz-mode-tab.is-active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    html[data-theme="mist"] .history-combo-chip:not(.is-empty):not(.is-break) {
+      background: linear-gradient(135deg, #fff8e1 0%, #ffe0a8 100%);
+      color: #8a5a10;
+      border-color: #f0c060;
+    }
+    html[data-theme="mist"] .history-combo-chip.is-break {
+      background: linear-gradient(135deg, #ffe8e4 0%, #ffc8c0 100%);
+      color: #a03028;
+    }
+    html[data-theme="mist"] .history-timeline-fold,
+    html[data-theme="mist"] .xi-chapter-notes-fold,
+    html[data-theme="mist"] .marx-chapter-notes-fold {
+      background: linear-gradient(165deg, #eaf7e8 0%, #f7faf4 55%, #fff 100%);
+      border-color: var(--border);
+    }
+    html[data-theme="mist"] .radio-line input:checked + .radio-ui {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    html[data-theme="mist"] .quiz-view.is-submitted .radio-line.is-correct .radio-ui,
+    html[data-theme="mist"] .quiz-view.is-submitted .radio-line.is-correct input:checked + .radio-ui {
+      border-color: var(--mist-ok);
+      background: #d4f0de;
+    }
+    html[data-theme="mist"] .quiz-view.is-submitted .radio-line.is-wrong .radio-ui,
+    html[data-theme="mist"] .quiz-view.is-submitted .radio-line.is-wrong input:checked + .radio-ui {
+      border-color: var(--mist-bad);
+      background: #ffe0dc;
+    }
+    html[data-theme="mist"] .btn-submit {
+      background: linear-gradient(180deg, #4db87e 0%, #3d9a6a 100%);
+      box-shadow: 0 3px 10px rgba(61, 154, 106, 0.35);
+    }
+    html[data-theme="mist"] .btn-submit:disabled {
+      background: #b5d4c2;
+      box-shadow: none;
+    }
+    html[data-theme="mist"] .btn-continue-chapter {
+      background: linear-gradient(180deg, #4db87e 0%, #2f8f5b 100%);
+    }
+    html[data-theme="mist"] .quiz-nav button:hover:not(:disabled),
+    html[data-theme="mist"] .quiz-order-buttons button:hover:not(:disabled) {
+      background: var(--accent-soft);
+    }
+    html[data-theme="mist"] #ch1-remove-wrong,
+    html[data-theme="mist"] #xq-remove-wrong {
+      border-color: #e0c070;
+      color: #8a5a10;
+    }
+    html[data-theme="mist"] #ch1-remove-wrong:hover:not(:disabled),
+    html[data-theme="mist"] #xq-remove-wrong:hover:not(:disabled) {
+      background: #fff4d6;
+    }
+    html[data-theme="mist"] .feedback-result.right { color: var(--mist-ok); }
+    html[data-theme="mist"] .feedback-result.wrong { color: var(--mist-bad); }
+    html[data-theme="mist"] .theme-picker-dialog,
+    html[data-theme="mist"] .chapter-resume-dialog {
+      background: #f7faf4;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(40, 90, 60, 0.16);
+    }
+    html[data-theme="mist"] .theme-picker-opt.is-on {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
     .theme-picker-overlay {
       position: fixed;
       inset: 0;
@@ -1831,6 +2090,8 @@
             <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
             <span class="list-card__head-actions">
               <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
+              <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
+              <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
             </span>
@@ -2008,6 +2269,10 @@
                 默认
                 <small>现在这套白底蓝条</small>
               </button>
+              <button type="button" class="theme-picker-opt" data-theme="mist" id="theme-opt-mist">
+                雾灰护眼
+                <small>薄荷绿纸 · 亮一点不刺眼</small>
+              </button>
               <button type="button" class="theme-picker-opt" data-theme="pixel" id="theme-opt-pixel">
                 像素风
                 <small>土黄废土 · 像素菜单</small>
@@ -2028,6 +2293,8 @@
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《习近平新时代中国特色社会主义思想概论》</span>章节列表</span>
               <span class="list-card__head-actions">
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
               </span>
@@ -2189,8 +2456,7 @@
             (function () {
               var el = document.getElementById("xi-chapter-notes-fold");
               if (!el) return;
-              if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
-              else el.removeAttribute("open");
+              el.removeAttribute("open");
             })();
           </script>
           <div class="quiz-order-tools" id="xi-quiz-order-tools" hidden>
@@ -2280,7 +2546,11 @@
           <div class="list-card list-card--marx">
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《马克思主义基本原理》</span>章节列表</span>
-              <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
+              <span class="list-card__head-actions">
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
+                <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
+              </span>
             </h2>
             <div class="list-card__body">
               <ul class="lecture-list" aria-label="马克思主义章节目录">
@@ -2363,8 +2633,7 @@
             (function () {
               var el = document.getElementById("mq-chapter-notes-fold");
               if (!el) return;
-              if (window.matchMedia("(min-width: 641px)").matches) el.setAttribute("open", "");
-              else el.removeAttribute("open");
+              el.removeAttribute("open");
             })();
           </script>
           <div class="quiz-order-tools" id="marx-quiz-order-tools" hidden>
@@ -2433,6 +2702,19 @@
       </section>
     </main>
   </div>
+
+  <div id="wrong-sync-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
+    <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="wrong-sync-title">
+      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。只补这边没有的题，已有的不动。</p>
+      <textarea id="wrong-sync-text" class="wrong-sync-text" placeholder="粘贴导出的 JSON"></textarea>
+      <input id="wrong-sync-file" class="wrong-sync-file" type="file" accept="application/json,.json,.txt">
+      <div class="chapter-resume-actions">
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-cancel">取消</button>
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="wrong-sync-ok">并入错题本</button>
+      </div>
+    </div>
+  </div>
+  <div id="wrong-sync-toast" class="wrong-sync-toast" hidden></div>
 
   <script>
     const tabs = document.querySelectorAll(".tab");
@@ -4923,10 +5205,56 @@
       return !!(e && e.rightStreak >= 1 && e.lastOk);
     }
 
+    const MARX_CLEARED_STORAGE_KEY = "pansan2-marx-chapter-cleared-v1";
+
+    function loadMarxChapterClearedMap() {
+      try {
+        const raw = localStorage.getItem(MARX_CLEARED_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveMarxChapterClearedMap(map) {
+      try {
+        localStorage.setItem(MARX_CLEARED_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function getMarxChapterClearedFlag(ch) {
+      const map = loadMarxChapterClearedMap();
+      return !!(map[ch] || map[String(ch)]);
+    }
+
+    function setMarxChapterClearedFlag(ch) {
+      if (ch < 1 || ch > 8) return;
+      const map = loadMarxChapterClearedMap();
+      if (map[ch] || map[String(ch)]) return;
+      map[ch] = true;
+      saveMarxChapterClearedMap(map);
+    }
+
+    /** 本章练习题全部答对过一遍后点亮；点亮后保持，不再因再答错熄灭 */
+    function isMarxChapterCleared(map, ch) {
+      if (getMarxChapterClearedFlag(ch)) return true;
+      const qs = marxQuestionsForChapter(ch);
+      if (!qs.length) return false;
+      for (let i = 0; i < qs.length; i++) {
+        const bi = quizAskBaseIdx(qs[i], i);
+        if (!isMarxMastered(map, ch, bi)) return false;
+      }
+      setMarxChapterClearedFlag(ch);
+      return true;
+    }
+
     function recomputeMarxChapterMasteryBadges(existingMap) {
       const map = existingMap || loadMarxMasteryMap();
       for (let ch = 1; ch <= 8; ch++) {
-        const qs = marxBaseQuestionsForChapter(ch);
+        const baseQs = marxBaseQuestionsForChapter(ch);
+        const practiceQs = marxQuestionsForChapter(ch);
         const row = document.querySelector('#panel-marx .lecture-row[data-marx-chapter="' + ch + '"]');
         if (!row) continue;
         let badge = row.querySelector(".chapter-badge");
@@ -4936,7 +5264,7 @@
           row.appendChild(badge);
         }
         badge.className = "chapter-badge";
-        if (!qs.length) {
+        if (!baseQs.length) {
           badge.classList.add("chapter-badge--not-started");
           badge.textContent = "未开始";
           let medal = row.querySelector(".chapter-medal");
@@ -4953,13 +5281,15 @@
         }
         let masteredCount = 0;
         let triedCount = 0;
-        for (let i = 0; i < qs.length; i++) {
-          const k = marxMasteryKey(ch, i);
+        const useQs = practiceQs.length ? practiceQs : baseQs;
+        for (let i = 0; i < useQs.length; i++) {
+          const bi = quizAskBaseIdx(useQs[i], i);
+          const k = marxMasteryKey(ch, bi);
           const e = map[k];
           if (e && e.tries > 0) triedCount += 1;
-          if (isMarxMastered(map, ch, i)) masteredCount += 1;
+          if (isMarxMastered(map, ch, bi)) masteredCount += 1;
         }
-        const chapterCleared = masteredCount >= qs.length && qs.length > 0;
+        const chapterCleared = isMarxChapterCleared(map, ch);
         if (chapterCleared) {
           badge.classList.add("chapter-badge--cleared");
           badge.textContent = "已通关";
@@ -4981,12 +5311,11 @@
         if (chapterCleared) {
           medal.classList.add("chapter-medal--earned");
           medal.setAttribute("aria-label", "本章已通关");
-          medal.title = "本章已通关";
+          medal.title = "本章已通关（练习题全对过一遍）";
         } else {
           medal.classList.add("chapter-medal--locked");
           medal.setAttribute("aria-label", "本章尚未通关");
-          medal.title =
-            "本章尚未通关；全部题目答对一次即可点亮。若之后又答错，勋章会重新置灰。";
+          medal.title = "本章尚未通关；练习题全部答对一遍即可点亮，点亮后保持。";
         }
       }
     }
@@ -5382,6 +5711,7 @@
         return;
       }
       fold.hidden = false;
+      fold.removeAttribute("open");
       body.innerHTML = MARX_CHAPTER_NOTES_HTML[marxQuizChapter] || "";
     }
 
@@ -5748,6 +6078,39 @@
         ],
         correct: "C",
         explain: "毛泽东在延安窑洞里给出第一个答案“让人民来监督政府”；习近平总书记指出第二个答案是勇于自我革命。（教材章节/页面：0-3）",
+      },
+      {
+        text: "[202504单选]1．习近平新时代中国特色社会主义思想是当代中国马克思主义、二十一世纪马克思主义，是中华文化和中国精神的时代精华，实现了（）",
+        options: [
+          { key: "A", label: "马克思主义中国化第一次历史性飞跃" },
+          { key: "B", label: "马克思主义中国化时代化新的飞跃" },
+          { key: "C", label: "社会主义从理论到实践的飞跃" },
+          { key: "D", label: "中国特色社会主义从创立到完善的飞跃" },
+        ],
+        correct: "B",
+        explain: "党的十九届六中全会等权威表述：习思想实现了马克思主义中国化时代化新的飞跃。",
+      },
+      {
+        text: "[202410单选]1．党确立习近平同志党中央的核心、全党的核心地位，确立习近平新时代中国特色社会主义思想的指导地位，对新时代党和国家事业发展、对推进中华民族伟大复兴历史进程具有（）",
+        options: [
+          { key: "A", label: "全局性意义" },
+          { key: "B", label: "决定性意义" },
+          { key: "C", label: "基础性意义" },
+          { key: "D", label: "战略性意义" },
+        ],
+        correct: "B",
+        explain: "“两个确立”对新时代党和国家事业发展、推进中华民族伟大复兴历史进程具有决定性意义。",
+      },
+      {
+        text: "[202510单选]1．习近平新时代中国特色社会主义思想的世界观和方法论，集中体现为（）",
+        options: [
+          { key: "A", label: "“十个明确”" },
+          { key: "B", label: "“十四个坚持”" },
+          { key: "C", label: "“十三个方面成就”" },
+          { key: "D", label: "“六个必须坚持”" },
+        ],
+        correct: "D",
+        explain: "“六个必须坚持”是习思想的立场观点方法，是其世界观和方法论的集中体现。",
       },
       {
         text: "[自测单选]186．在习近平新时代中国特色社会主义思想中，明确了坚持和发展中国特色社会主义的总任务是（）",
@@ -6341,6 +6704,17 @@
     ];
     const XI_M3_QUESTIONS = [
       {
+        text: "[202504单选]4．中国式现代化的本质要求中，放在首位的是（）",
+        options: [
+          { key: "A", label: "坚持中国共产党领导" },
+          { key: "B", label: "坚持中国特色社会主义" },
+          { key: "C", label: "实现高质量发展" },
+          { key: "D", label: "发展全过程人民民主" },
+        ],
+        correct: "A",
+        explain: "党的二十大概括中国式现代化本质要求，坚持中国共产党领导居于首位。",
+      },
+      {
         text: "[自测单选]55．中国式现代化举的是中国特色社会主义旗帜，走的是____（）",
         options: [
           { key: "A", label: "中华民族大团结之路" },
@@ -6573,6 +6947,17 @@
       },
     ];
     const XI_M4_QUESTIONS = [
+      {
+        text: "[202410单选]5．____是中国特色社会主义的本质规定（）",
+        options: [
+          { key: "A", label: "人民当家作主" },
+          { key: "B", label: "党的领导" },
+          { key: "C", label: "依法治国" },
+          { key: "D", label: "民主集中制" },
+        ],
+        correct: "B",
+        explain: "党的领导是中国特色社会主义的本质规定，是党和国家的根本所在、命脉所在。",
+      },
       {
         text: "[自测单选]70．____是党的领导的最高原则，是党保持团结统一和强大战斗力的关键所在（）",
         options: [
@@ -7959,6 +8344,17 @@
     ];
     const XI_M9_QUESTIONS = [
       {
+        text: "[202504单选]9．全过程人民民主是社会主义民主政治的（）",
+        options: [
+          { key: "A", label: "基本特征" },
+          { key: "B", label: "本质属性" },
+          { key: "C", label: "实现形式" },
+          { key: "D", label: "制度保障" },
+        ],
+        correct: "B",
+        explain: "党的二十大等权威表述：全过程人民民主是社会主义民主政治的本质属性。",
+      },
+      {
         text: "[自测单选]176．党的领导是统一战线最鲜明的特征，____是统一战线最核心最根本的问题（）",
         options: [
           { key: "A", label: "团结联合" },
@@ -8180,6 +8576,17 @@
       },
     ];
     const XI_M10_QUESTIONS = [
+      {
+        text: "[202410单选]12．全面依法治国的总目标是（）",
+        options: [
+          { key: "A", label: "建设中国特色社会主义法治体系、建设社会主义法治国家" },
+          { key: "B", label: "完善和发展中国特色社会主义制度、推进国家治理体系和治理能力现代化" },
+          { key: "C", label: "坚持党的领导、人民当家作主、依法治国有机统一" },
+          { key: "D", label: "科学立法、严格执法、公正司法、全民守法" },
+        ],
+        correct: "A",
+        explain: "全面依法治国总目标是建设中国特色社会主义法治体系、建设社会主义法治国家；B 是全面深化改革总目标。",
+      },
       {
         text: "[自测单选]15．党内法规体系是以党章为根本，以____为核心，以准则、条例等中央党内法规为主干，以部委党内法规、地方党内法规为重要组成部分（）",
         options: [
@@ -8800,6 +9207,17 @@
       },
     ];
     const XI_M12_QUESTIONS = [
+      {
+        text: "[202504单选]13．在发展中保障和改善民生，必须坚持（）",
+        options: [
+          { key: "A", label: "尽力而为、量力而行" },
+          { key: "B", label: "先增长后分配" },
+          { key: "C", label: "福利最大化" },
+          { key: "D", label: "平均主义" },
+        ],
+        correct: "A",
+        explain: "保障和改善民生既要尽力而为，又要量力而行，把提高保障和改善民生水平建立在经济和财力可持续的基础之上。",
+      },
       {
         text: "[自测单选]57．____是国家治理的基石，城乡社区是社会治理最基本的单元，是党和政府联系、服务居民群众的“最后一公里”（）",
         options: [
@@ -11980,19 +12398,56 @@
       return !!(e && e.rightStreak >= 1 && e.lastOk);
     }
 
+    const XI_CLEARED_STORAGE_KEY = "pansan2-xi-chapter-cleared-v1";
+
+    function loadXiChapterClearedMap() {
+      try {
+        const raw = localStorage.getItem(XI_CLEARED_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveXiChapterClearedMap(map) {
+      try {
+        localStorage.setItem(XI_CLEARED_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function getXiChapterClearedFlag(ch) {
+      const map = loadXiChapterClearedMap();
+      return !!(map[ch] || map[String(ch)]);
+    }
+
+    function setXiChapterClearedFlag(ch) {
+      if (ch < 1 || ch > 18) return;
+      const map = loadXiChapterClearedMap();
+      if (map[ch] || map[String(ch)]) return;
+      map[ch] = true;
+      saveXiChapterClearedMap(map);
+    }
+
+    /** 本章练习题全部答对过一遍后点亮；点亮后保持，不再因再答错熄灭 */
     function isXiChapterCleared(map, ch) {
-      const qs = xiBaseQuestionsForChapter(ch);
+      if (getXiChapterClearedFlag(ch)) return true;
+      const qs = xiQuestionsForChapter(ch);
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
-        if (!isXiMastered(map, ch, i)) return false;
+        const bi = quizAskBaseIdx(qs[i], i);
+        if (!isXiMastered(map, ch, bi)) return false;
       }
+      setXiChapterClearedFlag(ch);
       return true;
     }
 
     function recomputeXiChapterMasteryBadges(existingMap) {
       const map = existingMap || loadXiMasteryMap();
       for (let ch = 1; ch <= 18; ch++) {
-        const qs = xiBaseQuestionsForChapter(ch);
+        const baseQs = xiBaseQuestionsForChapter(ch);
+        const practiceQs = ch >= 1 && ch <= 18 ? xiQuestionsForChapter(ch) : [];
         const row = document.querySelector('#panel-xi .lecture-row[data-xi-chapter="' + ch + '"]');
         if (!row) continue;
         let badge = row.querySelector(".chapter-badge");
@@ -12002,7 +12457,7 @@
           row.appendChild(badge);
         }
         badge.className = "chapter-badge";
-        if (!qs.length) {
+        if (!baseQs.length) {
           badge.classList.add("chapter-badge--not-started");
           badge.textContent = "未开始";
           let medal = row.querySelector(".chapter-medal");
@@ -12019,13 +12474,15 @@
         }
         let masteredCount = 0;
         let triedCount = 0;
-        for (let i = 0; i < qs.length; i++) {
-          const k = xiMasteryKey(ch, i);
+        const useQs = practiceQs.length ? practiceQs : baseQs;
+        for (let i = 0; i < useQs.length; i++) {
+          const bi = quizAskBaseIdx(useQs[i], i);
+          const k = xiMasteryKey(ch, bi);
           const e = map[k];
           if (e && e.tries > 0) triedCount += 1;
-          if (isXiMastered(map, ch, i)) masteredCount += 1;
+          if (isXiMastered(map, ch, bi)) masteredCount += 1;
         }
-        const chapterCleared = masteredCount >= qs.length && qs.length > 0;
+        const chapterCleared = isXiChapterCleared(map, ch);
         if (chapterCleared) {
           badge.classList.add("chapter-badge--cleared");
           badge.textContent = "已通关";
@@ -12047,12 +12504,11 @@
         if (chapterCleared) {
           medal.classList.add("chapter-medal--earned");
           medal.setAttribute("aria-label", "本章已通关");
-          medal.title = "本章已通关";
+          medal.title = "本章已通关（练习题全对过一遍）";
         } else {
           medal.classList.add("chapter-medal--locked");
           medal.setAttribute("aria-label", "本章尚未通关");
-          medal.title =
-            "本章尚未通关；全部题目答对一次即可点亮。若之后又答错，勋章会重新置灰。";
+          medal.title = "本章尚未通关；练习题全部答对一遍即可点亮，点亮后保持。";
         }
       }
     }
@@ -12513,6 +12969,20 @@
       }
       const refBody = ex || mbr;
       xqFeedbackRef.textContent = refBody ? "解析：" + refBody : "";
+      markXiOptionVerdict(q, ok);
+    }
+
+    function markXiOptionVerdict(q, ok) {
+      if (!xqOptionsEl || !q) return;
+      const pickedInput = xqOptionsEl.querySelector('input[type="radio"]:checked');
+      const picked = pickedInput ? pickedInput.value : "";
+      xqOptionsEl.querySelectorAll(".radio-line").forEach((line) => {
+        line.classList.remove("is-correct", "is-wrong");
+        const input = line.querySelector('input[type="radio"]');
+        if (!input) return;
+        if (input.value === q.correct) line.classList.add("is-correct");
+        else if (!ok && picked && input.value === picked) line.classList.add("is-wrong");
+      });
     }
 
     function updateXiChapterNotesPanel() {
@@ -12528,6 +12998,7 @@
         return;
       }
       fold.hidden = false;
+      fold.removeAttribute("open");
       body.innerHTML = XI_CHAPTER_NOTES_HTML[xiQuizChapter] || "";
     }
 
@@ -12699,7 +13170,6 @@
       if (saved) {
         xqSubmitWrap.classList.add("is-hidden");
         xiQuizViewEl.classList.add("is-submitted");
-        applyXiFeedback(q, saved.ok);
       } else {
         xqSubmitWrap.classList.remove("is-hidden");
         xiQuizViewEl.classList.remove("is-submitted");
@@ -12733,6 +13203,7 @@
         label.appendChild(tx);
         xqOptionsEl.appendChild(label);
       });
+      if (saved) applyXiFeedback(q, saved.ok);
 
       xqPrev.disabled = xiQuizIndex === 0;
       if (saved) {
@@ -18268,12 +18739,47 @@
     }
 
     function isHistoryChapterCleared(map, ch) {
-      const qs = historyBaseQuestionsForChapter(ch);
+      if (getHistoryChapterClearedFlag(ch)) return true;
+      const qs = questionsForChapter(ch);
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
-        if (!isMastered(map, ch, i)) return false;
+        const bi = quizAskBaseIdx(qs[i], i);
+        if (!isMastered(map, ch, bi)) return false;
       }
+      setHistoryChapterClearedFlag(ch);
       return true;
+    }
+
+    const HISTORY_CLEARED_STORAGE_KEY = "pansan2-history-chapter-cleared-v1";
+
+    function loadHistoryChapterClearedMap() {
+      try {
+        const raw = localStorage.getItem(HISTORY_CLEARED_STORAGE_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveHistoryChapterClearedMap(map) {
+      try {
+        localStorage.setItem(HISTORY_CLEARED_STORAGE_KEY, JSON.stringify(map));
+      } catch (_) {}
+    }
+
+    function getHistoryChapterClearedFlag(ch) {
+      const map = loadHistoryChapterClearedMap();
+      return !!(map[ch] || map[String(ch)]);
+    }
+
+    function setHistoryChapterClearedFlag(ch) {
+      if (ch < 1 || ch > 10) return;
+      const map = loadHistoryChapterClearedMap();
+      if (map[ch] || map[String(ch)]) return;
+      map[ch] = true;
+      saveHistoryChapterClearedMap(map);
     }
 
     function normalizeWrongEntries(raw) {
@@ -18479,15 +18985,18 @@
     function recomputeChapterMasteryBadges(existingMap) {
       const map = existingMap || loadMasteryMap();
       for (let ch = 1; ch <= 10; ch++) {
-        const qs = historyBaseQuestionsForChapter(ch);
-        if (!qs.length) continue;
+        const baseQs = historyBaseQuestionsForChapter(ch);
+        if (!baseQs.length) continue;
+        const practiceQs = questionsForChapter(ch);
+        const useQs = practiceQs.length ? practiceQs : baseQs;
         let masteredCount = 0;
         let triedCount = 0;
-        for (let i = 0; i < qs.length; i++) {
-          const k = masteryKey(ch, i);
+        for (let i = 0; i < useQs.length; i++) {
+          const bi = quizAskBaseIdx(useQs[i], i);
+          const k = masteryKey(ch, bi);
           const e = map[k];
           if (e && e.tries > 0) triedCount += 1;
-          if (isMastered(map, ch, i)) masteredCount += 1;
+          if (isMastered(map, ch, bi)) masteredCount += 1;
         }
         const row = document.querySelector('.lecture-row[data-chapter="' + ch + '"]');
         if (!row) continue;
@@ -18498,7 +19007,7 @@
           row.appendChild(badge);
         }
         badge.className = "chapter-badge";
-        const chapterCleared = masteredCount >= qs.length && qs.length > 0;
+        const chapterCleared = isHistoryChapterCleared(map, ch);
         if (chapterCleared) {
           badge.hidden = false;
           badge.classList.add("chapter-badge--cleared");
@@ -18523,12 +19032,11 @@
         if (chapterCleared) {
           medal.classList.add("chapter-medal--earned");
           medal.setAttribute("aria-label", "本章已通关");
-          medal.title = "本章已通关";
+          medal.title = "本章已通关（练习题全对过一遍）";
         } else {
           medal.classList.add("chapter-medal--locked");
           medal.setAttribute("aria-label", "本章尚未通关");
-          medal.title =
-            "本章尚未通关；全部题目答对一次即可点亮。若之后又答错，勋章会重新置灰。";
+          medal.title = "本章尚未通关；练习题全部答对一遍即可点亮，点亮后保持。";
         }
 
         let lapsEl = row.querySelector(".chapter-laps");
@@ -18752,13 +19260,7 @@
     (function syncQuizOrderFoldOnResize() {
       const mq = window.matchMedia("(min-width: 641px)");
       mq.addEventListener("change", () => {
-        [
-          "quiz-order-fold",
-          "marx-quiz-order-fold",
-          "xi-quiz-order-fold",
-          "mq-chapter-notes-fold",
-          "xi-chapter-notes-fold",
-        ].forEach((id) => {
+        ["quiz-order-fold", "marx-quiz-order-fold", "xi-quiz-order-fold"].forEach((id) => {
           const fold = document.getElementById(id);
           if (!fold) return;
           if (mq.matches) fold.setAttribute("open", "");
@@ -19323,7 +19825,7 @@
       if (!sameCh) {
         tlFold.dataset.ch = String(historyQuizChapter);
         tlBody.innerHTML = HISTORY_TIMELINE_CHEAT_HTML[historyQuizChapter] || "";
-        tlFold.setAttribute("open", "");
+        tlFold.removeAttribute("open");
       }
     }
 
@@ -20260,9 +20762,10 @@
         }
       }
       function applyTheme(id) {
-        const t = id === "pixel" ? "pixel" : "default";
-        if (t === "pixel") document.documentElement.setAttribute("data-theme", "pixel");
-        else document.documentElement.removeAttribute("data-theme");
+        const allowed = { default: 1, pixel: 1, mist: 1 };
+        const t = allowed[id] ? id : "default";
+        if (t === "default") document.documentElement.removeAttribute("data-theme");
+        else document.documentElement.setAttribute("data-theme", t);
         try {
           localStorage.setItem(THEME_KEY, t);
         } catch (_) {}
@@ -20295,6 +20798,247 @@
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && overlay && !overlay.hidden) closePicker();
       });
+    })();
+
+    (function initWrongBookSync() {
+      const INBOX_APPLIED_KEY = "pansan2-wrong-inbox-applied-v1";
+      const COURSES = {
+        history: { maxCh: 10, base: historyBaseQuestionsForChapter, drillGet: getWrongReviewEntries, drillSave: saveWrongReviewEntries, keepGet: getWrongKeepEntries, keepSave: saveWrongKeepEntries },
+        xi: { maxCh: 18, base: xiBaseQuestionsForChapter, drillGet: getXiWrongReviewEntries, drillSave: saveXiWrongReviewEntries, keepGet: getXiWrongKeepEntries, keepSave: saveXiWrongKeepEntries },
+        marx: { maxCh: 8, base: marxBaseQuestionsForChapter, drillGet: getMarxWrongEntries, drillSave: saveMarxWrongEntries },
+      };
+
+      function packEntries(entries, baseFn) {
+        return entries.map((e) => {
+          const q = (baseFn(e.ch) || [])[e.i];
+          return { ch: e.ch, i: e.i, streak: e.streak || 0, text: q && q.text ? q.text : "" };
+        });
+      }
+
+      function buildWrongBookPayload() {
+        const out = { v: 1, exportedAt: new Date().toISOString() };
+        Object.keys(COURSES).forEach((name) => {
+          const c = COURSES[name];
+          out[name] = { drill: packEntries(c.drillGet(), c.base) };
+          if (c.keepGet) out[name].keep = packEntries(c.keepGet(), c.base);
+        });
+        return out;
+      }
+
+      function locateQuestion(baseFn, maxCh, item) {
+        const text = item && item.text ? String(item.text).trim() : "";
+        if (text) {
+          for (let ch = 1; ch <= maxCh; ch++) {
+            const list = baseFn(ch) || [];
+            for (let i = 0; i < list.length; i++) {
+              if ((list[i].text || "").trim() === text) return { ch, i };
+            }
+          }
+        }
+        if (item && typeof item.ch === "number" && typeof item.i === "number") {
+          const list = baseFn(item.ch) || [];
+          const q = list[item.i];
+          if (q && (!text || (q.text || "").trim() === text)) return { ch: item.ch, i: item.i };
+        }
+        return null;
+      }
+
+      function mergeBucket(existing, incoming, baseFn, maxCh) {
+        const out = existing.slice();
+        const seen = new Set(out.map((e) => e.ch + "-" + e.i));
+        let added = 0;
+        let missed = 0;
+        (incoming || []).forEach((item) => {
+          const loc = locateQuestion(baseFn, maxCh, item);
+          if (!loc) {
+            missed += 1;
+            return;
+          }
+          const k = loc.ch + "-" + loc.i;
+          if (seen.has(k)) return;
+          seen.add(k);
+          const streak = typeof item.streak === "number" && item.streak > 0 ? Math.floor(item.streak) : 0;
+          out.push({ ch: loc.ch, i: loc.i, streak });
+          added += 1;
+        });
+        return { out, added, missed };
+      }
+
+      function applyWrongBookPayload(payload) {
+        if (!payload || payload.v !== 1) throw new Error("格式不对");
+        const bits = [];
+        let added = 0;
+        let missed = 0;
+        Object.keys(COURSES).forEach((name) => {
+          const c = COURSES[name];
+          const block = payload[name] || {};
+          const drill = mergeBucket(c.drillGet(), block.drill, c.base, c.maxCh);
+          if (drill.added) c.drillSave(drill.out);
+          added += drill.added;
+          missed += drill.missed;
+          let keepAdded = 0;
+          if (c.keepGet && c.keepSave) {
+            const keep = mergeBucket(c.keepGet(), block.keep, c.base, c.maxCh);
+            if (keep.added) c.keepSave(keep.out);
+            keepAdded = keep.added;
+            added += keep.added;
+            missed += keep.missed;
+          }
+          const n = drill.added + keepAdded;
+          if (n) bits.push(name + "+" + n);
+        });
+        if (typeof updateWrongReviewButtonBadge === "function") updateWrongReviewButtonBadge();
+        if (typeof updateXiWrongReviewButtonBadge === "function") updateXiWrongReviewButtonBadge();
+        if (typeof updateMarxWrongReviewButtonBadge === "function") updateMarxWrongReviewButtonBadge();
+        return { added, missed, bits };
+      }
+
+      function syncToast(msg) {
+        const el = document.getElementById("wrong-sync-toast");
+        if (!el) return;
+        el.textContent = msg;
+        el.hidden = false;
+        clearTimeout(syncToast._t);
+        syncToast._t = setTimeout(() => {
+          el.hidden = true;
+        }, 6000);
+      }
+
+      function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
+        }
+        return Promise.resolve(fallbackCopy(text));
+      }
+
+      function fallbackCopy(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try {
+          ok = document.execCommand("copy");
+        } catch (_) {}
+        ta.remove();
+        return ok;
+      }
+
+      function downloadText(filename, text) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      }
+
+      function exportWrongBook() {
+        const text = JSON.stringify(buildWrongBookPayload());
+        const day = new Date().toISOString().slice(0, 10);
+        downloadText("fuxi-wrong-book-" + day + ".json", text);
+        copyText(text).then((ok) => {
+          syncToast(
+            ok
+              ? "已复制并下载。微信「文件传输助手」粘贴，手机转发给我；回家在远程页点「导入」也能马上续。"
+              : "已下载 json。复制失败的话，把文件发过来，或在另一边点「导入」选这个文件。"
+          );
+        });
+      }
+
+      const overlay = document.getElementById("wrong-sync-overlay");
+      const textEl = document.getElementById("wrong-sync-text");
+      const fileEl = document.getElementById("wrong-sync-file");
+
+      function openImport() {
+        if (!overlay) return;
+        if (textEl) textEl.value = "";
+        if (fileEl) fileEl.value = "";
+        overlay.hidden = false;
+        overlay.setAttribute("aria-hidden", "false");
+      }
+
+      function closeImport() {
+        if (!overlay) return;
+        overlay.hidden = true;
+        overlay.setAttribute("aria-hidden", "true");
+      }
+
+      function runImport(raw) {
+        let payload;
+        try {
+          payload = JSON.parse(raw);
+        } catch (_) {
+          syncToast("这不是导出的 JSON，贴整段再试。");
+          return;
+        }
+        try {
+          const r = applyWrongBookPayload(payload);
+          closeImport();
+          if (!r.added && !r.missed) syncToast("没有新错题，这边已经有这些题。");
+          else if (!r.added) syncToast("对不上题库（" + r.missed + " 道），可能是两边版本不一致。把文件发我。");
+          else syncToast("已并入 " + r.added + " 道" + (r.bits.length ? "（" + r.bits.join("，") + "）" : "") + (r.missed ? "，" + r.missed + " 道对不上" : "") + "。");
+        } catch (_) {
+          syncToast("格式不对，用页面上「导出」出来的内容。");
+        }
+      }
+
+      document.querySelectorAll(".js-wrong-sync-export").forEach((btn) => {
+        btn.addEventListener("click", exportWrongBook);
+      });
+      document.querySelectorAll(".js-wrong-sync-import").forEach((btn) => {
+        btn.addEventListener("click", openImport);
+      });
+      const cancelBtn = document.getElementById("wrong-sync-cancel");
+      const okBtn = document.getElementById("wrong-sync-ok");
+      if (cancelBtn) cancelBtn.addEventListener("click", closeImport);
+      if (okBtn) {
+        okBtn.addEventListener("click", () => {
+          const raw = textEl ? textEl.value.trim() : "";
+          if (!raw) {
+            syncToast("先粘贴，或选一个 json 文件。");
+            return;
+          }
+          runImport(raw);
+        });
+      }
+      if (overlay) {
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) closeImport();
+        });
+      }
+      if (fileEl) {
+        fileEl.addEventListener("change", () => {
+          const file = fileEl.files && fileEl.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (textEl) textEl.value = String(reader.result || "");
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      fetch("wrong-inbox.json", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload) => {
+          if (!payload || payload.v !== 1 || !payload.exportedAt) return;
+          let applied = "";
+          try {
+            applied = localStorage.getItem(INBOX_APPLIED_KEY) || "";
+          } catch (_) {}
+          if (applied && applied >= payload.exportedAt) return;
+          const r = applyWrongBookPayload(payload);
+          try {
+            localStorage.setItem(INBOX_APPLIED_KEY, payload.exportedAt);
+          } catch (_) {}
+          if (r.added) syncToast("已从同步文件并入 " + r.added + " 道错题。");
+        })
+        .catch(() => {});
     })();
   </script>
 <div id="history-play-fx" class="history-play-fx" hidden aria-live="polite">
