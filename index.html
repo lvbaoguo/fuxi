@@ -5205,6 +5205,13 @@
       return !!(e && e.rightStreak >= 1 && e.lastOk);
     }
 
+    /** 该题至少答对过 1 次（不要求现在仍是对的） */
+    function isMarxEverCorrect(map, ch, idx) {
+      const k = marxMasteryKey(ch, idx);
+      const e = map[k];
+      return !!(e && e.correct >= 1);
+    }
+
     const MARX_CLEARED_STORAGE_KEY = "pansan2-marx-chapter-cleared-v1";
 
     function loadMarxChapterClearedMap() {
@@ -5237,14 +5244,14 @@
       saveMarxChapterClearedMap(map);
     }
 
-    /** 本章练习题全部答对过一遍后点亮；点亮后保持，不再因再答错熄灭 */
+    /** 本章练习题每题至少对过一次即点亮；点亮后保持 */
     function isMarxChapterCleared(map, ch) {
       if (getMarxChapterClearedFlag(ch)) return true;
       const qs = marxQuestionsForChapter(ch);
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
         const bi = quizAskBaseIdx(qs[i], i);
-        if (!isMarxMastered(map, ch, bi)) return false;
+        if (!isMarxEverCorrect(map, ch, bi)) return false;
       }
       setMarxChapterClearedFlag(ch);
       return true;
@@ -12398,6 +12405,13 @@
       return !!(e && e.rightStreak >= 1 && e.lastOk);
     }
 
+    /** 该题至少答对过 1 次（不要求现在仍是对的） */
+    function isXiEverCorrect(map, ch, idx) {
+      const k = xiMasteryKey(ch, idx);
+      const e = map[k];
+      return !!(e && e.correct >= 1);
+    }
+
     const XI_CLEARED_STORAGE_KEY = "pansan2-xi-chapter-cleared-v1";
 
     function loadXiChapterClearedMap() {
@@ -12430,14 +12444,27 @@
       saveXiChapterClearedMap(map);
     }
 
-    /** 本章练习题全部答对过一遍后点亮；点亮后保持，不再因再答错熄灭 */
+    /** 本章当前练习题（近年优先、封顶）每题至少对过一次即点亮；点亮后保持 */
     function isXiChapterCleared(map, ch) {
       if (getXiChapterClearedFlag(ch)) return true;
       const qs = xiQuestionsForChapter(ch);
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
         const bi = quizAskBaseIdx(qs[i], i);
-        if (!isXiMastered(map, ch, bi)) return false;
+        if (!isXiEverCorrect(map, ch, bi)) return false;
+      }
+      setXiChapterClearedFlag(ch);
+      return true;
+    }
+
+    /** 本轮结果已全部做完且全对 → 直接点亮（和「统计栏做对=总数」对齐） */
+    function tryXiClearFromFullCorrectSession(ch) {
+      if (isXiWrongReviewCh(ch) || getXiChapterClearedFlag(ch)) return false;
+      const qs = xiQuestionsForChapter(ch);
+      const res = xiChapterResults[String(ch)];
+      if (!qs.length || !Array.isArray(res) || res.length < qs.length) return false;
+      for (let i = 0; i < qs.length; i++) {
+        if (!res[i] || !res[i].ok) return false;
       }
       setXiChapterClearedFlag(ch);
       return true;
@@ -12504,11 +12531,11 @@
         if (chapterCleared) {
           medal.classList.add("chapter-medal--earned");
           medal.setAttribute("aria-label", "本章已通关");
-          medal.title = "本章已通关（练习题全对过一遍）";
+          medal.title = "本章已通关（练习题每题至少对过一次，点亮后保持）";
         } else {
           medal.classList.add("chapter-medal--locked");
           medal.setAttribute("aria-label", "本章尚未通关");
-          medal.title = "本章尚未通关；练习题全部答对一遍即可点亮，点亮后保持。";
+          medal.title = "练习题每题至少答对一次即可点亮，点亮后保持。";
         }
       }
     }
@@ -13431,8 +13458,14 @@
         bumpXiCombo(ok);
         if (!ok) {
           addXiWrongQuestion(xiQuizChapter, origIdx);
-        } else if (!beforeClear && isXiChapterCleared(loadXiMasteryMap(), xiQuizChapter)) {
-          celebrateXi();
+        } else {
+          const clearedNow =
+            tryXiClearFromFullCorrectSession(xiQuizChapter) ||
+            isXiChapterCleared(loadXiMasteryMap(), xiQuizChapter);
+          if (!beforeClear && clearedNow) {
+            recomputeXiChapterMasteryBadges();
+            celebrateXi();
+          }
         }
         persistXiProgress();
         rememberXiIndex();
@@ -18744,7 +18777,7 @@
       if (!qs.length) return false;
       for (let i = 0; i < qs.length; i++) {
         const bi = quizAskBaseIdx(qs[i], i);
-        if (!isMastered(map, ch, bi)) return false;
+        if (!isHistoryEverCorrect(map, ch, bi)) return false;
       }
       setHistoryChapterClearedFlag(ch);
       return true;
@@ -18963,6 +18996,13 @@
       const k = masteryKey(ch, idx);
       const e = map[k];
       return !!(e && e.rightStreak >= MASTERED_STREAK && e.lastOk);
+    }
+
+    /** 该题至少答对过 1 次（不要求现在仍是对的） */
+    function isHistoryEverCorrect(map, ch, idx) {
+      const k = masteryKey(ch, idx);
+      const e = map[k];
+      return !!(e && e.correct >= 1);
     }
 
     const CHAPTER_MEDAL_IMG = "images/勋章.png";
