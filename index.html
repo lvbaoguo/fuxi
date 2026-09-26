@@ -2131,8 +2131,8 @@
             <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
             <span class="list-card__head-actions">
               <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
-              <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
-              <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
+              <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
+              <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
             </span>
@@ -2334,8 +2334,8 @@
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《习近平新时代中国特色社会主义思想概论》</span>章节列表</span>
               <span class="list-card__head-actions">
-                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
-                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
               </span>
@@ -2588,8 +2588,8 @@
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《马克思主义基本原理》</span>章节列表</span>
               <span class="list-card__head-actions">
-                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载三门课的错题练、错题本，换电脑可导入">导出</button>
-                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题并进来，已有的保留">导入</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
               </span>
             </h2>
@@ -2746,12 +2746,12 @@
 
   <div id="wrong-sync-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
     <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="wrong-sync-title">
-      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。只补这边没有的题，已有的不动。</p>
+      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。会补这边没有的错题，并点亮导出里已通关的章（已有的通关不会被关掉）。</p>
       <textarea id="wrong-sync-text" class="wrong-sync-text" placeholder="粘贴导出的 JSON"></textarea>
       <input id="wrong-sync-file" class="wrong-sync-file" type="file" accept="application/json,.json,.txt">
       <div class="chapter-resume-actions">
         <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-cancel">取消</button>
-        <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="wrong-sync-ok">并入错题本</button>
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="wrong-sync-ok">并入</button>
       </div>
     </div>
   </div>
@@ -21103,9 +21103,34 @@
     (function initWrongBookSync() {
       const INBOX_APPLIED_KEY = "pansan2-wrong-inbox-applied-v1";
       const COURSES = {
-        history: { maxCh: 10, base: historyBaseQuestionsForChapter, drillGet: getWrongReviewEntries, drillSave: saveWrongReviewEntries, keepGet: getWrongKeepEntries, keepSave: saveWrongKeepEntries },
-        xi: { maxCh: 18, base: xiBaseQuestionsForChapter, drillGet: getXiWrongReviewEntries, drillSave: saveXiWrongReviewEntries, keepGet: getXiWrongKeepEntries, keepSave: saveXiWrongKeepEntries },
-        marx: { maxCh: 8, base: marxBaseQuestionsForChapter, drillGet: getMarxWrongEntries, drillSave: saveMarxWrongEntries },
+        history: {
+          maxCh: 10,
+          base: historyBaseQuestionsForChapter,
+          drillGet: getWrongReviewEntries,
+          drillSave: saveWrongReviewEntries,
+          keepGet: getWrongKeepEntries,
+          keepSave: saveWrongKeepEntries,
+          clearedLoad: loadHistoryChapterClearedMap,
+          clearedSave: saveHistoryChapterClearedMap,
+        },
+        xi: {
+          maxCh: 18,
+          base: xiBaseQuestionsForChapter,
+          drillGet: getXiWrongReviewEntries,
+          drillSave: saveXiWrongReviewEntries,
+          keepGet: getXiWrongKeepEntries,
+          keepSave: saveXiWrongKeepEntries,
+          clearedLoad: loadXiChapterClearedMap,
+          clearedSave: saveXiChapterClearedMap,
+        },
+        marx: {
+          maxCh: 8,
+          base: marxBaseQuestionsForChapter,
+          drillGet: getMarxWrongEntries,
+          drillSave: saveMarxWrongEntries,
+          clearedLoad: loadMarxChapterClearedMap,
+          clearedSave: saveMarxChapterClearedMap,
+        },
       };
 
       function packEntries(entries, baseFn) {
@@ -21115,12 +21140,40 @@
         });
       }
 
+      function packClearedMap(loadFn) {
+        const map = typeof loadFn === "function" ? loadFn() || {} : {};
+        const out = {};
+        Object.keys(map).forEach((k) => {
+          if (map[k]) out[String(k)] = true;
+        });
+        return out;
+      }
+
+      function mergeClearedMap(loadFn, saveFn, incoming, maxCh) {
+        if (!incoming || typeof incoming !== "object" || typeof loadFn !== "function" || typeof saveFn !== "function") {
+          return 0;
+        }
+        const map = loadFn() || {};
+        let added = 0;
+        Object.keys(incoming).forEach((k) => {
+          if (!incoming[k]) return;
+          const ch = Number(k);
+          if (!Number.isFinite(ch) || ch < 1 || ch > maxCh) return;
+          if (map[ch] || map[String(ch)]) return;
+          map[ch] = true;
+          added += 1;
+        });
+        if (added) saveFn(map);
+        return added;
+      }
+
       function buildWrongBookPayload() {
-        const out = { v: 1, exportedAt: new Date().toISOString() };
+        const out = { v: 1, exportedAt: new Date().toISOString(), cleared: {} };
         Object.keys(COURSES).forEach((name) => {
           const c = COURSES[name];
           out[name] = { drill: packEntries(c.drillGet(), c.base) };
           if (c.keepGet) out[name].keep = packEntries(c.keepGet(), c.base);
+          out.cleared[name] = packClearedMap(c.clearedLoad);
         });
         return out;
       }
@@ -21169,6 +21222,7 @@
         const bits = [];
         let added = 0;
         let missed = 0;
+        let clearedAdded = 0;
         Object.keys(COURSES).forEach((name) => {
           const c = COURSES[name];
           const block = payload[name] || {};
@@ -21187,10 +21241,24 @@
           const n = drill.added + keepAdded;
           if (n) bits.push(name + "+" + n);
         });
+        const clearedBlock = payload.cleared && typeof payload.cleared === "object" ? payload.cleared : {};
+        Object.keys(COURSES).forEach((name) => {
+          const c = COURSES[name];
+          const n = mergeClearedMap(c.clearedLoad, c.clearedSave, clearedBlock[name], c.maxCh);
+          if (n) {
+            clearedAdded += n;
+            bits.push(name + "通关+" + n);
+          }
+        });
         if (typeof updateWrongReviewButtonBadge === "function") updateWrongReviewButtonBadge();
         if (typeof updateXiWrongReviewButtonBadge === "function") updateXiWrongReviewButtonBadge();
         if (typeof updateMarxWrongReviewButtonBadge === "function") updateMarxWrongReviewButtonBadge();
-        return { added, missed, bits };
+        if (clearedAdded) {
+          if (typeof recomputeChapterMasteryBadges === "function") recomputeChapterMasteryBadges();
+          if (typeof recomputeXiChapterMasteryBadges === "function") recomputeXiChapterMasteryBadges();
+          if (typeof recomputeMarxChapterMasteryBadges === "function") recomputeMarxChapterMasteryBadges();
+        }
+        return { added, missed, clearedAdded, bits };
       }
 
       function syncToast(msg) {
@@ -21240,12 +21308,12 @@
       function exportWrongBook() {
         const text = JSON.stringify(buildWrongBookPayload());
         const day = new Date().toISOString().slice(0, 10);
-        downloadText("fuxi-wrong-book-" + day + ".json", text);
+        downloadText("fuxi-sync-" + day + ".json", text);
         copyText(text).then((ok) => {
           syncToast(
             ok
-              ? "已复制并下载。微信「文件传输助手」粘贴，手机转发给我；回家在远程页点「导入」也能马上续。"
-              : "已下载 json。复制失败的话，把文件发过来，或在另一边点「导入」选这个文件。"
+              ? "已复制并下载（含错题 + 通关）。回家在另一边点「导入」即可续。"
+              : "已下载 json（含错题 + 通关）。复制失败的话，把文件发到另一边再「导入」。"
           );
         });
       }
@@ -21279,9 +21347,20 @@
         try {
           const r = applyWrongBookPayload(payload);
           closeImport();
-          if (!r.added && !r.missed) syncToast("没有新错题，这边已经有这些题。");
-          else if (!r.added) syncToast("对不上题库（" + r.missed + " 道），可能是两边版本不一致。把文件发我。");
-          else syncToast("已并入 " + r.added + " 道" + (r.bits.length ? "（" + r.bits.join("，") + "）" : "") + (r.missed ? "，" + r.missed + " 道对不上" : "") + "。");
+          if (!r.added && !r.clearedAdded && !r.missed) syncToast("没有新内容，错题和通关这边都已有。");
+          else if (!r.added && !r.clearedAdded) syncToast("对不上题库（" + r.missed + " 道），可能是两边版本不一致。把文件发我。");
+          else {
+            const parts = [];
+            if (r.added) parts.push("错题 +" + r.added);
+            if (r.clearedAdded) parts.push("通关章 +" + r.clearedAdded);
+            syncToast(
+              "已并入 " +
+                parts.join("，") +
+                (r.bits.length ? "（" + r.bits.join("，") + "）" : "") +
+                (r.missed ? "，" + r.missed + " 道对不上" : "") +
+                "。"
+            );
+          }
         } catch (_) {
           syncToast("格式不对，用页面上「导出」出来的内容。");
         }
@@ -21336,7 +21415,12 @@
           try {
             localStorage.setItem(INBOX_APPLIED_KEY, payload.exportedAt);
           } catch (_) {}
-          if (r.added) syncToast("已从同步文件并入 " + r.added + " 道错题。");
+          if (r.added || r.clearedAdded) {
+            const parts = [];
+            if (r.added) parts.push(r.added + " 道错题");
+            if (r.clearedAdded) parts.push(r.clearedAdded + " 章通关");
+            syncToast("已从同步文件并入 " + parts.join("、") + "。");
+          }
         })
         .catch(() => {});
     })();
