@@ -12,6 +12,8 @@
       try {
         var t = localStorage.getItem("pansan2-ui-theme-v1") || "default";
         if (t === "pixel" || t === "mist") document.documentElement.setAttribute("data-theme", t);
+        var f = localStorage.getItem("pansan2-ui-font-v1") || "normal";
+        if (f === "large" || f === "xlarge") document.documentElement.setAttribute("data-font", f);
       } catch (_) {}
     })();
   </script>
@@ -2099,6 +2101,60 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    /* 老年 / 老花：整站放大（Chrome/Safari/微信浏览器用 zoom；并抬答题关键字号） */
+    html[data-font="large"] .app {
+      zoom: 1.28;
+    }
+    html[data-font="xlarge"] .app {
+      zoom: 1.48;
+    }
+    html[data-font="large"] .quiz-question,
+    html[data-font="xlarge"] .quiz-question {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    html[data-font="large"] .radio-line,
+    html[data-font="xlarge"] .radio-line {
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+    html[data-font="large"] .radio-ui,
+    html[data-font="xlarge"] .radio-ui {
+      width: 24px;
+      height: 24px;
+    }
+    html[data-font="large"] .radio-line input:checked + .radio-ui::after,
+    html[data-font="xlarge"] .radio-line input:checked + .radio-ui::after {
+      width: 12px;
+      height: 12px;
+    }
+    html[data-font="large"] .btn-submit,
+    html[data-font="xlarge"] .btn-submit {
+      font-weight: 700;
+      min-height: 52px;
+    }
+    .theme-picker-section {
+      margin: 0 0 14px;
+    }
+    .theme-picker-section-title {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .theme-picker-opts--font {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    @supports not (zoom: 1) {
+      html[data-font="large"] body { font-size: 19px; line-height: 1.7; }
+      html[data-font="xlarge"] body { font-size: 22px; line-height: 1.75; }
+      html[data-font="large"] .quiz-question,
+      html[data-font="xlarge"] .quiz-question { font-size: 1.15em; }
+      html[data-font="large"] .radio-line,
+      html[data-font="xlarge"] .radio-line { font-size: 1.1em; }
+    }
   </style>
 </head>
 <body>
@@ -2130,7 +2186,7 @@
           <h2 class="list-card__head">
             <span class="list-card__head-title"><span class="course">《中国近现代史纲要》</span>章节列表</span>
             <span class="list-card__head-actions">
-              <button type="button" class="list-card__wrong-btn" id="btn-ui-theme" title="切换整站外观">主题设计</button>
+              <button type="button" class="list-card__wrong-btn js-ui-theme" id="btn-ui-theme" title="切换主题与字号（含老年加大）">外观字号</button>
               <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
               <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
@@ -2303,21 +2359,41 @@
 
         <div id="theme-picker-overlay" class="theme-picker-overlay" hidden aria-hidden="true">
           <div class="theme-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="theme-picker-title" tabindex="-1">
-            <p id="theme-picker-title" class="theme-picker-title">主题设计</p>
-            <p class="theme-picker-hint">选完立刻生效，下次打开还记得。答题数据不受影响。</p>
-            <div class="theme-picker-opts">
-              <button type="button" class="theme-picker-opt" data-theme="default" id="theme-opt-default">
-                默认
-                <small>现在这套白底蓝条</small>
-              </button>
-              <button type="button" class="theme-picker-opt" data-theme="mist" id="theme-opt-mist">
-                雾灰护眼
-                <small>薄荷绿纸 · 亮一点不刺眼</small>
-              </button>
-              <button type="button" class="theme-picker-opt" data-theme="pixel" id="theme-opt-pixel">
-                像素风
-                <small>土黄废土 · 像素菜单</small>
-              </button>
+            <p id="theme-picker-title" class="theme-picker-title">外观与字号</p>
+            <p class="theme-picker-hint">选完立刻生效，下次打开还记得。答题数据不受影响。老花眼可直接选「特大」。</p>
+            <div class="theme-picker-section">
+              <p class="theme-picker-section-title">字号</p>
+              <div class="theme-picker-opts theme-picker-opts--font">
+                <button type="button" class="theme-picker-opt" data-font="normal" id="font-opt-normal">
+                  标准
+                  <small>默认大小</small>
+                </button>
+                <button type="button" class="theme-picker-opt" data-font="large" id="font-opt-large">
+                  加大
+                  <small>约 1.3 倍</small>
+                </button>
+                <button type="button" class="theme-picker-opt" data-font="xlarge" id="font-opt-xlarge">
+                  特大
+                  <small>老年 / 老花</small>
+                </button>
+              </div>
+            </div>
+            <div class="theme-picker-section">
+              <p class="theme-picker-section-title">主题</p>
+              <div class="theme-picker-opts">
+                <button type="button" class="theme-picker-opt" data-theme="default" id="theme-opt-default">
+                  默认
+                  <small>现在这套白底蓝条</small>
+                </button>
+                <button type="button" class="theme-picker-opt" data-theme="mist" id="theme-opt-mist">
+                  雾灰护眼
+                  <small>薄荷绿纸 · 亮一点不刺眼</small>
+                </button>
+                <button type="button" class="theme-picker-opt" data-theme="pixel" id="theme-opt-pixel">
+                  像素风
+                  <small>土黄废土 · 像素菜单</small>
+                </button>
+              </div>
             </div>
             <button type="button" class="theme-picker-close" id="theme-picker-close">关闭</button>
           </div>
@@ -2334,6 +2410,7 @@
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《习近平新时代中国特色社会主义思想概论》</span>章节列表</span>
               <span class="list-card__head-actions">
+                <button type="button" class="list-card__wrong-btn js-ui-theme" title="切换主题与字号（含老年加大）">外观字号</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-review" title="各章/错题本答错都会收录；连对 2 次自动移出，再答错会加回">错题练</button>
@@ -2588,6 +2665,7 @@
             <h2 class="list-card__head">
               <span class="list-card__head-title"><span class="course">《马克思主义基本原理》</span>章节列表</span>
               <span class="list-card__head-actions">
+                <button type="button" class="list-card__wrong-btn js-ui-theme" title="切换主题与字号（含老年加大）">外观字号</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
                 <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
@@ -21051,6 +21129,7 @@
 
     (function wireUiThemePicker() {
       const THEME_KEY = "pansan2-ui-theme-v1";
+      const FONT_KEY = "pansan2-ui-font-v1";
       const overlay = document.getElementById("theme-picker-overlay");
       const openBtn = document.getElementById("btn-ui-theme");
       const closeBtn = document.getElementById("theme-picker-close");
@@ -21061,6 +21140,13 @@
           return "default";
         }
       }
+      function currentFont() {
+        try {
+          return localStorage.getItem(FONT_KEY) || "normal";
+        } catch (_) {
+          return "normal";
+        }
+      }
       function applyTheme(id) {
         const allowed = { default: 1, pixel: 1, mist: 1 };
         const t = allowed[id] ? id : "default";
@@ -21069,13 +21155,26 @@
         try {
           localStorage.setItem(THEME_KEY, t);
         } catch (_) {}
-        document.querySelectorAll(".theme-picker-opt").forEach((btn) => {
+        document.querySelectorAll(".theme-picker-opt[data-theme]").forEach((btn) => {
           btn.classList.toggle("is-on", btn.getAttribute("data-theme") === t);
+        });
+      }
+      function applyFont(id) {
+        const allowed = { normal: 1, large: 1, xlarge: 1 };
+        const f = allowed[id] ? id : "normal";
+        if (f === "normal") document.documentElement.removeAttribute("data-font");
+        else document.documentElement.setAttribute("data-font", f);
+        try {
+          localStorage.setItem(FONT_KEY, f);
+        } catch (_) {}
+        document.querySelectorAll(".theme-picker-opt[data-font]").forEach((btn) => {
+          btn.classList.toggle("is-on", btn.getAttribute("data-font") === f);
         });
       }
       function openPicker() {
         if (!overlay) return;
         applyTheme(currentTheme());
+        applyFont(currentFont());
         overlay.hidden = false;
         overlay.setAttribute("aria-hidden", "false");
       }
@@ -21085,15 +21184,21 @@
         overlay.setAttribute("aria-hidden", "true");
       }
       applyTheme(currentTheme());
-      if (openBtn) openBtn.addEventListener("click", openPicker);
+      applyFont(currentFont());
+      document.querySelectorAll(".js-ui-theme").forEach((btn) => {
+        btn.addEventListener("click", openPicker);
+      });
       if (closeBtn) closeBtn.addEventListener("click", closePicker);
       if (overlay) {
         overlay.addEventListener("click", (e) => {
           if (e.target === overlay) closePicker();
         });
       }
-      document.querySelectorAll(".theme-picker-opt").forEach((btn) => {
+      document.querySelectorAll(".theme-picker-opt[data-theme]").forEach((btn) => {
         btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
+      });
+      document.querySelectorAll(".theme-picker-opt[data-font]").forEach((btn) => {
+        btn.addEventListener("click", () => applyFont(btn.getAttribute("data-font")));
       });
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && overlay && !overlay.hidden) closePicker();
