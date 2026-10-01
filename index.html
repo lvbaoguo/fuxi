@@ -2166,18 +2166,18 @@
         <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" aria-expanded="true">收起</button>
       </div>
       <div class="sidebar-tabs-inner" id="sidebar-tabs-inner">
-        <button type="button" class="tab" role="tab" id="tab-history" aria-selected="true" aria-controls="panel-history" data-panel="history" title="中国近现代史纲要" aria-label="中国近现代史纲要">近代史</button>
-        <button type="button" class="tab" role="tab" id="tab-xi" aria-selected="false" aria-controls="panel-xi" data-panel="xi" title="习近平新时代中国特色社会主义思想" aria-label="习近平新时代中国特色社会主义思想">习思想</button>
+        <button type="button" class="tab" role="tab" id="tab-xi" aria-selected="true" aria-controls="panel-xi" data-panel="xi" title="习近平新时代中国特色社会主义思想" aria-label="习近平新时代中国特色社会主义思想">习思想</button>
+        <button type="button" class="tab" role="tab" id="tab-history" aria-selected="false" aria-controls="panel-history" data-panel="history" title="中国近现代史纲要" aria-label="中国近现代史纲要">近代史</button>
         <button type="button" class="tab" role="tab" id="tab-marx" aria-selected="false" aria-controls="panel-marx" data-panel="marx" title="马克思主义基本原理" aria-label="马克思主义基本原理">马原</button>
       </div>
       <div class="sidebar-mini" id="sidebar-mini" aria-hidden="true">
-        <span class="sidebar-mini-label" id="sidebar-mini-label">近代史</span>
+        <span class="sidebar-mini-label" id="sidebar-mini-label">习思想</span>
         <button type="button" class="sidebar-mini-expand" id="sidebar-mini-expand">换课</button>
       </div>
     </aside>
 
     <main class="main">
-      <section id="panel-history" class="content-panel" role="tabpanel" aria-labelledby="tab-history">
+      <section id="panel-history" class="content-panel" hidden role="tabpanel" aria-labelledby="tab-history">
         <h1 class="visually-hidden">中国近代史纲要</h1>
 
         <div id="history-chapter-list">
@@ -2401,7 +2401,7 @@
         </div>
       </section>
 
-      <section id="panel-xi" class="content-panel" hidden role="tabpanel" aria-labelledby="tab-xi">
+      <section id="panel-xi" class="content-panel" role="tabpanel" aria-labelledby="tab-xi">
         <h1 class="visually-hidden">习近平新时代中国特色社会主义思想</h1>
 
         <div id="xi-chapter-list">
