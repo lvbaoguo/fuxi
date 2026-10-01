@@ -2156,107 +2156,6 @@
       html[data-font="xlarge"] .radio-line { font-size: 1.1em; }
     }
 
-    /* 语音朗读条（近代史 / 习思想答题页） */
-    .quiz-tts-bar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px 10px;
-      margin: 0 0 14px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
-    }
-    .quiz-tts-btn {
-      margin: 0;
-      padding: 10px 16px;
-      min-height: 44px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      font: inherit;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .quiz-tts-btn--primary {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-    .quiz-tts-btn--primary:hover {
-      filter: brightness(1.05);
-    }
-    .quiz-tts-btn.is-playing {
-      background: #fff7ed;
-      border-color: #fdba74;
-      color: #9a3412;
-    }
-    .quiz-tts-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-    .quiz-tts-rates {
-      display: inline-flex;
-      gap: 4px;
-      margin-left: auto;
-      padding: 3px;
-      border-radius: 999px;
-      background: #eef2f7;
-    }
-    .quiz-tts-rate {
-      margin: 0;
-      padding: 8px 12px;
-      min-height: 40px;
-      border: none;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--muted);
-      font: inherit;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .quiz-tts-rate.is-on {
-      background: #fff;
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
-    }
-    .quiz-tts-status {
-      flex: 1 1 100%;
-      font-size: 13px;
-      color: var(--muted);
-      min-height: 1.2em;
-    }
-    .quiz-tts-status.is-live {
-      color: #9a3412;
-      font-weight: 600;
-    }
-    html[data-theme="mist"] .quiz-tts-bar {
-      background: linear-gradient(180deg, #eef8f0 0%, #f7faf4 100%);
-      border-color: var(--border);
-    }
-    html[data-theme="mist"] .quiz-tts-btn--primary {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-    html[data-theme="pixel"] .quiz-tts-bar,
-    html[data-theme="pixel"] .quiz-tts-btn,
-    html[data-theme="pixel"] .quiz-tts-rate {
-      border-radius: 0 !important;
-    }
-    @media (max-width: 640px) {
-      .quiz-tts-rates {
-        margin-left: 0;
-        width: 100%;
-        justify-content: space-between;
-      }
-      .quiz-tts-rate {
-        flex: 1;
-      }
-    }
   </style>
 </head>
 <body>
@@ -2412,17 +2311,6 @@
             </script>
           </div>
           <p class="quiz-type" id="quiz-type-label">单项选择题</p>
-          <div class="quiz-tts-bar" id="history-tts-bar" role="group" aria-label="语音朗读">
-            <button type="button" class="quiz-tts-btn quiz-tts-btn--primary" id="history-tts-play" title="朗读题干和选项">朗读本题</button>
-            <button type="button" class="quiz-tts-btn" id="history-tts-pause" hidden title="暂停或继续">暂停</button>
-            <button type="button" class="quiz-tts-btn" id="history-tts-stop" hidden title="停止朗读">停止</button>
-            <div class="quiz-tts-rates" role="group" aria-label="语速">
-              <button type="button" class="quiz-tts-rate" data-tts-rate="0.8" title="慢速">慢</button>
-              <button type="button" class="quiz-tts-rate is-on" data-tts-rate="1" title="常速">中</button>
-              <button type="button" class="quiz-tts-rate" data-tts-rate="1.15" title="稍快">快</button>
-            </div>
-            <span class="quiz-tts-status" id="history-tts-status" aria-live="polite"></span>
-          </div>
           <p class="quiz-question" id="ch1-question-text"></p>
           <p class="short-source" id="history-short-source" hidden></p>
           <div class="quiz-options" id="ch1-options" role="radiogroup" aria-label="选项"></div>
@@ -2712,17 +2600,6 @@
             </script>
           </div>
           <p class="quiz-type" id="xq-quiz-type">导论 · 单项选择题</p>
-          <div class="quiz-tts-bar" id="xi-tts-bar" role="group" aria-label="语音朗读">
-            <button type="button" class="quiz-tts-btn quiz-tts-btn--primary" id="xi-tts-play" title="朗读题干和选项">朗读本题</button>
-            <button type="button" class="quiz-tts-btn" id="xi-tts-pause" hidden title="暂停或继续">暂停</button>
-            <button type="button" class="quiz-tts-btn" id="xi-tts-stop" hidden title="停止朗读">停止</button>
-            <div class="quiz-tts-rates" role="group" aria-label="语速">
-              <button type="button" class="quiz-tts-rate" data-tts-rate="0.8" title="慢速">慢</button>
-              <button type="button" class="quiz-tts-rate is-on" data-tts-rate="1" title="常速">中</button>
-              <button type="button" class="quiz-tts-rate" data-tts-rate="1.15" title="稍快">快</button>
-            </div>
-            <span class="quiz-tts-status" id="xi-tts-status" aria-live="polite"></span>
-          </div>
           <p class="quiz-question" id="xq-question-text"></p>
           <p class="short-source" id="xi-short-source" hidden></p>
           <div class="quiz-options" id="xq-options" role="radiogroup" aria-label="选项"></div>
@@ -3044,7 +2921,6 @@
       if (list) list.hidden = false;
       hideXiChapterResumeDialog();
       clearQuizFocus();
-      if (typeof QuizTTS !== "undefined" && QuizTTS.stop) QuizTTS.stop();
     }
 
     function closeMarxViews() {
@@ -13482,7 +13358,6 @@
     }
 
     function renderXiQuiz() {
-      if (typeof QuizTTS !== "undefined" && QuizTTS.stopIfCourse) QuizTTS.stopIfCourse("xi");
       updateXiModeTabs();
       if (xiQuizMode === "short") {
         renderXiShortQuiz();
@@ -20397,7 +20272,6 @@
     }
 
     function renderHistoryQuiz() {
-      if (typeof QuizTTS !== "undefined" && QuizTTS.stopIfCourse) QuizTTS.stopIfCourse("history");
       updateHistoryModeTabs();
       refreshHistoryComboChip(false);
       if (historyQuizMode === "short") {
@@ -20659,7 +20533,6 @@
       ch1QuizEl.classList.remove("is-submitted");
       chContinueWrap.hidden = true;
       clearQuizFocus();
-      if (typeof QuizTTS !== "undefined" && QuizTTS.stop) QuizTTS.stop();
     }
 
     document.querySelector(".back-to-chapters").addEventListener("click", closeHistoryQuiz);
@@ -21255,303 +21128,6 @@
       });
     }
 
-    /** 近代史 / 习思想 · 语音朗读（Web Speech API；马原不做） */
-    const QuizTTS = (function () {
-      const RATE_KEY = "pansan2-tts-rate-v1";
-      const courses = {
-        history: {
-          play: "history-tts-play",
-          pause: "history-tts-pause",
-          stop: "history-tts-stop",
-          status: "history-tts-status",
-          q: "ch1-question-text",
-          opts: "ch1-options",
-          feedback: "ch1-feedback",
-          shortPanel: "history-short-panel",
-          shortKey: "history-short-key",
-          shortLead: "history-short-lead",
-          shortPoints: "history-short-points",
-          view: "history-ch1-quiz",
-        },
-        xi: {
-          play: "xi-tts-play",
-          pause: "xi-tts-pause",
-          stop: "xi-tts-stop",
-          status: "xi-tts-status",
-          q: "xq-question-text",
-          opts: "xq-options",
-          feedback: "xq-feedback",
-          shortPanel: "xi-short-panel",
-          shortKey: "xi-short-key",
-          shortLead: "xi-short-lead",
-          shortPoints: "xi-short-points",
-          view: "xi-quiz-view",
-        },
-      };
-      let activeCourse = null;
-      let paused = false;
-      let voicesReady = false;
-
-      function supported() {
-        return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
-      }
-
-      function getRate() {
-        try {
-          const n = parseFloat(localStorage.getItem(RATE_KEY) || "1");
-          if (n === 0.8 || n === 1 || n === 1.15) return n;
-        } catch (_) {}
-        return 1;
-      }
-
-      function setRate(n) {
-        const rate = n === 0.8 || n === 1.15 ? n : 1;
-        try {
-          localStorage.setItem(RATE_KEY, String(rate));
-        } catch (_) {}
-        document.querySelectorAll("[data-tts-rate]").forEach((btn) => {
-          btn.classList.toggle("is-on", parseFloat(btn.getAttribute("data-tts-rate")) === rate);
-        });
-        return rate;
-      }
-
-      function pickVoice() {
-        const list = window.speechSynthesis.getVoices() || [];
-        if (!list.length) return null;
-        const prefer = [
-          /zh[-_]CN/i,
-          /Chinese/i,
-          /普通话|国语|中文/,
-          /Tingting|Xiaoxiao|Xiaoyi|Yunxi|Yunyang|Huihui|Yaoyao/i,
-        ];
-        for (let p = 0; p < prefer.length; p++) {
-          const hit = list.find((v) => prefer[p].test(v.lang + " " + v.name));
-          if (hit) return hit;
-        }
-        return list.find((v) => /^zh/i.test(v.lang)) || null;
-      }
-
-      function cleanText(s) {
-        return String(s || "")
-          .replace(/\s+/g, " ")
-          .replace(/[_\uFF3F]{2,}/g, "空")
-          .replace(/[（(]\s*[）)]/g, "空")
-          .trim();
-      }
-
-      function el(id) {
-        return id ? document.getElementById(id) : null;
-      }
-
-      function buildText(course) {
-        const cfg = courses[course];
-        if (!cfg) return "";
-        const parts = [];
-        const qEl = el(cfg.q);
-        const q = cleanText(qEl && qEl.textContent);
-        if (q) parts.push(q);
-        const shortPanel = el(cfg.shortPanel);
-        const optsEl = el(cfg.opts);
-        if (shortPanel && !shortPanel.hidden) {
-          const lead = cleanText(el(cfg.shortLead) && el(cfg.shortLead).textContent);
-          const pointsEl = el(cfg.shortPoints);
-          const points = pointsEl
-            ? Array.from(pointsEl.querySelectorAll("li"))
-                .map((li) => cleanText(li.textContent))
-                .filter(Boolean)
-            : [];
-          if (lead) parts.push("思路。" + lead);
-          if (points.length) parts.push("采分点。" + points.join("。"));
-        } else if (optsEl) {
-          const lines = Array.from(optsEl.querySelectorAll(".radio-line"));
-          if (lines.length) {
-            parts.push("选项如下。");
-            lines.forEach((line, i) => {
-              const key = "ABCD"[i] || String(i + 1);
-              const label = cleanText((line.querySelector(".radio-text") || line).textContent.replace(/^[A-D][\.、．]\s*/, ""));
-              if (label) parts.push(key + "。" + label);
-            });
-            parts.push("请选择答案。");
-          }
-        }
-        const view = el(cfg.view);
-        const feedback = el(cfg.feedback);
-        if (view && view.classList.contains("is-submitted") && feedback && !feedback.hidden) {
-          const result = cleanText(feedback.querySelector(".feedback-result") && feedback.querySelector(".feedback-result").textContent);
-          const answer = cleanText(feedback.querySelector(".feedback-answer") && feedback.querySelector(".feedback-answer").textContent);
-          const ref = cleanText(feedback.querySelector(".feedback-ref") && feedback.querySelector(".feedback-ref").textContent);
-          if (result) parts.push(result.replace(/[✓✘]/g, ""));
-          if (answer) parts.push(answer);
-          if (ref) parts.push(ref);
-        }
-        return parts.filter(Boolean).join("。").replace(/。+/g, "。");
-      }
-
-      function setStatus(course, msg, live) {
-        const cfg = courses[course];
-        const st = cfg && el(cfg.status);
-        if (!st) return;
-        st.textContent = msg || "";
-        st.classList.toggle("is-live", !!live);
-      }
-
-      function syncUi(course) {
-        const cfg = courses[course];
-        if (!cfg) return;
-        const speaking = activeCourse === course && window.speechSynthesis.speaking;
-        const isPaused = activeCourse === course && paused;
-        const play = el(cfg.play);
-        const pauseBtn = el(cfg.pause);
-        const stopBtn = el(cfg.stop);
-        if (play) {
-          play.classList.toggle("is-playing", speaking || isPaused);
-          play.textContent = speaking || isPaused ? "朗读中" : "朗读本题";
-        }
-        if (pauseBtn) {
-          pauseBtn.hidden = !(speaking || isPaused);
-          pauseBtn.textContent = isPaused ? "继续" : "暂停";
-        }
-        if (stopBtn) stopBtn.hidden = !(speaking || isPaused);
-      }
-
-      function stop() {
-        try {
-          window.speechSynthesis.cancel();
-        } catch (_) {}
-        const was = activeCourse;
-        activeCourse = null;
-        paused = false;
-        Object.keys(courses).forEach((c) => {
-          setStatus(c, "");
-          syncUi(c);
-        });
-        if (was) syncUi(was);
-      }
-
-      function stopIfCourse(course) {
-        if (activeCourse === course) stop();
-      }
-
-      function speak(course) {
-        if (!supported()) {
-          setStatus(course, "当前浏览器不支持朗读，请换 Safari / Chrome。", true);
-          return;
-        }
-        const text = buildText(course);
-        if (!text) {
-          setStatus(course, "这一题还没有可朗读的内容。", true);
-          return;
-        }
-        stop();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = "zh-CN";
-        u.rate = getRate();
-        u.pitch = 1;
-        const voice = pickVoice();
-        if (voice) u.voice = voice;
-        activeCourse = course;
-        paused = false;
-        u.onstart = () => {
-          setStatus(course, "正在朗读…可点暂停或停止", true);
-          syncUi(course);
-        };
-        u.onend = () => {
-          if (activeCourse === course) {
-            activeCourse = null;
-            paused = false;
-            setStatus(course, "朗读结束");
-            syncUi(course);
-          }
-        };
-        u.onerror = () => {
-          if (activeCourse === course) {
-            activeCourse = null;
-            paused = false;
-            setStatus(course, "朗读中断，请再点一次「朗读本题」", true);
-            syncUi(course);
-          }
-        };
-        window.speechSynthesis.speak(u);
-        syncUi(course);
-      }
-
-      function togglePause(course) {
-        if (activeCourse !== course) return;
-        if (!window.speechSynthesis.speaking && !paused) return;
-        if (paused) {
-          window.speechSynthesis.resume();
-          paused = false;
-          setStatus(course, "继续朗读…", true);
-        } else {
-          window.speechSynthesis.pause();
-          paused = true;
-          setStatus(course, "已暂停", true);
-        }
-        syncUi(course);
-      }
-
-      function wireCourse(course) {
-        const cfg = courses[course];
-        if (!cfg) return;
-        const play = el(cfg.play);
-        const pauseBtn = el(cfg.pause);
-        const stopBtn = el(cfg.stop);
-        if (play) {
-          play.addEventListener("click", () => {
-            if (activeCourse === course && (window.speechSynthesis.speaking || paused)) {
-              togglePause(course);
-              return;
-            }
-            speak(course);
-          });
-        }
-        if (pauseBtn) pauseBtn.addEventListener("click", () => togglePause(course));
-        if (stopBtn) stopBtn.addEventListener("click", () => stop());
-      }
-
-      function init() {
-        if (!supported()) {
-          Object.keys(courses).forEach((c) => {
-            const cfg = courses[c];
-            const bar = el(c === "history" ? "history-tts-bar" : "xi-tts-bar");
-            if (bar) {
-              setStatus(c, "本机不支持语音朗读");
-              const play = el(cfg.play);
-              if (play) play.disabled = true;
-            }
-          });
-          return;
-        }
-        setRate(getRate());
-        Object.keys(courses).forEach(wireCourse);
-        document.querySelectorAll("[data-tts-rate]").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const rate = setRate(parseFloat(btn.getAttribute("data-tts-rate")));
-            if (activeCourse && window.speechSynthesis.speaking) {
-              // 换语速：重读本题
-              speak(activeCourse);
-            } else {
-              const tip = rate === 0.8 ? "已设慢速" : rate === 1.15 ? "已设快速" : "已设中速";
-              Object.keys(courses).forEach((c) => setStatus(c, tip));
-            }
-          });
-        });
-        const warm = () => {
-          window.speechSynthesis.getVoices();
-          voicesReady = true;
-        };
-        warm();
-        if (typeof window.speechSynthesis.onvoiceschanged !== "undefined") {
-          window.speechSynthesis.onvoiceschanged = warm;
-        }
-        document.addEventListener("visibilitychange", () => {
-          if (document.hidden) stop();
-        });
-      }
-
-      return { init, stop, stopIfCourse, speak };
-    })();
-    QuizTTS.init();
 
     (function wireUiThemePicker() {
       const THEME_KEY = "pansan2-ui-theme-v1";
