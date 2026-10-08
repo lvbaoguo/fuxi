@@ -334,6 +334,28 @@
       margin: 0 0 12px;
       font-size: 0.88rem;
     }
+    .chapter-resume-dialog.is-drop-target {
+      outline: 3px dashed var(--accent);
+      outline-offset: 4px;
+      background: var(--accent-soft);
+    }
+    .wrong-sync-drop-hint {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .wrong-sync-drop-hint[hidden] {
+      display: none !important;
+    }
+    /* 导入弹窗比「重开/继续」略宽，方便贴 JSON */
+    #wrong-sync-dialog.chapter-resume-dialog {
+      max-width: min(560px, 100%);
+      max-height: min(90vh, 90dvh);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      box-sizing: border-box;
+    }
     .wrong-sync-toast {
       position: fixed;
       left: 50%;
@@ -359,6 +381,54 @@
       background: var(--bg);
       border: 1px solid var(--border);
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+    /* 竖屏 / 窄屏：导入弹窗占满可用高度，按钮好点，访达拖拽提示关掉 */
+    @media (max-width: 640px) {
+      .chapter-resume-overlay {
+        padding: 12px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+        align-items: center;
+      }
+      #wrong-sync-dialog.chapter-resume-dialog {
+        max-width: 100%;
+        max-height: calc(100dvh - 24px);
+        padding: 16px 14px 14px;
+      }
+      #wrong-sync-title.chapter-resume-msg {
+        margin: 0 0 10px;
+        font-size: 0.95rem;
+      }
+      .wrong-sync-drop-hint {
+        display: none !important;
+      }
+      .wrong-sync-text {
+        min-height: 96px;
+        max-height: 32vh;
+        font-size: 16px; /* 避免 iOS 聚焦放大 */
+      }
+      .wrong-sync-file {
+        width: 100%;
+        margin: 0 0 14px;
+        font-size: 1rem;
+      }
+      #wrong-sync-dialog .chapter-resume-actions {
+        width: 100%;
+      }
+      #wrong-sync-dialog .chapter-resume-btn {
+        flex: 1 1 calc(50% - 8px);
+        min-height: 44px;
+        padding: 10px 12px;
+      }
+      .wrong-sync-toast {
+        bottom: max(16px, env(safe-area-inset-bottom, 0px));
+        font-size: 0.88rem;
+      }
+    }
+    @media (max-width: 640px) and (max-height: 520px) {
+      .wrong-sync-text {
+        min-height: 72px;
+        max-height: 24vh;
+      }
     }
     .chapter-resume-msg {
       margin: 0 0 18px;
@@ -885,6 +955,23 @@
     }
     .feedback-result.right {
       color: #188038;
+    }
+    /* 累计错次 · 严重性提示（习思想 / 近代史本地实验） */
+    .feedback-severity {
+      margin: -4px 0 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #b06000;
+    }
+    .feedback-severity[hidden] {
+      display: none !important;
+    }
+    .feedback-severity.is-high {
+      color: #c5221f;
+    }
+    .feedback-severity.is-extreme {
+      color: #a50e0e;
+      font-weight: 800;
     }
     .feedback-answer {
       margin: 0 0 8px;
@@ -2347,6 +2434,7 @@
           </div>
           <div class="quiz-feedback" id="ch1-feedback" aria-live="polite">
             <p class="feedback-result" id="ch1-feedback-result"></p>
+            <p class="feedback-severity" id="ch1-feedback-severity" hidden></p>
             <p class="feedback-answer" id="ch1-feedback-answer"></p>
             <p class="feedback-ref" id="ch1-feedback-ref"></p>
           </div>
@@ -2636,6 +2724,7 @@
           </div>
           <div class="quiz-feedback" id="xq-feedback" aria-live="polite">
             <p class="feedback-result" id="xq-feedback-result"></p>
+            <p class="feedback-severity" id="xq-feedback-severity" hidden></p>
             <p class="feedback-answer" id="xq-feedback-answer"></p>
             <p class="feedback-ref" id="xq-feedback-ref"></p>
           </div>
@@ -2836,10 +2925,11 @@
   </div>
 
   <div id="wrong-sync-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
-    <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="wrong-sync-title">
-      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。</p>
+    <div class="chapter-resume-dialog" id="wrong-sync-dialog" role="dialog" aria-modal="true" aria-labelledby="wrong-sync-title">
+      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选择/拖入 json 文件。</p>
+      <p id="wrong-sync-drop-hint" class="wrong-sync-drop-hint">也可把访达里的 .json 直接拖进这个窗口。</p>
       <p id="wrong-sync-summary" class="wrong-sync-summary" hidden></p>
-      <textarea id="wrong-sync-text" class="wrong-sync-text" placeholder="粘贴导出的 JSON"></textarea>
+      <textarea id="wrong-sync-text" class="wrong-sync-text" placeholder="粘贴导出的 JSON，或把文件拖到这里"></textarea>
       <input id="wrong-sync-file" class="wrong-sync-file" type="file" accept="application/json,.json,.txt">
       <div class="chapter-resume-actions">
         <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-cancel">关闭</button>
@@ -11971,6 +12061,41 @@
     const XI_WRONG_STORAGE_KEY = "pansan2-xi-wrong-v1";
     const XI_WRONG_KEEP_STORAGE_KEY = "pansan2-xi-wrong-keep-v1";
     const XI_WRONG_KEEP_SEEDED_KEY = "pansan2-xi-wrong-keep-seeded-v1";
+
+    /**
+     * 累计错次严重性文案（习思想 / 近代史共用；马原不用）。
+     * mastery.wrong 每答错 +1，localStorage 长期记。
+     */
+    function formatWrongSeverityHint(wrong) {
+      const n = Math.floor(Number(wrong) || 0);
+      if (n < 1) return "";
+      if (n >= 8) return "累计错×" + n + " · 严重性极高，反复踩坑";
+      if (n >= 5) return "累计错×" + n + " · 严重性很高";
+      if (n >= 3) return "累计错×" + n + " · 偏高，建议重点盯";
+      return "累计错×" + n;
+    }
+
+    function wrongSeverityClass(wrong) {
+      const n = Math.floor(Number(wrong) || 0);
+      if (n >= 8) return "feedback-severity is-extreme";
+      if (n >= 5) return "feedback-severity is-high";
+      if (n >= 3) return "feedback-severity is-high";
+      return "feedback-severity";
+    }
+
+    function setFeedbackSeverityEl(el, wrong) {
+      if (!el) return;
+      const hint = formatWrongSeverityHint(wrong);
+      if (!hint) {
+        el.hidden = true;
+        el.textContent = "";
+        el.className = "feedback-severity";
+        return;
+      }
+      el.hidden = false;
+      el.className = wrongSeverityClass(wrong);
+      el.textContent = hint;
+    }
     const XI_MASTERY_STORAGE_KEY = "pansan2-xi-mastery-v1";
     const XI_RESULT_STORAGE_KEY = "pansan2-xi-chapter-results-v1";
     const XI_PROGRESS_STORAGE_KEY = "pansan2-xi-chapter-progress-v1";
@@ -13098,6 +13223,7 @@
     const xqSubmitWrap = document.getElementById("xq-submit-wrap");
     const xqFeedback = document.getElementById("xq-feedback");
     const xqFeedbackResult = document.getElementById("xq-feedback-result");
+    const xqFeedbackSeverity = document.getElementById("xq-feedback-severity");
     const xqFeedbackAnswer = document.getElementById("xq-feedback-answer");
     const xqFeedbackRef = document.getElementById("xq-feedback-ref");
     const xqPrev = document.getElementById("xq-prev");
@@ -13175,7 +13301,7 @@
       if (elTotal) elTotal.textContent = String(total);
     }
 
-    function applyXiFeedback(q, ok, extra) {
+    function applyXiFeedback(q, ok, extra, wrongCount) {
       if (!xiQuizViewEl) return;
       xiQuizViewEl.classList.add("is-submitted");
       if (ok) {
@@ -13185,6 +13311,7 @@
         xqFeedbackResult.className = "feedback-result wrong";
         xqFeedbackResult.textContent = "✘答错了！" + (extra || "");
       }
+      setFeedbackSeverityEl(xqFeedbackSeverity, wrongCount);
       xqFeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
       xqFeedbackRef.className = "feedback-ref";
       const ex = q.explain && String(q.explain).trim();
@@ -13196,6 +13323,12 @@
       xqFeedbackRef.textContent = refBody ? "解析：" + refBody : "";
       markXiOptionVerdict(q, ok);
       fillXiStemBlankOnCorrect(q, ok);
+    }
+
+    function xiMasteryWrongForDisplay(ch, idx) {
+      if (ch < 1 || ch > 18 || idx == null || idx < 0) return 0;
+      const e = loadXiMasteryMap()[xiMasteryKey(ch, idx)];
+      return e && e.wrong ? e.wrong : 0;
     }
 
     function xiCorrectOptionLabel(q) {
@@ -13430,6 +13563,7 @@
         xqFeedbackResult.textContent = "";
         xqFeedbackAnswer.innerHTML = "";
         xqFeedbackRef.textContent = "";
+        setFeedbackSeverityEl(xqFeedbackSeverity, 0);
         xqSubmit.disabled = true;
       }
 
@@ -13457,7 +13591,12 @@
         label.appendChild(tx);
         xqOptionsEl.appendChild(label);
       });
-      if (saved) applyXiFeedback(q, saved.ok);
+      if (saved) {
+        const order = getXiDisplayOrder(xiQuizChapter);
+        const displayOrigIdx = order[xiQuizIndex];
+        const origIdx = xiBaseIdxFromDisplay(xiQuizChapter, displayOrigIdx);
+        applyXiFeedback(q, saved.ok, "", xiMasteryWrongForDisplay(xiQuizChapter, origIdx));
+      }
 
       xqPrev.disabled = xiQuizIndex === 0;
       if (saved) {
@@ -13635,10 +13774,11 @@
           const src = getXiWrongSourceAtDisplayIndex(xiQuizIndex);
           const isKeep = xiQuizChapter === WRONG_KEEP_XI_CHAPTER;
           let clearedChapter = false;
+          let masteryAfter = null;
           if (src) {
             const mapBefore = loadXiMasteryMap();
             const beforeClear = isXiChapterCleared(mapBefore, src.ch);
-            updateXiMasteryForQuestion(src.ch, src.i, ok);
+            masteryAfter = updateXiMasteryForQuestion(src.ch, src.i, ok);
             clearedChapter = !beforeClear && isXiChapterCleared(loadXiMasteryMap(), src.ch);
           }
           const streak = isKeep ? 0 : bumpXiWrongStreak(src, ok);
@@ -13663,7 +13803,7 @@
                 ? " 连对 2 次，点下一题后移出。"
                 : " 再对 1 次才移出。"
               : " 已留在「错题练」，需重新连对 2 次。";
-          applyXiFeedback(q, ok, extra);
+          applyXiFeedback(q, ok, extra, masteryAfter && masteryAfter.wrong);
           xqPrev.disabled = xiQuizIndex === 0;
           xqNext.disabled = false;
           xqNext.title = qs.length <= 1 ? "返回目录" : "下一题";
@@ -13686,7 +13826,7 @@
         const origIdx = xiBaseIdxFromDisplay(xiQuizChapter, displayOrigIdx);
         const mapBefore = loadXiMasteryMap();
         const beforeClear = getXiChapterClearedFlag(xiQuizChapter);
-        updateXiMasteryForQuestion(xiQuizChapter, origIdx, ok);
+        const masteryAfter = updateXiMasteryForQuestion(xiQuizChapter, origIdx, ok);
         bumpXiCombo(ok);
         if (!ok) {
           clearXiChapterClearedFlag(xiQuizChapter);
@@ -13705,7 +13845,7 @@
           inp.disabled = true;
         });
         xqSubmitWrap.classList.add("is-hidden");
-        applyXiFeedback(q, ok);
+        applyXiFeedback(q, ok, "", masteryAfter && masteryAfter.wrong);
         xqPrev.disabled = xiQuizIndex === 0;
         xqNext.disabled = xiQuizIndex >= qs.length - 1;
         xqNext.title = xiQuizIndex >= qs.length - 1 ? "已是本章最后一题" : "下一题";
@@ -19554,6 +19694,7 @@
     const ch1SubmitWrap = document.getElementById("ch1-submit-wrap");
     const ch1Feedback = document.getElementById("ch1-feedback");
     const ch1FeedbackResult = document.getElementById("ch1-feedback-result");
+    const ch1FeedbackSeverity = document.getElementById("ch1-feedback-severity");
     const ch1FeedbackAnswer = document.getElementById("ch1-feedback-answer");
     const ch1FeedbackRef = document.getElementById("ch1-feedback-ref");
     const ch1Done = document.getElementById("ch1-done");
@@ -19972,7 +20113,7 @@
       });
     }
 
-    function applyCh1Feedback(q, ok, extra) {
+    function applyCh1Feedback(q, ok, extra, wrongCount) {
       ch1QuizEl.classList.add("is-submitted");
       if (ok) {
         ch1FeedbackResult.className = "feedback-result right";
@@ -19981,6 +20122,7 @@
         ch1FeedbackResult.className = "feedback-result wrong";
         ch1FeedbackResult.textContent = "✘答错了！" + (extra || "");
       }
+      setFeedbackSeverityEl(ch1FeedbackSeverity, wrongCount);
       ch1FeedbackAnswer.innerHTML = "正确答案：" + "<strong>" + q.correct + "</strong>";
 
       const pickedEl = ch1OptionsEl && ch1OptionsEl.querySelector('input[type="radio"]:checked');
@@ -20002,6 +20144,12 @@
       else if (orig) ch1FeedbackRef.textContent = orig;
       else ch1FeedbackRef.textContent = refBody ? "解析：" + refBody : "";
       fillHistoryStemBlankOnCorrect(q, ok);
+    }
+
+    function historyMasteryWrongForDisplay(ch, idx) {
+      if (ch < 1 || ch > 10 || idx == null || idx < 0) return 0;
+      const e = loadMasteryMap()[masteryKey(ch, idx)];
+      return e && e.wrong ? e.wrong : 0;
     }
 
     function historyCorrectOptionLabel(q) {
@@ -20373,7 +20521,15 @@
       if (saved) {
         ch1SubmitWrap.classList.add("is-hidden");
         ch1QuizEl.classList.add("is-submitted");
-        applyCh1Feedback(q, saved.ok);
+        const order = getDisplayOrder(historyQuizChapter);
+        const displayOrigIdx = order[historyQuizIndex];
+        const origIdx = quizAskBaseIdx(q, displayOrigIdx);
+        applyCh1Feedback(
+          q,
+          saved.ok,
+          "",
+          historyMasteryWrongForDisplay(historyQuizChapter, origIdx)
+        );
       } else {
         ch1SubmitWrap.classList.remove("is-hidden");
         ch1QuizEl.classList.remove("is-submitted");
@@ -20381,6 +20537,7 @@
         ch1FeedbackAnswer.innerHTML = "";
         ch1FeedbackRef.className = "feedback-ref";
         ch1FeedbackRef.textContent = "";
+        setFeedbackSeverityEl(ch1FeedbackSeverity, 0);
         ch1Submit.disabled = true;
       }
 
@@ -20724,10 +20881,11 @@
         const src = getWrongSourceAtDisplayIndex(historyQuizIndex);
         const isKeep = historyQuizChapter === WRONG_KEEP_CHAPTER;
         let clearedChapter = false;
+        let masteryAfter = null;
         if (src) {
           const mapBefore = loadMasteryMap();
           const beforeClear = isHistoryChapterCleared(mapBefore, src.ch);
-          updateMasteryForQuestion(src.ch, src.i, ok);
+          masteryAfter = updateMasteryForQuestion(src.ch, src.i, ok);
           clearedChapter = !beforeClear && isHistoryChapterCleared(loadMasteryMap(), src.ch);
         }
         const streak = isKeep ? 0 : bumpHistoryWrongStreak(src, ok);
@@ -20753,7 +20911,7 @@
               ? " 连对 2 次，点下一题后移出。"
               : " 再对 1 次才移出。"
             : " 已留在「错题练」，需重新连对 2 次。";
-        applyCh1Feedback(q, ok, extra);
+        applyCh1Feedback(q, ok, extra, masteryAfter && masteryAfter.wrong);
         ch1Prev.disabled = historyQuizIndex === 0;
         {
           const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
@@ -20777,13 +20935,15 @@
 
       const wasFullLap = historyChapterFullyAnswered(historyQuizChapter);
       res[historyQuizIndex] = { picked: picked.value, ok };
+      let wrongCount = 0;
       if (historyQuizChapter >= 1 && historyQuizChapter <= 10) {
         const order = getDisplayOrder(historyQuizChapter);
         const displayOrigIdx = order[historyQuizIndex];
         const origIdx = quizAskBaseIdx(q, displayOrigIdx);
         const mapBefore = loadMasteryMap();
         const beforeClear = getHistoryChapterClearedFlag(historyQuizChapter);
-        updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
+        const masteryAfter = updateMasteryForQuestion(historyQuizChapter, origIdx, ok);
+        wrongCount = (masteryAfter && masteryAfter.wrong) || 0;
         bumpHistoryCombo(ok);
         if (!ok) {
           clearHistoryChapterClearedFlag(historyQuizChapter);
@@ -20807,7 +20967,7 @@
         inp.disabled = true;
       });
       ch1SubmitWrap.classList.add("is-hidden");
-      applyCh1Feedback(q, ok);
+      applyCh1Feedback(q, ok, "", wrongCount);
       ch1Prev.disabled = historyQuizIndex === 0;
       {
         const playable = Math.max(1, historyPlayableLen(historyQuizChapter) || qs.length);
@@ -21331,13 +21491,19 @@
         return bits.join(" · ");
       }
 
+      function normQText(t) {
+        return String(t || "")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
       function locateQuestion(baseFn, maxCh, item) {
-        const text = item && item.text ? String(item.text).trim() : "";
+        const text = normQText(item && item.text);
         if (text) {
           for (let ch = 1; ch <= maxCh; ch++) {
             const list = baseFn(ch) || [];
             for (let i = 0; i < list.length; i++) {
-              if ((list[i].text || "").trim() === text) return { ch, i };
+              if (normQText(list[i].text) === text) return { ch, i };
             }
           }
         }
@@ -21346,16 +21512,27 @@
         if (Number.isFinite(ch) && Number.isFinite(i)) {
           const list = baseFn(ch) || [];
           const q = list[i];
-          if (q && (!text || (q.text || "").trim() === text)) return { ch, i };
+          if (q && (!text || normQText(q.text) === text)) return { ch, i };
         }
         return null;
       }
 
+      /** 按题号 + 题干文本双重去重（题库改序后旧 ch/i 会对到别的题） */
       function mergeBucket(existing, incoming, baseFn, maxCh) {
         const out = existing.slice();
-        const seen = new Set(out.map((e) => e.ch + "-" + e.i));
+        const seenKey = new Set();
+        const seenText = new Set();
+        out.forEach((e) => {
+          const ch = Number(e.ch);
+          const i = Number(e.i);
+          if (Number.isFinite(ch) && Number.isFinite(i)) seenKey.add(ch + "-" + i);
+          const q = (baseFn(ch) || [])[i];
+          const t = normQText(q && q.text);
+          if (t) seenText.add(t);
+        });
         let added = 0;
         let missed = 0;
+        let skipped = 0;
         (incoming || []).forEach((item) => {
           const loc = locateQuestion(baseFn, maxCh, item);
           if (!loc) {
@@ -21363,13 +21540,19 @@
             return;
           }
           const k = loc.ch + "-" + loc.i;
-          if (seen.has(k)) return;
-          seen.add(k);
+          const q = (baseFn(loc.ch) || [])[loc.i];
+          const t = normQText((q && q.text) || (item && item.text));
+          if (seenKey.has(k) || (t && seenText.has(t))) {
+            skipped += 1;
+            return;
+          }
+          seenKey.add(k);
+          if (t) seenText.add(t);
           const streak = typeof item.streak === "number" && item.streak > 0 ? Math.floor(item.streak) : 0;
           out.push({ ch: loc.ch, i: loc.i, streak });
           added += 1;
         });
-        return { out, added, missed };
+        return { out, added, missed, skipped };
       }
 
       function applyWrongBookPayload(payload) {
@@ -21377,6 +21560,7 @@
         const bits = [];
         let added = 0;
         let missed = 0;
+        let skipped = 0;
         let clearedAdded = 0;
         Object.keys(COURSES).forEach((name) => {
           const c = COURSES[name];
@@ -21385,6 +21569,7 @@
           if (drill.added) c.drillSave(drill.out);
           added += drill.added;
           missed += drill.missed;
+          skipped += drill.skipped || 0;
           let keepAdded = 0;
           if (c.keepGet && c.keepSave) {
             const keep = mergeBucket(c.keepGet(), block.keep, c.base, c.maxCh);
@@ -21392,6 +21577,7 @@
             keepAdded = keep.added;
             added += keep.added;
             missed += keep.missed;
+            skipped += keep.skipped || 0;
           }
           const n = drill.added + keepAdded;
           if (n) bits.push(name + "+" + n);
@@ -21413,7 +21599,7 @@
           if (typeof recomputeXiChapterMasteryBadges === "function") recomputeXiChapterMasteryBadges();
           if (typeof recomputeMarxChapterMasteryBadges === "function") recomputeMarxChapterMasteryBadges();
         }
-        return { added, missed, clearedAdded, bits };
+        return { added, missed, skipped, clearedAdded, bits };
       }
 
       function syncToast(msg) {
@@ -21477,9 +21663,11 @@
       }
 
       const overlay = document.getElementById("wrong-sync-overlay");
+      const dialogEl = document.getElementById("wrong-sync-dialog");
       const textEl = document.getElementById("wrong-sync-text");
       const fileEl = document.getElementById("wrong-sync-file");
       const titleEl = document.getElementById("wrong-sync-title");
+      const dropHintEl = document.getElementById("wrong-sync-drop-hint");
       const summaryEl = document.getElementById("wrong-sync-summary");
       const copyBtn = document.getElementById("wrong-sync-copy");
       const downloadBtn = document.getElementById("wrong-sync-download");
@@ -21493,8 +21681,9 @@
         if (titleEl) {
           titleEl.textContent = isExport
             ? "导出成功 · 请复制或下载下面内容，拿到另一台设备再点「导入」"
-            : "导入 · 粘贴导出的 JSON，或选择下载的文件。会补没有的错题，并点亮导出里的通关章。";
+            : "导入 · 粘贴 / 选文件 / 拖入 json。只补没有的错题（题干相同算重复），并点亮导出里的通关章。";
         }
+        if (dropHintEl) dropHintEl.hidden = isExport;
         if (fileEl) fileEl.hidden = isExport;
         if (copyBtn) copyBtn.hidden = !isExport;
         if (downloadBtn) downloadBtn.hidden = !isExport;
@@ -21506,6 +21695,7 @@
             summaryEl.textContent = "";
           }
         }
+        if (dialogEl) dialogEl.classList.remove("is-drop-target");
       }
 
       function openExportDialog(text, summary, filename) {
@@ -21554,15 +21744,28 @@
         try {
           payload = JSON.parse(raw);
         } catch (_) {
-          syncToast("这不是导出的 JSON，贴整段再试。");
+          syncToast("这不是导出的 JSON，贴整段或拖入正确文件再试。");
           return;
         }
         try {
           const r = applyWrongBookPayload(payload);
           closeImport();
-          if (!r.added && !r.clearedAdded && !r.missed) syncToast("没有新内容，错题和通关这边都已有。");
-          else if (!r.added && !r.clearedAdded) syncToast("对不上题库（" + r.missed + " 道），可能是两边版本不一致。把文件发我。");
-          else {
+          const skipped = r.skipped || 0;
+          if (!r.added && !r.clearedAdded && !r.missed) {
+            syncToast(
+              skipped
+                ? "没有新内容，已跳过重复 " + skipped + " 道。"
+                : "没有新内容，错题和通关这边都已有。"
+            );
+          } else if (!r.added && !r.clearedAdded) {
+            syncToast(
+              "对不上题库（" +
+                r.missed +
+                " 道）" +
+                (skipped ? "，另跳过重复 " + skipped + " 道" : "") +
+                "，可能是两边版本不一致。把文件发我。"
+            );
+          } else {
             const parts = [];
             if (r.added) parts.push("错题 +" + r.added);
             if (r.clearedAdded) parts.push("通关章 +" + r.clearedAdded);
@@ -21570,6 +21773,7 @@
               "已并入 " +
                 parts.join("，") +
                 (r.bits.length ? "（" + r.bits.join("，") + "）" : "") +
+                (skipped ? "，跳过重复 " + skipped + " 道" : "") +
                 (r.missed ? "，" + r.missed + " 道对不上" : "") +
                 "。"
             );
@@ -21577,6 +21781,62 @@
         } catch (err) {
           syncToast("导入失败：" + (err && err.message ? err.message : "格式不对"));
         }
+      }
+
+      function readDroppedFile(file) {
+        if (!file) return;
+        const name = (file.name || "").toLowerCase();
+        const okType =
+          !file.type ||
+          /json|text|plain/i.test(file.type) ||
+          name.endsWith(".json") ||
+          name.endsWith(".txt");
+        if (!okType) {
+          syncToast("请拖入 .json 文件。");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const raw = String(reader.result || "");
+          if (textEl) textEl.value = raw;
+          if (raw.trim()) runImport(raw);
+          else syncToast("这个文件是空的。");
+        };
+        reader.onerror = () => syncToast("读取文件失败，请换一个 json 再试。");
+        reader.readAsText(file);
+      }
+
+      function bindImportDrop(target) {
+        if (!target) return;
+        target.addEventListener("dragenter", (e) => {
+          if (dialogMode !== "import") return;
+          e.preventDefault();
+          if (dialogEl) dialogEl.classList.add("is-drop-target");
+        });
+        target.addEventListener("dragover", (e) => {
+          if (dialogMode !== "import") return;
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+          if (dialogEl) dialogEl.classList.add("is-drop-target");
+        });
+        target.addEventListener("dragleave", (e) => {
+          if (!dialogEl) return;
+          const next = e.relatedTarget;
+          if (next && dialogEl.contains(next)) return;
+          dialogEl.classList.remove("is-drop-target");
+        });
+        target.addEventListener("drop", (e) => {
+          if (dialogMode !== "import") return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (dialogEl) dialogEl.classList.remove("is-drop-target");
+          const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          if (!file) {
+            syncToast("没有识别到文件，请再拖一次。");
+            return;
+          }
+          readDroppedFile(file);
+        });
       }
 
       document.querySelectorAll(".js-wrong-sync-export").forEach((btn) => {
@@ -21612,7 +21872,7 @@
         okBtn.addEventListener("click", () => {
           const raw = textEl ? textEl.value.trim() : "";
           if (!raw) {
-            syncToast("先粘贴，或选一个 json 文件。");
+            syncToast("先粘贴、选文件，或把 json 拖进窗口。");
             return;
           }
           runImport(raw);
@@ -21623,19 +21883,14 @@
           if (e.target === overlay) closeImport();
         });
       }
+      bindImportDrop(overlay);
+      bindImportDrop(dialogEl);
+      bindImportDrop(textEl);
       if (fileEl) {
         fileEl.addEventListener("change", () => {
           const file = fileEl.files && fileEl.files[0];
           if (!file) return;
-          const reader = new FileReader();
-          reader.onload = () => {
-            const raw = String(reader.result || "");
-            if (textEl) textEl.value = raw;
-            if (raw.trim()) runImport(raw);
-            else syncToast("这个文件是空的。");
-          };
-          reader.onerror = () => syncToast("读取文件失败，请换一个 json 再试。");
-          reader.readAsText(file);
+          readDroppedFile(file);
         });
       }
 
