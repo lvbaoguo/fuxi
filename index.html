@@ -317,6 +317,18 @@
       resize: vertical;
       box-sizing: border-box;
     }
+    .wrong-sync-summary {
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--text);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .wrong-sync-summary[hidden] {
+      display: none !important;
+    }
     .wrong-sync-file {
       display: block;
       margin: 0 0 12px;
@@ -2825,11 +2837,14 @@
 
   <div id="wrong-sync-overlay" class="chapter-resume-overlay" hidden aria-hidden="true">
     <div class="chapter-resume-dialog" role="dialog" aria-modal="true" aria-labelledby="wrong-sync-title">
-      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。会补这边没有的错题，并点亮导出里已通关的章（已有的通关不会被关掉）。</p>
+      <p id="wrong-sync-title" class="chapter-resume-msg">把另一边「导出」的内容贴进来，或选下载的 json。</p>
+      <p id="wrong-sync-summary" class="wrong-sync-summary" hidden></p>
       <textarea id="wrong-sync-text" class="wrong-sync-text" placeholder="粘贴导出的 JSON"></textarea>
       <input id="wrong-sync-file" class="wrong-sync-file" type="file" accept="application/json,.json,.txt">
       <div class="chapter-resume-actions">
-        <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-cancel">取消</button>
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-cancel">关闭</button>
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-copy" hidden>复制全文</button>
+        <button type="button" class="chapter-resume-btn chapter-resume-btn--ghost" id="wrong-sync-download" hidden>下载文件</button>
         <button type="button" class="chapter-resume-btn chapter-resume-btn--primary" id="wrong-sync-ok">并入</button>
       </div>
     </div>
@@ -21240,9 +21255,16 @@
       };
 
       function packEntries(entries, baseFn) {
-        return entries.map((e) => {
-          const q = (baseFn(e.ch) || [])[e.i];
-          return { ch: e.ch, i: e.i, streak: e.streak || 0, text: q && q.text ? q.text : "" };
+        return (entries || []).map((e) => {
+          const ch = Number(e.ch);
+          const i = Number(e.i);
+          const q = (baseFn(ch) || [])[i];
+          return {
+            ch: Number.isFinite(ch) ? ch : e.ch,
+            i: Number.isFinite(i) ? i : e.i,
+            streak: e.streak || 0,
+            text: q && q.text ? q.text : "",
+          };
         });
       }
 
@@ -21284,6 +21306,31 @@
         return out;
       }
 
+      function summarizePayload(payload) {
+        const bits = [];
+        let drill = 0;
+        let keep = 0;
+        let cleared = 0;
+        ["history", "xi", "marx"].forEach((name) => {
+          const block = (payload && payload[name]) || {};
+          const d = Array.isArray(block.drill) ? block.drill.length : 0;
+          const k = Array.isArray(block.keep) ? block.keep.length : 0;
+          drill += d;
+          keep += k;
+          const cm = payload && payload.cleared && payload.cleared[name];
+          if (cm && typeof cm === "object") {
+            Object.keys(cm).forEach((key) => {
+              if (cm[key]) cleared += 1;
+            });
+          }
+        });
+        if (drill) bits.push("错题练 " + drill + " 道");
+        if (keep) bits.push("错题本 " + keep + " 道");
+        if (cleared) bits.push("通关 " + cleared + " 章");
+        if (!bits.length) bits.push("暂无错题/通关可同步（空包也可以先导出备份）");
+        return bits.join(" · ");
+      }
+
       function locateQuestion(baseFn, maxCh, item) {
         const text = item && item.text ? String(item.text).trim() : "";
         if (text) {
@@ -21294,10 +21341,12 @@
             }
           }
         }
-        if (item && typeof item.ch === "number" && typeof item.i === "number") {
-          const list = baseFn(item.ch) || [];
-          const q = list[item.i];
-          if (q && (!text || (q.text || "").trim() === text)) return { ch: item.ch, i: item.i };
+        const ch = item ? Number(item.ch) : NaN;
+        const i = item ? Number(item.i) : NaN;
+        if (Number.isFinite(ch) && Number.isFinite(i)) {
+          const list = baseFn(ch) || [];
+          const q = list[i];
+          if (q && (!text || (q.text || "").trim() === text)) return { ch, i };
         }
         return null;
       }
@@ -21412,24 +21461,82 @@
       }
 
       function exportWrongBook() {
-        const text = JSON.stringify(buildWrongBookPayload());
-        const day = new Date().toISOString().slice(0, 10);
-        downloadText("fuxi-sync-" + day + ".json", text);
-        copyText(text).then((ok) => {
-          syncToast(
-            ok
-              ? "已复制并下载（含错题 + 通关）。回家在另一边点「导入」即可续。"
-              : "已下载 json（含错题 + 通关）。复制失败的话，把文件发到另一边再「导入」。"
-          );
-        });
+        try {
+          const payload = buildWrongBookPayload();
+          const text = JSON.stringify(payload);
+          const day = new Date().toISOString().slice(0, 10);
+          const filename = "fuxi-sync-" + day + ".json";
+          openExportDialog(text, summarizePayload(payload), filename);
+          downloadText(filename, text);
+          copyText(text).then((ok) => {
+            syncToast(ok ? "已复制，并弹出备份内容（可再点下载）。" : "已弹出备份内容。手机可长按全文复制，或点「下载文件」。");
+          });
+        } catch (err) {
+          syncToast("导出失败：" + (err && err.message ? err.message : "未知错误"));
+        }
       }
 
       const overlay = document.getElementById("wrong-sync-overlay");
       const textEl = document.getElementById("wrong-sync-text");
       const fileEl = document.getElementById("wrong-sync-file");
+      const titleEl = document.getElementById("wrong-sync-title");
+      const summaryEl = document.getElementById("wrong-sync-summary");
+      const copyBtn = document.getElementById("wrong-sync-copy");
+      const downloadBtn = document.getElementById("wrong-sync-download");
+      const okBtn = document.getElementById("wrong-sync-ok");
+      let exportFilename = "fuxi-sync.json";
+      let dialogMode = "import";
+
+      function setDialogMode(mode) {
+        dialogMode = mode;
+        const isExport = mode === "export";
+        if (titleEl) {
+          titleEl.textContent = isExport
+            ? "导出成功 · 请复制或下载下面内容，拿到另一台设备再点「导入」"
+            : "导入 · 粘贴导出的 JSON，或选择下载的文件。会补没有的错题，并点亮导出里的通关章。";
+        }
+        if (fileEl) fileEl.hidden = isExport;
+        if (copyBtn) copyBtn.hidden = !isExport;
+        if (downloadBtn) downloadBtn.hidden = !isExport;
+        if (okBtn) okBtn.hidden = isExport;
+        if (summaryEl) {
+          if (isExport) summaryEl.hidden = false;
+          else {
+            summaryEl.hidden = true;
+            summaryEl.textContent = "";
+          }
+        }
+      }
+
+      function openExportDialog(text, summary, filename) {
+        if (!overlay) {
+          syncToast("导出界面缺失，请强刷页面后再试。");
+          return;
+        }
+        exportFilename = filename || "fuxi-sync.json";
+        setDialogMode("export");
+        if (summaryEl) {
+          summaryEl.hidden = false;
+          summaryEl.textContent = summary || "";
+        }
+        if (textEl) {
+          textEl.value = text;
+          textEl.focus();
+          try {
+            textEl.select();
+          } catch (_) {}
+        }
+        if (fileEl) fileEl.value = "";
+        overlay.hidden = false;
+        overlay.setAttribute("aria-hidden", "false");
+      }
 
       function openImport() {
-        if (!overlay) return;
+        if (!overlay) {
+          syncToast("导入界面缺失，请强刷页面后再试。");
+          return;
+        }
+        setDialogMode("import");
         if (textEl) textEl.value = "";
         if (fileEl) fileEl.value = "";
         overlay.hidden = false;
@@ -21467,8 +21574,8 @@
                 "。"
             );
           }
-        } catch (_) {
-          syncToast("格式不对，用页面上「导出」出来的内容。");
+        } catch (err) {
+          syncToast("导入失败：" + (err && err.message ? err.message : "格式不对"));
         }
       }
 
@@ -21479,8 +21586,28 @@
         btn.addEventListener("click", openImport);
       });
       const cancelBtn = document.getElementById("wrong-sync-cancel");
-      const okBtn = document.getElementById("wrong-sync-ok");
       if (cancelBtn) cancelBtn.addEventListener("click", closeImport);
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const raw = textEl ? textEl.value : "";
+          if (!raw) {
+            syncToast("没有可复制的内容。");
+            return;
+          }
+          copyText(raw).then((ok) => syncToast(ok ? "已复制到剪贴板。" : "复制失败，请长按文本框全选复制。"));
+        });
+      }
+      if (downloadBtn) {
+        downloadBtn.addEventListener("click", () => {
+          const raw = textEl ? textEl.value : "";
+          if (!raw) {
+            syncToast("没有可下载的内容。");
+            return;
+          }
+          downloadText(exportFilename, raw);
+          syncToast("已触发下载（微信内置浏览器可能拦下载，请改用「复制全文」）。");
+        });
+      }
       if (okBtn) {
         okBtn.addEventListener("click", () => {
           const raw = textEl ? textEl.value.trim() : "";
@@ -21502,8 +21629,12 @@
           if (!file) return;
           const reader = new FileReader();
           reader.onload = () => {
-            if (textEl) textEl.value = String(reader.result || "");
+            const raw = String(reader.result || "");
+            if (textEl) textEl.value = raw;
+            if (raw.trim()) runImport(raw);
+            else syncToast("这个文件是空的。");
           };
+          reader.onerror = () => syncToast("读取文件失败，请换一个 json 再试。");
           reader.readAsText(file);
         });
       }
