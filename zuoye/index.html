@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>每日学习计划 · 过及格线</title>
+  <title>强制每日作业 · 过及格线</title>
   <style>
     :root {
-      --bg: #f3efe6;
+      --bg: #efe8dc;
       --card: #fffdf8;
       --ink: #1c1917;
       --muted: #78716c;
       --line: #e4ddd2;
       --blue: #1d4ed8;
       --green: #166534;
-      --red: #b91c1c;
+      --red: #991b1b;
       --amber: #b45309;
     }
     * { box-sizing: border-box; }
@@ -22,206 +22,123 @@
       font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(900px 420px at 0% 0%, #fde68a55, transparent),
-        radial-gradient(700px 360px at 100% 0%, #bfdbfe55, transparent),
+        radial-gradient(900px 420px at 0% 0%, #fecaca66, transparent),
+        radial-gradient(700px 360px at 100% 0%, #fde68a55, transparent),
         var(--bg);
       line-height: 1.5;
     }
-    .wrap { max-width: 920px; margin: 0 auto; padding: 16px 14px 72px; }
-    h1 { font-size: 1.35rem; margin: 0 0 4px; }
-    .sub { color: var(--muted); margin: 0 0 14px; font-size: 0.92rem; }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 14px 12px 88px; }
+    h1 { font-size: 1.3rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 12px; font-size: 0.9rem; }
+    .lock {
+      padding: 12px 14px; border-radius: 12px; background: #7f1d1d; color: #fff7ed;
+      font-weight: 800; margin-bottom: 12px;
+    }
+    .lock.ok { background: var(--green); color: #ecfdf5; }
+    .lock small { display: block; font-weight: 500; opacity: 0.92; margin-top: 4px; }
     .card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 12px;
-      box-shadow: 0 8px 24px rgba(28,25,23,0.05);
+      box-shadow: 0 8px 22px rgba(28,25,23,0.05);
     }
     .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .grow { flex: 1 1 auto; }
-    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); }
-    input, select, textarea, button {
-      font: inherit;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      padding: 8px 10px;
-      background: #fff;
-      color: var(--ink);
+    button, input, select {
+      font: inherit; border-radius: 8px; border: 1px solid var(--line);
+      padding: 8px 10px; background: #fff; color: var(--ink);
     }
-    textarea { width: 100%; min-height: 72px; resize: vertical; }
-    button {
-      cursor: pointer;
-      font-weight: 700;
-      border-color: #d6d3d1;
-    }
+    button { cursor: pointer; font-weight: 700; }
     button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
     button.good { background: var(--green); color: #fff; border-color: var(--green); }
     button.ghost { background: #fff; }
-    button.danger { color: var(--red); border-color: #fecaca; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
     .pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      background: #fee2e2;
-      color: var(--red);
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.78rem; font-weight: 800; background: #fee2e2; color: var(--red);
     }
     .pill.ok { background: #dcfce7; color: var(--green); }
-    .item {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 10px;
-      background: #fff;
-      margin: 8px 0;
+    .progress {
+      height: 10px; background: #e7e5e4; border-radius: 999px; overflow: hidden; margin: 8px 0;
     }
-    .item.done { background: #f0fdf4; }
-    .item-head {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 8px;
-      align-items: start;
+    .progress > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b45309, #166534); }
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .tabs button { flex: 1; }
+    .tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .q-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; }
+    .q-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
+    .q-text { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
+    .opt {
+      display: block; width: 100%; text-align: left; margin: 6px 0; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 10px; background: #fff;
     }
-    .item h3 { margin: 0; font-size: 0.98rem; }
-    .item .meta { color: var(--muted); font-size: 0.82rem; }
-    .bank-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      font-size: 0.82rem;
-    }
-    .bank-grid table { width: 100%; border-collapse: collapse; }
-    .bank-grid th, .bank-grid td {
-      border-bottom: 1px solid var(--line);
-      padding: 4px 2px;
-      text-align: left;
-    }
-    .bank-grid th { color: var(--muted); font-weight: 600; }
+    .opt.on { border-color: var(--blue); background: #eff6ff; }
+    .opt.right { border-color: var(--green); background: #ecfdf5; }
+    .opt.wrong { border-color: #fca5a5; background: #fef2f2; }
+    .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
+    .points { margin: 8px 0 0; padding-left: 1.2em; }
+    .points[hidden] { display: none !important; }
+    .hint { color: var(--muted); font-size: 0.85rem; }
     .toast {
-      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
       background: #1c1917; color: #fff; padding: 10px 14px; border-radius: 8px;
-      max-width: min(520px, calc(100% - 24px)); z-index: 20; font-size: 0.9rem;
+      max-width: min(520px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
     }
     .toast[hidden] { display: none !important; }
-    .lock {
-      padding: 12px 14px; border-radius: 12px; background: #7f1d1d; color: #fff7ed;
-      font-weight: 700; margin-bottom: 12px;
-    }
-    .lock.ok { background: var(--green); color: #ecfdf5; }
-    .lock small { display: block; font-weight: 500; opacity: 0.92; margin-top: 4px; }
-    details.bank summary { cursor: pointer; font-weight: 700; }
-    .hint { color: var(--muted); font-size: 0.85rem; }
     a { color: var(--blue); }
-    @media (max-width: 700px) {
-      .bank-grid { grid-template-columns: 1fr; }
-      .item-head { grid-template-columns: auto 1fr; }
-      .item-head .actions { grid-column: 2; }
+    .day-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; }
+    .day-chip {
+      flex: 0 0 auto; border: 1px solid var(--line); background: #fff; border-radius: 10px;
+      padding: 7px 9px; min-width: 58px; text-align: center; cursor: pointer; font: inherit;
     }
+    .day-chip .d { font-weight: 800; display: block; font-size: 0.9rem; }
+    .day-chip .w { font-size: 0.72rem; color: var(--muted); }
+    .day-chip.on { background: #1c1917; color: #fff; }
+    .day-chip.on .w { color: #d6d3d1; }
+    .day-chip.done { background: #ecfdf5; border-color: #86efac; }
+    .nav-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>每日学习计划 · 自填 + 题库对照</h1>
-    <p class="sub">考试 10/24–25 · 10/23 前两门冲 ≥60（去年 53 / 54）。选择题按「从哪章到哪章刷到 100%」自填；简答自定背多少。进度在本机，支持导出/导入（手机↔电脑）。</p>
+    <h1>强制每日作业 · 老师派题</h1>
+    <p class="sub">不让你自己加任务。题库选择题 + 简答已按日派好，必须在本页答对/背过才能开娱乐。考试 10/24–25，10/23 前冲两门 ≥60。</p>
 
-    <div id="lock" class="lock">今天的计划还没勾完 · 先别娱乐</div>
+    <div id="lock" class="lock">今日强制作业未完成 · 不许娱乐</div>
 
     <div class="card row">
-      <label class="field">日期
-        <input type="date" id="plan-date">
-      </label>
       <button type="button" class="ghost" id="btn-today">今天</button>
-      <span class="grow"></span>
-      <button type="button" class="ghost" id="btn-export">导出</button>
-      <button type="button" class="ghost" id="btn-import">导入</button>
+      <span class="grow hint" id="day-label"></span>
+      <button type="button" class="ghost" id="btn-export">导出进度</button>
+      <button type="button" class="ghost" id="btn-import">导入进度</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
-      <button type="button" class="primary" id="btn-teacher">请老师看（复制状态）</button>
+      <button type="button" class="primary" id="btn-teacher">请老师看</button>
     </div>
+
+    <div class="day-nav" id="day-nav"></div>
 
     <div class="card">
-      <div class="row" style="justify-content:space-between;margin-bottom:8px;">
-        <strong id="day-title">今日计划</strong>
-        <span id="day-pill" class="pill">未完成</span>
+      <div class="row" style="justify-content:space-between;">
+        <strong id="phase"></strong>
+        <span id="pill" class="pill">未过关</span>
       </div>
-      <p class="hint" id="day-hint">先加「选择题重刷」和「简答背诵」条目，做完勾选。题量会按实际题库自动算出来。</p>
-
-      <h3 style="margin:12px 0 6px;font-size:1rem;">选择题重刷（刷到 100%）</h3>
-      <div id="mc-list"></div>
-      <div class="row" style="margin-top:8px;">
-        <label class="field">科目
-          <select id="mc-course">
-            <option value="history">近代史</option>
-            <option value="xi">习思想</option>
-          </select>
-        </label>
-        <label class="field">从章
-          <input type="number" id="mc-from" min="1" max="18" value="1" style="width:72px">
-        </label>
-        <label class="field">到章
-          <input type="number" id="mc-to" min="1" max="18" value="3" style="width:72px">
-        </label>
-        <button type="button" class="primary" id="btn-add-mc">加入今日</button>
+      <div class="progress"><i id="bar"></i></div>
+      <p class="hint" id="prog-text"></p>
+      <div class="tabs">
+        <button type="button" class="on" id="tab-mc">选择题</button>
+        <button type="button" id="tab-short">简答题</button>
       </div>
-
-      <h3 style="margin:16px 0 6px;font-size:1rem;">简答背诵（自己定量）</h3>
-      <div id="short-list"></div>
-      <div class="row" style="margin-top:8px;">
-        <label class="field">科目
-          <select id="short-course">
-            <option value="history">近代史</option>
-            <option value="xi" selected>习思想</option>
-          </select>
-        </label>
-        <label class="field">从章
-          <input type="number" id="short-from" min="1" max="18" value="1" style="width:72px">
-        </label>
-        <label class="field">到章
-          <input type="number" id="short-to" min="1" max="18" value="2" style="width:72px">
-        </label>
-        <label class="field">今天背几道（可改）
-          <input type="number" id="short-count" min="1" max="80" value="6" style="width:88px">
-        </label>
-        <button type="button" class="primary" id="btn-add-short">加入今日</button>
-      </div>
-      <p class="hint" id="short-range-hint" style="margin-top:6px;"></p>
-
-      <h3 style="margin:16px 0 6px;font-size:1rem;">今日备注</h3>
-      <textarea id="day-note" placeholder="比如：晚上 9 点前写完；第 7 章选择还虚……"></textarea>
-
-      <div class="row" style="margin-top:10px;">
-        <label class="row" style="gap:6px;font-size:0.92rem;">
-          <input type="checkbox" id="day-done"> 今天计划全部完成（娱乐通行证）
-        </label>
-      </div>
+      <div id="work"></div>
     </div>
 
-    <div class="card">
-      <strong>练题入口</strong>
-      <p class="hint" style="margin:6px 0 0;">
-        <a id="link-local" href="../index.html">本地 fuxi</a> ·
-        <a href="https://lvbaoguo.github.io/fuxi/" target="_blank" rel="noopener">线上刷题</a>
-        · 选择题进对应章节刷到全对；简答切「简答题」默采分点。
-      </p>
+    <div class="card hint">
+      刷题对照（可选）：<a href="../index.html">本地 fuxi</a> ·
+      <a href="https://lvbaoguo.github.io/fuxi/" target="_blank" rel="noopener">线上 fuxi</a>
+      · 但过关以本页强制作业为准。
     </div>
-
-    <details class="card bank" open>
-      <summary>实际题库一览（选章时对照）</summary>
-      <div class="bank-grid" style="margin-top:10px;">
-        <div>
-          <strong>近代史</strong>
-          <div class="hint" id="hist-sum"></div>
-          <table id="hist-table"></table>
-        </div>
-        <div>
-          <strong>习思想</strong>
-          <div class="hint" id="xi-sum"></div>
-          <table id="xi-table"></table>
-        </div>
-      </div>
-    </details>
   </div>
-
   <div id="toast" class="toast" hidden></div>
   <script src="data.js"></script>
   <script>
@@ -231,25 +148,23 @@
         document.body.innerHTML = "<p style='padding:24px'>缺少 data.js</p>";
         return;
       }
-      const STORE = "pansan2-zuoye-daily-v2";
+      const STORE = "pansan2-zuoye-forced-v3";
       const courseName = { history: "近代史", xi: "习思想" };
-      const maxCh = { history: 10, xi: 18 };
+      const $ = (id) => document.getElementById(id);
 
       function todayStr() {
         const n = new Date();
         return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0");
       }
-      function uid() {
-        return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      }
       function load() {
         try {
           const raw = JSON.parse(localStorage.getItem(STORE) || "{}");
-          if (!raw || raw.v !== 2) return { v: 2, days: {}, exportedAt: null };
-          if (!raw.days) raw.days = {};
+          if (!raw || raw.v !== 3) return { v: 3, mcOk: {}, shortOk: {}, exportedAt: null };
+          raw.mcOk = raw.mcOk || {};
+          raw.shortOk = raw.shortOk || {};
           return raw;
         } catch (_) {
-          return { v: 2, days: {}, exportedAt: null };
+          return { v: 3, mcOk: {}, shortOk: {}, exportedAt: null };
         }
       }
       function save() {
@@ -260,9 +175,14 @@
       }
 
       let state = load();
-      let date = todayStr();
+      let date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
+      let tab = "mc";
+      let mcIdx = 0;
+      let shortIdx = 0;
+      let picked = null;
+      let judged = false;
+      let shortRevealed = false;
 
-      const $ = (id) => document.getElementById(id);
       function toast(msg) {
         const el = $("toast");
         el.textContent = msg;
@@ -270,388 +190,384 @@
         clearTimeout(toast._t);
         toast._t = setTimeout(() => {
           el.hidden = true;
-        }, 4200);
+        }, 3800);
       }
 
-      function ensureDay(d) {
-        if (!state.days[d]) {
-          state.days[d] = { mc: [], short: [], note: "", done: false };
-        }
-        const day = state.days[d];
-        if (!Array.isArray(day.mc)) day.mc = [];
-        if (!Array.isArray(day.short)) day.short = [];
-        if (typeof day.note !== "string") day.note = "";
-        if (typeof day.done !== "boolean") day.done = false;
-        return day;
+      function dayPlan(d) {
+        return BANK.schedule.find((s) => s.date === d) || BANK.schedule[0];
       }
-
-      function clampRange(course, from, to) {
-        const max = maxCh[course];
-        let a = Math.max(1, Math.min(max, Number(from) || 1));
-        let b = Math.max(1, Math.min(max, Number(to) || a));
-        if (b < a) {
-          const t = a;
-          a = b;
-          b = t;
-        }
-        return [a, b];
+      function mcKey(day, id) {
+        return day + "|" + id;
       }
-
-      function sumMc(course, from, to) {
-        const [a, b] = clampRange(course, from, to);
-        let n = 0;
-        for (let ch = a; ch <= b; ch++) {
-          n += (BANK.bank[course].chapters[String(ch)] || {}).mc || 0;
-        }
-        return { from: a, to: b, count: n };
+      function shortKey(day, id) {
+        return day + "|" + id;
       }
-
-      function sumShort(course, from, to) {
-        const [a, b] = clampRange(course, from, to);
-        let n = 0;
-        const titles = [];
-        for (let ch = a; ch <= b; ch++) {
-          const info = BANK.bank[course].chapters[String(ch)] || {};
-          n += info.short || 0;
-          titles.push("第" + ch + "章" + (info.short || 0) + "道");
-        }
-        return { from: a, to: b, available: n, titles: titles.join("、") };
-      }
-
-      function dayFinished(day) {
-        if (day.done) return true;
-        if (!day.mc.length && !day.short.length) return false;
-        const mcOk = day.mc.every((x) => x.done);
-        const shortOk = day.short.every((x) => x.done);
-        return mcOk && shortOk;
-      }
-
-      function renderBank() {
-        $("hist-sum").textContent =
-          "选择 " + BANK.bank.history.mcTotal + " · 简答 " + BANK.bank.history.shortTotal;
-        $("xi-sum").textContent =
-          "选择 " + BANK.bank.xi.mcTotal + " · 简答 " + BANK.bank.xi.shortTotal;
-        function fill(tableId, course) {
-          const tb = $(tableId);
-          tb.innerHTML =
-            "<thead><tr><th>章</th><th>选择</th><th>简答</th><th>名称</th></tr></thead><tbody></tbody>";
-          const body = tb.querySelector("tbody");
-          Object.keys(BANK.bank[course].chapters)
-            .map(Number)
-            .sort((a, b) => a - b)
-            .forEach((ch) => {
-              const info = BANK.bank[course].chapters[String(ch)];
-              const tr = document.createElement("tr");
-              tr.innerHTML =
-                "<td>" +
-                ch +
-                "</td><td>" +
-                info.mc +
-                "</td><td>" +
-                info.short +
-                "</td><td>" +
-                info.name +
-                "</td>";
-              body.appendChild(tr);
-            });
-        }
-        fill("hist-table", "history");
-        fill("xi-table", "xi");
-      }
-
-      function renderLock() {
-        const day = ensureDay(todayStr());
-        const ok = dayFinished(day);
-        const lock = $("lock");
-        if (ok) {
-          lock.className = "lock ok";
-          lock.innerHTML = "今日计划已勾完 · 娱乐通行证开了<small>状态可点「请老师看」发给我跟进</small>";
-        } else {
-          lock.className = "lock";
-          const n = day.mc.length + day.short.length;
-          lock.innerHTML =
-            (n
-              ? "今天还有未勾完的条目 · 先别娱乐"
-              : "今天还没填计划 · 先加选择题区间和简答量") +
-            "<small>选择题要刷到 100%；简答按你填的道数背完再勾</small>";
-        }
-      }
-
-      function renderLists() {
-        const day = ensureDay(date);
-        $("plan-date").value = date;
-        $("day-title").textContent = date + " 的计划";
-        $("day-note").value = day.note || "";
-        $("day-done").checked = !!day.done;
-        const ok = dayFinished(day);
-        const pill = $("day-pill");
-        pill.textContent = ok ? "已完成" : "未完成";
-        pill.className = "pill" + (ok ? " ok" : "");
-
-        const mcBox = $("mc-list");
-        mcBox.innerHTML = "";
-        if (!day.mc.length) {
-          mcBox.innerHTML = '<p class="hint">还没有选择题任务。例：习思想 7–9 章刷到全对。</p>';
-        }
-        day.mc.forEach((item) => {
-          const info = sumMc(item.course, item.from, item.to);
-          const div = document.createElement("div");
-          div.className = "item" + (item.done ? " done" : "");
-          div.innerHTML =
-            '<div class="item-head">' +
-            '<input type="checkbox" data-kind="mc" data-id="' +
-            item.id +
-            '"' +
-            (item.done ? " checked" : "") +
-            ">" +
-            "<div><h3>" +
-            courseName[item.course] +
-            " 第" +
-            info.from +
-            "–" +
-            info.to +
-            " 章 · 刷到 100%</h3>" +
-            '<div class="meta">题库合计 <b>' +
-            info.count +
-            "</b> 道选择 · 在 fuxi 对应章节做到全对再勾</div>" +
-            '<input data-note-mc="' +
-            item.id +
-            '" placeholder="备注（可选）" value="' +
-            (item.note || "").replace(/"/g, "&quot;") +
-            '" style="margin-top:6px;width:100%">' +
-            '</div><div class="actions"><button type="button" class="danger" data-del-mc="' +
-            item.id +
-            '">删</button></div></div>';
-          mcBox.appendChild(div);
+      function dayStats(d) {
+        const plan = dayPlan(d);
+        const mcTotal = plan.mcIds.length;
+        const shortTotal = plan.shortIds.length;
+        let mcDone = 0;
+        let shortDone = 0;
+        plan.mcIds.forEach((id) => {
+          if (state.mcOk[mcKey(d, id)]) mcDone += 1;
         });
-
-        const shBox = $("short-list");
-        shBox.innerHTML = "";
-        if (!day.short.length) {
-          shBox.innerHTML = '<p class="hint">还没有简答任务。例：习思想 1–2 章，今天背 6 道。</p>';
-        }
-        day.short.forEach((item) => {
-          const info = sumShort(item.course, item.from, item.to);
-          const div = document.createElement("div");
-          div.className = "item" + (item.done ? " done" : "");
-          div.innerHTML =
-            '<div class="item-head">' +
-            '<input type="checkbox" data-kind="short" data-id="' +
-            item.id +
-            '"' +
-            (item.done ? " checked" : "") +
-            ">" +
-            "<div><h3>" +
-            courseName[item.course] +
-            " 第" +
-            info.from +
-            "–" +
-            info.to +
-            " 章简答 · 背 " +
-            item.target +
-            " 道</h3>" +
-            '<div class="meta">该区间题库共 ' +
-            info.available +
-            " 道（" +
-            info.titles +
-            "）</div>" +
-            '<div class="row" style="margin-top:6px;"><label class="field">已背<input type="number" min="0" max="80" data-done-count="' +
-            item.id +
-            '" value="' +
-            (item.doneCount || 0) +
-            '" style="width:72px"></label>' +
-            '<input data-note-short="' +
-            item.id +
-            '" class="grow" placeholder="备注（可选）" value="' +
-            (item.note || "").replace(/"/g, "&quot;") +
-            '"></div>' +
-            '</div><div class="actions"><button type="button" class="danger" data-del-short="' +
-            item.id +
-            '">删</button></div></div>';
-          shBox.appendChild(div);
+        plan.shortIds.forEach((id) => {
+          if (state.shortOk[shortKey(d, id)]) shortDone += 1;
         });
-
-        updateShortHint();
-        renderLock();
-      }
-
-      function updateShortHint() {
-        const course = $("short-course").value;
-        const info = sumShort(course, $("short-from").value, $("short-to").value);
-        $("short-range-hint").textContent =
-          courseName[course] +
-          " 第" +
-          info.from +
-          "–" +
-          info.to +
-          " 章题库共 " +
-          info.available +
-          " 道简答。今天背几道可自己改。";
-        const max = maxCh[course];
-        $("short-from").max = max;
-        $("short-to").max = max;
-        $("mc-from").max = maxCh[$("mc-course").value];
-        $("mc-to").max = maxCh[$("mc-course").value];
-      }
-
-      function render() {
-        renderLists();
-      }
-
-      $("btn-today").addEventListener("click", () => {
-        date = todayStr();
-        render();
-      });
-      $("plan-date").addEventListener("change", () => {
-        date = $("plan-date").value || todayStr();
-        render();
-      });
-      $("day-note").addEventListener("input", () => {
-        ensureDay(date).note = $("day-note").value;
-        save();
-      });
-      $("day-done").addEventListener("change", () => {
-        ensureDay(date).done = $("day-done").checked;
-        save();
-        render();
-      });
-
-      ["mc-course", "short-course", "short-from", "short-to"].forEach((id) => {
-        $(id).addEventListener("change", updateShortHint);
-        $(id).addEventListener("input", updateShortHint);
-      });
-      $("mc-course").addEventListener("change", () => {
-        const max = maxCh[$("mc-course").value];
-        $("mc-from").max = max;
-        $("mc-to").max = max;
-        if (Number($("mc-to").value) > max) $("mc-to").value = max;
-        if (Number($("mc-from").value) > max) $("mc-from").value = max;
-      });
-
-      $("btn-add-mc").addEventListener("click", () => {
-        const course = $("mc-course").value;
-        const info = sumMc(course, $("mc-from").value, $("mc-to").value);
-        if (!info.count) {
-          toast("这个区间没有选择题");
-          return;
-        }
-        ensureDay(date).mc.push({
-          id: uid(),
-          course,
-          from: info.from,
-          to: info.to,
-          count: info.count,
-          done: false,
-          note: "",
-        });
-        save();
-        render();
-        toast("已加入：刷 " + info.count + " 道选择到 100%");
-      });
-
-      $("btn-add-short").addEventListener("click", () => {
-        const course = $("short-course").value;
-        const info = sumShort(course, $("short-from").value, $("short-to").value);
-        let target = Math.max(1, Number($("short-count").value) || 1);
-        if (info.available > 0) target = Math.min(target, info.available);
-        if (!info.available) {
-          toast("这个区间没有简答题");
-          return;
-        }
-        ensureDay(date).short.push({
-          id: uid(),
-          course,
-          from: info.from,
-          to: info.to,
-          available: info.available,
-          target,
-          doneCount: 0,
-          done: false,
-          note: "",
-        });
-        save();
-        render();
-        toast("已加入：背 " + target + " 道简答");
-      });
-
-      document.addEventListener("change", (e) => {
-        const t = e.target;
-        const day = ensureDay(date);
-        if (t.matches('input[data-kind="mc"]')) {
-          const item = day.mc.find((x) => x.id === t.getAttribute("data-id"));
-          if (item) item.done = t.checked;
-          save();
-          render();
-        }
-        if (t.matches('input[data-kind="short"]')) {
-          const item = day.short.find((x) => x.id === t.getAttribute("data-id"));
-          if (item) {
-            item.done = t.checked;
-            if (t.checked && !item.doneCount) item.doneCount = item.target;
-          }
-          save();
-          render();
-        }
-        if (t.matches("input[data-done-count]")) {
-          const item = day.short.find((x) => x.id === t.getAttribute("data-done-count"));
-          if (item) {
-            item.doneCount = Math.max(0, Number(t.value) || 0);
-            if (item.doneCount >= item.target) item.done = true;
-          }
-          save();
-          render();
-        }
-      });
-
-      document.addEventListener("input", (e) => {
-        const t = e.target;
-        const day = ensureDay(date);
-        if (t.matches("input[data-note-mc]")) {
-          const item = day.mc.find((x) => x.id === t.getAttribute("data-note-mc"));
-          if (item) {
-            item.note = t.value;
-            save();
-          }
-        }
-        if (t.matches("input[data-note-short]")) {
-          const item = day.short.find((x) => x.id === t.getAttribute("data-note-short"));
-          if (item) {
-            item.note = t.value;
-            save();
-          }
-        }
-      });
-
-      document.addEventListener("click", (e) => {
-        const t = e.target;
-        if (!(t instanceof HTMLElement)) return;
-        const day = ensureDay(date);
-        if (t.matches("button[data-del-mc]")) {
-          const id = t.getAttribute("data-del-mc");
-          day.mc = day.mc.filter((x) => x.id !== id);
-          save();
-          render();
-        }
-        if (t.matches("button[data-del-short]")) {
-          const id = t.getAttribute("data-del-short");
-          day.short = day.short.filter((x) => x.id !== id);
-          save();
-          render();
-        }
-      });
-
-      function buildExport() {
+        const total = mcTotal + shortTotal;
+        const done = mcDone + shortDone;
         return {
-          v: 2,
-          type: "fuxi-zuoye-daily",
-          exportedAt: new Date().toISOString(),
-          examDates: BANK.examDates,
-          mustReadyBy: BANK.mustReadyBy,
-          days: state.days,
+          plan,
+          mcTotal,
+          shortTotal,
+          mcDone,
+          shortDone,
+          total,
+          done,
+          ok: total > 0 && done >= total,
         };
       }
 
-      function downloadText(filename, text) {
+      function weekdayLabel(iso) {
+        const dt = new Date(iso + "T12:00:00");
+        return "日一二三四五六"[dt.getDay()];
+      }
+      function shortDate(iso) {
+        const [, m, d] = iso.split("-");
+        return Number(m) + "/" + Number(d);
+      }
+
+      function currentMcList() {
+        return dayPlan(date).mcIds.map((id) => BANK.mcById[id]).filter(Boolean);
+      }
+      function currentShortList() {
+        return dayPlan(date).shortIds.map((id) => BANK.shortById[id]).filter(Boolean);
+      }
+
+      function nextUnansweredMc() {
+        const list = currentMcList();
+        for (let i = 0; i < list.length; i++) {
+          if (!state.mcOk[mcKey(date, list[i].id)]) return i;
+        }
+        return 0;
+      }
+      function nextUnansweredShort() {
+        const list = currentShortList();
+        for (let i = 0; i < list.length; i++) {
+          if (!state.shortOk[shortKey(date, list[i].id)]) return i;
+        }
+        return 0;
+      }
+
+      function renderNav() {
+        const nav = $("day-nav");
+        nav.innerHTML = "";
+        BANK.schedule.forEach((s) => {
+          const st = dayStats(s.date);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "day-chip";
+          if (s.date === date) btn.classList.add("on");
+          if (st.ok) btn.classList.add("done");
+          btn.innerHTML =
+            '<span class="d">' +
+            shortDate(s.date) +
+            '</span><span class="w">周' +
+            weekdayLabel(s.date) +
+            " · " +
+            st.done +
+            "/" +
+            st.total +
+            "</span>";
+          btn.addEventListener("click", () => {
+            date = s.date;
+            picked = null;
+            judged = false;
+            shortRevealed = false;
+            mcIdx = nextUnansweredMc();
+            shortIdx = nextUnansweredShort();
+            render();
+          });
+          nav.appendChild(btn);
+        });
+      }
+
+      function renderLock() {
+        const today = todayStr();
+        const st = dayStats(BANK.schedule.some((s) => s.date === today) ? today : date);
+        const lock = $("lock");
+        if (BANK.schedule.some((s) => s.date === today) && dayStats(today).ok) {
+          lock.className = "lock ok";
+          lock.innerHTML = "今日强制作业已过关 · 娱乐通行证开了<small>明天还有新题，别飘</small>";
+        } else if (BANK.schedule.some((s) => s.date === today)) {
+          const t = dayStats(today);
+          lock.className = "lock";
+          lock.innerHTML =
+            "今日强制作业未完成（" +
+            t.done +
+            "/" +
+            t.total +
+            "）· 不许娱乐<small>选择题必须答对；简答必须过采分点。不能自己删题。</small>";
+        } else {
+          lock.className = st.ok ? "lock ok" : "lock";
+          lock.innerHTML = st.ok
+            ? "当前查看日已过关<small>仍可切换日期补做</small>"
+            : "当前查看日未过关 · 先把派题做完<small>强制派题，不能偷懒自建计划</small>";
+        }
+      }
+
+      function renderMc() {
+        const list = currentMcList();
+        if (!list.length) {
+          $("work").innerHTML = "<p class='hint'>这一天没有选择题。</p>";
+          return;
+        }
+        if (mcIdx >= list.length) mcIdx = list.length - 1;
+        if (mcIdx < 0) mcIdx = 0;
+        const q = list[mcIdx];
+        const done = !!state.mcOk[mcKey(date, q.id)];
+        const box = document.createElement("div");
+        box.className = "q-card";
+        const name = BANK.names[q.course][q.ch] || "";
+        box.innerHTML =
+          '<div class="q-meta">' +
+          courseName[q.course] +
+          " · 第" +
+          q.ch +
+          "章 " +
+          name +
+          " · 第 " +
+          (mcIdx + 1) +
+          "/" +
+          list.length +
+          " 题" +
+          (done ? " · 已过关" : " · 未过关") +
+          "</div>" +
+          '<div class="q-text"></div>' +
+          '<div id="opts"></div>' +
+          '<div id="explain" class="explain" hidden></div>' +
+          '<div class="nav-btns">' +
+          '<button type="button" class="primary" id="btn-judge"' +
+          (done ? " disabled" : "") +
+          ">提交（答错重来）</button>" +
+          '<button type="button" class="ghost" id="btn-prev-mc">上一题</button>' +
+          '<button type="button" class="ghost" id="btn-next-mc">下一题</button>' +
+          '<button type="button" class="ghost" id="btn-jump-wrong">跳到下一道未过关</button>' +
+          "</div>";
+        box.querySelector(".q-text").textContent = q.text;
+        const opts = box.querySelector("#opts");
+        q.options.forEach((o) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "opt";
+          b.textContent = o.key + ". " + o.label;
+          if (picked === o.key) b.classList.add("on");
+          if (judged || done) {
+            if (o.key === q.correct) b.classList.add("right");
+            if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
+          }
+          b.disabled = done;
+          b.addEventListener("click", () => {
+            if (done) return;
+            picked = o.key;
+            judged = false;
+            render();
+          });
+          opts.appendChild(b);
+        });
+        const explain = box.querySelector("#explain");
+        if ((judged || done) && q.explain) {
+          explain.hidden = false;
+          explain.textContent = "解析：" + q.explain + "（答案 " + q.correct + "）";
+        }
+        $("work").innerHTML = "";
+        $("work").appendChild(box);
+
+        $("btn-judge").addEventListener("click", () => {
+          if (!picked) {
+            toast("先选一个选项");
+            return;
+          }
+          judged = true;
+          if (picked === q.correct) {
+            state.mcOk[mcKey(date, q.id)] = 1;
+            save();
+            toast("答对，过关");
+            const next = nextUnansweredMc();
+            mcIdx = next;
+            picked = null;
+            judged = false;
+            render();
+          } else {
+            save();
+            toast("错了，看解析后重选，必须答对才过关");
+            render();
+          }
+        });
+        $("btn-prev-mc").addEventListener("click", () => {
+          mcIdx = Math.max(0, mcIdx - 1);
+          picked = null;
+          judged = false;
+          render();
+        });
+        $("btn-next-mc").addEventListener("click", () => {
+          mcIdx = Math.min(list.length - 1, mcIdx + 1);
+          picked = null;
+          judged = false;
+          render();
+        });
+        $("btn-jump-wrong").addEventListener("click", () => {
+          mcIdx = nextUnansweredMc();
+          picked = null;
+          judged = false;
+          render();
+        });
+      }
+
+      function renderShort() {
+        const list = currentShortList();
+        if (!list.length) {
+          $("work").innerHTML = "<p class='hint'>这一天没有简答题。</p>";
+          return;
+        }
+        if (shortIdx >= list.length) shortIdx = list.length - 1;
+        if (shortIdx < 0) shortIdx = 0;
+        const q = list[shortIdx];
+        const done = !!state.shortOk[shortKey(date, q.id)];
+        const box = document.createElement("div");
+        box.className = "q-card";
+        const name = BANK.names[q.course][q.ch] || "";
+        box.innerHTML =
+          '<div class="q-meta">' +
+          courseName[q.course] +
+          " · 第" +
+          q.ch +
+          "章 " +
+          name +
+          " · 简答 " +
+          (shortIdx + 1) +
+          "/" +
+          list.length +
+          (done ? " · 已过关" : " · 先自己默，再对采分点") +
+          "</div>" +
+          '<div class="q-text"></div>' +
+          (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
+          '<ol class="points" id="points"></ol>' +
+          '<div class="nav-btns">' +
+          '<button type="button" class="primary" id="btn-reveal">默完了，看采分点</button>' +
+          '<button type="button" class="good" id="btn-pass" ' +
+          (shortRevealed || done ? "" : "disabled") +
+          ">对照后：会了（过关）</button>" +
+          '<button type="button" class="ghost" id="btn-fail" ' +
+          (shortRevealed || done ? "" : "disabled") +
+          ">还不会，留下重背</button>" +
+          '<button type="button" class="ghost" id="btn-prev-s">上一题</button>' +
+          '<button type="button" class="ghost" id="btn-next-s">下一题</button>' +
+          '<button type="button" class="ghost" id="btn-jump-s">跳到下一道未过关</button>' +
+          "</div>";
+        box.querySelector(".q-text").textContent = q.text;
+        const ol = box.querySelector("#points");
+        (q.points || []).forEach((p) => {
+          const li = document.createElement("li");
+          li.textContent = p;
+          ol.appendChild(li);
+        });
+        if (!(shortRevealed || done)) ol.hidden = true;
+        $("work").innerHTML = "";
+        $("work").appendChild(box);
+
+        $("btn-reveal").addEventListener("click", () => {
+          shortRevealed = true;
+          render();
+        });
+        $("btn-pass").addEventListener("click", () => {
+          state.shortOk[shortKey(date, q.id)] = 1;
+          save();
+          toast("简答过关");
+          shortRevealed = false;
+          shortIdx = nextUnansweredShort();
+          render();
+        });
+        $("btn-fail").addEventListener("click", () => {
+          delete state.shortOk[shortKey(date, q.id)];
+          save();
+          shortRevealed = false;
+          toast("先背，等会儿再来这道");
+          render();
+        });
+        $("btn-prev-s").addEventListener("click", () => {
+          shortIdx = Math.max(0, shortIdx - 1);
+          shortRevealed = false;
+          render();
+        });
+        $("btn-next-s").addEventListener("click", () => {
+          shortIdx = Math.min(list.length - 1, shortIdx + 1);
+          shortRevealed = false;
+          render();
+        });
+        $("btn-jump-s").addEventListener("click", () => {
+          shortIdx = nextUnansweredShort();
+          shortRevealed = false;
+          render();
+        });
+      }
+
+      function render() {
+        const st = dayStats(date);
+        $("day-label").textContent = date + "（周" + weekdayLabel(date) + "）";
+        $("phase").textContent = st.plan.phase;
+        $("pill").textContent = st.ok ? "已过关" : "未过关";
+        $("pill").className = "pill" + (st.ok ? " ok" : "");
+        const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
+        $("bar").style.width = pct + "%";
+        $("prog-text").textContent =
+          "选择 " +
+          st.mcDone +
+          "/" +
+          st.mcTotal +
+          " 过关 · 简答 " +
+          st.shortDone +
+          "/" +
+          st.shortTotal +
+          " 过关 · 合计 " +
+          st.done +
+          "/" +
+          st.total;
+        $("tab-mc").classList.toggle("on", tab === "mc");
+        $("tab-short").classList.toggle("on", tab === "short");
+        $("tab-mc").textContent = "选择题 " + st.mcDone + "/" + st.mcTotal;
+        $("tab-short").textContent = "简答题 " + st.shortDone + "/" + st.shortTotal;
+        renderNav();
+        renderLock();
+        if (tab === "mc") renderMc();
+        else renderShort();
+      }
+
+      $("tab-mc").addEventListener("click", () => {
+        tab = "mc";
+        picked = null;
+        judged = false;
+        if (!state.mcOk[mcKey(date, (currentMcList()[mcIdx] || {}).id)]) {
+          /* keep */
+        }
+        render();
+      });
+      $("tab-short").addEventListener("click", () => {
+        tab = "short";
+        shortRevealed = false;
+        render();
+      });
+      $("btn-today").addEventListener("click", () => {
+        date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
+        mcIdx = nextUnansweredMc();
+        shortIdx = nextUnansweredShort();
+        picked = null;
+        judged = false;
+        shortRevealed = false;
+        render();
+      });
+
+      function download(filename, text) {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
         a.download = filename;
@@ -662,13 +578,16 @@
       }
 
       $("btn-export").addEventListener("click", () => {
-        const payload = buildExport();
-        const text = JSON.stringify(payload, null, 2);
-        const day = new Date().toISOString().slice(0, 10);
-        downloadText("fuxi-zuoye-" + day + ".json", text);
-        toast("已下载计划文件，发到另一台再点「导入」");
+        const payload = {
+          v: 3,
+          type: "fuxi-zuoye-forced-progress",
+          exportedAt: new Date().toISOString(),
+          mcOk: state.mcOk,
+          shortOk: state.shortOk,
+        };
+        download("fuxi-zuoye-progress-" + todayStr() + ".json", JSON.stringify(payload));
+        toast("已下载进度，手机/电脑互导用这个");
       });
-
       $("btn-import").addEventListener("click", () => $("import-file").click());
       $("import-file").addEventListener("change", () => {
         const file = $("import-file").files && $("import-file").files[0];
@@ -677,39 +596,16 @@
         reader.onload = () => {
           try {
             const payload = JSON.parse(String(reader.result || ""));
-            if (!payload || (payload.v !== 2 && payload.type !== "fuxi-zuoye-daily")) {
-              throw new Error("格式不对");
-            }
-            const incoming = payload.days || {};
-            Object.keys(incoming).forEach((d) => {
-              const cur = ensureDay(d);
-              const src = incoming[d] || {};
-              /* 同日合并：按 id 去重，没有的补上；勾选状态取「已完成」优先 */
-              const mergeArr = (oldArr, newArr, key) => {
-                const map = new Map();
-                (oldArr || []).forEach((x) => map.set(x.id || key(x), x));
-                (newArr || []).forEach((x) => {
-                  const id = x.id || key(x);
-                  const prev = map.get(id);
-                  if (!prev) map.set(id, x);
-                  else map.set(id, Object.assign({}, prev, x, { done: !!(prev.done || x.done) }));
-                });
-                return Array.from(map.values());
-              };
-              cur.mc = mergeArr(cur.mc, src.mc, (x) => x.course + "-" + x.from + "-" + x.to + "-mc");
-              cur.short = mergeArr(
-                cur.short,
-                src.short,
-                (x) => x.course + "-" + x.from + "-" + x.to + "-s" + x.target
-              );
-              if (src.note && (!cur.note || src.note.length > cur.note.length)) cur.note = src.note;
-              cur.done = !!(cur.done || src.done);
-            });
+            if (!payload || payload.v !== 3) throw new Error("bad");
+            state.mcOk = Object.assign({}, state.mcOk, payload.mcOk || {});
+            state.shortOk = Object.assign({}, state.shortOk, payload.shortOk || {});
             save();
+            mcIdx = nextUnansweredMc();
+            shortIdx = nextUnansweredShort();
             render();
-            toast("已导入并合并计划");
-          } catch (err) {
-            toast("导入失败：请用本页导出的 json");
+            toast("进度已合并导入");
+          } catch (_) {
+            toast("导入失败：请用本页导出的进度 json");
           }
           $("import-file").value = "";
         };
@@ -717,44 +613,28 @@
       });
 
       $("btn-teacher").addEventListener("click", async () => {
-        const day = ensureDay(date);
-        const lines = [];
-        lines.push("【请老师看】日期 " + date + (dayFinished(day) ? " · 今日已完成" : " · 今日未完成"));
-        lines.push("目标：10/23 前两门 ≥60（去年 53/54）");
-        if (!day.mc.length && !day.short.length) lines.push("还没填任务。");
-        day.mc.forEach((item) => {
-          const info = sumMc(item.course, item.from, item.to);
-          lines.push(
-            (item.done ? "✅" : "⬜") +
-              " 选择 " +
-              courseName[item.course] +
-              " 第" +
-              info.from +
-              "–" +
-              info.to +
-              "章（" +
-              info.count +
-              "题刷到100%）" +
-              (item.note ? "｜" + item.note : "")
-          );
-        });
-        day.short.forEach((item) => {
-          lines.push(
-            (item.done ? "✅" : "⬜") +
-              " 简答 " +
-              courseName[item.course] +
-              " 第" +
-              item.from +
-              "–" +
-              item.to +
-              "章 背" +
-              (item.doneCount || 0) +
-              "/" +
-              item.target +
-              (item.note ? "｜" + item.note : "")
-          );
-        });
-        if (day.note) lines.push("备注：" + day.note);
+        const st = dayStats(date);
+        const lines = [
+          "【请老师看·强制作业】" + date + (st.ok ? " · 已过关" : " · 未过关"),
+          "选择 " + st.mcDone + "/" + st.mcTotal + " · 简答 " + st.shortDone + "/" + st.shortTotal,
+          "阶段：" + st.plan.phase,
+        ];
+        const mcLeft = st.plan.mcIds.filter((id) => !state.mcOk[mcKey(date, id)]).slice(0, 5);
+        const sLeft = st.plan.shortIds.filter((id) => !state.shortOk[shortKey(date, id)]).slice(0, 5);
+        if (mcLeft.length) {
+          lines.push("未过关选择举例：");
+          mcLeft.forEach((id) => {
+            const q = BANK.mcById[id];
+            if (q) lines.push("- [" + courseName[q.course] + "第" + q.ch + "章] " + q.text.slice(0, 40));
+          });
+        }
+        if (sLeft.length) {
+          lines.push("未过关简答举例：");
+          sLeft.forEach((id) => {
+            const q = BANK.shortById[id];
+            if (q) lines.push("- [" + courseName[q.course] + "第" + q.ch + "章] " + q.text.slice(0, 40));
+          });
+        }
         const text = lines.join("\n");
         let ok = false;
         try {
@@ -773,11 +653,11 @@
           } catch (_) {}
           ta.remove();
         }
-        toast(ok ? "状态已复制，发给老师即可" : "复制失败，请手动选中发送");
-        console.log(text);
+        toast(ok ? "状态已复制，发给老师" : "复制失败，请手动发");
       });
 
-      renderBank();
+      mcIdx = nextUnansweredMc();
+      shortIdx = nextUnansweredShort();
       render();
     })();
   </script>
