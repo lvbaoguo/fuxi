@@ -15,6 +15,27 @@
         var f = localStorage.getItem("pansan2-ui-font-v1") || "normal";
         if (f === "large" || f === "xlarge") document.documentElement.setAttribute("data-font", f);
       } catch (_) {}
+      /* 本地清空错题练/错题本：打开 index.html?clearWrong=1 （不通关进度） */
+      try {
+        var q = new URLSearchParams(location.search);
+        if (q.get("clearWrong") === "1" || location.hash === "#clear-wrongs") {
+          [
+            "pansan2-history-wrong-v1",
+            "pansan2-history-wrong-keep-v1",
+            "pansan2-xi-wrong-v1",
+            "pansan2-xi-wrong-keep-v1",
+            "pansan2-marx-wrong-v1"
+          ].forEach(function (k) {
+            localStorage.removeItem(k);
+          });
+          q.delete("clearWrong");
+          var next = location.pathname + (q.toString() ? "?" + q.toString() : "") + location.hash.replace(/#clear-wrongs$/, "");
+          history.replaceState(null, "", next || location.pathname);
+          setTimeout(function () {
+            alert("已清空本地错题练 / 错题本（三门课）。通关进度没动，可以重新导入手机导出的 json。");
+          }, 0);
+        }
+      } catch (_) {}
     })();
   </script>
   <style>
@@ -2290,6 +2311,8 @@
               <button type="button" class="list-card__wrong-btn" id="btn-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
               <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
               <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
+              <!-- LOCAL-ONLY：清空按钮，勿推远程 Pages -->
+              <button type="button" class="list-card__wrong-btn js-wrong-sync-clear" title="清空本机三门课的错题练/错题本（不通关；仅本地）">清空</button>
               <button type="button" class="list-card__wrong-btn js-ui-theme" id="btn-ui-theme" title="主题与字号设置">主题</button>
             </span>
           </h2>
@@ -2515,6 +2538,8 @@
                 <button type="button" class="list-card__wrong-btn" id="btn-xi-wrong-keep" title="各章答错永久记录，可手动移除；再答错会加回错题练">错题本</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
+                <!-- LOCAL-ONLY：清空按钮，勿推远程 Pages -->
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-clear" title="清空本机三门课的错题练/错题本（不通关；仅本地）">清空</button>
                 <button type="button" class="list-card__wrong-btn js-ui-theme" title="主题与字号设置">主题</button>
               </span>
             </h2>
@@ -2770,6 +2795,8 @@
                 <button type="button" class="list-card__wrong-btn" id="btn-marx-wrong-review" title="收录本课程各章答错的题目">错题回顾</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-export" title="复制并下载：三门课错题练/错题本 + 通关进度，换电脑可导入">导出</button>
                 <button type="button" class="list-card__wrong-btn js-wrong-sync-import" title="把另一边导出的错题与通关进度并进来；已有的保留">导入</button>
+                <!-- LOCAL-ONLY：清空按钮，勿推远程 Pages -->
+                <button type="button" class="list-card__wrong-btn js-wrong-sync-clear" title="清空本机三门课的错题练/错题本（不通关；仅本地）">清空</button>
                 <button type="button" class="list-card__wrong-btn js-ui-theme" title="主题与字号设置">主题</button>
               </span>
             </h2>
@@ -21652,11 +21679,9 @@
           const text = JSON.stringify(payload);
           const day = new Date().toISOString().slice(0, 10);
           const filename = "fuxi-sync-" + day + ".json";
-          openExportDialog(text, summarizePayload(payload), filename);
           downloadText(filename, text);
-          copyText(text).then((ok) => {
-            syncToast(ok ? "已复制，并弹出备份内容（可再点下载）。" : "已弹出备份内容。手机可长按全文复制，或点「下载文件」。");
-          });
+          const summary = summarizePayload(payload);
+          syncToast("已下载 " + filename + (summary ? "（" + summary + "）" : "") + "。到另一边点「导入」选这个文件即可。");
         } catch (err) {
           syncToast("导出失败：" + (err && err.message ? err.message : "未知错误"));
         }
@@ -21839,11 +21864,62 @@
         });
       }
 
+      /** LOCAL-ONLY：清空本机错题练/错题本，勿随 Pages 推远程 */
+      function clearLocalWrongBooks() {
+        if (
+          !confirm(
+            "清空本机三门课的「错题练 / 错题本」？\n通关进度不动。清空后可重新导入手机导出的 json。"
+          )
+        ) {
+          return;
+        }
+        Object.keys(COURSES).forEach((name) => {
+          const c = COURSES[name];
+          try {
+            c.drillSave([]);
+          } catch (_) {}
+          if (c.keepSave) {
+            try {
+              c.keepSave([]);
+            } catch (_) {}
+          }
+        });
+        [
+          "pansan2-history-wrong-v1",
+          "pansan2-history-wrong-keep-v1",
+          "pansan2-xi-wrong-v1",
+          "pansan2-xi-wrong-keep-v1",
+          "pansan2-marx-wrong-v1"
+        ].forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch (_) {}
+        });
+        if (typeof updateWrongReviewButtonBadge === "function") updateWrongReviewButtonBadge();
+        if (typeof updateXiWrongReviewButtonBadge === "function") updateXiWrongReviewButtonBadge();
+        if (typeof updateMarxWrongReviewButtonBadge === "function") updateMarxWrongReviewButtonBadge();
+        /* 错题本角标：近代史 / 习思想 */
+        const keepBtn = document.getElementById("btn-wrong-keep");
+        if (keepBtn) keepBtn.textContent = "错题本";
+        const xiKeepBtn = document.getElementById("btn-xi-wrong-keep");
+        if (xiKeepBtn) xiKeepBtn.textContent = "错题本";
+        syncToast("已清空本机错题练 / 错题本，可以点「导入」了。");
+      }
+
       document.querySelectorAll(".js-wrong-sync-export").forEach((btn) => {
         btn.addEventListener("click", exportWrongBook);
       });
       document.querySelectorAll(".js-wrong-sync-import").forEach((btn) => {
         btn.addEventListener("click", openImport);
+      });
+      /* 清空：仅 file:// 本地显示，线上 Pages 不出现 */
+      const isLocalFile = location.protocol === "file:";
+      document.querySelectorAll(".js-wrong-sync-clear").forEach((btn) => {
+        if (!isLocalFile) {
+          btn.hidden = true;
+          return;
+        }
+        btn.addEventListener("click", clearLocalWrongBooks);
       });
       const cancelBtn = document.getElementById("wrong-sync-cancel");
       if (cancelBtn) cancelBtn.addEventListener("click", closeImport);
