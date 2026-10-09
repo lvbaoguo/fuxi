@@ -53,8 +53,15 @@
     button { cursor: pointer; font-weight: 700; }
     button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
     button.good { background: var(--green); color: #fff; border-color: var(--green); }
-    button.ghost { background: #fff; }
+    button.ghost, a.ghost {
+      background: #fff;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    button.danger { color: var(--red); border-color: #fecaca; background: #fff; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .pill.bad { background: #fee2e2; color: var(--red); }
     .pill {
       display: inline-block; padding: 2px 8px; border-radius: 999px;
       font-size: 0.78rem; font-weight: 800; background: #fee2e2; color: var(--red);
@@ -112,6 +119,7 @@
       <button type="button" class="ghost" id="btn-today">今天</button>
       <span class="grow hint" id="day-label"></span>
       <button type="button" class="ghost" id="btn-export">导出进度</button>
+      <a class="ghost" id="btn-wrong-page" href="wrong.html" style="text-decoration:none;display:inline-flex;align-items:center;">错题本</a>
       <button type="button" class="ghost" id="btn-import">导入进度</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
       <button type="button" class="primary" id="btn-teacher">请老师看</button>
@@ -148,7 +156,9 @@
         document.body.innerHTML = "<p style='padding:24px'>缺少 data.js</p>";
         return;
       }
-      const STORE = "pansan2-zuoye-forced-v3";
+      /* 进度键名固定；改 data.js / 排期不得清空已答 */
+      const STORE = "pansan2-zuoye-forced-progress";
+      const STORE_LEGACY = "pansan2-zuoye-forced-v3";
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
 
@@ -156,32 +166,182 @@
         const n = new Date();
         return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0");
       }
+
+      function stripDayPrefix(map) {
+        const out = {};
+        Object.keys(map || {}).forEach((k) => {
+          if (!map[k]) return;
+          const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
+          out[id] = 1;
+        });
+        return out;
+      }
+
+      const WRONG_CLEAR_STREAK = 2; /* 与刷题页错题练一致：连对 2 次才移出 */
+
+      function emptyState() {
+        return {
+          v: 6,
+          mcOk: {},
+          shortOk: {},
+          mcDay: {},
+          wrongMc: {},
+          wrongShort: {},
+          pinnedPlans: {},
+          exportedAt: null,
+        };
+      }
+
+      function normalizeWrongMap(map) {
+        const out = {};
+        Object.keys(map || {}).forEach((k) => {
+          const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
+          const v = map[k];
+          if (!v) return;
+          if (typeof v === "object") {
+            out[id] = { streak: Math.max(0, Math.floor(Number(v.streak) || 0)) };
+          } else {
+            out[id] = { streak: 0 };
+          }
+        });
+        return out;
+      }
+
+      function normalizeState(raw) {
+        const st = emptyState();
+        if (!raw || typeof raw !== "object") return st;
+        st.mcOk = stripDayPrefix(raw.mcOk);
+        st.shortOk = stripDayPrefix(raw.shortOk);
+        st.wrongMc = normalizeWrongMap(raw.wrongMc);
+        st.wrongShort = normalizeWrongMap(raw.wrongShort);
+        st.pinnedPlans = raw.pinnedPlans && typeof raw.pinnedPlans === "object" ? raw.pinnedPlans : {};
+        st.mcDay = raw.mcDay && typeof raw.mcDay === "object" ? raw.mcDay : {};
+        st.exportedAt = raw.exportedAt || null;
+        /* 旧进度：全局 mcOk 迁到当日结果，避免一更新就全丢 */
+        Object.keys(st.pinnedPlans).forEach((d) => {
+          const plan = st.pinnedPlans[d];
+          if (!plan || !Array.isArray(plan.mcIds)) return;
+          if (!st.mcDay[d] || typeof st.mcDay[d] !== "object") st.mcDay[d] = { results: {} };
+          if (!st.mcDay[d].results) st.mcDay[d].results = {};
+          plan.mcIds.forEach((id) => {
+            if (st.mcOk[id] && !st.mcDay[d].results[id]) st.mcDay[d].results[id] = "ok";
+          });
+        });
+        return st;
+      }
+
       function load() {
         try {
-          const raw = JSON.parse(localStorage.getItem(STORE) || "{}");
-          if (!raw || raw.v !== 3) return { v: 3, mcOk: {}, shortOk: {}, exportedAt: null };
-          raw.mcOk = raw.mcOk || {};
-          raw.shortOk = raw.shortOk || {};
-          return raw;
+          let raw = JSON.parse(localStorage.getItem(STORE) || "null");
+          if (!raw) {
+            const legacy = JSON.parse(localStorage.getItem(STORE_LEGACY) || "null");
+            if (legacy) raw = legacy;
+          }
+          return normalizeState(raw);
         } catch (_) {
-          return { v: 3, mcOk: {}, shortOk: {}, exportedAt: null };
+          return emptyState();
         }
       }
       function save() {
+        state.v = 6;
         state.exportedAt = new Date().toISOString();
         try {
           localStorage.setItem(STORE, JSON.stringify(state));
+          /* 同步写一份旧键，避免半截迁移丢数据 */
+          localStorage.setItem(STORE_LEGACY, JSON.stringify(state));
         } catch (_) {}
+      }
+
+      function ensureMcDay(d) {
+        if (!state.mcDay[d] || typeof state.mcDay[d] !== "object") state.mcDay[d] = { results: {} };
+        if (!state.mcDay[d].results || typeof state.mcDay[d].results !== "object") {
+          state.mcDay[d].results = {};
+        }
+        return state.mcDay[d];
+      }
+      function mcResult(d, id) {
+        const day = ensureMcDay(d);
+        return day.results[id] || null; /* ok | fail | null */
+      }
+      function setMcResult(d, id, result) {
+        ensureMcDay(d).results[id] = result;
+        if (result === "ok") state.mcOk[id] = 1;
+      }
+      function restartMcDay(d) {
+        clearAdvanceTimer();
+        const plan = dayPlan(d);
+        ensureMcDay(d).results = {};
+        (plan.mcIds || []).forEach((id) => {
+          delete state.mcOk[id];
+        });
+        save();
+        mcIdx = 0;
+        picked = null;
+        judged = false;
+        toast("今日选择题已重来：须全部一次答对才算过关（错题本还在）");
+      }
+
+      function noteMcWrong(id) {
+        state.wrongMc[id] = { streak: 0 };
+      }
+      function noteMcRight(id) {
+        if (!state.wrongMc[id]) return { removed: false, streak: 0 };
+        const streak = (state.wrongMc[id].streak || 0) + 1;
+        if (streak >= WRONG_CLEAR_STREAK) {
+          delete state.wrongMc[id];
+          return { removed: true, streak };
+        }
+        state.wrongMc[id] = { streak };
+        return { removed: false, streak };
+      }
+      function noteShortWrong(id) {
+        state.wrongShort[id] = { streak: 0 };
+      }
+      function noteShortRight(id) {
+        if (!state.wrongShort[id]) return { removed: false, streak: 0 };
+        const streak = (state.wrongShort[id].streak || 0) + 1;
+        if (streak >= WRONG_CLEAR_STREAK) {
+          delete state.wrongShort[id];
+          return { removed: true, streak };
+        }
+        state.wrongShort[id] = { streak };
+        return { removed: false, streak };
+      }
+      function wrongMcCount() {
+        return Object.keys(state.wrongMc || {}).length;
+      }
+      function wrongShortCount() {
+        return Object.keys(state.wrongShort || {}).length;
+      }
+      function wrongMcList() {
+        return Object.keys(state.wrongMc)
+          .map((id) => BANK.mcById[id])
+          .filter(Boolean);
+      }
+      function wrongShortList() {
+        return Object.keys(state.wrongShort)
+          .map((id) => BANK.shortById[id])
+          .filter(Boolean);
       }
 
       let state = load();
       let date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
-      let tab = "mc";
+      let tab = "mc"; /* mc | short */
       let mcIdx = 0;
       let shortIdx = 0;
       let picked = null;
       let judged = false;
       let shortRevealed = false;
+      let advanceTimer = null;
+      let holdingCorrect = false; /* 答对标绿等待自动跳 */
+
+      function clearAdvanceTimer() {
+        if (advanceTimer) {
+          clearTimeout(advanceTimer);
+          advanceTimer = null;
+        }
+        holdingCorrect = false;
+      }
 
       function toast(msg) {
         const el = $("toast");
@@ -193,38 +353,80 @@
         }, 3800);
       }
 
-      function dayPlan(d) {
+      function bankDayPlan(d) {
         return BANK.schedule.find((s) => s.date === d) || BANK.schedule[0];
       }
-      function mcKey(day, id) {
-        return day + "|" + id;
+
+      /** 某日清单首次打开后钉死，之后改代码/改排期不再替换，已答进度不丢 */
+      function dayPlan(d) {
+        const pinned = state.pinnedPlans[d];
+        if (
+          pinned &&
+          Array.isArray(pinned.mcIds) &&
+          Array.isArray(pinned.shortIds) &&
+          pinned.mcIds.length + pinned.shortIds.length > 0
+        ) {
+          return pinned;
+        }
+        const src = bankDayPlan(d);
+        const freeze = {
+          date: d,
+          phase: src.phase,
+          mcIds: (src.mcIds || []).slice(),
+          shortIds: (src.shortIds || []).slice(),
+          pinnedAt: new Date().toISOString(),
+        };
+        state.pinnedPlans[d] = freeze;
+        save();
+        return freeze;
       }
-      function shortKey(day, id) {
-        return day + "|" + id;
+
+      function isMcOk(id, d) {
+        return mcResult(d || date, id) === "ok";
       }
+      function isShortOk(id) {
+        return !!state.shortOk[id];
+      }
+
       function dayStats(d) {
         const plan = dayPlan(d);
         const mcTotal = plan.mcIds.length;
         const shortTotal = plan.shortIds.length;
-        let mcDone = 0;
+        let mcOkN = 0;
+        let mcFailN = 0;
+        let mcAnswered = 0;
         let shortDone = 0;
         plan.mcIds.forEach((id) => {
-          if (state.mcOk[mcKey(d, id)]) mcDone += 1;
+          const r = mcResult(d, id);
+          if (r === "ok") {
+            mcOkN += 1;
+            mcAnswered += 1;
+          } else if (r === "fail") {
+            mcFailN += 1;
+            mcAnswered += 1;
+          }
         });
         plan.shortIds.forEach((id) => {
-          if (state.shortOk[shortKey(d, id)]) shortDone += 1;
+          if (isShortOk(id)) shortDone += 1;
         });
+        const mcClean = mcTotal > 0 && mcFailN === 0 && mcOkN === mcTotal;
+        const mcEmpty = mcTotal === 0;
+        const shortOk = shortTotal === 0 || shortDone >= shortTotal;
         const total = mcTotal + shortTotal;
-        const done = mcDone + shortDone;
+        const done = mcAnswered + shortDone;
         return {
           plan,
           mcTotal,
           shortTotal,
-          mcDone,
+          mcDone: mcOkN,
+          mcFailN,
+          mcAnswered,
           shortDone,
           total,
           done,
-          ok: total > 0 && done >= total,
+          unqualified: mcFailN > 0,
+          mcClean: mcEmpty || mcClean,
+          ok: total > 0 && (mcEmpty || mcClean) && shortOk,
         };
       }
 
@@ -247,14 +449,14 @@
       function nextUnansweredMc() {
         const list = currentMcList();
         for (let i = 0; i < list.length; i++) {
-          if (!state.mcOk[mcKey(date, list[i].id)]) return i;
+          if (!mcResult(date, list[i].id)) return i;
         }
-        return 0;
+        return Math.min(mcIdx, Math.max(0, list.length - 1));
       }
       function nextUnansweredShort() {
         const list = currentShortList();
         for (let i = 0; i < list.length; i++) {
-          if (!state.shortOk[shortKey(date, list[i].id)]) return i;
+          if (!isShortOk(list[i].id)) return i;
         }
         return 0;
       }
@@ -294,25 +496,35 @@
 
       function renderLock() {
         const today = todayStr();
-        const st = dayStats(BANK.schedule.some((s) => s.date === today) ? today : date);
+        const hasToday = BANK.schedule.some((s) => s.date === today);
+        const t = dayStats(hasToday ? today : date);
         const lock = $("lock");
-        if (BANK.schedule.some((s) => s.date === today) && dayStats(today).ok) {
+        if (hasToday && t.ok) {
           lock.className = "lock ok";
-          lock.innerHTML = "今日强制作业已过关 · 娱乐通行证开了<small>明天还有新题，别飘</small>";
-        } else if (BANK.schedule.some((s) => s.date === today)) {
-          const t = dayStats(today);
+          lock.innerHTML = "今日强制作业已过关 · 娱乐通行证开了<small>选择题全对且无错；明天还有新题</small>";
+        } else if (hasToday && t.unqualified) {
+          lock.className = "lock";
+          lock.innerHTML =
+            "今日不合格 · 选择题已有 " +
+            t.mcFailN +
+            " 道答错<small>错题进错题本，点「下一题」继续；要过关请点「重来」后全部一次答对</small>";
+        } else if (hasToday) {
           lock.className = "lock";
           lock.innerHTML =
             "今日强制作业未完成（" +
             t.done +
             "/" +
             t.total +
-            "）· 不许娱乐<small>选择题必须答对；简答必须过采分点。不能自己删题。</small>";
+            "）· 不许娱乐<small>选择答错即不合格；简答过采分点。错题本连对" +
+            WRONG_CLEAR_STREAK +
+            "次移出。</small>";
         } else {
-          lock.className = st.ok ? "lock ok" : "lock";
-          lock.innerHTML = st.ok
+          lock.className = t.ok ? "lock ok" : "lock";
+          lock.innerHTML = t.ok
             ? "当前查看日已过关<small>仍可切换日期补做</small>"
-            : "当前查看日未过关 · 先把派题做完<small>强制派题，不能偷懒自建计划</small>";
+            : t.unqualified
+              ? "当前查看日不合格 · 选择题有错<small>可点「重来」再刷</small>"
+              : "当前查看日未过关 · 先把派题做完<small>强制派题</small>";
         }
       }
 
@@ -325,7 +537,11 @@
         if (mcIdx >= list.length) mcIdx = list.length - 1;
         if (mcIdx < 0) mcIdx = 0;
         const q = list[mcIdx];
-        const done = !!state.mcOk[mcKey(date, q.id)];
+        const result = mcResult(date, q.id); /* ok | fail | null */
+        const locked = result === "ok" || result === "fail" || holdingCorrect;
+        const st = dayStats(date);
+        const statusText =
+          result === "ok" ? "答对" : result === "fail" ? "已错·进错题本" : "未作答";
         const box = document.createElement("div");
         box.className = "q-card";
         const name = BANK.names[q.course][q.ch] || "";
@@ -340,20 +556,23 @@
           (mcIdx + 1) +
           "/" +
           list.length +
-          " 题" +
-          (done ? " · 已过关" : " · 未过关") +
+          " 题 · " +
+          statusText +
+          (st.unqualified ? " · 今日不合格" : "") +
           "</div>" +
           '<div class="q-text"></div>' +
           '<div id="opts"></div>' +
           '<div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
           '<button type="button" class="primary" id="btn-judge"' +
-          (done ? " disabled" : "") +
-          ">提交（答错重来）</button>" +
-          '<button type="button" class="ghost" id="btn-prev-mc">上一题</button>' +
+          (locked ? " disabled" : "") +
+          ">提交</button>" +
           '<button type="button" class="ghost" id="btn-next-mc">下一题</button>' +
-          '<button type="button" class="ghost" id="btn-jump-wrong">跳到下一道未过关</button>' +
-          "</div>";
+          '<button type="button" class="ghost" id="btn-prev-mc">上一题</button>' +
+          '<button type="button" class="ghost" id="btn-jump-pending">跳到下一道未作答</button>' +
+          '<button type="button" class="danger" id="btn-restart-mc">重来</button>' +
+          "</div>" +
+          '<p class="hint" style="margin-top:8px;">答错：进错题本，点「下一题」继续（本轮不再逼你立刻重答）。答对：标绿约1秒后自动下一题。有任一错→今日不合格，须「重来」后全对才过关。</p>';
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
         q.options.forEach((o) => {
@@ -362,13 +581,16 @@
           b.className = "opt";
           b.textContent = o.key + ". " + o.label;
           if (picked === o.key) b.classList.add("on");
-          if (judged || done) {
+          if (result === "ok" || (holdingCorrect && picked === q.correct)) {
+            if (o.key === q.correct) b.classList.add("right");
+          } else if (result === "fail" || (judged && picked && picked !== q.correct)) {
             if (o.key === q.correct) b.classList.add("right");
             if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
           }
-          b.disabled = done;
+          b.disabled = locked;
           b.addEventListener("click", () => {
-            if (done) return;
+            if (locked) return;
+            clearAdvanceTimer();
             picked = o.key;
             judged = false;
             render();
@@ -376,7 +598,7 @@
           opts.appendChild(b);
         });
         const explain = box.querySelector("#explain");
-        if ((judged || done) && q.explain) {
+        if ((result === "ok" || result === "fail" || judged || holdingCorrect) && q.explain) {
           explain.hidden = false;
           explain.textContent = "解析：" + q.explain + "（答案 " + q.correct + "）";
         }
@@ -384,42 +606,96 @@
         $("work").appendChild(box);
 
         $("btn-judge").addEventListener("click", () => {
+          if (locked) return;
           if (!picked) {
             toast("先选一个选项");
             return;
           }
-          judged = true;
           if (picked === q.correct) {
-            state.mcOk[mcKey(date, q.id)] = 1;
+            setMcResult(date, q.id, "ok");
+            const wr = noteMcRight(q.id);
             save();
-            toast("答对，过关");
-            const next = nextUnansweredMc();
-            mcIdx = next;
-            picked = null;
-            judged = false;
+            holdingCorrect = true;
+            judged = true;
+            toast(
+              wr.removed
+                ? "答对 · 错题本已移出"
+                : wr.streak
+                  ? "答对 · 错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
+                  : "答对"
+            );
             render();
+            clearTimeout(advanceTimer);
+            advanceTimer = setTimeout(() => {
+              holdingCorrect = false;
+              judged = false;
+              picked = null;
+              mcIdx = nextUnansweredMc();
+              const after = dayStats(date);
+              if (after.mcAnswered >= after.mcTotal && after.unqualified) {
+                toast("今日不合格：选择题有错，点「重来」再刷全对");
+              } else if (after.ok) {
+                toast("今日强制作业已过关");
+              }
+              render();
+            }, 1000);
           } else {
+            clearAdvanceTimer();
+            setMcResult(date, q.id, "fail");
+            noteMcWrong(q.id);
+            judged = true;
             save();
-            toast("错了，看解析后重选，必须答对才过关");
+            toast("今日不合格 · 已进错题本。脑子过一遍后点「下一题」继续");
             render();
           }
         });
         $("btn-prev-mc").addEventListener("click", () => {
+          if (holdingCorrect) return;
+          clearAdvanceTimer();
           mcIdx = Math.max(0, mcIdx - 1);
+          const prev = list[mcIdx];
+          const r = prev ? mcResult(date, prev.id) : null;
           picked = null;
-          judged = false;
+          judged = r === "ok" || r === "fail";
           render();
         });
         $("btn-next-mc").addEventListener("click", () => {
-          mcIdx = Math.min(list.length - 1, mcIdx + 1);
+          if (holdingCorrect) return;
+          clearAdvanceTimer();
+          /* 当前若刚判错，结果已写入；下一题跳到未作答，不把错题立刻再塞回来 */
+          const pending = nextUnansweredMc();
+          if (result === "fail" || result === "ok") {
+            mcIdx = pending;
+          } else {
+            mcIdx = Math.min(list.length - 1, mcIdx + 1);
+          }
+          const nq = list[mcIdx];
+          const r = nq ? mcResult(date, nq.id) : null;
+          picked = null;
+          judged = r === "ok" || r === "fail";
+          const after = dayStats(date);
+          if (after.mcAnswered >= after.mcTotal && after.unqualified) {
+            toast("选择题已答完，但今日不合格。点「重来」全对才过关");
+          }
+          render();
+        });
+        $("btn-jump-pending").addEventListener("click", () => {
+          if (holdingCorrect) return;
+          clearAdvanceTimer();
+          mcIdx = nextUnansweredMc();
           picked = null;
           judged = false;
           render();
         });
-        $("btn-jump-wrong").addEventListener("click", () => {
-          mcIdx = nextUnansweredMc();
-          picked = null;
-          judged = false;
+        $("btn-restart-mc").addEventListener("click", () => {
+          if (
+            !confirm(
+              "重来：清空今日选择题作答（对/错都清），须全部一次答对才算过关。错题本保留。确定？"
+            )
+          ) {
+            return;
+          }
+          restartMcDay(date);
           render();
         });
       }
@@ -433,7 +709,7 @@
         if (shortIdx >= list.length) shortIdx = list.length - 1;
         if (shortIdx < 0) shortIdx = 0;
         const q = list[shortIdx];
-        const done = !!state.shortOk[shortKey(date, q.id)];
+        const done = isShortOk(q.id);
         const box = document.createElement("div");
         box.className = "q-card";
         const name = BANK.names[q.course][q.ch] || "";
@@ -481,18 +757,26 @@
           render();
         });
         $("btn-pass").addEventListener("click", () => {
-          state.shortOk[shortKey(date, q.id)] = 1;
+          state.shortOk[q.id] = 1;
+          const wr = noteShortRight(q.id);
           save();
-          toast("简答过关");
+          toast(
+            wr.removed
+              ? "简答过关；错题本连对" + WRONG_CLEAR_STREAK + "次，已移出"
+              : wr.streak
+                ? "简答过关；错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
+                : "简答过关"
+          );
           shortRevealed = false;
           shortIdx = nextUnansweredShort();
           render();
         });
         $("btn-fail").addEventListener("click", () => {
-          delete state.shortOk[shortKey(date, q.id)];
+          delete state.shortOk[q.id];
+          noteShortWrong(q.id);
           save();
           shortRevealed = false;
-          toast("先背，等会儿再来这道");
+          toast("已进错题本，先背，等会儿再来");
           render();
         });
         $("btn-prev-s").addEventListener("click", () => {
@@ -516,27 +800,43 @@
         const st = dayStats(date);
         $("day-label").textContent = date + "（周" + weekdayLabel(date) + "）";
         $("phase").textContent = st.plan.phase;
-        $("pill").textContent = st.ok ? "已过关" : "未过关";
-        $("pill").className = "pill" + (st.ok ? " ok" : "");
+        if (st.ok) {
+          $("pill").textContent = "已过关";
+          $("pill").className = "pill ok";
+        } else if (st.unqualified) {
+          $("pill").textContent = "今日不合格";
+          $("pill").className = "pill bad";
+        } else {
+          $("pill").textContent = "未过关";
+          $("pill").className = "pill";
+        }
         const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
         $("bar").style.width = pct + "%";
+        const wc = wrongMcCount() + wrongShortCount();
         $("prog-text").textContent =
-          "选择 " +
+          "选择对 " +
           st.mcDone +
           "/" +
           st.mcTotal +
-          " 过关 · 简答 " +
+          (st.mcFailN ? " · 错 " + st.mcFailN : "") +
+          " · 简答 " +
           st.shortDone +
           "/" +
           st.shortTotal +
-          " 过关 · 合计 " +
+          " · 合计作答 " +
           st.done +
           "/" +
-          st.total;
+          st.total +
+          " · 错题本 " +
+          wc +
+          (st.unqualified ? " · 今日不合格（须重来全对）" : "");
         $("tab-mc").classList.toggle("on", tab === "mc");
         $("tab-short").classList.toggle("on", tab === "short");
-        $("tab-mc").textContent = "选择题 " + st.mcDone + "/" + st.mcTotal;
+        $("tab-mc").textContent =
+          "选择题 " + st.mcDone + "/" + st.mcTotal + (st.mcFailN ? "（错" + st.mcFailN + "）" : "");
         $("tab-short").textContent = "简答题 " + st.shortDone + "/" + st.shortTotal;
+        const wrongBtn = $("btn-wrong-page");
+        if (wrongBtn) wrongBtn.textContent = wc ? "错题本 " + wc : "错题本";
         renderNav();
         renderLock();
         if (tab === "mc") renderMc();
@@ -547,9 +847,6 @@
         tab = "mc";
         picked = null;
         judged = false;
-        if (!state.mcOk[mcKey(date, (currentMcList()[mcIdx] || {}).id)]) {
-          /* keep */
-        }
         render();
       });
       $("tab-short").addEventListener("click", () => {
@@ -579,11 +876,15 @@
 
       $("btn-export").addEventListener("click", () => {
         const payload = {
-          v: 3,
+          v: 6,
           type: "fuxi-zuoye-forced-progress",
           exportedAt: new Date().toISOString(),
           mcOk: state.mcOk,
           shortOk: state.shortOk,
+          mcDay: state.mcDay,
+          wrongMc: state.wrongMc,
+          wrongShort: state.wrongShort,
+          pinnedPlans: state.pinnedPlans,
         };
         download("fuxi-zuoye-progress-" + todayStr() + ".json", JSON.stringify(payload));
         toast("已下载进度，手机/电脑互导用这个");
@@ -596,14 +897,44 @@
         reader.onload = () => {
           try {
             const payload = JSON.parse(String(reader.result || ""));
-            if (!payload || payload.v !== 3) throw new Error("bad");
-            state.mcOk = Object.assign({}, state.mcOk, payload.mcOk || {});
-            state.shortOk = Object.assign({}, state.shortOk, payload.shortOk || {});
+            if (
+              !payload ||
+              (payload.v !== 3 &&
+                payload.v !== 4 &&
+                payload.v !== 5 &&
+                payload.v !== 6 &&
+                payload.type !== "fuxi-zuoye-forced-progress")
+            ) {
+              throw new Error("bad");
+            }
+            const incoming = normalizeState(payload);
+            state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
+            state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
+            Object.keys(incoming.mcDay || {}).forEach((d) => {
+              if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
+              if (!state.mcDay[d].results) state.mcDay[d].results = {};
+              Object.assign(state.mcDay[d].results, (incoming.mcDay[d] && incoming.mcDay[d].results) || {});
+            });
+            Object.keys(incoming.wrongMc || {}).forEach((id) => {
+              const cur = state.wrongMc[id];
+              const inc = incoming.wrongMc[id];
+              if (!cur) state.wrongMc[id] = inc;
+              else state.wrongMc[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+            });
+            Object.keys(incoming.wrongShort || {}).forEach((id) => {
+              const cur = state.wrongShort[id];
+              const inc = incoming.wrongShort[id];
+              if (!cur) state.wrongShort[id] = inc;
+              else state.wrongShort[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+            });
+            Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
+              if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
+            });
             save();
             mcIdx = nextUnansweredMc();
             shortIdx = nextUnansweredShort();
             render();
-            toast("进度已合并导入");
+            toast("进度已合并导入（含错题本；不覆盖已钉死的日期清单）");
           } catch (_) {
             toast("导入失败：请用本页导出的进度 json");
           }
@@ -619,8 +950,8 @@
           "选择 " + st.mcDone + "/" + st.mcTotal + " · 简答 " + st.shortDone + "/" + st.shortTotal,
           "阶段：" + st.plan.phase,
         ];
-        const mcLeft = st.plan.mcIds.filter((id) => !state.mcOk[mcKey(date, id)]).slice(0, 5);
-        const sLeft = st.plan.shortIds.filter((id) => !state.shortOk[shortKey(date, id)]).slice(0, 5);
+        const mcLeft = st.plan.mcIds.filter((id) => !isMcOk(id)).slice(0, 5);
+        const sLeft = st.plan.shortIds.filter((id) => !isShortOk(id)).slice(0, 5);
         if (mcLeft.length) {
           lines.push("未过关选择举例：");
           mcLeft.forEach((id) => {

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>错题本 · 连对2次移出</title>
+  <style>
+    :root {
+      --bg: #efe8dc; --card: #fffdf8; --ink: #1c1917; --muted: #78716c;
+      --line: #e4ddd2; --blue: #1d4ed8; --green: #166534; --red: #991b1b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(900px 420px at 0% 0%, #fecaca66, transparent), var(--bg);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 14px 12px 72px; }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 12px; font-size: 0.9rem; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .grow { flex: 1 1 auto; }
+    button {
+      font: inherit; font-weight: 700; border-radius: 8px; border: 1px solid var(--line);
+      padding: 8px 10px; background: #fff; color: var(--ink); cursor: pointer;
+    }
+    button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    button.good { background: var(--green); color: #fff; border-color: var(--green); }
+    button.ghost { background: #fff; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .tabs button { flex: 1; }
+    .tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .q-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; }
+    .q-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
+    .q-text { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
+    .opt {
+      display: block; width: 100%; text-align: left; margin: 6px 0; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 10px; background: #fff;
+    }
+    .opt.on { border-color: var(--blue); background: #eff6ff; }
+    .opt.right { border-color: var(--green); background: #ecfdf5; }
+    .opt.wrong { border-color: #fca5a5; background: #fef2f2; }
+    .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
+    .points { margin: 8px 0 0; padding-left: 1.2em; }
+    .points[hidden] { display: none !important; }
+    .hint { color: var(--muted); font-size: 0.85rem; }
+    .nav-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .toast {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+      background: #1c1917; color: #fff; padding: 10px 14px; border-radius: 8px;
+      max-width: min(520px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
+    }
+    .toast[hidden] { display: none !important; }
+    a { color: var(--blue); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row" style="margin-bottom:10px;">
+      <a class="ghost" href="index.html" style="text-decoration:none;display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-weight:700;">← 回每日作业</a>
+      <span class="grow"></span>
+    </div>
+    <h1>错题本</h1>
+    <p class="sub">选择答错 / 简答「还不会」会进来。连对 <b>2</b> 次才移出（中途再错清零）。答对后整本打乱，不会紧接着再做同一道。与每日作业共用本机进度。</p>
+
+    <div class="card">
+      <div class="tabs">
+        <button type="button" class="on" id="tab-mc">选择错题</button>
+        <button type="button" id="tab-short">简答错题</button>
+      </div>
+      <div id="work"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+  <script src="data.js"></script>
+  <script>
+    (function () {
+      const BANK = window.ZUOYE_BANK;
+      if (!BANK) {
+        document.body.innerHTML = "<p style='padding:24px'>缺少 data.js</p>";
+        return;
+      }
+      const STORE = "pansan2-zuoye-forced-progress";
+      const STORE_LEGACY = "pansan2-zuoye-forced-v3";
+      const WRONG_CLEAR_STREAK = 2;
+      const courseName = { history: "近代史", xi: "习思想" };
+      const $ = (id) => document.getElementById(id);
+
+      function normalizeWrongMap(map) {
+        const out = {};
+        Object.keys(map || {}).forEach((k) => {
+          const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
+          const v = map[k];
+          if (!v) return;
+          if (typeof v === "object") out[id] = { streak: Math.max(0, Math.floor(Number(v.streak) || 0)) };
+          else out[id] = { streak: 0 };
+        });
+        return out;
+      }
+
+      function load() {
+        try {
+          let raw = JSON.parse(localStorage.getItem(STORE) || "null");
+          if (!raw) raw = JSON.parse(localStorage.getItem(STORE_LEGACY) || "null");
+          if (!raw || typeof raw !== "object") {
+            return { v: 6, wrongMc: {}, wrongShort: {}, mcOk: {}, shortOk: {}, mcDay: {}, pinnedPlans: {} };
+          }
+          return {
+            v: raw.v || 6,
+            wrongMc: normalizeWrongMap(raw.wrongMc),
+            wrongShort: normalizeWrongMap(raw.wrongShort),
+            mcOk: raw.mcOk || {},
+            shortOk: raw.shortOk || {},
+            mcDay: raw.mcDay || {},
+            pinnedPlans: raw.pinnedPlans || {},
+            exportedAt: raw.exportedAt || null,
+          };
+        } catch (_) {
+          return { v: 6, wrongMc: {}, wrongShort: {}, mcOk: {}, shortOk: {}, mcDay: {}, pinnedPlans: {} };
+        }
+      }
+
+      function save() {
+        state.exportedAt = new Date().toISOString();
+        try {
+          localStorage.setItem(STORE, JSON.stringify(state));
+          localStorage.setItem(STORE_LEGACY, JSON.stringify(state));
+        } catch (_) {}
+      }
+
+      function toast(msg) {
+        const el = $("toast");
+        el.textContent = msg;
+        el.hidden = false;
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => {
+          el.hidden = true;
+        }, 3500);
+      }
+
+      function noteMcWrong(id) {
+        state.wrongMc[id] = { streak: 0 };
+      }
+      function noteMcRight(id) {
+        if (!state.wrongMc[id]) return { removed: false, streak: 0 };
+        const streak = (state.wrongMc[id].streak || 0) + 1;
+        if (streak >= WRONG_CLEAR_STREAK) {
+          delete state.wrongMc[id];
+          return { removed: true, streak };
+        }
+        state.wrongMc[id] = { streak };
+        return { removed: false, streak };
+      }
+      function noteShortWrong(id) {
+        state.wrongShort[id] = { streak: 0 };
+      }
+      function noteShortRight(id) {
+        if (!state.wrongShort[id]) return { removed: false, streak: 0 };
+        const streak = (state.wrongShort[id].streak || 0) + 1;
+        if (streak >= WRONG_CLEAR_STREAK) {
+          delete state.wrongShort[id];
+          return { removed: true, streak };
+        }
+        state.wrongShort[id] = { streak };
+        return { removed: false, streak };
+      }
+
+      let state = load();
+      let tab = "mc";
+      let mcIdx = 0;
+      let shortIdx = 0;
+      let mcOrder = null; /* id[] 打乱序 */
+      let shortOrder = null;
+      let picked = null;
+      let judged = false;
+      let shortRevealed = false;
+
+      function shuffleIds(ids) {
+        const a = ids.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = a[i];
+          a[i] = a[j];
+          a[j] = t;
+        }
+        return a;
+      }
+
+      function syncMcOrder() {
+        const ids = Object.keys(state.wrongMc || {});
+        if (!mcOrder) mcOrder = shuffleIds(ids);
+        else {
+          mcOrder = mcOrder.filter((id) => state.wrongMc[id]);
+          ids.forEach((id) => {
+            if (mcOrder.indexOf(id) < 0) mcOrder.push(id);
+          });
+        }
+      }
+      function syncShortOrder() {
+        const ids = Object.keys(state.wrongShort || {});
+        if (!shortOrder) shortOrder = shuffleIds(ids);
+        else {
+          shortOrder = shortOrder.filter((id) => state.wrongShort[id]);
+          ids.forEach((id) => {
+            if (shortOrder.indexOf(id) < 0) shortOrder.push(id);
+          });
+        }
+      }
+
+      /** 答对后整本重洗，并尽量避开刚答过的那道，防止连着刷同一题 */
+      function reshuffleMcAfter(avoidId) {
+        const ids = Object.keys(state.wrongMc || {});
+        mcOrder = shuffleIds(ids);
+        if (!mcOrder.length) {
+          mcIdx = 0;
+          return;
+        }
+        if (mcOrder.length === 1) {
+          mcIdx = 0;
+          return;
+        }
+        let idx = Math.floor(Math.random() * mcOrder.length);
+        let guard = 0;
+        while (mcOrder[idx] === avoidId && guard < 30) {
+          idx = Math.floor(Math.random() * mcOrder.length);
+          guard += 1;
+        }
+        mcIdx = idx;
+      }
+      function reshuffleShortAfter(avoidId) {
+        const ids = Object.keys(state.wrongShort || {});
+        shortOrder = shuffleIds(ids);
+        if (!shortOrder.length) {
+          shortIdx = 0;
+          return;
+        }
+        if (shortOrder.length === 1) {
+          shortIdx = 0;
+          return;
+        }
+        let idx = Math.floor(Math.random() * shortOrder.length);
+        let guard = 0;
+        while (shortOrder[idx] === avoidId && guard < 30) {
+          idx = Math.floor(Math.random() * shortOrder.length);
+          guard += 1;
+        }
+        shortIdx = idx;
+      }
+
+      function mcList() {
+        syncMcOrder();
+        return mcOrder.map((id) => BANK.mcById[id]).filter(Boolean);
+      }
+      function shortList() {
+        syncShortOrder();
+        return shortOrder.map((id) => BANK.shortById[id]).filter(Boolean);
+      }
+
+      function renderMc() {
+        const list = mcList();
+        $("tab-mc").textContent = "选择错题 " + list.length;
+        $("tab-short").textContent = "简答错题 " + shortList().length;
+        if (!list.length) {
+          $("work").innerHTML = "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
+          return;
+        }
+        if (mcIdx >= list.length) mcIdx = list.length - 1;
+        if (mcIdx < 0) mcIdx = 0;
+        const q = list[mcIdx];
+        const streak = (state.wrongMc[q.id] && state.wrongMc[q.id].streak) || 0;
+        const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
+        const box = document.createElement("div");
+        box.className = "q-card";
+        box.innerHTML =
+          '<div class="q-meta">' +
+          courseName[q.course] +
+          " · 第" +
+          q.ch +
+          "章 · " +
+          (mcIdx + 1) +
+          "/" +
+          list.length +
+          " · 连对 " +
+          streak +
+          "/" +
+          WRONG_CLEAR_STREAK +
+          " · " +
+          name +
+          "</div>" +
+          '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
+          '<div class="nav-btns">' +
+          '<button type="button" class="primary" id="btn-judge">提交</button>' +
+          '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
+          '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          "</div>";
+        box.querySelector(".q-text").textContent = q.text;
+        const opts = box.querySelector("#opts");
+        q.options.forEach((o) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "opt";
+          b.textContent = o.key + ". " + o.label;
+          if (picked === o.key) b.classList.add("on");
+          if (judged) {
+            if (o.key === q.correct) b.classList.add("right");
+            if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
+          }
+          b.addEventListener("click", () => {
+            picked = o.key;
+            judged = false;
+            render();
+          });
+          opts.appendChild(b);
+        });
+        if (judged && q.explain) {
+          const ex = box.querySelector("#explain");
+          ex.hidden = false;
+          ex.textContent = "解析：" + q.explain + "（答案 " + q.correct + "）";
+        }
+        $("work").innerHTML = "";
+        $("work").appendChild(box);
+        $("btn-judge").addEventListener("click", () => {
+          if (!picked) {
+            toast("先选一个选项");
+            return;
+          }
+          judged = true;
+          if (picked === q.correct) {
+            const answeredId = q.id;
+            const wr = noteMcRight(answeredId);
+            save();
+            toast(
+              wr.removed
+                ? "连对2次，已移出 · 剩余题已打乱"
+                : "答对，连对 " + wr.streak + "/2 · 题序已打乱"
+            );
+            picked = null;
+            judged = false;
+            reshuffleMcAfter(answeredId);
+            render();
+          } else {
+            noteMcWrong(q.id);
+            save();
+            toast("又错了，连对清零");
+            render();
+          }
+        });
+        $("btn-prev").addEventListener("click", () => {
+          jumpMcAwayFrom(q.id);
+        });
+        $("btn-next").addEventListener("click", () => {
+          jumpMcAwayFrom(q.id);
+        });
+      }
+
+      function jumpMcAwayFrom(currentId) {
+        const ids = Object.keys(state.wrongMc || {});
+        if (ids.length <= 1) {
+          toast("只剩 1 道错题，没法换题");
+          return;
+        }
+        mcOrder = shuffleIds(ids);
+        let idx = Math.floor(Math.random() * mcOrder.length);
+        let guard = 0;
+        while (mcOrder[idx] === currentId && guard < 40) {
+          idx = Math.floor(Math.random() * mcOrder.length);
+          guard += 1;
+        }
+        mcIdx = idx;
+        picked = null;
+        judged = false;
+        render();
+      }
+
+      function jumpShortAwayFrom(currentId) {
+        const ids = Object.keys(state.wrongShort || {});
+        if (ids.length <= 1) {
+          toast("只剩 1 道错题，没法换题");
+          return;
+        }
+        shortOrder = shuffleIds(ids);
+        let idx = Math.floor(Math.random() * shortOrder.length);
+        let guard = 0;
+        while (shortOrder[idx] === currentId && guard < 40) {
+          idx = Math.floor(Math.random() * shortOrder.length);
+          guard += 1;
+        }
+        shortIdx = idx;
+        shortRevealed = false;
+        render();
+      }
+
+      function renderShort() {
+        const list = shortList();
+        $("tab-mc").textContent = "选择错题 " + mcList().length;
+        $("tab-short").textContent = "简答错题 " + list.length;
+        if (!list.length) {
+          $("work").innerHTML = "<p class='hint'>没有简答错题。</p>";
+          return;
+        }
+        if (shortIdx >= list.length) shortIdx = list.length - 1;
+        if (shortIdx < 0) shortIdx = 0;
+        const q = list[shortIdx];
+        const streak = (state.wrongShort[q.id] && state.wrongShort[q.id].streak) || 0;
+        const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
+        const box = document.createElement("div");
+        box.className = "q-card";
+        box.innerHTML =
+          '<div class="q-meta">' +
+          courseName[q.course] +
+          " · 第" +
+          q.ch +
+          "章 · " +
+          (shortIdx + 1) +
+          "/" +
+          list.length +
+          " · 连对 " +
+          streak +
+          "/" +
+          WRONG_CLEAR_STREAK +
+          " · " +
+          name +
+          "</div>" +
+          '<div class="q-text"></div>' +
+          (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
+          '<ol class="points" id="points"></ol>' +
+          '<div class="nav-btns">' +
+          '<button type="button" class="primary" id="btn-reveal">默完了，看采分点</button>' +
+          '<button type="button" class="good" id="btn-pass"' +
+          (shortRevealed ? "" : " disabled") +
+          ">会了（计连对）</button>" +
+          '<button type="button" class="ghost" id="btn-fail"' +
+          (shortRevealed ? "" : " disabled") +
+          ">还不会（清零）</button>" +
+          '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
+          '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          "</div>";
+        box.querySelector(".q-text").textContent = q.text;
+        const ol = box.querySelector("#points");
+        (q.points || []).forEach((p) => {
+          const li = document.createElement("li");
+          li.textContent = p;
+          ol.appendChild(li);
+        });
+        if (!shortRevealed) ol.hidden = true;
+        $("work").innerHTML = "";
+        $("work").appendChild(box);
+        $("btn-reveal").addEventListener("click", () => {
+          shortRevealed = true;
+          render();
+        });
+        $("btn-pass").addEventListener("click", () => {
+          const answeredId = q.id;
+          const wr = noteShortRight(answeredId);
+          save();
+          toast(
+            wr.removed
+              ? "连对2次，已移出 · 剩余题已打乱"
+              : "会了，连对 " + wr.streak + "/2 · 题序已打乱"
+          );
+          shortRevealed = false;
+          reshuffleShortAfter(answeredId);
+          render();
+        });
+        $("btn-fail").addEventListener("click", () => {
+          noteShortWrong(q.id);
+          save();
+          shortRevealed = false;
+          toast("连对清零");
+          render();
+        });
+        $("btn-prev").addEventListener("click", () => {
+          jumpShortAwayFrom(q.id);
+        });
+        $("btn-next").addEventListener("click", () => {
+          jumpShortAwayFrom(q.id);
+        });
+      }
+
+      function render() {
+        $("tab-mc").classList.toggle("on", tab === "mc");
+        $("tab-short").classList.toggle("on", tab === "short");
+        if (tab === "mc") renderMc();
+        else renderShort();
+      }
+
+      $("tab-mc").addEventListener("click", () => {
+        tab = "mc";
+        picked = null;
+        judged = false;
+        render();
+      });
+      $("tab-short").addEventListener("click", () => {
+        tab = "short";
+        shortRevealed = false;
+        render();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          state = load();
+          render();
+        }
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
