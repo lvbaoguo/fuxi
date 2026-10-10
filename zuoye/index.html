@@ -67,6 +67,7 @@
       font-size: 0.78rem; font-weight: 800; background: #fee2e2; color: var(--red);
     }
     .pill.ok { background: #dcfce7; color: var(--green); }
+    .pill.mc { background: #dbeafe; color: #1d4ed8; }
     .progress {
       height: 10px; background: #e7e5e4; border-radius: 999px; overflow: hidden; margin: 8px 0;
     }
@@ -87,6 +88,113 @@
     .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
     .points { margin: 8px 0 0; padding-left: 1.2em; }
     .points[hidden] { display: none !important; }
+    .short-answer-block[hidden] { display: none !important; }
+    .short-answer-block { margin-top: 10px; }
+    .short-pane {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      margin-top: 10px;
+    }
+    .short-pane.official h4 {
+      margin: 0 0 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #9a3412;
+    }
+    .short-pane ol {
+      margin: 0;
+      padding-left: 1.15em;
+    }
+    .short-pane li {
+      margin: 6px 0;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+    mark.key {
+      background: #fde68a;
+      color: inherit;
+      padding: 0 2px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+    .short-why-banner {
+      margin: 0;
+      border: 1px solid #86efac;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+      overflow: hidden;
+    }
+    .short-why-banner > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #166534;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .short-why-banner > summary::-webkit-details-marker { display: none; }
+    .short-why-banner > summary::before {
+      content: "▸";
+      display: inline-block;
+      transition: transform 0.15s ease;
+      color: #15803d;
+    }
+    .short-why-banner[open] > summary::before { transform: rotate(90deg); }
+    .short-why-banner > summary span.muted {
+      font-weight: 500;
+      color: #4b5563;
+      font-size: 0.82rem;
+    }
+    .short-why-body {
+      padding: 0 14px 14px;
+      border-top: 1px dashed #bbf7d0;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: #14532d;
+      white-space: pre-wrap;
+    }
+    .short-why-body p {
+      margin: 10px 0 0;
+      white-space: pre-wrap;
+    }
+    .dictation {
+      margin: 12px 0 4px;
+      padding: 10px;
+      border: 1px dashed #f59e0b;
+      border-radius: 10px;
+      background: #fffbeb;
+    }
+    .dictation label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 6px;
+    }
+    .dictation textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+      line-height: 1.5;
+      background: #fff;
+    }
+    .dictation-result {
+      margin-top: 8px;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .dictation-result.pass { color: #166534; font-weight: 700; }
+    .dictation-result.fail { color: #991b1b; font-weight: 700; }
     .hint { color: var(--muted); font-size: 0.85rem; }
     .toast {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
@@ -105,7 +213,25 @@
     .day-chip.on { background: #1c1917; color: #fff; }
     .day-chip.on .w { color: #d6d3d1; }
     .day-chip.done { background: #ecfdf5; border-color: #86efac; }
-    .nav-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .nav-btns { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+    .nav-btns button { padding: 8px 10px; font-size: 0.88rem; }
+    .order-toggle {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin: 0 0 10px; font-size: 0.84rem; color: var(--muted);
+    }
+    .order-toggle button {
+      padding: 6px 10px; font-size: 0.84rem; border-radius: 8px;
+      border: 1px solid var(--line); background: #fff; cursor: pointer; font: inherit;
+    }
+    .order-toggle button.on {
+      background: #1c1917; color: #fff; border-color: #1c1917;
+    }
+    @media (max-width: 520px) {
+      .nav-btns { gap: 5px; }
+      .nav-btns button { padding: 7px 8px; font-size: 0.84rem; }
+      .dictation label { font-size: 0.82rem; }
+      .short-why-banner > summary { padding: 10px 12px; font-size: 0.88rem; }
+    }
   </style>
 </head>
 <body>
@@ -181,13 +307,15 @@
 
       function emptyState() {
         return {
-          v: 6,
+          v: 7,
           mcOk: {},
           shortOk: {},
+          shortDraft: {},
           mcDay: {},
           wrongMc: {},
           wrongShort: {},
           pinnedPlans: {},
+          shortOrderMode: "plan", /* plan=今日排期顺序 | chapter=按章节 1→2→… */
           exportedAt: null,
         };
       }
@@ -212,10 +340,13 @@
         if (!raw || typeof raw !== "object") return st;
         st.mcOk = stripDayPrefix(raw.mcOk);
         st.shortOk = stripDayPrefix(raw.shortOk);
+        st.shortDraft =
+          raw.shortDraft && typeof raw.shortDraft === "object" ? { ...raw.shortDraft } : {};
         st.wrongMc = normalizeWrongMap(raw.wrongMc);
         st.wrongShort = normalizeWrongMap(raw.wrongShort);
         st.pinnedPlans = raw.pinnedPlans && typeof raw.pinnedPlans === "object" ? raw.pinnedPlans : {};
         st.mcDay = raw.mcDay && typeof raw.mcDay === "object" ? raw.mcDay : {};
+        st.shortOrderMode = raw.shortOrderMode === "chapter" ? "chapter" : "plan";
         st.exportedAt = raw.exportedAt || null;
         /* 旧进度：全局 mcOk 迁到当日结果，避免一更新就全丢 */
         Object.keys(st.pinnedPlans).forEach((d) => {
@@ -230,6 +361,23 @@
         return st;
       }
 
+      function mergeShortDraftBackup(st) {
+        if (!st.shortDraft || typeof st.shortDraft !== "object") st.shortDraft = {};
+        try {
+          const bak = JSON.parse(sessionStorage.getItem(STORE + "-shortDraft") || "null");
+          if (bak && typeof bak === "object") {
+            Object.keys(bak).forEach((k) => {
+              const v = String(bak[k] || "");
+              if (!v.trim()) return;
+              /* 本地没有、或备份更长时采用备份，避免刷新丢半截字 */
+              const cur = String(st.shortDraft[k] || "");
+              if (!cur.trim() || v.length > cur.length) st.shortDraft[k] = v;
+            });
+          }
+        } catch (_) {}
+        return st;
+      }
+
       function load() {
         try {
           let raw = JSON.parse(localStorage.getItem(STORE) || "null");
@@ -237,19 +385,75 @@
             const legacy = JSON.parse(localStorage.getItem(STORE_LEGACY) || "null");
             if (legacy) raw = legacy;
           }
-          return normalizeState(raw);
+          return mergeShortDraftBackup(normalizeState(raw));
         } catch (_) {
-          return emptyState();
+          return mergeShortDraftBackup(emptyState());
         }
       }
+      function currentShortQ() {
+        try {
+          const list = typeof currentShortList === "function" ? currentShortList() : [];
+          if (!list.length) return null;
+          let i = typeof shortIdx === "number" ? shortIdx : 0;
+          if (i >= list.length) i = list.length - 1;
+          if (i < 0) i = 0;
+          return list[i] || null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function flushActiveShortDraft() {
+        try {
+          const ta = document.getElementById("short-dictation");
+          const q = currentShortQ();
+          if (!ta || !q) return;
+          const v = String(ta.value || "");
+          if (!state.shortDraft || typeof state.shortDraft !== "object") state.shortDraft = {};
+          /* 有字就写入；空串绝不在这里删，避免重绘/刷新误清空 */
+          if (v.trim()) state.shortDraft[q.id] = v;
+        } catch (_) {}
+      }
+
       function save() {
-        state.v = 6;
+        flushActiveShortDraft();
+        if (!state.shortDraft || typeof state.shortDraft !== "object") state.shortDraft = {};
+        state.v = 7;
         state.exportedAt = new Date().toISOString();
         try {
-          localStorage.setItem(STORE, JSON.stringify(state));
+          const payload = JSON.stringify(state);
+          localStorage.setItem(STORE, payload);
           /* 同步写一份旧键，避免半截迁移丢数据 */
-          localStorage.setItem(STORE_LEGACY, JSON.stringify(state));
+          localStorage.setItem(STORE_LEGACY, payload);
+          try {
+            sessionStorage.setItem(STORE + "-shortDraft", JSON.stringify(state.shortDraft));
+          } catch (_) {}
         } catch (_) {}
+      }
+
+      function persistShortDraft(qid, text) {
+        if (!qid) return;
+        if (!state.shortDraft || typeof state.shortDraft !== "object") state.shortDraft = {};
+        const v = String(text || "");
+        /* 空串不删档：只有「简答重来」才清空，防止刷新/重绘把已写内容抹掉 */
+        if (!v.trim()) return;
+        state.shortDraft[qid] = v;
+        save();
+      }
+
+      function restartShortQuestion(qid) {
+        if (!qid) return;
+        delete state.shortOk[qid];
+        if (!state.shortDraft || typeof state.shortDraft !== "object") state.shortDraft = {};
+        delete state.shortDraft[qid];
+        try {
+          const ta = document.getElementById("short-dictation");
+          if (ta) ta.value = "";
+        } catch (_) {}
+        try {
+          sessionStorage.setItem(STORE + "-shortDraft", JSON.stringify(state.shortDraft));
+        } catch (_) {}
+        save();
       }
 
       function ensureMcDay(d) {
@@ -332,6 +536,7 @@
       let picked = null;
       let judged = false;
       let shortRevealed = false;
+      let shortWhyOpen = false;
       let advanceTimer = null;
       let holdingCorrect = false; /* 答对标绿等待自动跳 */
 
@@ -357,8 +562,10 @@
         return BANK.schedule.find((s) => s.date === d) || BANK.schedule[0];
       }
 
-      /** 某日清单首次打开后钉死，之后改代码/改排期不再替换，已答进度不丢 */
+      /** 选择题清单钉死不丢进度；简答可用 shortScheduleV 刷新顺序（近代史→习思想） */
       function dayPlan(d) {
+        const src = bankDayPlan(d);
+        const wantShortV = Number(BANK.shortScheduleV || 1);
         const pinned = state.pinnedPlans[d];
         if (
           pinned &&
@@ -366,14 +573,20 @@
           Array.isArray(pinned.shortIds) &&
           pinned.mcIds.length + pinned.shortIds.length > 0
         ) {
+          if (Number(pinned.shortScheduleV || 0) < wantShortV) {
+            pinned.shortIds = (src.shortIds || []).slice();
+            pinned.phase = src.phase || pinned.phase;
+            pinned.shortScheduleV = wantShortV;
+            save();
+          }
           return pinned;
         }
-        const src = bankDayPlan(d);
         const freeze = {
           date: d,
           phase: src.phase,
           mcIds: (src.mcIds || []).slice(),
           shortIds: (src.shortIds || []).slice(),
+          shortScheduleV: wantShortV,
           pinnedAt: new Date().toISOString(),
         };
         state.pinnedPlans[d] = freeze;
@@ -390,8 +603,9 @@
 
       function dayStats(d) {
         const plan = dayPlan(d);
+        const shortIds = dayShortIds(d);
         const mcTotal = plan.mcIds.length;
-        const shortTotal = plan.shortIds.length;
+        const shortTotal = shortIds.length;
         let mcOkN = 0;
         let mcFailN = 0;
         let mcAnswered = 0;
@@ -406,7 +620,7 @@
             mcAnswered += 1;
           }
         });
-        plan.shortIds.forEach((id) => {
+        shortIds.forEach((id) => {
           if (isShortOk(id)) shortDone += 1;
         });
         const mcClean = mcTotal > 0 && mcFailN === 0 && mcOkN === mcTotal;
@@ -416,6 +630,7 @@
         const done = mcAnswered + shortDone;
         return {
           plan,
+          shortIds,
           mcTotal,
           shortTotal,
           mcDone: mcOkN,
@@ -442,8 +657,82 @@
       function currentMcList() {
         return dayPlan(date).mcIds.map((id) => BANK.mcById[id]).filter(Boolean);
       }
+      function shortOrderMode() {
+        return state.shortOrderMode === "chapter" ? "chapter" : "plan";
+      }
+      function sortShortsByChapter(list) {
+        const courseRank = { history: 0, xi: 1 };
+        return list.slice().sort((a, b) => {
+          const ca = courseRank[a.course] != null ? courseRank[a.course] : 9;
+          const cb = courseRank[b.course] != null ? courseRank[b.course] : 9;
+          if (ca !== cb) return ca - cb;
+          const cha = Number(a.ch) || 0;
+          const chb = Number(b.ch) || 0;
+          if (cha !== chb) return cha - chb;
+          const ia = Number(a.i) || 0;
+          const ib = Number(b.i) || 0;
+          if (ia !== ib) return ia - ib;
+          return String(a.id).localeCompare(String(b.id));
+        });
+      }
+      /** 计划日派题（排期模式） */
+      function planShortList(d) {
+        return dayPlan(d).shortIds.map((id) => BANK.shortById[id]).filter(Boolean);
+      }
+      /**
+       * 按章模式：全书按章排好后，按每日原题量切开铺到各天（一天仍约 7～8 题）
+       * 近代史日摊近代史，习思想日摊习思想
+       */
+      function chapterShortList(d) {
+        const planList = planShortList(d);
+        if (!planList.length) return [];
+        const courses = Array.from(new Set(planList.map((q) => q.course).filter(Boolean)));
+        if (courses.length !== 1 || !BANK.shortById) return sortShortsByChapter(planList);
+        const course = courses[0];
+        const allSorted = sortShortsByChapter(
+          Object.keys(BANK.shortById)
+            .map((id) => BANK.shortById[id])
+            .filter((q) => q && q.course === course)
+        );
+        const peerDays = (BANK.schedule || []).filter((s) => {
+          const list = planShortList(s.date);
+          if (!list.length) return false;
+          return list.every((q) => q.course === course);
+        });
+        let offset = 0;
+        for (let i = 0; i < peerDays.length; i++) {
+          const n = planShortList(peerDays[i].date).length;
+          if (peerDays[i].date === d) {
+            return allSorted.slice(offset, offset + n);
+          }
+          offset += n;
+        }
+        return sortShortsByChapter(planList);
+      }
+      function dayShortList(d) {
+        return shortOrderMode() === "chapter" ? chapterShortList(d) : planShortList(d);
+      }
+      function dayShortIds(d) {
+        return dayShortList(d).map((q) => q.id);
+      }
       function currentShortList() {
-        return dayPlan(date).shortIds.map((id) => BANK.shortById[id]).filter(Boolean);
+        return dayShortList(date);
+      }
+      function setShortOrderMode(mode) {
+        const next = mode === "chapter" ? "chapter" : "plan";
+        if (shortOrderMode() === next) return;
+        flushActiveShortDraft();
+        const curId = (currentShortList()[shortIdx] || {}).id;
+        state.shortOrderMode = next;
+        save();
+        const list = currentShortList();
+        let ni = curId ? list.findIndex((q) => q.id === curId) : -1;
+        if (ni < 0) ni = nextUnansweredShort();
+        shortIdx = ni;
+        shortRevealed = false;
+        shortWhyOpen = false;
+        toast(next === "chapter" ? "按章：摊到每日题量" : "排期：今日派题");
+        render();
       }
 
       function nextUnansweredMc() {
@@ -486,6 +775,7 @@
             picked = null;
             judged = false;
             shortRevealed = false;
+            shortWhyOpen = false;
             mcIdx = nextUnansweredMc();
             shortIdx = nextUnansweredShort();
             render();
@@ -508,6 +798,14 @@
             "今日不合格 · 选择题已有 " +
             t.mcFailN +
             " 道答错<small>错题进错题本，点「下一题」继续；要过关请点「重来」后全部一次答对</small>";
+        } else if (hasToday && t.mcTotal > 0 && t.mcClean) {
+          lock.className = "lock ok";
+          lock.innerHTML =
+            "选择题过关 · 还差简答 " +
+            t.shortDone +
+            "/" +
+            t.shortTotal +
+            "<small>选择已全对；切到「简答题」默写过关后才算今日强制作业完成</small>";
         } else if (hasToday) {
           lock.className = "lock";
           lock.innerHTML =
@@ -524,7 +822,9 @@
             ? "当前查看日已过关<small>仍可切换日期补做</small>"
             : t.unqualified
               ? "当前查看日不合格 · 选择题有错<small>可点「重来」再刷</small>"
-              : "当前查看日未过关 · 先把派题做完<small>强制派题</small>";
+              : t.mcTotal > 0 && t.mcClean
+                ? "选择题过关 · 还差简答<small>切「简答题」继续</small>"
+                : "当前查看日未过关 · 先把派题做完<small>强制派题</small>";
         }
       }
 
@@ -567,12 +867,11 @@
           '<button type="button" class="primary" id="btn-judge"' +
           (locked ? " disabled" : "") +
           ">提交</button>" +
-          '<button type="button" class="ghost" id="btn-next-mc">下一题</button>' +
-          '<button type="button" class="ghost" id="btn-prev-mc">上一题</button>' +
-          '<button type="button" class="ghost" id="btn-jump-pending">跳到下一道未作答</button>' +
+          '<button type="button" class="ghost" id="btn-next-mc">下题</button>' +
+          '<button type="button" class="ghost" id="btn-prev-mc">上题</button>' +
+          '<button type="button" class="ghost" id="btn-jump-pending">未答</button>' +
           '<button type="button" class="danger" id="btn-restart-mc">重来</button>' +
-          "</div>" +
-          '<p class="hint" style="margin-top:8px;">答错：进错题本，点「下一题」继续（本轮不再逼你立刻重答）。答对：标绿约1秒后自动下一题。有任一错→今日不合格，须「重来」后全对才过关。</p>';
+          "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
         q.options.forEach((o) => {
@@ -636,6 +935,8 @@
                 toast("今日不合格：选择题有错，点「重来」再刷全对");
               } else if (after.ok) {
                 toast("今日强制作业已过关");
+              } else if (after.mcTotal > 0 && after.mcClean) {
+                toast("选择题过关 · 再去做简答");
               }
               render();
             }, 1000);
@@ -676,6 +977,8 @@
           const after = dayStats(date);
           if (after.mcAnswered >= after.mcTotal && after.unqualified) {
             toast("选择题已答完，但今日不合格。点「重来」全对才过关");
+          } else if (after.mcTotal > 0 && after.mcClean && !after.ok) {
+            toast("选择题过关 · 再去做简答");
           }
           render();
         });
@@ -700,6 +1003,262 @@
         });
       }
 
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      const SHORT_KEY_BANK = [
+        "半殖民地半封建社会",
+        "半殖民地半封建",
+        "资本主义世界市场",
+        "主权和领土完整",
+        "两个确立",
+        "六个必须坚持",
+        "中国特色社会主义",
+        "新民主主义革命",
+        "旧民主主义革命",
+        "全过程人民民主",
+        "高质量发展",
+        "全面从严治党",
+        "党的全面领导",
+        "以人民为中心",
+        "中国式现代化",
+        "科技自立自强",
+        "人类命运共同体",
+        "总体国家安全观",
+        "军委主席负责制",
+        "抗日民族统一战线",
+        "农村包围城市",
+        "十一届三中全会",
+        "四项基本原则",
+        "三个有利于",
+        "世界观和方法论",
+        "新文化运动",
+        "马克思主义",
+        "工人阶级",
+        "政治舞台",
+        "遵义会议",
+        "土地革命",
+        "武装斗争",
+        "农村根据地",
+        "整风运动",
+        "实事求是",
+        "两个务必",
+        "三大改造",
+        "一国两制",
+        "南方谈话",
+        "共同富裕",
+        "人民至上",
+        "新发展理念",
+        "民族复兴",
+        "主要矛盾",
+        "根本原因",
+        "自然经济",
+        "双重任务",
+        "反帝反封建",
+        "帝国主义",
+        "封建主义",
+        "无产阶级",
+        "资产阶级",
+        "小资产阶级",
+        "知识分子",
+        "革命团体",
+        "武装起义",
+        "民主共和",
+        "临时约法",
+        "洋务派",
+        "封建性",
+        "依赖性",
+        "领导核心",
+        "各自为政",
+        "封建制度",
+        "西方技术",
+        "中体西用",
+        "维新派",
+        "思想启蒙",
+        "太平天国",
+        "辛亥革命",
+        "五四运动",
+        "统一战线",
+        "改革开放",
+        "市场经济",
+      ];
+
+      function extractPointKeys(point) {
+        const raw = String(point || "");
+        const keys = [];
+        SHORT_KEY_BANK.forEach((k) => {
+          if (raw.indexOf(k) >= 0) keys.push(k);
+        });
+        const quoted = raw.match(/[「『]([^」』]+)[」』]/g) || [];
+        quoted.forEach((m) => {
+          const inner = m.replace(/^[「『]/, "").replace(/[」』]$/, "");
+          if (inner.length >= 2) keys.push(inner);
+        });
+        const books = raw.match(/《([^》]+)》/g) || [];
+        books.forEach((m) => {
+          const inner = m.replace(/^《/, "").replace(/》$/, "");
+          if (inner.length >= 2) keys.push(inner);
+        });
+        /* 每句若还没有命中词，从分句抽短语补标/补判 */
+        raw.split(/[，。；、]/).forEach((seg) => {
+          const s0 = seg.replace(/\s+/g, "").trim();
+          if (s0.length < 3) return;
+          if (keys.some((k) => s0.indexOf(k) >= 0)) return;
+          let s = s0.replace(/^(企图|必须|坚持|强调|提出|建立|实行|进行|推动|实现|促进|维护|加强|完善|健全)/, "");
+          if (s.length >= 3 && s.length <= 16) keys.push(s.slice(0, 12));
+          else if (s0.length >= 4 && s0.length <= 14) keys.push(s0.slice(0, 10));
+        });
+        return Array.from(new Set(keys));
+      }
+
+      /** 黄标与判分共用 extractPointKeys，长词优先、互不重叠 */
+      function highlightKeys(s) {
+        const raw = String(s || "");
+        const keys = extractPointKeys(raw)
+          .filter((k) => k && k.length >= 2)
+          .sort((a, b) => b.length - a.length || a.localeCompare(b));
+        const ranges = [];
+        keys.forEach((k) => {
+          let from = 0;
+          while (from < raw.length) {
+            const j = raw.indexOf(k, from);
+            if (j < 0) break;
+            const end = j + k.length;
+            const overlap = ranges.some((r) => !(end <= r[0] || j >= r[1]));
+            if (!overlap) ranges.push([j, end]);
+            from = j + 1;
+          }
+        });
+        ranges.sort((a, b) => a[0] - b[0]);
+        let out = "";
+        let pos = 0;
+        ranges.forEach(([a, b]) => {
+          if (a < pos) return;
+          out += escapeHtml(raw.slice(pos, a));
+          out += '<mark class="key">' + escapeHtml(raw.slice(a, b)) + "</mark>";
+          pos = b;
+        });
+        out += escapeHtml(raw.slice(pos));
+        return out;
+      }
+
+      function syncPeekAnsBtn(root) {
+        const btn = root && root.querySelector("#btn-peek-ans");
+        if (!btn) return;
+        btn.textContent = shortRevealed ? "收起" : "答案";
+      }
+
+      function whyTextFor(q) {
+        if (q.why && String(q.why).trim()) return String(q.why).trim();
+        return (q.points || [])
+          .map((p, i) => i + 1 + ". 对照这句想当时发生了啥，才总结成：「" + p + "」")
+          .join("\n\n");
+      }
+
+      function fillShortCompare(root, q, gradeDetail) {
+        const show = !!shortRevealed;
+        const wrap = root.querySelector("#short-compare");
+        if (!wrap) return;
+        wrap.hidden = !show;
+        syncPeekAnsBtn(root);
+        if (!show) return;
+        const whyBody = root.querySelector("#short-why-body");
+        if (whyBody) whyBody.textContent = whyTextFor(q);
+        const whyEl = root.querySelector("#short-why");
+        if (whyEl) {
+          whyEl.open = !!shortWhyOpen;
+          whyEl.ontoggle = () => {
+            shortWhyOpen = !!whyEl.open;
+          };
+        }
+        const off = root.querySelector("#points-official");
+        if (off) {
+          off.innerHTML = "";
+          (q.points || []).forEach((p, i) => {
+            const li = document.createElement("li");
+            const ok = gradeDetail && gradeDetail[i] && gradeDetail[i].pointOk;
+            li.innerHTML =
+              highlightKeys(p) +
+              (gradeDetail
+                ? ok
+                  ? ' <span style="color:#166534;font-weight:700;">✓</span>'
+                  : ' <span style="color:#991b1b;font-weight:700;">✗</span>'
+                : "");
+            off.appendChild(li);
+          });
+        }
+      }
+
+      function normAns(s) {
+        return String(s || "")
+          .replace(/\s+/g, "")
+          .replace(/[，。；、,.!！？?：:（）()\[\]【】"'“”‘’]/g, "")
+          .toLowerCase();
+      }
+
+      function gradeShortDictation(text, q) {
+        const ans = normAns(text);
+        const points = q.points || [];
+        const detail = [];
+        let hitPoints = 0;
+        points.forEach((p, i) => {
+          const keys = extractPointKeys(p);
+          const hit = keys.filter((k) => ans.indexOf(normAns(k)) >= 0);
+          const need = keys.length <= 2 ? 1 : Math.max(1, Math.ceil(keys.length * 0.4));
+          const pointOk = keys.length ? hit.length >= need : ans.length >= 12;
+          if (pointOk) hitPoints += 1;
+          detail.push({ i, keys, hit, pointOk, need });
+        });
+        const needPoints = Math.max(1, Math.ceil(points.length * (2 / 3)));
+        return {
+          pass: points.length > 0 && hitPoints >= needPoints,
+          hitPoints,
+          needPoints,
+          totalPoints: points.length,
+          detail,
+        };
+      }
+
+      function passShortQuestion(q, msg) {
+        state.shortOk[q.id] = 1;
+        const wr = noteShortRight(q.id);
+        save();
+        toast(
+          msg ||
+            (wr.removed
+              ? "简答过关；错题本连对" + WRONG_CLEAR_STREAK + "次，已移出"
+              : wr.streak
+                ? "简答过关；错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
+                : "简答过关（算背过）")
+        );
+        /* 不跳下一题：留下来对照自己写的内容 */
+        shortRevealed = true;
+        render();
+      }
+
+      function showShortGrade(box, q, text, resultEl) {
+        const grade = gradeShortDictation(text, q);
+        shortRevealed = true;
+        fillShortCompare(box, q, grade.detail);
+        if (resultEl) {
+          resultEl.hidden = false;
+          if (grade.pass) {
+            resultEl.className = "dictation-result pass";
+            resultEl.textContent =
+              "过关 " + grade.hitPoints + "/" + grade.totalPoints + "（需≥" + grade.needPoints + "）";
+          } else {
+            resultEl.className = "dictation-result fail";
+            resultEl.textContent =
+              "未过 " + grade.hitPoints + "/" + grade.totalPoints + "（需≥" + grade.needPoints + "）";
+          }
+        }
+        return grade;
+      }
+
       function renderShort() {
         const list = currentShortList();
         if (!list.length) {
@@ -710,88 +1269,149 @@
         if (shortIdx < 0) shortIdx = 0;
         const q = list[shortIdx];
         const done = isShortOk(q.id);
+        const draft = (state.shortDraft && state.shortDraft[q.id]) || "";
         const box = document.createElement("div");
         box.className = "q-card";
-        const name = BANK.names[q.course][q.ch] || "";
+        const order = shortOrderMode();
         box.innerHTML =
+          '<div class="order-toggle">' +
+          "<span>排序</span>" +
+          '<button type="button" id="btn-order-plan"' +
+          (order === "plan" ? ' class="on"' : "") +
+          ">排期</button>" +
+          '<button type="button" id="btn-order-ch"' +
+          (order === "chapter" ? ' class="on"' : "") +
+          ">按章</button>" +
+          "</div>" +
           '<div class="q-meta">' +
           courseName[q.course] +
           " · 第" +
           q.ch +
-          "章 " +
-          name +
-          " · 简答 " +
+          "章 · " +
           (shortIdx + 1) +
           "/" +
           list.length +
-          (done ? " · 已过关" : " · 先自己默，再对采分点") +
+          (done ? " · 已过" : "") +
           "</div>" +
           '<div class="q-text"></div>' +
-          (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
-          '<ol class="points" id="points"></ol>' +
+          '<div id="short-compare" class="short-answer-block" hidden>' +
+          '<details class="short-why-banner" id="short-why">' +
+          "<summary>背景</summary>" +
+          '<div class="short-why-body" id="short-why-body"></div>' +
+          "</details>" +
+          '<div class="short-pane official"><h4>采分点</h4><ol id="points-official"></ol></div>' +
+          "</div>" +
+          '<div class="dictation" id="dictation-box">' +
+          "<label>默写</label>" +
+          '<textarea id="short-dictation" placeholder="关键词即可…"></textarea>' +
+          '<div class="dictation-result" id="dictation-result" hidden></div>' +
+          "</div>" +
           '<div class="nav-btns">' +
-          '<button type="button" class="primary" id="btn-reveal">默完了，看采分点</button>' +
-          '<button type="button" class="good" id="btn-pass" ' +
-          (shortRevealed || done ? "" : "disabled") +
-          ">对照后：会了（过关）</button>" +
-          '<button type="button" class="ghost" id="btn-fail" ' +
-          (shortRevealed || done ? "" : "disabled") +
-          ">还不会，留下重背</button>" +
-          '<button type="button" class="ghost" id="btn-prev-s">上一题</button>' +
-          '<button type="button" class="ghost" id="btn-next-s">下一题</button>' +
-          '<button type="button" class="ghost" id="btn-jump-s">跳到下一道未过关</button>' +
+          '<button type="button" class="primary" id="btn-dictation-submit"' +
+          (done ? " disabled" : "") +
+          ">提交</button>" +
+          '<button type="button" class="ghost" id="btn-peek-ans">答案</button>' +
+          '<button type="button" class="ghost" id="btn-fail">不会</button>' +
+          '<button type="button" class="ghost" id="btn-prev-s">上题</button>' +
+          '<button type="button" class="ghost" id="btn-next-s">下题</button>' +
+          '<button type="button" class="ghost" id="btn-jump-s">未过</button>' +
+          '<button type="button" class="danger" id="btn-restart-short">重来</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
-        const ol = box.querySelector("#points");
-        (q.points || []).forEach((p) => {
-          const li = document.createElement("li");
-          li.textContent = p;
-          ol.appendChild(li);
-        });
-        if (!(shortRevealed || done)) ol.hidden = true;
+        fillShortCompare(box, q, null);
         $("work").innerHTML = "";
         $("work").appendChild(box);
 
-        $("btn-reveal").addEventListener("click", () => {
-          shortRevealed = true;
-          render();
+        $("btn-order-plan").addEventListener("click", () => setShortOrderMode("plan"));
+        $("btn-order-ch").addEventListener("click", () => setShortOrderMode("chapter"));
+
+        const ta = box.querySelector("#short-dictation");
+        const resultEl = box.querySelector("#dictation-result");
+        if (ta) ta.value = draft;
+        if (shortRevealed && draft) {
+          showShortGrade(box, q, draft, resultEl);
+        } else if (shortRevealed) {
+          fillShortCompare(box, q, null);
+        } else {
+          syncPeekAnsBtn(box);
+        }
+
+        if (ta) {
+          ta.addEventListener("input", () => persistShortDraft(q.id, ta.value));
+        }
+
+        $("btn-dictation-submit").addEventListener("click", () => {
+          if (done) return;
+          const text = (ta && ta.value) || "";
+          if (!normAns(text) || normAns(text).length < 6) {
+            toast("先写再提交");
+            return;
+          }
+          persistShortDraft(q.id, text);
+          const grade = showShortGrade(box, q, text, resultEl);
+          syncPeekAnsBtn(box);
+          if (grade.pass) {
+            passShortQuestion(q, "过关 · 留下对照");
+          } else {
+            toast("未过 · 对照黄标再默");
+          }
         });
-        $("btn-pass").addEventListener("click", () => {
-          state.shortOk[q.id] = 1;
-          const wr = noteShortRight(q.id);
-          save();
-          toast(
-            wr.removed
-              ? "简答过关；错题本连对" + WRONG_CLEAR_STREAK + "次，已移出"
-              : wr.streak
-                ? "简答过关；错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
-                : "简答过关"
-          );
-          shortRevealed = false;
-          shortIdx = nextUnansweredShort();
-          render();
+        $("btn-peek-ans").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
+          shortRevealed = !shortRevealed;
+          if (shortRevealed) {
+            const text = (ta && ta.value) || draft;
+            if (text && normAns(text).length >= 6) {
+              showShortGrade(box, q, text, resultEl);
+            } else {
+              fillShortCompare(box, q, null);
+              if (resultEl) resultEl.hidden = true;
+            }
+            toast(done ? "已展开" : "已展开 · 偷看不算过关");
+          } else {
+            fillShortCompare(box, q, null);
+            if (resultEl) resultEl.hidden = true;
+            toast("已收起");
+          }
+          syncPeekAnsBtn(box);
         });
         $("btn-fail").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
           delete state.shortOk[q.id];
           noteShortWrong(q.id);
           save();
           shortRevealed = false;
-          toast("已进错题本，先背，等会儿再来");
+          shortWhyOpen = false;
+          toast("已进错题本");
           render();
         });
         $("btn-prev-s").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = Math.max(0, shortIdx - 1);
           shortRevealed = false;
+          shortWhyOpen = false;
           render();
         });
         $("btn-next-s").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = Math.min(list.length - 1, shortIdx + 1);
           shortRevealed = false;
+          shortWhyOpen = false;
           render();
         });
         $("btn-jump-s").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = nextUnansweredShort();
           shortRevealed = false;
+          shortWhyOpen = false;
+          render();
+        });
+        $("btn-restart-short").addEventListener("click", () => {
+          if (!confirm("重来本题？清默写并取消过关。")) return;
+          restartShortQuestion(q.id);
+          shortRevealed = false;
+          shortWhyOpen = false;
+          toast("已重来");
           render();
         });
       }
@@ -806,6 +1426,9 @@
         } else if (st.unqualified) {
           $("pill").textContent = "今日不合格";
           $("pill").className = "pill bad";
+        } else if (st.mcTotal > 0 && st.mcClean) {
+          $("pill").textContent = "选择题过关";
+          $("pill").className = "pill mc";
         } else {
           $("pill").textContent = "未过关";
           $("pill").className = "pill";
@@ -814,29 +1437,34 @@
         $("bar").style.width = pct + "%";
         const wc = wrongMcCount() + wrongShortCount();
         $("prog-text").textContent =
-          "选择对 " +
+          "选择 " +
           st.mcDone +
           "/" +
           st.mcTotal +
-          (st.mcFailN ? " · 错 " + st.mcFailN : "") +
+          (st.mcFailN ? " 错" + st.mcFailN : "") +
+          (st.mcTotal > 0 && st.mcClean && !st.ok ? " 过关" : "") +
           " · 简答 " +
           st.shortDone +
           "/" +
           st.shortTotal +
-          " · 合计作答 " +
+          " · 合计 " +
           st.done +
           "/" +
           st.total +
-          " · 错题本 " +
+          " · 错题 " +
           wc +
-          (st.unqualified ? " · 今日不合格（须重来全对）" : "");
+          (st.unqualified ? " · 不合格" : "");
         $("tab-mc").classList.toggle("on", tab === "mc");
         $("tab-short").classList.toggle("on", tab === "short");
         $("tab-mc").textContent =
-          "选择题 " + st.mcDone + "/" + st.mcTotal + (st.mcFailN ? "（错" + st.mcFailN + "）" : "");
-        $("tab-short").textContent = "简答题 " + st.shortDone + "/" + st.shortTotal;
+          "选择 " +
+          st.mcDone +
+          "/" +
+          st.mcTotal +
+          (st.mcFailN ? " 错" + st.mcFailN : st.mcTotal > 0 && st.mcClean ? " 过关" : "");
+        $("tab-short").textContent = "简答 " + st.shortDone + "/" + st.shortTotal;
         const wrongBtn = $("btn-wrong-page");
-        if (wrongBtn) wrongBtn.textContent = wc ? "错题本 " + wc : "错题本";
+        if (wrongBtn) wrongBtn.textContent = wc ? "错题 " + wc : "错题";
         renderNav();
         renderLock();
         if (tab === "mc") renderMc();
@@ -852,6 +1480,7 @@
       $("tab-short").addEventListener("click", () => {
         tab = "short";
         shortRevealed = false;
+        shortWhyOpen = false;
         render();
       });
       $("btn-today").addEventListener("click", () => {
@@ -861,6 +1490,7 @@
         picked = null;
         judged = false;
         shortRevealed = false;
+        shortWhyOpen = false;
         render();
       });
 
@@ -876,15 +1506,17 @@
 
       $("btn-export").addEventListener("click", () => {
         const payload = {
-          v: 6,
+          v: 7,
           type: "fuxi-zuoye-forced-progress",
           exportedAt: new Date().toISOString(),
           mcOk: state.mcOk,
           shortOk: state.shortOk,
+          shortDraft: state.shortDraft || {},
           mcDay: state.mcDay,
           wrongMc: state.wrongMc,
           wrongShort: state.wrongShort,
           pinnedPlans: state.pinnedPlans,
+          shortOrderMode: shortOrderMode(),
         };
         download("fuxi-zuoye-progress-" + todayStr() + ".json", JSON.stringify(payload));
         toast("已下载进度，手机/电脑互导用这个");
@@ -903,6 +1535,7 @@
                 payload.v !== 4 &&
                 payload.v !== 5 &&
                 payload.v !== 6 &&
+                payload.v !== 7 &&
                 payload.type !== "fuxi-zuoye-forced-progress")
             ) {
               throw new Error("bad");
@@ -910,6 +1543,7 @@
             const incoming = normalizeState(payload);
             state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
             state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
+            state.shortDraft = Object.assign({}, state.shortDraft || {}, incoming.shortDraft || {});
             Object.keys(incoming.mcDay || {}).forEach((d) => {
               if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
               if (!state.mcDay[d].results) state.mcDay[d].results = {};
@@ -930,6 +1564,9 @@
             Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
               if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
             });
+            if (incoming.shortOrderMode === "chapter" || incoming.shortOrderMode === "plan") {
+              state.shortOrderMode = incoming.shortOrderMode;
+            }
             save();
             mcIdx = nextUnansweredMc();
             shortIdx = nextUnansweredShort();
@@ -951,7 +1588,7 @@
           "阶段：" + st.plan.phase,
         ];
         const mcLeft = st.plan.mcIds.filter((id) => !isMcOk(id)).slice(0, 5);
-        const sLeft = st.plan.shortIds.filter((id) => !isShortOk(id)).slice(0, 5);
+        const sLeft = (st.shortIds || st.plan.shortIds).filter((id) => !isShortOk(id)).slice(0, 5);
         if (mcLeft.length) {
           lines.push("未过关选择举例：");
           mcLeft.forEach((id) => {
@@ -985,6 +1622,17 @@
           ta.remove();
         }
         toast(ok ? "状态已复制，发给老师" : "复制失败，请手动发");
+      });
+
+      /* 刷新/关页/切后台前强制把当前默写框写入 localStorage，避免丢字 */
+      function hardSaveShortDraft() {
+        flushActiveShortDraft();
+        save();
+      }
+      window.addEventListener("pagehide", hardSaveShortDraft);
+      window.addEventListener("beforeunload", hardSaveShortDraft);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") hardSaveShortDraft();
       });
 
       mcIdx = nextUnansweredMc();

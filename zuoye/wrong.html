@@ -50,6 +50,29 @@
     .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
     .points { margin: 8px 0 0; padding-left: 1.2em; }
     .points[hidden] { display: none !important; }
+    .short-pane {
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+      background: #fff; margin-top: 10px;
+    }
+    .short-pane.official h4 { margin: 0 0 8px; font-size: 0.88rem; font-weight: 700; color: #9a3412; }
+    .short-pane ol { margin: 0; padding-left: 1.15em; }
+    .short-pane li { margin: 6px 0; font-size: 0.95rem; line-height: 1.45; }
+    mark.key { background: #fde68a; padding: 0 2px; border-radius: 3px; font-weight: 700; }
+    .short-why-banner {
+      margin: 0; border: 1px solid #86efac; border-radius: 10px;
+      background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%); overflow: hidden;
+    }
+    .short-why-banner > summary {
+      list-style: none; cursor: pointer; padding: 12px 14px; font-size: 0.92rem;
+      font-weight: 700; color: #166534; user-select: none;
+    }
+    .short-why-banner > summary::-webkit-details-marker { display: none; }
+    .short-why-banner > summary::before { content: "▸ "; color: #15803d; }
+    .short-why-banner[open] > summary::before { content: "▾ "; }
+    .short-why-body {
+      padding: 0 14px 14px; border-top: 1px dashed #bbf7d0;
+      font-size: 0.9rem; line-height: 1.55; color: #14532d; white-space: pre-wrap;
+    }
     .hint { color: var(--muted); font-size: 0.85rem; }
     .nav-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
     .toast {
@@ -397,6 +420,79 @@
         render();
       }
 
+
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+      const SHORT_KEY_BANK = [
+        "半殖民地半封建社会","半殖民地半封建","资本主义世界市场","主权和领土完整","两个确立","六个必须坚持",
+        "中国特色社会主义","新民主主义革命","旧民主主义革命","全过程人民民主","高质量发展","全面从严治党",
+        "党的全面领导","以人民为中心","中国式现代化","科技自立自强","人类命运共同体","总体国家安全观",
+        "军委主席负责制","抗日民族统一战线","农村包围城市","十一届三中全会","四项基本原则","三个有利于",
+        "世界观和方法论","新文化运动","马克思主义","工人阶级","政治舞台","遵义会议","土地革命","武装斗争",
+        "农村根据地","整风运动","实事求是","两个务必","三大改造","一国两制","南方谈话","共同富裕","人民至上",
+        "新发展理念","民族复兴","主要矛盾","根本原因","自然经济","双重任务","反帝反封建","帝国主义","封建主义",
+        "无产阶级","资产阶级","小资产阶级","知识分子","革命团体","武装起义","民主共和","临时约法","洋务派",
+        "封建性","依赖性","领导核心","各自为政","封建制度","西方技术","中体西用","维新派","思想启蒙","太平天国",
+        "辛亥革命","五四运动","统一战线","改革开放","市场经济",
+      ];
+      function extractPointKeys(point) {
+        const raw = String(point || "");
+        const keys = [];
+        SHORT_KEY_BANK.forEach((k) => {
+          if (raw.indexOf(k) >= 0) keys.push(k);
+        });
+        (raw.match(/[「『]([^」』]+)[」』]/g) || []).forEach((m) => {
+          const inner = m.replace(/^[「『]/, "").replace(/[」』]$/, "");
+          if (inner.length >= 2) keys.push(inner);
+        });
+        (raw.match(/《([^》]+)》/g) || []).forEach((m) => {
+          const inner = m.replace(/^《/, "").replace(/》$/, "");
+          if (inner.length >= 2) keys.push(inner);
+        });
+        raw.split(/[，。；、]/).forEach((seg) => {
+          const s0 = seg.replace(/\s+/g, "").trim();
+          if (s0.length < 3) return;
+          if (keys.some((k) => s0.indexOf(k) >= 0)) return;
+          let s = s0.replace(/^(企图|必须|坚持|强调|提出|建立|实行|进行|推动|实现|促进|维护|加强|完善|健全)/, "");
+          if (s.length >= 3 && s.length <= 16) keys.push(s.slice(0, 12));
+          else if (s0.length >= 4 && s0.length <= 14) keys.push(s0.slice(0, 10));
+        });
+        return Array.from(new Set(keys));
+      }
+      function highlightKeys(s) {
+        const raw = String(s || "");
+        const keys = extractPointKeys(raw)
+          .filter((k) => k && k.length >= 2)
+          .sort((a, b) => b.length - a.length || a.localeCompare(b));
+        const ranges = [];
+        keys.forEach((k) => {
+          let from = 0;
+          while (from < raw.length) {
+            const j = raw.indexOf(k, from);
+            if (j < 0) break;
+            const end = j + k.length;
+            if (!ranges.some((r) => !(end <= r[0] || j >= r[1]))) ranges.push([j, end]);
+            from = j + 1;
+          }
+        });
+        ranges.sort((a, b) => a[0] - b[0]);
+        let out = "";
+        let pos = 0;
+        ranges.forEach(([a, b]) => {
+          if (a < pos) return;
+          out += escapeHtml(raw.slice(pos, a));
+          out += '<mark class="key">' + escapeHtml(raw.slice(a, b)) + "</mark>";
+          pos = b;
+        });
+        out += escapeHtml(raw.slice(pos));
+        return out;
+      }
+
       function renderShort() {
         const list = shortList();
         $("tab-mc").textContent = "选择错题 " + mcList().length;
@@ -430,7 +526,11 @@
           "</div>" +
           '<div class="q-text"></div>' +
           (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
-          '<ol class="points" id="points"></ol>' +
+          '<div id="short-compare" hidden>' +
+          '<details class="short-why-banner" id="short-why">' +
+          "<summary>背景</summary>" +
+          '<div class="short-why-body" id="short-why-body"></div></details>' +
+          '<div class="short-pane official"><h4>采分点</h4><ol id="points-official"></ol></div></div>' +
           '<div class="nav-btns">' +
           '<button type="button" class="primary" id="btn-reveal">默完了，看采分点</button>' +
           '<button type="button" class="good" id="btn-pass"' +
@@ -443,13 +543,25 @@
           '<button type="button" class="ghost" id="btn-next">下一题</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
-        const ol = box.querySelector("#points");
-        (q.points || []).forEach((p) => {
-          const li = document.createElement("li");
-          li.textContent = p;
-          ol.appendChild(li);
-        });
-        if (!shortRevealed) ol.hidden = true;
+        const wrap = box.querySelector("#short-compare");
+        if (shortRevealed) {
+          wrap.hidden = false;
+          const whyBody = box.querySelector("#short-why-body");
+          if (whyBody) {
+            whyBody.textContent =
+              (q.why && String(q.why).trim()) ||
+              (q.points || [])
+                .map((p, i) => i + 1 + ". 对照这句想当时发生了啥，才总结成：「" + p + "」")
+                .join("\n\n");
+          }
+          const off = box.querySelector("#points-official");
+          off.innerHTML = "";
+          (q.points || []).forEach((p) => {
+            const li = document.createElement("li");
+            li.innerHTML = highlightKeys(p);
+            off.appendChild(li);
+          });
+        }
         $("work").innerHTML = "";
         $("work").appendChild(box);
         $("btn-reveal").addEventListener("click", () => {
