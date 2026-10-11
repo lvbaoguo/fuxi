@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>错题本 · 连对2次移出</title>
+  <title>错题本 · 连对3次移出</title>
   <style>
     :root {
       --bg: #efe8dc; --card: #fffdf8; --ink: #1c1917; --muted: #78716c;
@@ -91,7 +91,7 @@
       <span class="grow"></span>
     </div>
     <h1>错题本</h1>
-    <p class="sub">选择答错 / 简答「还不会」会进来。连对 <b>2</b> 次才移出（中途再错清零）。答对后整本打乱，不会紧接着再做同一道。与每日作业共用本机进度。</p>
+    <p class="sub">选择答错 / 简答「还不会」会进来。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱，不会紧接着再做同一道。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -112,7 +112,7 @@
       }
       const STORE = "pansan2-zuoye-forced-progress";
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
-      const WRONG_CLEAR_STREAK = 2;
+      const WRONG_CLEAR_STREAK = 3;
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
 
@@ -361,8 +361,8 @@
             save();
             toast(
               wr.removed
-                ? "连对2次，已移出 · 剩余题已打乱"
-                : "答对，连对 " + wr.streak + "/2 · 题序已打乱"
+                ? "连对3次，已移出 · 剩余题已打乱"
+                : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
             );
             picked = null;
             judged = false;
@@ -574,8 +574,8 @@
           save();
           toast(
             wr.removed
-              ? "连对2次，已移出 · 剩余题已打乱"
-              : "会了，连对 " + wr.streak + "/2 · 题序已打乱"
+              ? "连对3次，已移出 · 剩余题已打乱"
+              : "会了，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
           );
           shortRevealed = false;
           reshuffleShortAfter(answeredId);
