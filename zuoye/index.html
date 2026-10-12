@@ -227,6 +227,19 @@
     }
     .dictation-result.pass { color: #166534; font-weight: 700; }
     .dictation-result.fail { color: #991b1b; font-weight: 700; }
+    .short-hint {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .short-hint[hidden] { display: none !important; }
+    .short-hint .hh { color: #b45309; font-weight: 700; }
     .hint { color: var(--muted); font-size: 0.85rem; }
     .toast {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
@@ -234,6 +247,31 @@
       max-width: min(520px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
     }
     .toast[hidden] { display: none !important; }
+    .import-panel {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fafaf9;
+    }
+    .import-panel[hidden] { display: none !important; }
+    .import-panel label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .import-panel textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      font: 0.82rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    .import-panel .row { margin-top: 8px; gap: 8px; }
     a { color: var(--blue); }
     .day-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; }
     .day-chip {
@@ -271,8 +309,14 @@
       <button type="button" class="ghost" id="btn-export">导出</button>
       <a class="ghost" id="btn-wrong-page" href="wrong.html" style="text-decoration:none;display:inline-flex;align-items:center;">错题</a>
       <button type="button" class="ghost" id="btn-import">导入</button>
-      <input type="file" id="import-file" accept="application/json,.json" hidden>
-      <button type="button" class="primary" id="btn-teacher">老师</button>
+    </div>
+    <div class="import-panel" id="import-panel" hidden>
+      <label for="import-text">粘贴导出的进度 JSON</label>
+      <textarea id="import-text" placeholder='{"v":7,"type":"fuxi-zuoye-forced-progress",...}' spellcheck="false"></textarea>
+      <div class="row">
+        <button type="button" id="btn-import-apply">合并导入</button>
+        <button type="button" class="ghost" id="btn-import-cancel">取消</button>
+      </div>
     </div>
 
     <div class="day-nav" id="day-nav"></div>
@@ -497,6 +541,64 @@
         save();
       }
 
+      /** 清空全部简答默写 + 过关标记（选择题不动） */
+      function restartAllShortDrafts() {
+        try {
+          const ta = document.getElementById("short-dictation");
+          if (ta) ta.value = "";
+        } catch (_) {}
+        state.shortDraft = {};
+        state.shortOk = {};
+        try {
+          sessionStorage.setItem(STORE + "-shortDraft", "{}");
+        } catch (_) {}
+        save();
+      }
+
+      /** 采分点关键词切成 ≤4 字的提示块，按点顺序 */
+      function buildShortHintChunks(q) {
+        const chunks = [];
+        (q.points || []).forEach((p, pi) => {
+          const keys = extractPointKeys(p);
+          const pieces = [];
+          if (keys.length) {
+            keys.forEach((k) => {
+              const clean = String(k || "").replace(/\s+/g, "");
+              if (!clean) return;
+              for (let i = 0; i < clean.length; i += 4) {
+                pieces.push(clean.slice(i, i + 4));
+              }
+            });
+          } else {
+            const clean = String(p || "")
+              .replace(/[，。；、,.!！？?\s]/g, "")
+              .slice(0, 16);
+            for (let i = 0; i < clean.length; i += 4) pieces.push(clean.slice(i, i + 4));
+          }
+          /* 每点最多留 3 段，避免提示泄题过多 */
+          pieces.slice(0, 3).forEach((t) => {
+            if (t) chunks.push({ pi: pi, text: t });
+          });
+        });
+        return chunks;
+      }
+
+      function formatShortHints(chunks, shown) {
+        const map = {};
+        chunks.slice(0, shown).forEach((c) => {
+          if (!map[c.pi]) map[c.pi] = [];
+          map[c.pi].push(c.text);
+        });
+        const lines = [];
+        Object.keys(map)
+          .map(Number)
+          .sort((a, b) => a - b)
+          .forEach((pi) => {
+            lines.push(pi + 1 + ". " + map[pi].join(" · "));
+          });
+        return lines.join("\n");
+      }
+
       function ensureMcDay(d) {
         if (!state.mcDay[d] || typeof state.mcDay[d] !== "object") state.mcDay[d] = { results: {} };
         if (!state.mcDay[d].results || typeof state.mcDay[d].results !== "object") {
@@ -578,6 +680,7 @@
       let judged = false;
       let shortRevealed = false;
       let shortWhyOpen = false;
+      const shortHintShown = {}; /* qid → 已提示块数 */
       let advanceTimer = null;
       let holdingCorrect = false; /* 兼容：答对已立即跳题 */
 
@@ -1445,6 +1548,7 @@
           '<div class="dictation" id="dictation-box">' +
           "<label>默写</label>" +
           '<textarea id="short-dictation" placeholder="关键词即可…"></textarea>' +
+          '<div class="short-hint" id="short-hint" hidden></div>' +
           '<div class="dictation-result" id="dictation-result" hidden></div>' +
           "</div>" +
           '<div class="nav-btns">' +
@@ -1452,10 +1556,10 @@
           (done ? " disabled" : "") +
           ">提交</button>" +
           '<button type="button" class="ghost" id="btn-peek-ans">答案</button>' +
+          '<button type="button" class="ghost" id="btn-hint-s">提示</button>' +
           '<button type="button" class="ghost" id="btn-fail">不会</button>' +
           '<button type="button" class="ghost" id="btn-prev-s">上题</button>' +
           '<button type="button" class="ghost" id="btn-next-s">下题</button>' +
-          '<button type="button" class="ghost" id="btn-jump-s">未过</button>' +
           '<button type="button" class="danger" id="btn-restart-short">重来</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -1465,6 +1569,21 @@
 
         const ta = box.querySelector("#short-dictation");
         const resultEl = box.querySelector("#dictation-result");
+        const hintEl = box.querySelector("#short-hint");
+        const hintChunks = buildShortHintChunks(q);
+        const shownN = shortHintShown[q.id] || 0;
+        function paintHint() {
+          const n = shortHintShown[q.id] || 0;
+          if (!hintEl) return;
+          if (n <= 0) {
+            hintEl.hidden = true;
+            hintEl.textContent = "";
+            return;
+          }
+          hintEl.hidden = false;
+          hintEl.textContent = formatShortHints(hintChunks, n);
+        }
+        paintHint();
         if (ta) ta.value = draft;
         if (shortRevealed && draft) {
           showShortGrade(box, q, draft, resultEl);
@@ -1537,19 +1656,33 @@
           shortWhyOpen = false;
           render();
         });
-        $("btn-jump-s").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          shortIdx = nextUnansweredShort();
-          shortRevealed = false;
-          shortWhyOpen = false;
-          render();
+        $("btn-hint-s").addEventListener("click", () => {
+          if (!hintChunks.length) {
+            toast("本题暂无提示");
+            return;
+          }
+          const cur = shortHintShown[q.id] || 0;
+          if (cur >= hintChunks.length) {
+            toast("提示已用完");
+            paintHint();
+            return;
+          }
+          shortHintShown[q.id] = cur + 1;
+          paintHint();
+          const piece = hintChunks[cur];
+          toast("提示 " + (piece.pi + 1) + "点：" + piece.text);
         });
         $("btn-restart-short").addEventListener("click", () => {
-          if (!confirm("重来本题？清默写并取消过关。")) return;
-          restartShortQuestion(q.id);
+          if (
+            !confirm("清空全部简答默写，并取消所有简答过关？选择题不动。确定？")
+          ) {
+            return;
+          }
+          Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
+          restartAllShortDrafts();
           shortRevealed = false;
           shortWhyOpen = false;
-          toast("已重来");
+          toast("全部简答文稿已清");
           render();
         });
       }
@@ -1624,18 +1757,8 @@
         render();
       });
 
-      function download(filename, text) {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1200);
-      }
-
-      $("btn-export").addEventListener("click", () => {
-        const payload = {
+      function buildExportPayload() {
+        return {
           v: 7,
           type: "fuxi-zuoye-forced-progress",
           exportedAt: new Date().toISOString(),
@@ -1651,111 +1774,109 @@
           mcShuffleDate: state.mcShuffleDate || null,
           mcShuffleIds: Array.isArray(state.mcShuffleIds) ? state.mcShuffleIds.slice() : null,
         };
-        download("fuxi-zuoye-progress-" + todayStr() + ".json", JSON.stringify(payload));
-        toast("已下载进度，手机/电脑互导用这个");
-      });
-      $("btn-import").addEventListener("click", () => $("import-file").click());
-      $("import-file").addEventListener("change", () => {
-        const file = $("import-file").files && $("import-file").files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const payload = JSON.parse(String(reader.result || ""));
-            if (
-              !payload ||
-              (payload.v !== 3 &&
-                payload.v !== 4 &&
-                payload.v !== 5 &&
-                payload.v !== 6 &&
-                payload.v !== 7 &&
-                payload.type !== "fuxi-zuoye-forced-progress")
-            ) {
-              throw new Error("bad");
-            }
-            const incoming = normalizeState(payload);
-            state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
-            state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
-            state.shortDraft = Object.assign({}, state.shortDraft || {}, incoming.shortDraft || {});
-            Object.keys(incoming.mcDay || {}).forEach((d) => {
-              if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
-              if (!state.mcDay[d].results) state.mcDay[d].results = {};
-              Object.assign(state.mcDay[d].results, (incoming.mcDay[d] && incoming.mcDay[d].results) || {});
-            });
-            Object.keys(incoming.wrongMc || {}).forEach((id) => {
-              const cur = state.wrongMc[id];
-              const inc = incoming.wrongMc[id];
-              if (!cur) state.wrongMc[id] = inc;
-              else state.wrongMc[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
-            });
-            Object.keys(incoming.wrongShort || {}).forEach((id) => {
-              const cur = state.wrongShort[id];
-              const inc = incoming.wrongShort[id];
-              if (!cur) state.wrongShort[id] = inc;
-              else state.wrongShort[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
-            });
-            Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
-              if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
-            });
-            if (typeof incoming.tapAnswer === "boolean") state.tapAnswer = incoming.tapAnswer;
-            if (typeof incoming.mcShuffle === "boolean") state.mcShuffle = incoming.mcShuffle;
-            if (incoming.mcShuffleDate) state.mcShuffleDate = incoming.mcShuffleDate;
-            if (Array.isArray(incoming.mcShuffleIds)) state.mcShuffleIds = incoming.mcShuffleIds.slice();
-            save();
-            mcIdx = nextUnansweredMc();
-            shortIdx = nextUnansweredShort();
-            render();
-            toast("进度已合并导入（含错题本；不覆盖已钉死的日期清单）");
-          } catch (_) {
-            toast("导入失败：请用本页导出的进度 json");
-          }
-          $("import-file").value = "";
-        };
-        reader.readAsText(file);
-      });
+      }
 
-      $("btn-teacher").addEventListener("click", async () => {
-        const st = dayStats(date);
-        const lines = [
-          "【请老师看·强制作业】" + date + (st.ok ? " · 已过关" : " · 未过关"),
-          "选择 " + st.mcDone + "/" + st.mcTotal + " · 简答 " + st.shortDone + "/" + st.shortTotal,
-          "阶段：" + st.plan.phase,
-        ];
-        const mcLeft = st.plan.mcIds.filter((id) => !isMcOk(id)).slice(0, 5);
-        const sLeft = (st.shortIds || st.plan.shortIds).filter((id) => !isShortOk(id)).slice(0, 5);
-        if (mcLeft.length) {
-          lines.push("未过关选择举例：");
-          mcLeft.forEach((id) => {
-            const q = BANK.mcById[id];
-            if (q) lines.push("- [" + courseName[q.course] + "第" + q.ch + "章] " + q.text.slice(0, 40));
-          });
+      function applyImportPayload(payload) {
+        if (
+          !payload ||
+          (payload.v !== 3 &&
+            payload.v !== 4 &&
+            payload.v !== 5 &&
+            payload.v !== 6 &&
+            payload.v !== 7 &&
+            payload.type !== "fuxi-zuoye-forced-progress")
+        ) {
+          throw new Error("bad");
         }
-        if (sLeft.length) {
-          lines.push("未过关简答举例：");
-          sLeft.forEach((id) => {
-            const q = BANK.shortById[id];
-            if (q) lines.push("- [" + courseName[q.course] + "第" + q.ch + "章] " + q.text.slice(0, 40));
-          });
-        }
-        const text = lines.join("\n");
-        let ok = false;
+        const incoming = normalizeState(payload);
+        state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
+        state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
+        state.shortDraft = Object.assign({}, state.shortDraft || {}, incoming.shortDraft || {});
+        Object.keys(incoming.mcDay || {}).forEach((d) => {
+          if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
+          if (!state.mcDay[d].results) state.mcDay[d].results = {};
+          Object.assign(state.mcDay[d].results, (incoming.mcDay[d] && incoming.mcDay[d].results) || {});
+        });
+        Object.keys(incoming.wrongMc || {}).forEach((id) => {
+          const cur = state.wrongMc[id];
+          const inc = incoming.wrongMc[id];
+          if (!cur) state.wrongMc[id] = inc;
+          else state.wrongMc[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+        });
+        Object.keys(incoming.wrongShort || {}).forEach((id) => {
+          const cur = state.wrongShort[id];
+          const inc = incoming.wrongShort[id];
+          if (!cur) state.wrongShort[id] = inc;
+          else state.wrongShort[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+        });
+        Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
+          if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
+        });
+        if (typeof incoming.tapAnswer === "boolean") state.tapAnswer = incoming.tapAnswer;
+        if (typeof incoming.mcShuffle === "boolean") state.mcShuffle = incoming.mcShuffle;
+        if (incoming.mcShuffleDate) state.mcShuffleDate = incoming.mcShuffleDate;
+        if (Array.isArray(incoming.mcShuffleIds)) state.mcShuffleIds = incoming.mcShuffleIds.slice();
+        save();
+        mcIdx = nextUnansweredMc();
+        shortIdx = nextUnansweredShort();
+        render();
+      }
+
+      function parseImportText(raw) {
+        let text = String(raw || "").trim();
+        if (!text) throw new Error("empty");
+        // 允许整段包在 ```json ... ``` 里，或前后有说明文字时抽出首个 {...}
+        const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fence) text = fence[1].trim();
         try {
-          if (navigator.clipboard && window.isSecureContext) {
+          return JSON.parse(text);
+        } catch (_) {
+          const start = text.indexOf("{");
+          const end = text.lastIndexOf("}");
+          if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));
+          throw new Error("bad");
+        }
+      }
+
+      $("btn-export").addEventListener("click", async () => {
+        const text = JSON.stringify(buildExportPayload());
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(text);
-            ok = true;
+            toast("已复制进度 JSON，到另一端点「导入」粘贴");
+            return;
           }
         } catch (_) {}
-        if (!ok) {
-          const ta = document.createElement("textarea");
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
-          try {
-            ok = document.execCommand("copy");
-          } catch (_) {}
-          ta.remove();
+        const panel = $("import-panel");
+        const ta = $("import-text");
+        panel.hidden = false;
+        ta.value = text;
+        ta.focus();
+        ta.select();
+        toast("剪贴板不可用：框里已填 JSON，请手动全选复制");
+      });
+
+      $("btn-import").addEventListener("click", () => {
+        const panel = $("import-panel");
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) {
+          $("import-text").value = "";
+          $("import-text").focus();
         }
-        toast(ok ? "状态已复制，发给老师" : "复制失败，请手动发");
+      });
+      $("btn-import-cancel").addEventListener("click", () => {
+        $("import-panel").hidden = true;
+        $("import-text").value = "";
+      });
+      $("btn-import-apply").addEventListener("click", () => {
+        try {
+          applyImportPayload(parseImportText($("import-text").value));
+          $("import-panel").hidden = true;
+          $("import-text").value = "";
+          toast("进度已合并导入（含错题本；不覆盖已钉死的日期清单）");
+        } catch (_) {
+          toast("导入失败：请粘贴本页导出的进度 JSON");
+        }
       });
 
       /* 刷新/关页/切后台前强制把当前默写框写入 localStorage，避免丢字 */
