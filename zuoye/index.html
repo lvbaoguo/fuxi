@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>每日作业</title>
   <style>
     :root {
@@ -18,6 +18,8 @@
       --amber: #b45309;
     }
     * { box-sizing: border-box; }
+    /* 手机防误触双击放大；仍尽量允许系统辅助功能缩放 */
+    html, body { touch-action: manipulation; }
     body {
       margin: 0;
       font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
