@@ -786,6 +786,7 @@
       let picked = null;
       let judged = false;
       let shortRevealed = false;
+      let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortWhyOpen = false;
       const shortHintShown = {}; /* qid → 已提示块数 */
       let advanceTimer = null;
@@ -1108,7 +1109,7 @@
             date = s.date;
             picked = null;
             judged = false;
-            shortRevealed = false;
+            shortRevealed = shortMemorizeMode;
             shortWhyOpen = false;
             mcIdx = nextUnansweredMc();
             shortIdx = nextUnansweredShort();
@@ -1715,12 +1716,15 @@
           ">提交</button>" +
           '<button type="button" class="ghost" id="btn-peek-ans">答案</button>' +
           '<button type="button" class="ghost" id="btn-hint-s">提示</button>' +
-          '<button type="button" class="ghost" id="btn-fail">不会</button>' +
+          '<button type="button" class="ghost' +
+          (shortMemorizeMode ? " on" : "") +
+          '" id="btn-memorize">背题</button>' +
           '<button type="button" class="ghost" id="btn-prev-s">上题</button>' +
           '<button type="button" class="ghost" id="btn-next-s">下题</button>' +
           '<button type="button" class="danger" id="btn-restart-short">重来</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
+        if (shortMemorizeMode) shortRevealed = true;
         fillShortCompare(box, q, null);
         $("work").innerHTML = "";
         $("work").appendChild(box);
@@ -1790,27 +1794,29 @@
           }
           syncPeekAnsBtn(box);
         });
-        $("btn-fail").addEventListener("click", () => {
+        $("btn-memorize").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
-          delete state.shortOk[q.id];
-          noteShortWrong(q.id);
-          save();
-          shortRevealed = false;
+          shortMemorizeMode = !shortMemorizeMode;
+          shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
-          toast("已进错题本");
+          if (shortMemorizeMode) {
+            toast("背题模式 · 默认显示采分点");
+          } else {
+            toast("已退出背题");
+          }
           render();
         });
         $("btn-prev-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = Math.max(0, shortIdx - 1);
-          shortRevealed = false;
+          shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
           render();
         });
         $("btn-next-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = Math.min(list.length - 1, shortIdx + 1);
-          shortRevealed = false;
+          shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
           render();
         });
@@ -1838,6 +1844,7 @@
           }
           Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
           restartAllShortDrafts();
+          shortMemorizeMode = false;
           shortRevealed = false;
           shortWhyOpen = false;
           toast("全部简答文稿已清");
