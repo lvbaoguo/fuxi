@@ -81,11 +81,17 @@
       background: linear-gradient(90deg, #b45309, #166534);
     }
     .prog-extra { margin: 0 0 4px; }
+    .entry-tabs { display: flex; gap: 8px; margin: 0 0 10px; }
+    .entry-tabs button { flex: 1; font-weight: 800; padding: 10px 12px; }
+    .entry-tabs button.on {
+      background: var(--on); color: #fff; border-color: var(--on);
+    }
     .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
     .tabs button { flex: 1; }
     .tabs button.on {
       background: var(--on); color: #fff; border-color: var(--on);
     }
+    .tabs[hidden], .prog-row[hidden], #day-nav[hidden] { display: none !important; }
     .q-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; }
     .q-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
     .q-text { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
@@ -299,7 +305,7 @@
 <body>
   <div class="wrap">
     <h1>每日作业</h1>
-    <p class="sub">按日派题 · 过关再玩 · 考 10/24–25</p>
+    <p class="sub">每日选择 + 简答精简背诵（近代史30·习思想48）· 考 10/24–25</p>
 
     <div id="lock" class="lock">今日未完成</div>
 
@@ -319,6 +325,11 @@
       </div>
     </div>
 
+    <div class="entry-tabs" id="entry-tabs">
+      <button type="button" class="on" id="entry-daily">每日选择</button>
+      <button type="button" id="entry-short">简答背诵</button>
+    </div>
+
     <div class="day-nav" id="day-nav"></div>
 
     <div class="card">
@@ -327,21 +338,24 @@
         <span id="pill" class="pill">未过关</span>
       </div>
       <div class="prog-rows">
-        <div class="prog-row">
+        <div class="prog-row" id="row-mc">
           <span class="lab">选择</span>
           <div class="progress"><i id="bar-mc"></i></div>
           <span class="num" id="prog-mc">0/0</span>
         </div>
-        <div class="prog-row">
+        <div class="prog-row" id="row-short">
           <span class="lab">简答</span>
           <div class="progress"><i id="bar-short"></i></div>
           <span class="num" id="prog-short">0/0</span>
         </div>
       </div>
       <p class="hint prog-extra" id="prog-text"></p>
-      <div class="tabs">
+      <div class="tabs" id="tabs-mc" hidden>
         <button type="button" class="on" id="tab-mc">选择题</button>
-        <button type="button" id="tab-short">简答题</button>
+      </div>
+      <div class="tabs" id="tabs-short" hidden>
+        <button type="button" class="on" id="tab-short-history">近代史</button>
+        <button type="button" id="tab-short-xi">习思想</button>
       </div>
       <div id="work"></div>
     </div>
@@ -673,9 +687,68 @@
 
       let state = load();
       let date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
-      let tab = "mc"; /* mc | short */
+      let entryMode = "daily"; /* daily=每日选择 | short=简答背诵 */
+      try {
+        const em = sessionStorage.getItem(STORE + "-entry");
+        if (em === "daily" || em === "short") entryMode = em;
+      } catch (_) {}
+      let shortCourse = "history"; /* history | xi */
+      try {
+        const sc = sessionStorage.getItem(STORE + "-shortCourse");
+        if (sc === "history" || sc === "xi") shortCourse = sc;
+      } catch (_) {}
+      let tab = "mc"; /* mc | short — 由 entryMode 驱动 */
       let mcIdx = 0;
       let shortIdx = 0;
+
+      function setEntryMode(mode) {
+        entryMode = mode === "short" ? "short" : "daily";
+        tab = entryMode === "short" ? "short" : "mc";
+        try {
+          sessionStorage.setItem(STORE + "-entry", entryMode);
+        } catch (_) {}
+        if (entryMode === "short") {
+          ensureShortDayForCourse(shortCourse);
+          shortIdx = nextUnansweredShort();
+        } else {
+          mcIdx = nextUnansweredMc();
+        }
+        render();
+      }
+      function setShortCourse(course) {
+        shortCourse = course === "xi" ? "xi" : "history";
+        try {
+          sessionStorage.setItem(STORE + "-shortCourse", shortCourse);
+        } catch (_) {}
+        ensureShortDayForCourse(shortCourse);
+        shortIdx = nextUnansweredShort();
+        render();
+      }
+      function keepSetFor(course) {
+        const k = BANK.shortKeep && BANK.shortKeep[course];
+        return Array.isArray(k) && k.length ? new Set(k) : null;
+      }
+      function courseShortDays(course) {
+        return (BANK.schedule || []).filter((s) => {
+          const list = planShortList(s.date);
+          return list.length && list.every((q) => q.course === course);
+        });
+      }
+      function ensureShortDayForCourse(course) {
+        const days = courseShortDays(course);
+        if (!days.length) return;
+        if (!days.some((s) => s.date === date)) {
+          date = days[0].date;
+        }
+      }
+      function courseKeepProgress(course) {
+        const ids = (BANK.shortKeep && BANK.shortKeep[course]) || [];
+        let done = 0;
+        ids.forEach((id) => {
+          if (isShortOk(id)) done += 1;
+        });
+        return { done: done, total: ids.length };
+      }
       let picked = null;
       let judged = false;
       let shortRevealed = false;
@@ -748,8 +821,8 @@
       function dayStats(d) {
         const plan = dayPlan(d);
         const shortIds = dayShortIds(d);
-        const mcTotal = plan.mcIds.length;
-        const shortTotal = shortIds.length;
+        let mcTotal = plan.mcIds.length;
+        let shortTotal = shortIds.length;
         let mcOkN = 0;
         let mcFailN = 0;
         let mcAnswered = 0;
@@ -767,6 +840,19 @@
         shortIds.forEach((id) => {
           if (isShortOk(id)) shortDone += 1;
         });
+        /* 入口拆分：每日选择只算选择；简答背诵只算整科精简进度 */
+        if (entryMode === "daily") {
+          shortTotal = 0;
+          shortDone = 0;
+        } else {
+          mcTotal = 0;
+          mcOkN = 0;
+          mcFailN = 0;
+          mcAnswered = 0;
+          const kp = courseKeepProgress(shortCourse);
+          shortTotal = kp.total;
+          shortDone = kp.done;
+        }
         const mcClean = mcTotal > 0 && mcFailN === 0 && mcOkN === mcTotal;
         const mcEmpty = mcTotal === 0;
         const shortOk = shortTotal === 0 || shortDone >= shortTotal;
@@ -783,7 +869,7 @@
           shortDone,
           total,
           done,
-          unqualified: mcFailN > 0,
+          unqualified: entryMode === "daily" && mcFailN > 0,
           mcClean: mcEmpty || mcClean,
           ok: total > 0 && (mcEmpty || mcClean) && shortOk,
         };
@@ -891,12 +977,20 @@
         const planList = planShortList(d);
         if (!planList.length) return [];
         const courses = Array.from(new Set(planList.map((q) => q.course).filter(Boolean)));
-        if (courses.length !== 1 || !BANK.shortById) return sortShortsByChapter(planList);
+        if (courses.length !== 1 || !BANK.shortById) {
+          return sortShortsByChapter(
+            planList.filter((q) => {
+              const keep = keepSetFor(q.course);
+              return !keep || keep.has(q.id);
+            })
+          );
+        }
         const course = courses[0];
+        const keep = keepSetFor(course);
         const allSorted = sortShortsByChapter(
           Object.keys(BANK.shortById)
             .map((id) => BANK.shortById[id])
-            .filter((q) => q && q.course === course)
+            .filter((q) => q && q.course === course && (!keep || keep.has(q.id)))
         );
         const peerDays = (BANK.schedule || []).filter((s) => {
           const list = planShortList(s.date);
@@ -911,15 +1005,27 @@
           }
           offset += n;
         }
-        return sortShortsByChapter(planList);
+        return sortShortsByChapter(planList.filter((q) => !keep || keep.has(q.id)));
+      }
+      function keepShortList(course) {
+        const keep = keepSetFor(course);
+        if (!BANK.shortById) return [];
+        return sortShortsByChapter(
+          Object.keys(BANK.shortById)
+            .map((id) => BANK.shortById[id])
+            .filter((q) => q && q.course === course && (!keep || keep.has(q.id)))
+        );
       }
       function dayShortList(d) {
+        /* 简答背诵：不再按日切片，整科精简题一条龙 */
+        if (entryMode === "short") return keepShortList(shortCourse);
         return chapterShortList(d);
       }
       function dayShortIds(d) {
         return dayShortList(d).map((q) => q.id);
       }
       function currentShortList() {
+        if (entryMode === "short") return keepShortList(shortCourse);
         return dayShortList(date);
       }
 
@@ -941,7 +1047,13 @@
       function renderNav() {
         const nav = $("day-nav");
         nav.innerHTML = "";
-        BANK.schedule.forEach((s) => {
+        if (entryMode === "short") {
+          nav.hidden = true;
+          return;
+        }
+        nav.hidden = false;
+        const days = BANK.schedule || [];
+        days.forEach((s) => {
           const st = dayStats(s.date);
           const btn = document.createElement("button");
           btn.type = "button";
@@ -974,20 +1086,34 @@
 
       function renderLock() {
         const today = todayStr();
+        const lock = $("lock");
+        if (entryMode === "short") {
+          const kp = courseKeepProgress(shortCourse);
+          const name = shortCourse === "xi" ? "习思想" : "近代史";
+          if (kp.total && kp.done >= kp.total) {
+            lock.className = "lock ok";
+            lock.innerHTML = name + "简答精简已过<small>" + kp.done + "/" + kp.total + "</small>";
+          } else {
+            lock.className = "lock";
+            lock.innerHTML =
+              name +
+              "简答 " +
+              kp.done +
+              "/" +
+              kp.total +
+              "<small>合上书能写关键词</small>";
+          }
+          return;
+        }
         const hasToday = BANK.schedule.some((s) => s.date === today);
         const t = dayStats(hasToday ? today : date);
-        const lock = $("lock");
         if (hasToday && t.ok) {
           lock.className = "lock ok";
-          lock.innerHTML = "今日过关<small>可玩了</small>";
+          lock.innerHTML = "今日选择过关<small>可玩了</small>";
         } else if (hasToday && t.unqualified) {
           lock.className = "lock";
           lock.innerHTML =
             "不合格 · 错" + t.mcFailN + "<small>点重来全对才过关</small>";
-        } else if (hasToday && t.mcTotal > 0 && t.mcClean) {
-          lock.className = "lock ok";
-          lock.innerHTML =
-            "选择过关 · 简答 " + t.shortDone + "/" + t.shortTotal + "<small>去做简答</small>";
         } else if (hasToday) {
           lock.className = "lock";
           lock.innerHTML =
@@ -998,9 +1124,7 @@
             ? "该日已过关"
             : t.unqualified
               ? "该日不合格<small>可重来</small>"
-              : t.mcTotal > 0 && t.mcClean
-                ? "选择过关 · 去做简答"
-                : "该日未过关";
+              : "该日未过关";
         }
       }
 
@@ -1049,7 +1173,7 @@
         } else if (after.ok) {
           toast("今日已过关");
         } else if (after.mcTotal > 0 && after.mcClean) {
-          toast("选择过关 · 去做简答");
+          toast("今日选择过关");
         }
         render();
       }
@@ -1232,7 +1356,7 @@
           if (after.mcAnswered >= after.mcTotal && after.unqualified) {
             toast("选择题已答完，但今日不合格。点「重来」全对才过关");
           } else if (after.mcTotal > 0 && after.mcClean && !after.ok) {
-            toast("选择题过关 · 再去做简答");
+            toast("选择题过关");
           }
           render();
         });
@@ -1688,16 +1812,28 @@
       }
 
       function render() {
+        tab = entryMode === "short" ? "short" : "mc";
+        if (entryMode === "short") ensureShortDayForCourse(shortCourse);
         const st = dayStats(date);
         $("day-label").textContent = shortDate(date) + " " + weekdayLabel(date);
-        $("phase").textContent = shortenPhase(st.plan.phase);
+        if (entryMode === "short") {
+          const kp = courseKeepProgress(shortCourse);
+          $("phase").textContent =
+            (shortCourse === "xi" ? "习思想" : "近代史") +
+            "简答精简 · " +
+            kp.done +
+            "/" +
+            kp.total;
+        } else {
+          $("phase").textContent = shortenPhase(st.plan.phase);
+        }
         if (st.ok) {
           $("pill").textContent = "已过关";
           $("pill").className = "pill ok";
         } else if (st.unqualified) {
           $("pill").textContent = "今日不合格";
           $("pill").className = "pill bad";
-        } else if (st.mcTotal > 0 && st.mcClean) {
+        } else if (entryMode === "daily" && st.mcTotal > 0 && st.mcClean) {
           $("pill").textContent = "选择题过关";
           $("pill").className = "pill mc";
         } else {
@@ -1715,17 +1851,30 @@
           (st.mcFailN ? " 错" + st.mcFailN : st.mcTotal > 0 && st.mcClean ? " 过关" : "");
         $("prog-short").textContent = st.shortDone + "/" + st.shortTotal;
         const wc = wrongMcCount() + wrongShortCount();
-        $("prog-text").textContent =
-          "错题 " + wc + (st.unqualified ? " · 不合格" : st.ok ? " · 已过关" : "");
-        $("tab-mc").classList.toggle("on", tab === "mc");
-        $("tab-short").classList.toggle("on", tab === "short");
-        $("tab-mc").textContent =
-          "选择 " +
-          st.mcDone +
-          "/" +
-          st.mcTotal +
-          (st.mcFailN ? " 错" + st.mcFailN : st.mcTotal > 0 && st.mcClean ? " 过关" : "");
-        $("tab-short").textContent = "简答 " + st.shortDone + "/" + st.shortTotal;
+        if (entryMode === "short") {
+          const kp = courseKeepProgress(shortCourse);
+          $("prog-text").textContent =
+            "精简必背 " + kp.total + " 道 · 已过 " + kp.done + "/" + kp.total + " · 错题 " + wc;
+        } else {
+          $("prog-text").textContent =
+            "错题 " + wc + (st.unqualified ? " · 不合格" : st.ok ? " · 已过关" : "");
+        }
+        $("entry-daily").classList.toggle("on", entryMode === "daily");
+        $("entry-short").classList.toggle("on", entryMode === "short");
+        $("row-mc").hidden = entryMode !== "daily";
+        $("row-short").hidden = entryMode !== "short";
+        $("tabs-mc").hidden = true; /* 每日选择直接出题，不再要子 tab */
+        $("tabs-short").hidden = entryMode !== "short";
+        if ($("tab-short-history")) {
+          const hp = courseKeepProgress("history");
+          $("tab-short-history").classList.toggle("on", shortCourse === "history");
+          $("tab-short-history").textContent = "近代史 " + hp.done + "/" + hp.total;
+        }
+        if ($("tab-short-xi")) {
+          const xp = courseKeepProgress("xi");
+          $("tab-short-xi").classList.toggle("on", shortCourse === "xi");
+          $("tab-short-xi").textContent = "习思想 " + xp.done + "/" + xp.total;
+        }
         const wrongBtn = $("btn-wrong-page");
         if (wrongBtn) wrongBtn.textContent = wc ? "错题 " + wc : "错题";
         renderNav();
@@ -1734,20 +1883,24 @@
         else renderShort();
       }
 
-      $("tab-mc").addEventListener("click", () => {
-        tab = "mc";
-        picked = null;
-        judged = false;
-        render();
-      });
-      $("tab-short").addEventListener("click", () => {
-        tab = "short";
-        shortRevealed = false;
-        shortWhyOpen = false;
-        render();
-      });
+      $("entry-daily").addEventListener("click", () => setEntryMode("daily"));
+      $("entry-short").addEventListener("click", () => setEntryMode("short"));
+      $("tab-short-history").addEventListener("click", () => setShortCourse("history"));
+      $("tab-short-xi").addEventListener("click", () => setShortCourse("xi"));
       $("btn-today").addEventListener("click", () => {
-        date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
+        if (entryMode === "short") {
+          const days = courseShortDays(shortCourse);
+          const today = todayStr();
+          date = days.some((s) => s.date === today)
+            ? today
+            : days[0]
+              ? days[0].date
+              : date;
+        } else {
+          date = BANK.schedule.some((s) => s.date === todayStr())
+            ? todayStr()
+            : BANK.schedule[0].date;
+        }
         mcIdx = nextUnansweredMc();
         shortIdx = nextUnansweredShort();
         picked = null;
@@ -1890,6 +2043,8 @@
         if (document.visibilityState === "hidden") hardSaveShortDraft();
       });
 
+      tab = entryMode === "short" ? "short" : "mc";
+      if (entryMode === "short") ensureShortDayForCourse(shortCourse);
       mcIdx = nextUnansweredMc();
       shortIdx = nextUnansweredShort();
       render();
