@@ -571,25 +571,57 @@
         save();
       }
 
-      /** 采分点关键词切成 ≤4 字的提示块，按点顺序 */
+      /** 长提示按「和/与/、」切开，避免「君权和封·建纲常」这种从中间砍 */
+      function splitHintPieces(clean) {
+        const s = String(clean || "").replace(/\s+/g, "");
+        if (!s) return [];
+        if (s.length <= 6) return [s];
+        const byConn = s.split(/[和与、]|以及/).map((x) => x.trim()).filter(Boolean);
+        if (byConn.length > 1) {
+          return byConn.map((p) => (p.length > 6 ? p.slice(0, 6) : p)).slice(0, 3);
+        }
+        const out = [];
+        for (let i = 0; i < s.length && out.length < 3; i += 4) out.push(s.slice(i, i + 4));
+        return out;
+      }
+
+      /** 采分点关键词 → 提示块：按句中出现顺序，不按词库表序 */
       function buildShortHintChunks(q) {
         const chunks = [];
         (q.points || []).forEach((p, pi) => {
-          const keys = extractPointKeys(p);
-          const pieces = [];
-          if (keys.length) {
-            keys.forEach((k) => {
-              const clean = String(k || "").replace(/\s+/g, "");
-              if (!clean) return;
-              for (let i = 0; i < clean.length; i += 4) {
-                pieces.push(clean.slice(i, i + 4));
+          const raw = String(p || "");
+          const keys = extractPointKeys(p)
+            .map((k) => String(k || "").replace(/\s+/g, ""))
+            .filter((k) => k.length >= 2);
+          /* 长词优先占位，再按文中位置排，和黄标同一套不重叠逻辑 */
+          const ranges = [];
+          keys
+            .slice()
+            .sort((a, b) => b.length - a.length || a.localeCompare(b))
+            .forEach((k) => {
+              let from = 0;
+              while (from < raw.length) {
+                const j = raw.indexOf(k, from);
+                if (j < 0) break;
+                const end = j + k.length;
+                const overlap = ranges.some((r) => !(end <= r[0] || j >= r[1]));
+                if (!overlap) ranges.push([j, end, k]);
+                from = j + 1;
               }
             });
+          ranges.sort((a, b) => a[0] - b[0]);
+          const pieces = [];
+          if (ranges.length) {
+            ranges.forEach((r) => {
+              splitHintPieces(r[2]).forEach((t) => {
+                if (t) pieces.push(t);
+              });
+            });
           } else {
-            const clean = String(p || "")
-              .replace(/[，。；、,.!！？?\s]/g, "")
-              .slice(0, 16);
-            for (let i = 0; i < clean.length; i += 4) pieces.push(clean.slice(i, i + 4));
+            const clean = raw.replace(/[，。；、,.!！？?\s]/g, "").slice(0, 16);
+            splitHintPieces(clean).forEach((t) => {
+              if (t) pieces.push(t);
+            });
           }
           /* 每点最多留 3 段，避免提示泄题过多 */
           pieces.slice(0, 3).forEach((t) => {
