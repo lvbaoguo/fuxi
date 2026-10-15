@@ -604,8 +604,9 @@
       }
 
       /**
-       * 每点一条提示：句首 4 字 + 该点后半的部分词语
-       * 点一次展开一点，解决「开头忘了、后面也接不上」
+       * 提示分步、少泄题：
+       * 第 1 下只出该点句首 4 字；再点才出后面短线索（每条 ≤4 字）。
+       * 短句再点 1 次；长句最多再点 2 次。不会一次甩出半句答案。
        */
       function buildShortHintChunks(q) {
         const chunks = [];
@@ -614,43 +615,55 @@
           const clean = pointCleanChars(raw);
           if (!clean) return;
           const head = clean.slice(0, 4);
-          const extras = [];
-          orderedPointKeyRanges(raw).forEach((r) => {
-            const k = r[2];
-            const at = clean.indexOf(pointCleanChars(k));
-            /* 整段落在句首 4 字内的不要重复 */
-            if (at >= 0 && at + pointCleanChars(k).length <= 4) return;
-            if (k === head || head.indexOf(k) >= 0) return;
-            let piece = pointCleanChars(k);
-            if (piece.length > 6) piece = piece.slice(0, 6);
-            if (!piece || piece === head) return;
-            if (extras.indexOf(piece) >= 0) return;
-            extras.push(piece);
-          });
-          /* 词库没命中时，从句中再取 1～2 段 4 字当线索 */
-          if (!extras.length && clean.length > 4) {
-            const rest = clean.slice(4);
-            if (rest.length <= 4) {
-              extras.push(rest);
-            } else {
-              extras.push(rest.slice(0, 4));
-              if (rest.length >= 10) {
-                const mid = Math.min(Math.floor(rest.length / 2), rest.length - 4);
-                const midBit = rest.slice(mid, mid + 4);
-                if (midBit && midBit !== extras[0]) extras.push(midBit);
-              }
-            }
+          chunks.push({ pi: pi, text: head });
+
+          const clueBudget = clean.length > 24 ? 2 : clean.length > 4 ? 1 : 0;
+          if (!clueBudget) return;
+
+          const clues = [];
+          function pushClue(piece) {
+            let s = pointCleanChars(piece);
+            if (!s) return;
+            const at = clean.indexOf(s);
+            if (at >= 0 && at + s.length <= 4) return;
+            if (at >= 0 && at < 4) s = s.slice(4 - at);
+            if (s === head || head.indexOf(s) >= 0) return;
+            if (s.length > 4) s = s.slice(0, 4);
+            if (s.length < 2) return;
+            if (clues.indexOf(s) >= 0) return;
+            clues.push(s);
           }
-          const parts = [head].concat(extras.slice(0, 2));
-          chunks.push({ pi: pi, text: parts.join(" · ") });
+
+          orderedPointKeyRanges(raw).forEach((r) => pushClue(r[2]));
+
+          if (clues.length < clueBudget && clean.length > 4) {
+            const rest = clean.slice(4);
+            const ratios = clueBudget === 2 ? [0.28, 0.58] : [0.4];
+            ratios.forEach((ratio) => {
+              if (clues.length >= clueBudget || rest.length < 2) return;
+              let start = Math.floor(rest.length * ratio);
+              start = Math.min(Math.max(0, start), Math.max(0, rest.length - 4));
+              pushClue(rest.slice(start, start + Math.min(4, rest.length - start)));
+            });
+          }
+
+          clues.slice(0, clueBudget).forEach((t) => {
+            chunks.push({ pi: pi, text: t });
+          });
         });
         return chunks;
       }
 
       function formatShortHints(chunks, shown) {
-        return chunks
-          .slice(0, shown)
-          .map((c) => c.pi + 1 + ". " + c.text)
+        const map = {};
+        chunks.slice(0, shown).forEach((c) => {
+          if (!map[c.pi]) map[c.pi] = [];
+          map[c.pi].push(c.text);
+        });
+        return Object.keys(map)
+          .map(Number)
+          .sort((a, b) => a - b)
+          .map((pi) => pi + 1 + ". " + map[pi].join(" · "))
           .join("\n");
       }
 
