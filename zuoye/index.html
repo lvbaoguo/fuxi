@@ -571,80 +571,87 @@
         save();
       }
 
-      /** 长提示按「和/与/、」切开，避免「君权和封·建纲常」这种从中间砍 */
-      function splitHintPieces(clean) {
-        const s = String(clean || "").replace(/\s+/g, "");
-        if (!s) return [];
-        if (s.length <= 6) return [s];
-        const byConn = s.split(/[和与、]|以及/).map((x) => x.trim()).filter(Boolean);
-        if (byConn.length > 1) {
-          return byConn.map((p) => (p.length > 6 ? p.slice(0, 6) : p)).slice(0, 3);
-        }
-        const out = [];
-        for (let i = 0; i < s.length && out.length < 3; i += 4) out.push(s.slice(i, i + 4));
-        return out;
+      /** 采分点去标点后的纯字，用来取句首 */
+      function pointCleanChars(p) {
+        return String(p || "").replace(
+          /[，。；、,.!！？?：:（）()\[\]【】《》〈〉"'“”‘’\s]/g,
+          ""
+        );
       }
 
-      /** 采分点关键词 → 提示块：按句中出现顺序，不按词库表序 */
+      /** 按文中出现顺序取不重叠关键词（判分词库复用） */
+      function orderedPointKeyRanges(raw) {
+        const keys = extractPointKeys(raw)
+          .map((k) => String(k || "").replace(/\s+/g, ""))
+          .filter((k) => k.length >= 2);
+        const ranges = [];
+        keys
+          .slice()
+          .sort((a, b) => b.length - a.length || a.localeCompare(b))
+          .forEach((k) => {
+            let from = 0;
+            while (from < raw.length) {
+              const j = raw.indexOf(k, from);
+              if (j < 0) break;
+              const end = j + k.length;
+              const overlap = ranges.some((r) => !(end <= r[0] || j >= r[1]));
+              if (!overlap) ranges.push([j, end, k]);
+              from = j + 1;
+            }
+          });
+        ranges.sort((a, b) => a[0] - b[0]);
+        return ranges;
+      }
+
+      /**
+       * 每点一条提示：句首 4 字 + 该点后半的部分词语
+       * 点一次展开一点，解决「开头忘了、后面也接不上」
+       */
       function buildShortHintChunks(q) {
         const chunks = [];
         (q.points || []).forEach((p, pi) => {
           const raw = String(p || "");
-          const keys = extractPointKeys(p)
-            .map((k) => String(k || "").replace(/\s+/g, ""))
-            .filter((k) => k.length >= 2);
-          /* 长词优先占位，再按文中位置排，和黄标同一套不重叠逻辑 */
-          const ranges = [];
-          keys
-            .slice()
-            .sort((a, b) => b.length - a.length || a.localeCompare(b))
-            .forEach((k) => {
-              let from = 0;
-              while (from < raw.length) {
-                const j = raw.indexOf(k, from);
-                if (j < 0) break;
-                const end = j + k.length;
-                const overlap = ranges.some((r) => !(end <= r[0] || j >= r[1]));
-                if (!overlap) ranges.push([j, end, k]);
-                from = j + 1;
-              }
-            });
-          ranges.sort((a, b) => a[0] - b[0]);
-          const pieces = [];
-          if (ranges.length) {
-            ranges.forEach((r) => {
-              splitHintPieces(r[2]).forEach((t) => {
-                if (t) pieces.push(t);
-              });
-            });
-          } else {
-            const clean = raw.replace(/[，。；、,.!！？?\s]/g, "").slice(0, 16);
-            splitHintPieces(clean).forEach((t) => {
-              if (t) pieces.push(t);
-            });
-          }
-          /* 每点最多留 3 段，避免提示泄题过多 */
-          pieces.slice(0, 3).forEach((t) => {
-            if (t) chunks.push({ pi: pi, text: t });
+          const clean = pointCleanChars(raw);
+          if (!clean) return;
+          const head = clean.slice(0, 4);
+          const extras = [];
+          orderedPointKeyRanges(raw).forEach((r) => {
+            const k = r[2];
+            const at = clean.indexOf(pointCleanChars(k));
+            /* 整段落在句首 4 字内的不要重复 */
+            if (at >= 0 && at + pointCleanChars(k).length <= 4) return;
+            if (k === head || head.indexOf(k) >= 0) return;
+            let piece = pointCleanChars(k);
+            if (piece.length > 6) piece = piece.slice(0, 6);
+            if (!piece || piece === head) return;
+            if (extras.indexOf(piece) >= 0) return;
+            extras.push(piece);
           });
+          /* 词库没命中时，从句中再取 1～2 段 4 字当线索 */
+          if (!extras.length && clean.length > 4) {
+            const rest = clean.slice(4);
+            if (rest.length <= 4) {
+              extras.push(rest);
+            } else {
+              extras.push(rest.slice(0, 4));
+              if (rest.length >= 10) {
+                const mid = Math.min(Math.floor(rest.length / 2), rest.length - 4);
+                const midBit = rest.slice(mid, mid + 4);
+                if (midBit && midBit !== extras[0]) extras.push(midBit);
+              }
+            }
+          }
+          const parts = [head].concat(extras.slice(0, 2));
+          chunks.push({ pi: pi, text: parts.join(" · ") });
         });
         return chunks;
       }
 
       function formatShortHints(chunks, shown) {
-        const map = {};
-        chunks.slice(0, shown).forEach((c) => {
-          if (!map[c.pi]) map[c.pi] = [];
-          map[c.pi].push(c.text);
-        });
-        const lines = [];
-        Object.keys(map)
-          .map(Number)
-          .sort((a, b) => a - b)
-          .forEach((pi) => {
-            lines.push(pi + 1 + ". " + map[pi].join(" · "));
-          });
-        return lines.join("\n");
+        return chunks
+          .slice(0, shown)
+          .map((c) => c.pi + 1 + ". " + c.text)
+          .join("\n");
       }
 
       function ensureMcDay(d) {
@@ -756,6 +763,8 @@
         } catch (_) {}
         ensureShortDayForCourse(shortCourse);
         shortIdx = nextUnansweredShort();
+        shortRevealed = shortMemorizeMode;
+        shortWhyOpen = false;
         render();
       }
       function keepSetFor(course) {
@@ -1528,35 +1537,9 @@
         return Array.from(new Set(keys));
       }
 
-      /** 黄标与判分共用 extractPointKeys，长词优先、互不重叠 */
+      /** 采分点纯黑展示（不再黄标）；判分仍用 extractPointKeys */
       function highlightKeys(s) {
-        const raw = String(s || "");
-        const keys = extractPointKeys(raw)
-          .filter((k) => k && k.length >= 2)
-          .sort((a, b) => b.length - a.length || a.localeCompare(b));
-        const ranges = [];
-        keys.forEach((k) => {
-          let from = 0;
-          while (from < raw.length) {
-            const j = raw.indexOf(k, from);
-            if (j < 0) break;
-            const end = j + k.length;
-            const overlap = ranges.some((r) => !(end <= r[0] || j >= r[1]));
-            if (!overlap) ranges.push([j, end]);
-            from = j + 1;
-          }
-        });
-        ranges.sort((a, b) => a[0] - b[0]);
-        let out = "";
-        let pos = 0;
-        ranges.forEach(([a, b]) => {
-          if (a < pos) return;
-          out += escapeHtml(raw.slice(pos, a));
-          out += '<mark class="key">' + escapeHtml(raw.slice(a, b)) + "</mark>";
-          pos = b;
-        });
-        out += escapeHtml(raw.slice(pos));
-        return out;
+        return escapeHtml(String(s || ""));
       }
 
       function syncPeekAnsBtn(root) {
@@ -1946,7 +1929,7 @@
         shortIdx = nextUnansweredShort();
         picked = null;
         judged = false;
-        shortRevealed = false;
+        shortRevealed = shortMemorizeMode;
         shortWhyOpen = false;
         render();
       });

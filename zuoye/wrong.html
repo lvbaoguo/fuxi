@@ -466,32 +466,7 @@
         return Array.from(new Set(keys));
       }
       function highlightKeys(s) {
-        const raw = String(s || "");
-        const keys = extractPointKeys(raw)
-          .filter((k) => k && k.length >= 2)
-          .sort((a, b) => b.length - a.length || a.localeCompare(b));
-        const ranges = [];
-        keys.forEach((k) => {
-          let from = 0;
-          while (from < raw.length) {
-            const j = raw.indexOf(k, from);
-            if (j < 0) break;
-            const end = j + k.length;
-            if (!ranges.some((r) => !(end <= r[0] || j >= r[1]))) ranges.push([j, end]);
-            from = j + 1;
-          }
-        });
-        ranges.sort((a, b) => a[0] - b[0]);
-        let out = "";
-        let pos = 0;
-        ranges.forEach(([a, b]) => {
-          if (a < pos) return;
-          out += escapeHtml(raw.slice(pos, a));
-          out += '<mark class="key">' + escapeHtml(raw.slice(a, b)) + "</mark>";
-          pos = b;
-        });
-        out += escapeHtml(raw.slice(pos));
-        return out;
+        return escapeHtml(String(s || ""));
       }
 
       function renderShort() {
