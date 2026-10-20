@@ -572,7 +572,7 @@
       function save() {
         flushActiveShortDraft();
         if (!state.shortDraft || typeof state.shortDraft !== "object") state.shortDraft = {};
-        state.v = 7;
+        state.v = 8;
         state.exportedAt = new Date().toISOString();
         try {
           const payload = JSON.stringify(state);
