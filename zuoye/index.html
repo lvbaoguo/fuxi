@@ -294,16 +294,48 @@
     .export-menu button { flex: 1; min-width: 120px; }
     .wrong-menu {
       margin-top: 8px;
-      padding: 10px;
+      padding: 12px;
       border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #fafaf9;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 8px 22px rgba(28, 25, 23, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .wrong-menu[hidden] { display: none !important; }
+    .wrong-menu .menu-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .wrong-menu .menu-actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
-    .wrong-menu[hidden] { display: none !important; }
-    .wrong-menu a, .wrong-menu button { flex: 1; min-width: 120px; text-align: center; text-decoration: none; }
+    .wrong-menu .menu-actions a,
+    .wrong-menu .menu-actions button {
+      flex: 1;
+      min-width: 96px;
+      justify-content: center;
+      text-align: center;
+      text-decoration: none;
+      font: inherit;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+    .wrong-menu .menu-actions a.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
     a { color: var(--blue); }
     .day-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; }
     .day-chip {
@@ -348,9 +380,12 @@
       <button type="button" class="ghost" id="btn-export-cancel">取消</button>
     </div>
     <div class="wrong-menu" id="wrong-menu" hidden>
-      <a class="ghost" id="link-wrong-book" href="wrong.html">错题本</a>
-      <a class="ghost" id="link-fav-book" href="wrong.html?mode=fav">收藏录</a>
-      <button type="button" class="ghost" id="btn-wrong-cancel">取消</button>
+      <div class="menu-label">打开哪本</div>
+      <div class="menu-actions">
+        <a class="primary" id="link-wrong-book" href="wrong.html">错题本</a>
+        <a id="link-fav-book" href="wrong.html?mode=fav">收藏录</a>
+        <button type="button" class="ghost" id="btn-wrong-cancel">取消</button>
+      </div>
     </div>
     <div class="import-panel" id="import-panel" hidden>
       <label for="import-text">粘贴导出的进度 JSON</label>
