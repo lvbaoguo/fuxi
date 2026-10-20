@@ -91,8 +91,8 @@
       <a class="ghost" href="index.html" style="text-decoration:none;display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-weight:700;">← 回每日作业</a>
       <span class="grow"></span>
     </div>
-    <h1>错题本</h1>
-    <p class="sub">选择答错 / 简答「还不会」会进来。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱，不会紧接着再做同一道。与每日作业共用本机进度。</p>
+    <h1 id="page-title">错题本</h1>
+    <p class="sub" id="page-sub">选择答错会进来。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -116,6 +116,7 @@
       const WRONG_CLEAR_STREAK = 3;
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
+      const IS_FAV = /(?:\?|&)mode=fav(?:&|$)/.test(location.search || "");
 
       function normalizeWrongMap(map) {
         const out = {};
@@ -128,34 +129,91 @@
         });
         return out;
       }
+      function normalizeFavMap(map) {
+        const out = {};
+        Object.keys(map || {}).forEach((k) => {
+          const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
+          const v = map[k];
+          if (!v) return;
+          out[id] = { at: (typeof v === "object" && v.at) || new Date().toISOString() };
+        });
+        return out;
+      }
 
       function load() {
         try {
           let raw = JSON.parse(localStorage.getItem(STORE) || "null");
           if (!raw) raw = JSON.parse(localStorage.getItem(STORE_LEGACY) || "null");
           if (!raw || typeof raw !== "object") {
-            return { v: 6, wrongMc: {}, wrongShort: {}, mcOk: {}, shortOk: {}, mcDay: {}, pinnedPlans: {} };
+            return {
+              v: 8,
+              wrongMc: {},
+              wrongShort: {},
+              favMc: {},
+              favShort: {},
+              mcOk: {},
+              shortOk: {},
+              mcDay: {},
+              pinnedPlans: {},
+            };
           }
           return {
-            v: raw.v || 6,
+            v: raw.v || 8,
             wrongMc: normalizeWrongMap(raw.wrongMc),
             wrongShort: normalizeWrongMap(raw.wrongShort),
+            favMc: normalizeFavMap(raw.favMc),
+            favShort: normalizeFavMap(raw.favShort),
             mcOk: raw.mcOk || {},
             shortOk: raw.shortOk || {},
+            shortDraft: raw.shortDraft || {},
             mcDay: raw.mcDay || {},
             pinnedPlans: raw.pinnedPlans || {},
+            tapAnswer: !!raw.tapAnswer,
+            mcShuffle: !!raw.mcShuffle,
+            mcShuffleDate: raw.mcShuffleDate || null,
+            mcShuffleIds: Array.isArray(raw.mcShuffleIds) ? raw.mcShuffleIds.slice() : null,
             exportedAt: raw.exportedAt || null,
           };
         } catch (_) {
-          return { v: 6, wrongMc: {}, wrongShort: {}, mcOk: {}, shortOk: {}, mcDay: {}, pinnedPlans: {} };
+          return {
+            v: 8,
+            wrongMc: {},
+            wrongShort: {},
+            favMc: {},
+            favShort: {},
+            mcOk: {},
+            shortOk: {},
+            mcDay: {},
+            pinnedPlans: {},
+          };
         }
       }
 
+      /** 合并写回，避免错题页把每日草稿等字段冲掉 */
       function save() {
         state.exportedAt = new Date().toISOString();
         try {
-          localStorage.setItem(STORE, JSON.stringify(state));
-          localStorage.setItem(STORE_LEGACY, JSON.stringify(state));
+          let raw = {};
+          try {
+            raw = JSON.parse(localStorage.getItem(STORE) || "{}") || {};
+          } catch (_) {
+            raw = {};
+          }
+          const next = Object.assign({}, raw, {
+            v: Math.max(Number(raw.v) || 0, 8),
+            wrongMc: state.wrongMc,
+            wrongShort: state.wrongShort,
+            favMc: state.favMc || {},
+            favShort: state.favShort || {},
+            mcOk: state.mcOk,
+            shortOk: state.shortOk,
+            mcDay: state.mcDay,
+            pinnedPlans: state.pinnedPlans,
+            exportedAt: state.exportedAt,
+          });
+          if (state.shortDraft) next.shortDraft = state.shortDraft;
+          localStorage.setItem(STORE, JSON.stringify(next));
+          localStorage.setItem(STORE_LEGACY, JSON.stringify(next));
         } catch (_) {}
       }
 
@@ -195,6 +253,12 @@
         state.wrongShort[id] = { streak };
         return { removed: false, streak };
       }
+      function removeFavMc(id) {
+        if (state.favMc) delete state.favMc[id];
+      }
+      function removeFavShort(id) {
+        if (state.favShort) delete state.favShort[id];
+      }
 
       let state = load();
       let tab = "mc";
@@ -205,6 +269,13 @@
       let picked = null;
       let judged = false;
       let shortRevealed = false;
+
+      if (IS_FAV) {
+        document.title = "收藏录 · 反复练习";
+        $("page-title").textContent = "收藏录";
+        $("page-sub").innerHTML =
+          "每日作业点「收」进来。可反复练；答对会同步推进错题本连对（满 3 次移出错题本，收藏仍保留，除非点移出收藏）。";
+      }
 
       function shuffleIds(ids) {
         const a = ids.slice();
@@ -217,21 +288,30 @@
         return a;
       }
 
+      function sourceMcIds() {
+        return Object.keys(IS_FAV ? state.favMc || {} : state.wrongMc || {});
+      }
+      function sourceShortIds() {
+        return Object.keys(IS_FAV ? state.favShort || {} : state.wrongShort || {});
+      }
+
       function syncMcOrder() {
-        const ids = Object.keys(state.wrongMc || {});
+        const ids = sourceMcIds();
+        const alive = IS_FAV ? state.favMc || {} : state.wrongMc || {};
         if (!mcOrder) mcOrder = shuffleIds(ids);
         else {
-          mcOrder = mcOrder.filter((id) => state.wrongMc[id]);
+          mcOrder = mcOrder.filter((id) => alive[id]);
           ids.forEach((id) => {
             if (mcOrder.indexOf(id) < 0) mcOrder.push(id);
           });
         }
       }
       function syncShortOrder() {
-        const ids = Object.keys(state.wrongShort || {});
+        const ids = sourceShortIds();
+        const alive = IS_FAV ? state.favShort || {} : state.wrongShort || {};
         if (!shortOrder) shortOrder = shuffleIds(ids);
         else {
-          shortOrder = shortOrder.filter((id) => state.wrongShort[id]);
+          shortOrder = shortOrder.filter((id) => alive[id]);
           ids.forEach((id) => {
             if (shortOrder.indexOf(id) < 0) shortOrder.push(id);
           });
@@ -240,7 +320,7 @@
 
       /** 答对后整本重洗，并尽量避开刚答过的那道，防止连着刷同一题 */
       function reshuffleMcAfter(avoidId) {
-        const ids = Object.keys(state.wrongMc || {});
+        const ids = sourceMcIds();
         mcOrder = shuffleIds(ids);
         if (!mcOrder.length) {
           mcIdx = 0;
@@ -259,7 +339,7 @@
         mcIdx = idx;
       }
       function reshuffleShortAfter(avoidId) {
-        const ids = Object.keys(state.wrongShort || {});
+        const ids = sourceShortIds();
         shortOrder = shuffleIds(ids);
         if (!shortOrder.length) {
           shortIdx = 0;
@@ -289,10 +369,12 @@
 
       function renderMc() {
         const list = mcList();
-        $("tab-mc").textContent = "选择错题 " + list.length;
-        $("tab-short").textContent = "简答错题 " + shortList().length;
+        $("tab-mc").textContent = (IS_FAV ? "选择收藏 " : "选择错题 ") + list.length;
+        $("tab-short").textContent = (IS_FAV ? "简答收藏 " : "简答错题 ") + shortList().length;
         if (!list.length) {
-          $("work").innerHTML = "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
+          $("work").innerHTML = IS_FAV
+            ? "<p class='hint'>收藏录还没有选择题。回每日作业点「收」。</p>"
+            : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
           return;
         }
         if (mcIdx >= list.length) mcIdx = list.length - 1;
@@ -311,7 +393,8 @@
           (mcIdx + 1) +
           "/" +
           list.length +
-          " · 连对 " +
+          (IS_FAV ? " · 收藏反复练" : "") +
+          " · 错题连对 " +
           streak +
           "/" +
           WRONG_CLEAR_STREAK +
@@ -323,6 +406,9 @@
           '<button type="button" class="primary" id="btn-judge">提交</button>' +
           '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
           '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          (IS_FAV
+            ? '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
+            : "") +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
@@ -360,11 +446,21 @@
             const answeredId = q.id;
             const wr = noteMcRight(answeredId);
             save();
-            toast(
-              wr.removed
-                ? "连对3次，已移出 · 剩余题已打乱"
-                : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
-            );
+            if (IS_FAV) {
+              toast(
+                wr.removed
+                  ? "答对 · 错题本已移出（收藏仍在）· 题序已打乱"
+                  : wr.streak
+                    ? "答对 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
+                    : "答对 · 收藏保留 · 题序已打乱"
+              );
+            } else {
+              toast(
+                wr.removed
+                  ? "连对3次，已移出 · 剩余题已打乱"
+                  : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
+              );
+            }
             picked = null;
             judged = false;
             reshuffleMcAfter(answeredId);
@@ -372,10 +468,20 @@
           } else {
             noteMcWrong(q.id);
             save();
-            toast("又错了，连对清零");
+            toast("又错了，错题连对清零");
             render();
           }
         });
+        if (IS_FAV && $("btn-unfav")) {
+          $("btn-unfav").addEventListener("click", () => {
+            removeFavMc(q.id);
+            save();
+            toast("已移出收藏录");
+            picked = null;
+            judged = false;
+            render();
+          });
+        }
         $("btn-prev").addEventListener("click", () => {
           jumpMcAwayFrom(q.id);
         });
@@ -385,9 +491,9 @@
       }
 
       function jumpMcAwayFrom(currentId) {
-        const ids = Object.keys(state.wrongMc || {});
+        const ids = sourceMcIds();
         if (ids.length <= 1) {
-          toast("只剩 1 道错题，没法换题");
+          toast(IS_FAV ? "只剩 1 道收藏，没法换题" : "只剩 1 道错题，没法换题");
           return;
         }
         mcOrder = shuffleIds(ids);
@@ -404,9 +510,9 @@
       }
 
       function jumpShortAwayFrom(currentId) {
-        const ids = Object.keys(state.wrongShort || {});
+        const ids = sourceShortIds();
         if (ids.length <= 1) {
-          toast("只剩 1 道错题，没法换题");
+          toast(IS_FAV ? "只剩 1 道收藏，没法换题" : "只剩 1 道错题，没法换题");
           return;
         }
         shortOrder = shuffleIds(ids);
@@ -471,10 +577,12 @@
 
       function renderShort() {
         const list = shortList();
-        $("tab-mc").textContent = "选择错题 " + mcList().length;
-        $("tab-short").textContent = "简答错题 " + list.length;
+        $("tab-mc").textContent = (IS_FAV ? "选择收藏 " : "选择错题 ") + mcList().length;
+        $("tab-short").textContent = (IS_FAV ? "简答收藏 " : "简答错题 ") + list.length;
         if (!list.length) {
-          $("work").innerHTML = "<p class='hint'>没有简答错题。</p>";
+          $("work").innerHTML = IS_FAV
+            ? "<p class='hint'>收藏录还没有简答。回每日作业点「收」。</p>"
+            : "<p class='hint'>没有简答错题。</p>";
           return;
         }
         if (shortIdx >= list.length) shortIdx = list.length - 1;
@@ -493,7 +601,8 @@
           (shortIdx + 1) +
           "/" +
           list.length +
-          " · 连对 " +
+          (IS_FAV ? " · 收藏反复练" : "") +
+          " · 错题连对 " +
           streak +
           "/" +
           WRONG_CLEAR_STREAK +
@@ -517,6 +626,9 @@
           ">还不会（清零）</button>" +
           '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
           '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          (IS_FAV
+            ? '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
+            : "") +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const wrap = box.querySelector("#short-compare");
@@ -548,11 +660,21 @@
           const answeredId = q.id;
           const wr = noteShortRight(answeredId);
           save();
-          toast(
-            wr.removed
-              ? "连对3次，已移出 · 剩余题已打乱"
-              : "会了，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
-          );
+          if (IS_FAV) {
+            toast(
+              wr.removed
+                ? "会了 · 错题本已移出（收藏仍在）"
+                : wr.streak
+                  ? "会了 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
+                  : "会了 · 收藏保留"
+            );
+          } else {
+            toast(
+              wr.removed
+                ? "连对3次，已移出 · 剩余题已打乱"
+                : "会了，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
+            );
+          }
           shortRevealed = false;
           reshuffleShortAfter(answeredId);
           render();
@@ -561,9 +683,18 @@
           noteShortWrong(q.id);
           save();
           shortRevealed = false;
-          toast("连对清零");
+          toast("错题连对清零");
           render();
         });
+        if (IS_FAV && $("btn-unfav")) {
+          $("btn-unfav").addEventListener("click", () => {
+            removeFavShort(q.id);
+            save();
+            toast("已移出收藏录");
+            shortRevealed = false;
+            render();
+          });
+        }
         $("btn-prev").addEventListener("click", () => {
           jumpShortAwayFrom(q.id);
         });
