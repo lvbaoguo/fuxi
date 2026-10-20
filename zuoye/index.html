@@ -477,6 +477,7 @@
     <div class="card row">
       <button type="button" class="ghost" id="btn-today">今</button>
       <span class="grow hint" id="day-label"></span>
+      <button type="button" class="ghost" id="btn-cloud-upload" title="把本机进度推到仓库 progress-latest.json">上传云端</button>
       <button type="button" class="ghost" id="btn-export">导出</button>
       <button type="button" class="ghost" id="btn-wrong-page">错题</button>
       <button type="button" class="ghost" id="btn-import">导入</button>
@@ -484,6 +485,7 @@
     <div class="export-menu" id="export-menu" hidden>
       <button type="button" id="btn-export-text">导出文本</button>
       <button type="button" class="ghost" id="btn-export-json">导出 JSON 文件</button>
+      <button type="button" class="ghost" id="btn-cloud-upload-menu">上传云端</button>
     </div>
     <div class="wrong-menu" id="wrong-menu" hidden>
       <div class="menu-label">打开哪本</div>
@@ -499,6 +501,16 @@
         <button type="button" id="btn-import-apply">合并导入</button>
         <button type="button" class="danger" id="btn-cloud-replace" title="用仓库 progress-latest.json 整份覆盖本机">从云端覆盖</button>
         <button type="button" class="ghost" id="btn-import-cancel">取消</button>
+      </div>
+    </div>
+    <div class="import-panel" id="token-panel" hidden>
+      <label for="gh-token-input">GitHub Token（Fine-grained：只勾 fuxi 仓库 · Contents = Read and write）</label>
+      <textarea id="gh-token-input" rows="3" placeholder="粘贴 github_pat_… 整段，勿截断" spellcheck="false" autocomplete="off"></textarea>
+      <p class="hint" style="margin:6px 0 0;">只存在本机浏览器。权限不对会 403。申请：<a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">tokens</a></p>
+      <div class="row">
+        <button type="button" id="btn-token-save-upload">保存并上传</button>
+        <button type="button" class="ghost" id="btn-token-clear">清除已存</button>
+        <button type="button" class="ghost" id="btn-token-cancel">取消</button>
       </div>
     </div>
 
@@ -546,7 +558,7 @@
   <div id="toast" class="toast" hidden></div>
   <div id="teacher-pet" class="teacher-pet" aria-live="polite">
     <div id="teacher-bubble" class="teacher-bubble" hidden></div>
-    <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师">
+    <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="简答：点我循环提示采分点">
       <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
       <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
       <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
@@ -597,6 +609,13 @@
       const WRONG_CLEAR_STREAK = 3; /* 错题本：累计连对 3 次才移出 */
       const MC_FAIL_ALLOW = 1; /* 选择题容错：错 1 题仍合格；错 2 题起不合格 */
       const TEACHER_STORE = "pansan2-zuoye-teacher";
+      /* 上传云端：GitHub Contents API → zuoye/progress-latest.json */
+      const GH_OWNER = "lvbaoguo";
+      const GH_REPO = "fuxi";
+      const GH_BRANCH = "master";
+      const GH_PROGRESS_PATH = "zuoye/progress-latest.json";
+      const GH_TOKEN_STORE = "pansan2-zuoye-gh-token";
+      const CLOUD_PROGRESS_URL = "https://lvbaoguo.github.io/fuxi/zuoye/progress-latest.json";
 
       function emptyState() {
         return {
@@ -882,6 +901,44 @@
           .join("\n");
       }
 
+      /** 简答提示段：最多 3 段（采分点），点老师循环切换 */
+      function buildShortHintSegments(q) {
+        const segs = [];
+        (q.points || []).forEach((p) => {
+          const s = pointCleanChars(String(p || ""));
+          if (s) segs.push(s);
+        });
+        if (segs.length) return segs.slice(0, 3);
+        return buildShortHintChunks(q)
+          .slice(0, 3)
+          .map((c) => c.text)
+          .filter(Boolean);
+      }
+
+      function advanceShortHintByTeacher() {
+        if (entryMode !== "short") return false;
+        if (isTeacherHidden()) return false;
+        const q = currentShortQ();
+        if (!q) return false;
+        const segs = buildShortHintSegments(q);
+        if (!segs.length) {
+          teacherSpeak("这题暂无提示", "neutral");
+          return true;
+        }
+        const at = shortHintSegAt[q.id] || 0;
+        const i = at % segs.length;
+        shortHintSegAt[q.id] = at + 1;
+        const text = segs[i];
+        const label = i + 1 + "/" + segs.length;
+        teacherSpeak(label + " · " + text, "neutral");
+        const hintEl = document.getElementById("short-hint");
+        if (hintEl) {
+          hintEl.hidden = false;
+          hintEl.textContent = i + 1 + ". " + text;
+        }
+        return true;
+      }
+
       function ensureMcDay(d) {
         if (!state.mcDay[d] || typeof state.mcDay[d] !== "object") state.mcDay[d] = { results: {} };
         if (!state.mcDay[d].results || typeof state.mcDay[d].results !== "object") {
@@ -1058,7 +1115,8 @@
       let shortRevealed = false;
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortWhyOpen = false;
-      const shortHintShown = {}; /* qid → 已提示块数 */
+      const shortHintShown = {}; /* 兼容旧逻辑；简答提示改由老师点击循环 */
+      const shortHintSegAt = {}; /* qid → 下一段下标（对 segments 取模） */
       let advanceTimer = null;
       let holdingCorrect = false; /* 兼容：答对已立即跳题 */
       let answerComboOk = 0;
@@ -2079,7 +2137,6 @@
           (done ? " disabled" : "") +
           ">交</button>" +
           '<button type="button" class="ghost" id="btn-peek-ans" title="答案">答</button>' +
-          '<button type="button" class="ghost" id="btn-hint-s" title="提示">提</button>' +
           '<button type="button" class="ghost' +
           (shortMemorizeMode ? " on" : "") +
           '" id="btn-memorize" title="背题">背</button>' +
@@ -2103,20 +2160,19 @@
         const ta = box.querySelector("#short-dictation");
         const resultEl = box.querySelector("#dictation-result");
         const hintEl = box.querySelector("#short-hint");
-        const hintChunks = buildShortHintChunks(q);
-        const shownN = shortHintShown[q.id] || 0;
-        function paintHint() {
-          const n = shortHintShown[q.id] || 0;
-          if (!hintEl) return;
-          if (n <= 0) {
+        /* 提示改由右下角老师点击循环；切题时保留本段进度，仅重绘当前段 */
+        if (hintEl) {
+          const segs = buildShortHintSegments(q);
+          const at = shortHintSegAt[q.id] || 0;
+          if (segs.length && at > 0) {
+            const i = (at - 1) % segs.length;
+            hintEl.hidden = false;
+            hintEl.textContent = i + 1 + ". " + segs[i];
+          } else {
             hintEl.hidden = true;
             hintEl.textContent = "";
-            return;
           }
-          hintEl.hidden = false;
-          hintEl.textContent = formatShortHints(hintChunks, n);
         }
-        paintHint();
         if (ta) ta.value = draft;
         if (shortRevealed && draft) {
           showShortGrade(box, q, draft, resultEl);
@@ -2199,22 +2255,6 @@
           shortWhyOpen = false;
           render();
         });
-        $("btn-hint-s").addEventListener("click", () => {
-          if (!hintChunks.length) {
-            toast("本题暂无提示");
-            return;
-          }
-          const cur = shortHintShown[q.id] || 0;
-          if (cur >= hintChunks.length) {
-            toast("提示已用完");
-            paintHint();
-            return;
-          }
-          shortHintShown[q.id] = cur + 1;
-          paintHint();
-          const piece = hintChunks[cur];
-          toast("提示 " + (piece.pi + 1) + "点：" + piece.text);
-        });
         $("btn-restart-short").addEventListener("click", () => {
           if (
             !confirm("清空全部简答默写，并取消所有简答过关？选择题不动。确定？")
@@ -2222,6 +2262,7 @@
             return;
           }
           Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
+          Object.keys(shortHintSegAt).forEach((k) => delete shortHintSegAt[k]);
           restartAllShortDrafts();
           shortMemorizeMode = false;
           shortRevealed = false;
@@ -2372,6 +2413,143 @@
         };
       }
 
+      function utf8ToBase64(str) {
+        const bytes = new TextEncoder().encode(str);
+        let bin = "";
+        bytes.forEach((b) => {
+          bin += String.fromCharCode(b);
+        });
+        return btoa(bin);
+      }
+
+      function getGhToken() {
+        try {
+          return String(localStorage.getItem(GH_TOKEN_STORE) || "").trim();
+        } catch (_) {
+          return "";
+        }
+      }
+      function setGhToken(token) {
+        try {
+          const t = String(token || "").trim();
+          if (t) localStorage.setItem(GH_TOKEN_STORE, t);
+          else localStorage.removeItem(GH_TOKEN_STORE);
+        } catch (_) {}
+      }
+      function hideTokenPanel() {
+        const p = $("token-panel");
+        if (p) p.hidden = true;
+      }
+      function showTokenPanel(prefill) {
+        hideExportMenu();
+        hideWrongMenu();
+        $("import-panel").hidden = true;
+        const p = $("token-panel");
+        const ta = $("gh-token-input");
+        if (!p || !ta) return;
+        p.hidden = false;
+        ta.value = prefill != null ? prefill : getGhToken();
+        ta.focus();
+      }
+      async function readGhError(res) {
+        try {
+          const err = await res.json();
+          return err.message || res.statusText || String(res.status);
+        } catch (_) {
+          return res.statusText || String(res.status);
+        }
+      }
+      function handleGhAuthFail(status, detail) {
+        setGhToken("");
+        const tip =
+          status === 403
+            ? "无权限(403)：Token 须勾选仓库 fuxi，且 Contents=Read and write"
+            : "Token 无效(401)：请重新粘贴完整 github_pat_…";
+        toast(tip + (detail ? " · " + detail : ""));
+        showTokenPanel("");
+      }
+
+      function cloudProgressFetchUrl() {
+        if (location.protocol === "file:") {
+          return CLOUD_PROGRESS_URL + "?t=" + Date.now();
+        }
+        const url = new URL("progress-latest.json", location.href);
+        url.searchParams.set("t", String(Date.now()));
+        return url.href;
+      }
+
+      async function uploadProgressToCloud(tokenOverride) {
+        let token = (tokenOverride != null ? String(tokenOverride) : getGhToken()).trim();
+        if (!token) {
+          showTokenPanel("");
+          toast("先粘贴 Token，再点「保存并上传」");
+          return;
+        }
+        if (token.indexOf("github_pat_") !== 0 && token.indexOf("ghp_") !== 0) {
+          showTokenPanel(token);
+          toast("Token 格式不对：应以 github_pat_ 或 ghp_ 开头");
+          return;
+        }
+        const payload = buildExportPayload();
+        const bodyText = JSON.stringify(payload, null, 2);
+        const apiBase =
+          "https://api.github.com/repos/" +
+          GH_OWNER +
+          "/" +
+          GH_REPO +
+          "/contents/" +
+          GH_PROGRESS_PATH;
+        const headers = {
+          Accept: "application/vnd.github+json",
+          Authorization: "Bearer " + token,
+          "X-GitHub-Api-Version": "2022-11-28",
+        };
+        let sha = null;
+        try {
+          const cur = await fetch(apiBase + "?ref=" + encodeURIComponent(GH_BRANCH), {
+            headers,
+          });
+          if (cur.status === 200) {
+            const meta = await cur.json();
+            sha = meta.sha || null;
+          } else if (cur.status === 404) {
+            sha = null;
+          } else if (cur.status === 401 || cur.status === 403) {
+            handleGhAuthFail(cur.status, await readGhError(cur));
+            return;
+          } else {
+            toast("读取云端文件失败 " + cur.status + " · " + (await readGhError(cur)));
+            return;
+          }
+        } catch (_) {
+          toast("连不上 GitHub API，检查网络后重试");
+          return;
+        }
+        const stamp = payload.exportedAt || new Date().toISOString();
+        const putBody = {
+          message: "chore(zuoye): 上传本机进度 " + stamp.slice(0, 19),
+          content: utf8ToBase64(bodyText),
+          branch: GH_BRANCH,
+        };
+        if (sha) putBody.sha = sha;
+        const put = await fetch(apiBase, {
+          method: "PUT",
+          headers: Object.assign({ "Content-Type": "application/json" }, headers),
+          body: JSON.stringify(putBody),
+        });
+        if (put.status === 401 || put.status === 403) {
+          handleGhAuthFail(put.status, await readGhError(put));
+          return;
+        }
+        if (!put.ok) {
+          toast("上传失败 " + put.status + " · " + (await readGhError(put)));
+          return;
+        }
+        setGhToken(token);
+        hideTokenPanel();
+        toast("已上传云端 · 手机强刷后可「从云端覆盖」");
+      }
+
       function assertProgressPayload(payload) {
         if (
           !payload ||
@@ -2512,10 +2690,71 @@
         if (m) m.hidden = true;
       }
 
+      async function onCloudUploadClick() {
+        hideExportMenu();
+        hideWrongMenu();
+        $("import-panel").hidden = true;
+        if (!getGhToken()) {
+          showTokenPanel("");
+          toast("先粘贴 Token，再点「保存并上传」");
+          return;
+        }
+        const btn = $("btn-cloud-upload");
+        const btn2 = $("btn-cloud-upload-menu");
+        const btn3 = $("btn-token-save-upload");
+        if (btn) btn.disabled = true;
+        if (btn2) btn2.disabled = true;
+        if (btn3) btn3.disabled = true;
+        try {
+          await uploadProgressToCloud();
+        } catch (e) {
+          toast("上传失败：" + (e && e.message ? e.message : "未知错误"));
+        } finally {
+          if (btn) btn.disabled = false;
+          if (btn2) btn2.disabled = false;
+          if (btn3) btn3.disabled = false;
+        }
+      }
+      if ($("btn-token-save-upload")) {
+        $("btn-token-save-upload").addEventListener("click", async () => {
+          const ta = $("gh-token-input");
+          const token = ta ? String(ta.value || "").trim() : "";
+          if (!token) {
+            toast("请先粘贴 Token");
+            return;
+          }
+          setGhToken(token);
+          const btn3 = $("btn-token-save-upload");
+          if (btn3) btn3.disabled = true;
+          try {
+            await uploadProgressToCloud(token);
+          } catch (e) {
+            toast("上传失败：" + (e && e.message ? e.message : "未知错误"));
+          } finally {
+            if (btn3) btn3.disabled = false;
+          }
+        });
+      }
+      if ($("btn-token-clear")) {
+        $("btn-token-clear").addEventListener("click", () => {
+          setGhToken("");
+          if ($("gh-token-input")) $("gh-token-input").value = "";
+          toast("已清除本机 Token");
+        });
+      }
+      if ($("btn-token-cancel")) {
+        $("btn-token-cancel").addEventListener("click", () => {
+          hideTokenPanel();
+        });
+      }
+      $("btn-cloud-upload").addEventListener("click", () => {
+        onCloudUploadClick();
+      });
       $("btn-export").addEventListener("click", () => {
         const menu = $("export-menu");
         const open = menu.hidden;
         $("import-panel").hidden = true;
+        hideTokenPanel();
         hideWrongMenu();
         menu.hidden = !open;
       });
@@ -2532,6 +2771,11 @@
           toast("下载失败，改用「导出文本」");
         }
       });
+      if ($("btn-cloud-upload-menu")) {
+        $("btn-cloud-upload-menu").addEventListener("click", () => {
+          onCloudUploadClick();
+        });
+      }
 
       $("btn-wrong-page").addEventListener("click", () => {
         const menu = $("wrong-menu");
@@ -2543,6 +2787,7 @@
       $("btn-import").addEventListener("click", () => {
         hideExportMenu();
         hideWrongMenu();
+        hideTokenPanel();
         const panel = $("import-panel");
         panel.hidden = !panel.hidden;
         if (!panel.hidden) {
@@ -2573,9 +2818,7 @@
           return;
         }
         try {
-          const url = new URL("progress-latest.json", location.href);
-          url.searchParams.set("t", String(Date.now()));
-          const res = await fetch(url.href, { cache: "no-store" });
+          const res = await fetch(cloudProgressFetchUrl(), { cache: "no-store" });
           if (!res.ok) throw new Error("http");
           const payload = await res.json();
           applyReplacePayload(payload);
@@ -2615,6 +2858,7 @@
       }
       if (teacherFig) {
         teacherFig.addEventListener("click", () => {
+          if (advanceShortHintByTeacher()) return;
           teacherSpeak(pickLine(TEACHER_LINES.idle), "neutral");
         });
       }
