@@ -81,7 +81,22 @@
       font-size: 0.9rem; line-height: 1.55; color: #14532d; white-space: pre-wrap;
     }
     .hint { color: var(--muted); font-size: 0.85rem; }
-    .nav-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .nav-btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .nav-btns button {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 0;
+      padding: 6px 9px;
+      font-size: 0.88rem;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
     .toast {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
       background: #1c1917; color: #fff; padding: 10px 14px; border-radius: 8px;

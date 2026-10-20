@@ -38,6 +38,10 @@
       font-weight: 800; margin-bottom: 12px;
     }
     .lock.ok { background: var(--green); color: #ecfdf5; }
+    .lock.perfect {
+      background: linear-gradient(120deg, #b45309, #ca8a04 40%, #15803d);
+      color: #fffbeb;
+    }
     .lock small { display: block; font-weight: 500; opacity: 0.92; margin-top: 4px; }
     .card {
       background: var(--card);
@@ -70,6 +74,11 @@
       font-size: 0.78rem; font-weight: 800; background: #fee2e2; color: var(--red);
     }
     .pill.ok { background: #dcfce7; color: var(--green); }
+    .pill.perfect {
+      background: linear-gradient(90deg, #fef3c7, #bbf7d0);
+      color: #854d0e;
+      border: 1px solid #f59e0b;
+    }
     .pill.mc { background: #dbeafe; color: #1d4ed8; }
     .prog-rows { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
     .prog-row { display: grid; grid-template-columns: 2.6em 1fr auto; gap: 8px; align-items: center; }
@@ -255,6 +264,79 @@
       max-width: min(520px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
     }
     .toast[hidden] { display: none !important; }
+    /* Q 版老师桌宠 */
+    .teacher-pet {
+      position: fixed;
+      right: max(8px, env(safe-area-inset-right));
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 35;
+      width: 96px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .teacher-pet[hidden] { display: none !important; }
+    .teacher-bubble {
+      position: absolute;
+      right: 0;
+      bottom: 98px;
+      width: min(220px, calc(100vw - 28px));
+      padding: 8px 10px;
+      border-radius: 12px 12px 4px 12px;
+      background: #fffdf8;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 20px rgba(28, 25, 23, 0.12);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .teacher-bubble[hidden] { display: none !important; }
+    .teacher-bubble.good { border-color: #86efac; background: #ecfdf5; color: #166534; }
+    .teacher-bubble.bad { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+    .teacher-bubble.neutral { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+    .teacher-fig {
+      display: block;
+      width: 88px;
+      height: 96px;
+      margin-left: auto;
+      cursor: pointer;
+      animation: teacher-bob 2.4s ease-in-out infinite;
+      filter: drop-shadow(0 4px 6px rgba(28, 25, 23, 0.18));
+    }
+    .teacher-fig:active { transform: scale(0.96); }
+    @keyframes teacher-bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .teacher-tools {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .teacher-tools button {
+      padding: 2px 7px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      border-radius: 999px;
+      background: #fff;
+      opacity: 0.92;
+    }
+    .teacher-show {
+      position: fixed;
+      right: max(8px, env(safe-area-inset-right));
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 35;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      border-radius: 999px;
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #1d4ed8;
+      box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
+    }
+    .teacher-show[hidden] { display: none !important; }
     .import-panel {
       margin-top: 10px;
       padding: 12px;
@@ -347,27 +429,39 @@
     .day-chip.on { background: var(--on); color: #fff; border-color: var(--on); }
     .day-chip.on .w { color: #d6d3d1; }
     .day-chip.done { background: #ecfdf5; border-color: #86efac; }
+    .day-chip.perfect {
+      background: linear-gradient(135deg, #f0e4bc 0%, #e2d08a 42%, #b8d4b4 100%);
+      border-color: #d4b96a;
+    }
+    .day-chip.perfect .w { color: #7a6640; }
+    .day-chip.perfect.on {
+      background: linear-gradient(135deg, #c9a84a 0%, #b8a05a 40%, #5f9e6e 100%);
+      color: #fff;
+      border-color: #b8923a;
+    }
+    .day-chip.perfect.on .w { color: #f5ecd0; }
     .nav-btns {
       display: flex;
-      gap: 4px;
+      gap: 6px;
       margin-top: 12px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .nav-btns button {
-      flex: 1 1 0;
-      min-width: 2.1em;
-      padding: 8px 4px;
-      font-size: 0.9rem;
+      flex: 0 0 auto;
+      min-width: 0;
+      width: auto;
+      padding: 6px 9px;
+      font-size: 0.88rem;
+      line-height: 1.2;
       white-space: nowrap;
     }
     .nav-btns button.on {
       background: var(--on); color: #fff; border-color: var(--on);
     }
     @media (max-width: 520px) {
-      .nav-btns { gap: 3px; }
-      .nav-btns button { padding: 8px 2px; font-size: 0.88rem; min-width: 1.9em; }
+      .nav-btns { gap: 5px; }
+      .nav-btns button { padding: 6px 8px; font-size: 0.86rem; }
       .dictation label { font-size: 0.82rem; }
       .short-why-banner > summary { padding: 10px 12px; font-size: 0.88rem; }
     }
@@ -390,14 +484,12 @@
     <div class="export-menu" id="export-menu" hidden>
       <button type="button" id="btn-export-text">导出文本</button>
       <button type="button" class="ghost" id="btn-export-json">导出 JSON 文件</button>
-      <button type="button" class="ghost" id="btn-export-cancel">取消</button>
     </div>
     <div class="wrong-menu" id="wrong-menu" hidden>
       <div class="menu-label">打开哪本</div>
       <div class="menu-actions">
         <a class="primary" id="link-wrong-book" href="wrong.html">错题本</a>
         <a id="link-fav-book" href="wrong.html?mode=fav">收藏录</a>
-        <button type="button" class="ghost" id="btn-wrong-cancel">取消</button>
       </div>
     </div>
     <div class="import-panel" id="import-panel" hidden>
@@ -445,12 +537,33 @@
     </div>
 
     <div class="card hint">
+      选择：错≤1=合格，全对=完美合格（金绿渐变页签）；错≥2不合格可「重」。右下角老师可「隐」。
       刷题对照（可选）：<a href="../index.html">本地 fuxi</a> ·
-      <a href="https://lvbaoguo.github.io/fuxi/" target="_blank" rel="noopener">线上 fuxi</a>
-      · 但过关以本页强制作业为准。
+      <a href="https://lvbaoguo.github.io/fuxi/" target="_blank" rel="noopener">线上 fuxi</a>。
     </div>
   </div>
   <div id="toast" class="toast" hidden></div>
+  <div id="teacher-pet" class="teacher-pet" aria-live="polite">
+    <div id="teacher-bubble" class="teacher-bubble" hidden></div>
+    <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师">
+      <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
+      <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
+      <rect x="28" y="62" width="24" height="10" rx="3" fill="#fff" opacity="0.9"/>
+      <circle cx="40" cy="40" r="20" fill="#fde7d6"/>
+      <path d="M20 42 Q22 16 40 14 Q58 16 60 42 Q50 34 40 34 Q30 34 20 42Z" fill="#292524"/>
+      <circle cx="33" cy="40" r="2.2" fill="#1c1917"/>
+      <circle cx="47" cy="40" r="2.2" fill="#1c1917"/>
+      <path d="M33 48 Q40 53 47 48" stroke="#1c1917" fill="none" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M58 60 Q70 48 68 36" stroke="#fde7d6" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+      <circle cx="22" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
+      <circle cx="58" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
+    </svg>
+    <div class="teacher-tools">
+      <button type="button" id="btn-teacher-hide" title="隐藏老师">隐</button>
+    </div>
+  </div>
+  <button type="button" id="btn-teacher-show" class="teacher-show" hidden title="显示老师">老师</button>
   <script src="data.js"></script>
   <script>
     (function () {
@@ -481,6 +594,8 @@
       }
 
       const WRONG_CLEAR_STREAK = 3; /* 错题本：累计连对 3 次才移出 */
+      const MC_FAIL_ALLOW = 1; /* 选择题容错：错 1 题仍合格；错 2 题起不合格 */
+      const TEACHER_STORE = "pansan2-zuoye-teacher";
 
       function emptyState() {
         return {
@@ -494,7 +609,6 @@
           favMc: {},
           favShort: {},
           pinnedPlans: {},
-          tapAnswer: false, /* 点答：点选项即提交 */
           mcShuffle: false, /* 选择题乱序 */
           mcShuffleDate: null,
           mcShuffleIds: null,
@@ -545,7 +659,6 @@
         st.favShort = normalizeFavMap(raw.favShort);
         st.pinnedPlans = raw.pinnedPlans && typeof raw.pinnedPlans === "object" ? raw.pinnedPlans : {};
         st.mcDay = raw.mcDay && typeof raw.mcDay === "object" ? raw.mcDay : {};
-        st.tapAnswer = !!raw.tapAnswer;
         st.mcShuffle = !!raw.mcShuffle;
         st.mcShuffleDate = raw.mcShuffleDate || null;
         st.mcShuffleIds = Array.isArray(raw.mcShuffleIds) ? raw.mcShuffleIds.slice() : null;
@@ -794,7 +907,9 @@
         mcIdx = 0;
         picked = null;
         judged = false;
-        toast("今日选择题已重来：须全部一次答对才算过关（错题本还在）");
+        answerComboOk = 0;
+        answerComboFail = 0;
+        toast("今日选择题已重来：错不超过 " + MC_FAIL_ALLOW + " 题算合格（错题本还在）");
       }
 
       function noteMcWrong(id) {
@@ -945,6 +1060,107 @@
       const shortHintShown = {}; /* qid → 已提示块数 */
       let advanceTimer = null;
       let holdingCorrect = false; /* 兼容：答对已立即跳题 */
+      let answerComboOk = 0;
+      let answerComboFail = 0;
+      let teacherBubbleTimer = null;
+
+      const TEACHER_LINES = {
+        ok: [
+          "嗯，这题过了。",
+          "可以，接着来。",
+          "记牢了？那就好。",
+          "不错，教棍先放下。",
+          "对了。别飘，下一题。",
+        ],
+        okStreak: [
+          "连对了，手感回来了。",
+          "连对中！今天有点东西。",
+          "稳。再连几道我请你喝水——精神上的。",
+          "连击不错，继续保持别翻车。",
+        ],
+        fail: [
+          "这就错了？教棍已经摩挲了。",
+          "啊这……选项是拿来读的，不是拿来蒙的。",
+          "错了。没关系，第一次我睁一只眼。",
+          "记进错题本了。别装没看见。",
+        ],
+        failStreak: [
+          "连错？你是来交作业还是来表演翻车？",
+          "连击翻车中。合上手机，睁眼再选。",
+          "教棍痒了。回去把那一章目录扫一眼。",
+          "再这样我要把你的页签涂成红色警告色。",
+        ],
+        pass: ["合格。容错用掉了也算过——别得意。", "今日合格。有错也认，下回少错。"],
+        perfect: ["完美合格！页签都给你镀金了。", "零失误！老师今天心情很好。", "完美。这种状态多来几天。"],
+        failDay: ["不合格：错满 2 题了。点「重」清掉重刷。", "今日不合格。容错用完了，重来吧。"],
+        idle: ["点我干嘛？去做题。", "我在看你刷题呢。", "别摸教棍，去答下一题。"],
+      };
+
+      function pickLine(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+      function isTeacherHidden() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(TEACHER_STORE) || "null");
+          return !!(raw && raw.hidden);
+        } catch (_) {
+          return false;
+        }
+      }
+      function setTeacherHidden(hidden) {
+        try {
+          localStorage.setItem(TEACHER_STORE, JSON.stringify({ hidden: !!hidden }));
+        } catch (_) {}
+        syncTeacherUi();
+      }
+      function syncTeacherUi() {
+        const pet = $("teacher-pet");
+        const show = $("btn-teacher-show");
+        if (!pet || !show) return;
+        const hide = isTeacherHidden();
+        pet.hidden = hide;
+        show.hidden = !hide;
+      }
+      function teacherSpeak(msg, mood) {
+        const bubble = $("teacher-bubble");
+        if (!bubble || isTeacherHidden()) return;
+        bubble.hidden = false;
+        bubble.textContent = msg;
+        bubble.className = "teacher-bubble" + (mood ? " " + mood : "");
+        clearTimeout(teacherBubbleTimer);
+        teacherBubbleTimer = setTimeout(() => {
+          bubble.hidden = true;
+        }, 3200);
+      }
+      function onAnswerFeedback(ok) {
+        if (ok) {
+          answerComboOk += 1;
+          answerComboFail = 0;
+          if (answerComboOk >= 2) {
+            teacherSpeak(pickLine(TEACHER_LINES.okStreak) + "（连对" + answerComboOk + "）", "good");
+          } else {
+            teacherSpeak(pickLine(TEACHER_LINES.ok), "good");
+          }
+        } else {
+          answerComboFail += 1;
+          answerComboOk = 0;
+          if (answerComboFail >= 2) {
+            teacherSpeak(pickLine(TEACHER_LINES.failStreak) + "（连错" + answerComboFail + "）", "bad");
+          } else {
+            teacherSpeak(pickLine(TEACHER_LINES.fail), "bad");
+          }
+        }
+      }
+      function teacherCommentDay(st) {
+        if (!st) return;
+        if (st.unqualified && st.mcAnswered >= st.mcTotal) {
+          teacherSpeak(pickLine(TEACHER_LINES.failDay), "bad");
+        } else if (st.perfect) {
+          teacherSpeak(pickLine(TEACHER_LINES.perfect), "good");
+        } else if (st.ok) {
+          teacherSpeak(pickLine(TEACHER_LINES.pass), "neutral");
+        }
+      }
 
       function clearAdvanceTimer() {
         if (advanceTimer) {
@@ -1042,11 +1258,15 @@
           shortTotal = kp.total;
           shortDone = kp.done;
         }
-        const mcClean = mcTotal > 0 && mcFailN === 0 && mcOkN === mcTotal;
         const mcEmpty = mcTotal === 0;
+        const mcFinished = mcTotal > 0 && mcAnswered >= mcTotal;
+        const mcPerfect = mcFinished && mcFailN === 0;
+        const mcPass = mcFinished && mcFailN <= MC_FAIL_ALLOW;
         const shortOk = shortTotal === 0 || shortDone >= shortTotal;
         const total = mcTotal + shortTotal;
         const done = mcAnswered + shortDone;
+        const ok = total > 0 && (mcEmpty || mcPass) && shortOk;
+        const perfect = ok && (mcEmpty ? shortOk : mcPerfect);
         return {
           plan,
           shortIds,
@@ -1058,9 +1278,12 @@
           shortDone,
           total,
           done,
-          unqualified: entryMode === "daily" && mcFailN > 0,
-          mcClean: mcEmpty || mcClean,
-          ok: total > 0 && (mcEmpty || mcClean) && shortOk,
+          unqualified: entryMode === "daily" && mcFailN > MC_FAIL_ALLOW,
+          mcPerfect,
+          mcPass: mcEmpty || mcPass,
+          mcClean: mcEmpty || mcPass, /* 兼容旧调用：容错内也算选择过关 */
+          ok,
+          perfect: entryMode === "daily" && perfect,
         };
       }
 
@@ -1248,7 +1471,8 @@
           btn.type = "button";
           btn.className = "day-chip";
           if (s.date === date) btn.classList.add("on");
-          if (st.ok) btn.classList.add("done");
+          if (st.perfect) btn.classList.add("perfect");
+          else if (st.ok) btn.classList.add("done");
           btn.innerHTML =
             '<span class="d">' +
             shortDate(s.date) +
@@ -1296,38 +1520,39 @@
         }
         const hasToday = BANK.schedule.some((s) => s.date === today);
         const t = dayStats(hasToday ? today : date);
-        if (hasToday && t.ok) {
+        if (hasToday && t.perfect) {
+          lock.className = "lock perfect";
+          lock.innerHTML = "完美合格<small>零失误 · 可玩了</small>";
+        } else if (hasToday && t.ok) {
           lock.className = "lock ok";
-          lock.innerHTML = "今日选择过关<small>可玩了</small>";
+          lock.innerHTML =
+            "合格<small>错" + t.mcFailN + "题（容错" + MC_FAIL_ALLOW + "）· 可玩了</small>";
         } else if (hasToday && t.unqualified) {
           lock.className = "lock";
           lock.innerHTML =
-            "不合格 · 错" + t.mcFailN + "<small>点重来全对才过关</small>";
+            "不合格 · 错" + t.mcFailN + "<small>点重来，错不超过" + MC_FAIL_ALLOW + "题才合格</small>";
         } else if (hasToday) {
           lock.className = "lock";
           lock.innerHTML =
-            "未完成 " + t.done + "/" + t.total + "<small>先做完再玩</small>";
+            "未完成 " +
+            t.done +
+            "/" +
+            t.total +
+            "<small>错≤" +
+            MC_FAIL_ALLOW +
+            "算合格；全对=完美合格</small>";
         } else {
-          lock.className = t.ok ? "lock ok" : "lock";
-          lock.innerHTML = t.ok
-            ? "该日已过关"
-            : t.unqualified
-              ? "该日不合格<small>可重来</small>"
-              : "该日未过关";
+          lock.className = t.perfect ? "lock perfect" : t.ok ? "lock ok" : "lock";
+          lock.innerHTML = t.perfect
+            ? "该日完美合格"
+            : t.ok
+              ? "该日合格"
+              : t.unqualified
+                ? "该日不合格<small>可重来</small>"
+                : "该日未过关";
         }
       }
 
-      function isTapAnswer() {
-        return !!state.tapAnswer;
-      }
-      function setTapAnswer(on) {
-        const next = !!on;
-        if (isTapAnswer() === next) return;
-        state.tapAnswer = next;
-        save();
-        toast(next ? "点答开" : "点答关");
-        render();
-      }
       function spawnFireworks() {
         const layer = document.createElement("div");
         layer.className = "fw-burst";
@@ -1358,11 +1583,16 @@
         mcIdx = nextUnansweredMc();
         const after = dayStats(date);
         if (after.mcAnswered >= after.mcTotal && after.unqualified) {
-          toast("今日不合格：选择题有错，点「重来」再刷全对");
+          toast("今日不合格：错≥" + (MC_FAIL_ALLOW + 1) + "，点「重」再刷");
+          teacherCommentDay(after);
+        } else if (after.perfect) {
+          toast("完美合格");
+          teacherCommentDay(after);
         } else if (after.ok) {
-          toast("今日已过关");
+          toast("合格");
+          teacherCommentDay(after);
         } else if (after.mcTotal > 0 && after.mcClean) {
-          toast("今日选择过关");
+          toast("选择题过关");
         }
         render();
       }
@@ -1377,6 +1607,7 @@
           setMcResult(date, q.id, "ok");
           const wr = noteMcRight(q.id);
           save();
+          onAnswerFeedback(true);
           toast(
             wr.removed
               ? "答对 · 错题本已移出"
@@ -1384,28 +1615,32 @@
                 ? "答对 · 错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
                 : "答对"
           );
-          /* 点答：先标绿闪一下 + 烟花，再跳题；关点答仍立即跳 */
-          if (isTapAnswer()) {
-            holdingCorrect = true;
-            judged = true;
-            picked = q.correct;
-            render();
-            spawnFireworks();
-            const rightEl = document.querySelector(".opt.right");
-            if (rightEl) rightEl.classList.add("flash");
-            advanceTimer = setTimeout(finishMcCorrectAdvance, 380);
-          } else {
-            holdingCorrect = false;
-            judged = false;
-            picked = null;
-            finishMcCorrectAdvance();
-          }
+          /* 点答：先标绿闪一下 + 烟花，再跳题 */
+          holdingCorrect = true;
+          judged = true;
+          picked = q.correct;
+          render();
+          spawnFireworks();
+          const rightEl = document.querySelector(".opt.right");
+          if (rightEl) rightEl.classList.add("flash");
+          advanceTimer = setTimeout(finishMcCorrectAdvance, 380);
         } else {
           setMcResult(date, q.id, "fail");
           noteMcWrong(q.id);
           judged = true;
           save();
-          toast("不合格 · 已进错题本");
+          onAnswerFeedback(false);
+          const after = dayStats(date);
+          if (after.unqualified) {
+            toast("不合格 · 已进错题本（错" + after.mcFailN + "）");
+            if (after.mcAnswered >= after.mcTotal) teacherCommentDay(after);
+          } else {
+            toast(
+              "答错 · 已进错题本（容错还剩 " +
+                Math.max(0, MC_FAIL_ALLOW - after.mcFailN) +
+                "）"
+            );
+          }
           render();
         }
       }
@@ -1421,7 +1656,6 @@
         const q = list[mcIdx];
         const result = mcResult(date, q.id); /* ok | fail | null */
         const locked = result === "ok" || result === "fail" || holdingCorrect;
-        const tapOn = isTapAnswer();
         const st = dayStats(date);
         const statusText =
           result === "ok" ? "答对" : result === "fail" ? "已错·进错题本" : "未作答";
@@ -1441,24 +1675,22 @@
           list.length +
           " 题 · " +
           statusText +
-          (st.unqualified ? " · 今日不合格" : "") +
+          (st.perfect
+            ? " · 完美合格"
+            : st.ok
+              ? " · 合格"
+              : st.unqualified
+                ? " · 今日不合格"
+                : "") +
           "</div>" +
           '<div class="q-text"></div>' +
           '<div id="opts"></div>' +
           '<div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
-          (tapOn
-            ? ""
-            : '<button type="button" class="primary" id="btn-judge" title="提交"' +
-              (locked ? " disabled" : "") +
-              ">交</button>") +
           '<button type="button" class="ghost" id="btn-next-mc" title="下题">下</button>' +
           '<button type="button" class="ghost" id="btn-prev-mc" title="上题">上</button>' +
           '<button type="button" class="ghost" id="btn-jump-pending" title="未答">未</button>' +
           '<button type="button" class="danger" id="btn-restart-mc" title="重来">重</button>' +
-          '<button type="button" class="ghost' +
-          (tapOn ? " on" : "") +
-          '" id="btn-tap-ans" title="点答">点</button>' +
           '<button type="button" class="ghost' +
           (isMcShuffle() ? " on" : "") +
           '" id="btn-mc-shuffle" title="' +
@@ -1495,13 +1727,7 @@
           b.addEventListener("click", () => {
             if (locked) return;
             clearAdvanceTimer();
-            if (isTapAnswer()) {
-              submitMcAnswer(q, o.key);
-            } else {
-              picked = o.key;
-              judged = false;
-              render();
-            }
+            submitMcAnswer(q, o.key);
           });
           opts.appendChild(b);
         });
@@ -1513,24 +1739,12 @@
         $("work").innerHTML = "";
         $("work").appendChild(box);
 
-        $("btn-tap-ans").addEventListener("click", () => setTapAnswer(!isTapAnswer()));
         $("btn-mc-shuffle").addEventListener("click", () => setMcShuffle(!isMcShuffle()));
         $("btn-fav-mc").addEventListener("click", () => {
           const r = collectMc(q.id);
           toast(r.already ? "已在收藏录（并同步错题本）" : "已收入收藏录，并同步进错题本");
           render();
         });
-        const judgeBtn = $("btn-judge");
-        if (judgeBtn) {
-          judgeBtn.addEventListener("click", () => {
-            if (locked) return;
-            if (!picked) {
-              toast("先选选项");
-              return;
-            }
-            submitMcAnswer(q, picked);
-          });
-        }
         $("btn-prev-mc").addEventListener("click", () => {
           if (holdingCorrect) return;
           clearAdvanceTimer();
@@ -1557,7 +1771,11 @@
           judged = r === "ok" || r === "fail";
           const after = dayStats(date);
           if (after.mcAnswered >= after.mcTotal && after.unqualified) {
-            toast("选择题已答完，但今日不合格。点「重来」全对才过关");
+            toast("选择题已答完，但今日不合格。点「重」再刷（错≤" + MC_FAIL_ALLOW + "合格）");
+          } else if (after.perfect) {
+            toast("完美合格");
+          } else if (after.ok) {
+            toast("合格");
           } else if (after.mcTotal > 0 && after.mcClean && !after.ok) {
             toast("选择题过关");
           }
@@ -1574,7 +1792,9 @@
         $("btn-restart-mc").addEventListener("click", () => {
           if (
             !confirm(
-              "重来：清空今日选择题作答（对/错都清），须全部一次答对才算过关。错题本保留。确定？"
+              "重来：清空今日选择题作答（对/错都清）。错不超过 " +
+                MC_FAIL_ALLOW +
+                " 题算合格，全对=完美合格。错题本保留。确定？"
             )
           ) {
             return;
@@ -1920,8 +2140,10 @@
           const grade = showShortGrade(box, q, text, resultEl);
           syncPeekAnsBtn(box);
           if (grade.pass) {
+            onAnswerFeedback(true);
             passShortQuestion(q, "过关 · 留下对照");
           } else {
+            onAnswerFeedback(false);
             toast("未过 · 对照黄标再默");
           }
         });
@@ -2024,8 +2246,11 @@
         } else {
           $("phase").textContent = shortenPhase(st.plan.phase);
         }
-        if (st.ok) {
-          $("pill").textContent = "已过关";
+        if (st.perfect) {
+          $("pill").textContent = "完美合格";
+          $("pill").className = "pill perfect";
+        } else if (st.ok) {
+          $("pill").textContent = "合格";
           $("pill").className = "pill ok";
         } else if (st.unqualified) {
           $("pill").textContent = "今日不合格";
@@ -2045,7 +2270,13 @@
           st.mcDone +
           "/" +
           st.mcTotal +
-          (st.mcFailN ? " 错" + st.mcFailN : st.mcTotal > 0 && st.mcClean ? " 过关" : "");
+          (st.mcFailN
+            ? " 错" + st.mcFailN
+            : st.mcTotal > 0 && st.mcPerfect
+              ? " 完美"
+              : st.mcTotal > 0 && st.mcClean
+                ? " 合格"
+                : "");
         $("prog-short").textContent = st.shortDone + "/" + st.shortTotal;
         const wc = wrongMcCount() + wrongShortCount();
         if (entryMode === "short") {
@@ -2054,7 +2285,15 @@
             "精简必背 " + kp.total + " 道 · 已过 " + kp.done + "/" + kp.total + " · 错题 " + wc;
         } else {
           $("prog-text").textContent =
-            "错题 " + wc + (st.unqualified ? " · 不合格" : st.ok ? " · 已过关" : "");
+            "错题 " +
+            wc +
+            (st.unqualified
+              ? " · 不合格"
+              : st.perfect
+                ? " · 完美合格"
+                : st.ok
+                  ? " · 合格"
+                  : "");
         }
         $("entry-daily").classList.toggle("on", entryMode === "daily");
         $("entry-short").classList.toggle("on", entryMode === "short");
@@ -2126,7 +2365,6 @@
           favMc: state.favMc || {},
           favShort: state.favShort || {},
           pinnedPlans: state.pinnedPlans,
-          tapAnswer: isTapAnswer(),
           mcShuffle: isMcShuffle(),
           mcShuffleDate: state.mcShuffleDate || null,
           mcShuffleIds: Array.isArray(state.mcShuffleIds) ? state.mcShuffleIds.slice() : null,
@@ -2178,7 +2416,6 @@
         Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
           if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
         });
-        if (typeof incoming.tapAnswer === "boolean") state.tapAnswer = incoming.tapAnswer;
         if (typeof incoming.mcShuffle === "boolean") state.mcShuffle = incoming.mcShuffle;
         if (incoming.mcShuffleDate) state.mcShuffleDate = incoming.mcShuffleDate;
         if (Array.isArray(incoming.mcShuffleIds)) state.mcShuffleIds = incoming.mcShuffleIds.slice();
@@ -2265,7 +2502,6 @@
         hideWrongMenu();
         menu.hidden = !open;
       });
-      $("btn-export-cancel").addEventListener("click", () => hideExportMenu());
       $("btn-export-text").addEventListener("click", async () => {
         hideExportMenu();
         await exportProgressAsText();
@@ -2287,8 +2523,6 @@
         $("import-panel").hidden = true;
         menu.hidden = !open;
       });
-      $("btn-wrong-cancel").addEventListener("click", () => hideWrongMenu());
-
       $("btn-import").addEventListener("click", () => {
         hideExportMenu();
         hideWrongMenu();
@@ -2324,6 +2558,28 @@
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") hardSaveShortDraft();
       });
+
+      const btnTeacherHide = $("btn-teacher-hide");
+      const btnTeacherShow = $("btn-teacher-show");
+      const teacherFig = $("teacher-fig");
+      if (btnTeacherHide) {
+        btnTeacherHide.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setTeacherHidden(true);
+        });
+      }
+      if (btnTeacherShow) {
+        btnTeacherShow.addEventListener("click", () => {
+          setTeacherHidden(false);
+          teacherSpeak("我回来了。继续刷。", "neutral");
+        });
+      }
+      if (teacherFig) {
+        teacherFig.addEventListener("click", () => {
+          teacherSpeak(pickLine(TEACHER_LINES.idle), "neutral");
+        });
+      }
+      syncTeacherUi();
 
       tab = entryMode === "short" ? "short" : "mc";
       if (entryMode === "short") ensureShortDayForCourse(shortCourse);
