@@ -497,6 +497,7 @@
       <textarea id="import-text" placeholder='{"v":8,"type":"fuxi-zuoye-forced-progress",...}' spellcheck="false"></textarea>
       <div class="row">
         <button type="button" id="btn-import-apply">合并导入</button>
+        <button type="button" class="danger" id="btn-cloud-replace" title="用仓库 progress-latest.json 整份覆盖本机">从云端覆盖</button>
         <button type="button" class="ghost" id="btn-import-cancel">取消</button>
       </div>
     </div>
@@ -2371,7 +2372,7 @@
         };
       }
 
-      function applyImportPayload(payload) {
+      function assertProgressPayload(payload) {
         if (
           !payload ||
           (payload.v !== 3 &&
@@ -2384,6 +2385,22 @@
         ) {
           throw new Error("bad");
         }
+      }
+
+      /** 整份覆盖本机进度（云端同步「以仓库为准」） */
+      function applyReplacePayload(payload) {
+        assertProgressPayload(payload);
+        state = normalizeState(payload);
+        save();
+        mcIdx = nextUnansweredMc();
+        shortIdx = nextUnansweredShort();
+        picked = null;
+        judged = false;
+        render();
+      }
+
+      function applyImportPayload(payload) {
+        assertProgressPayload(payload);
         const incoming = normalizeState(payload);
         state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
         state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
@@ -2545,6 +2562,28 @@
           toast("进度已合并导入（含错题本；不覆盖已钉死的日期清单）");
         } catch (_) {
           toast("导入失败：请粘贴本页导出的进度 JSON");
+        }
+      });
+      $("btn-cloud-replace").addEventListener("click", async () => {
+        if (
+          !confirm(
+            "用云端 progress-latest.json 整份覆盖本机进度（含错题/收藏）？本机多出来的记录会丢。确定？"
+          )
+        ) {
+          return;
+        }
+        try {
+          const url = new URL("progress-latest.json", location.href);
+          url.searchParams.set("t", String(Date.now()));
+          const res = await fetch(url.href, { cache: "no-store" });
+          if (!res.ok) throw new Error("http");
+          const payload = await res.json();
+          applyReplacePayload(payload);
+          $("import-panel").hidden = true;
+          $("import-text").value = "";
+          toast("已从云端覆盖本机进度");
+        } catch (_) {
+          toast("拉取云端失败：确认已推 progress-latest.json，或网络后重试");
         }
       });
 
