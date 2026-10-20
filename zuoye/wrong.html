@@ -47,6 +47,12 @@
     }
     .opt.on { border-color: var(--blue); background: #eff6ff; }
     .opt.right { border-color: var(--green); background: #ecfdf5; }
+    .opt.right.flash { animation: opt-right-flash 0.35s ease-out; }
+    @keyframes opt-right-flash {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+      40% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.18); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+    }
     .opt.wrong { border-color: #fca5a5; background: #fef2f2; }
     .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
     .points { margin: 8px 0 0; padding-left: 1.2em; }
@@ -269,12 +275,17 @@
       let picked = null;
       let judged = false;
       let shortRevealed = false;
+      let holdingCorrect = false;
+      let advanceTimer = null;
 
       if (IS_FAV) {
         document.title = "收藏录 · 反复练习";
         $("page-title").textContent = "收藏录";
         $("page-sub").innerHTML =
-          "每日作业点「收」进来。可反复练；答对会同步推进错题本连对（满 3 次移出错题本，收藏仍保留，除非点移出收藏）。";
+          "每日作业点「收」进来。点选项即判（点答）。可反复练；答对会同步推进错题本连对（满 3 次移出错题本，收藏仍保留，除非点移出）。";
+      } else {
+        $("page-sub").innerHTML =
+          "选择答错会进来。默认<strong>点答</strong>（点选项即判）。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱。与每日作业共用本机进度。";
       }
 
       function shuffleIds(ids) {
@@ -367,6 +378,61 @@
         return shortOrder.map((id) => BANK.shortById[id]).filter(Boolean);
       }
 
+      function clearAdvanceTimer() {
+        if (advanceTimer) {
+          clearTimeout(advanceTimer);
+          advanceTimer = null;
+        }
+      }
+
+      function toastMcRight(wr) {
+        if (IS_FAV) {
+          toast(
+            wr.removed
+              ? "答对 · 错题本已移出（收藏仍在）· 题序已打乱"
+              : wr.streak
+                ? "答对 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
+                : "答对 · 收藏保留 · 题序已打乱"
+          );
+        } else {
+          toast(
+            wr.removed
+              ? "连对3次，已移出 · 剩余题已打乱"
+              : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
+          );
+        }
+      }
+
+      /** 点答：点选项即判 */
+      function judgeMcTap(q, key) {
+        if (!q || !key || holdingCorrect) return;
+        clearAdvanceTimer();
+        picked = key;
+        judged = true;
+        if (key === q.correct) {
+          const answeredId = q.id;
+          const wr = noteMcRight(answeredId);
+          save();
+          toastMcRight(wr);
+          holdingCorrect = true;
+          render();
+          const rightEl = document.querySelector(".opt.right");
+          if (rightEl) rightEl.classList.add("flash");
+          advanceTimer = setTimeout(() => {
+            holdingCorrect = false;
+            picked = null;
+            judged = false;
+            reshuffleMcAfter(answeredId);
+            render();
+          }, 380);
+        } else {
+          noteMcWrong(q.id);
+          save();
+          toast("又错了，错题连对清零");
+          render();
+        }
+      }
+
       function renderMc() {
         const list = mcList();
         $("tab-mc").textContent = (IS_FAV ? "选择收藏 " : "选择错题 ") + list.length;
@@ -394,7 +460,7 @@
           "/" +
           list.length +
           (IS_FAV ? " · 收藏反复练" : "") +
-          " · 错题连对 " +
+          " · 点答 · 错题连对 " +
           streak +
           "/" +
           WRONG_CLEAR_STREAK +
@@ -403,11 +469,10 @@
           "</div>" +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
-          '<button type="button" class="primary" id="btn-judge">提交</button>' +
-          '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
-          '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
+          '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
           (IS_FAV
-            ? '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
+            ? '<button type="button" class="ghost" id="btn-unfav" title="移出收藏">移</button>'
             : "") +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -422,10 +487,10 @@
             if (o.key === q.correct) b.classList.add("right");
             if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
           }
+          if (holdingCorrect && o.key === q.correct) b.classList.add("flash");
           b.addEventListener("click", () => {
-            picked = o.key;
-            judged = false;
-            render();
+            if (holdingCorrect) return;
+            judgeMcTap(q, o.key);
           });
           opts.appendChild(b);
         });
@@ -436,44 +501,10 @@
         }
         $("work").innerHTML = "";
         $("work").appendChild(box);
-        $("btn-judge").addEventListener("click", () => {
-          if (!picked) {
-            toast("先选一个选项");
-            return;
-          }
-          judged = true;
-          if (picked === q.correct) {
-            const answeredId = q.id;
-            const wr = noteMcRight(answeredId);
-            save();
-            if (IS_FAV) {
-              toast(
-                wr.removed
-                  ? "答对 · 错题本已移出（收藏仍在）· 题序已打乱"
-                  : wr.streak
-                    ? "答对 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
-                    : "答对 · 收藏保留 · 题序已打乱"
-              );
-            } else {
-              toast(
-                wr.removed
-                  ? "连对3次，已移出 · 剩余题已打乱"
-                  : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
-              );
-            }
-            picked = null;
-            judged = false;
-            reshuffleMcAfter(answeredId);
-            render();
-          } else {
-            noteMcWrong(q.id);
-            save();
-            toast("又错了，错题连对清零");
-            render();
-          }
-        });
         if (IS_FAV && $("btn-unfav")) {
           $("btn-unfav").addEventListener("click", () => {
+            clearAdvanceTimer();
+            holdingCorrect = false;
             removeFavMc(q.id);
             save();
             toast("已移出收藏录");
@@ -496,6 +527,8 @@
           toast(IS_FAV ? "只剩 1 道收藏，没法换题" : "只剩 1 道错题，没法换题");
           return;
         }
+        clearAdvanceTimer();
+        holdingCorrect = false;
         mcOrder = shuffleIds(ids);
         let idx = Math.floor(Math.random() * mcOrder.length);
         let guard = 0;
