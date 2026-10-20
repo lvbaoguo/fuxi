@@ -347,14 +347,27 @@
     .day-chip.on { background: var(--on); color: #fff; border-color: var(--on); }
     .day-chip.on .w { color: #d6d3d1; }
     .day-chip.done { background: #ecfdf5; border-color: #86efac; }
-    .nav-btns { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
-    .nav-btns button { padding: 8px 10px; font-size: 0.88rem; }
+    .nav-btns {
+      display: flex;
+      gap: 4px;
+      margin-top: 12px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-btns button {
+      flex: 1 1 0;
+      min-width: 2.1em;
+      padding: 8px 4px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
     .nav-btns button.on {
       background: var(--on); color: #fff; border-color: var(--on);
     }
     @media (max-width: 520px) {
-      .nav-btns { gap: 5px; }
-      .nav-btns button { padding: 7px 8px; font-size: 0.84rem; }
+      .nav-btns { gap: 3px; }
+      .nav-btns button { padding: 8px 2px; font-size: 0.88rem; min-width: 1.9em; }
       .dictation label { font-size: 0.82rem; }
       .short-why-banner > summary { padding: 10px 12px; font-size: 0.88rem; }
     }
@@ -1436,25 +1449,29 @@
           '<div class="nav-btns">' +
           (tapOn
             ? ""
-            : '<button type="button" class="primary" id="btn-judge"' +
+            : '<button type="button" class="primary" id="btn-judge" title="提交"' +
               (locked ? " disabled" : "") +
-              ">提交</button>") +
-          '<button type="button" class="ghost" id="btn-next-mc">下题</button>' +
-          '<button type="button" class="ghost" id="btn-prev-mc">上题</button>' +
-          '<button type="button" class="ghost" id="btn-jump-pending">未答</button>' +
-          '<button type="button" class="danger" id="btn-restart-mc">重来</button>' +
+              ">交</button>") +
+          '<button type="button" class="ghost" id="btn-next-mc" title="下题">下</button>' +
+          '<button type="button" class="ghost" id="btn-prev-mc" title="上题">上</button>' +
+          '<button type="button" class="ghost" id="btn-jump-pending" title="未答">未</button>' +
+          '<button type="button" class="danger" id="btn-restart-mc" title="重来">重</button>' +
           '<button type="button" class="ghost' +
           (tapOn ? " on" : "") +
-          '" id="btn-tap-ans">点答</button>' +
+          '" id="btn-tap-ans" title="点答">点</button>' +
           '<button type="button" class="ghost' +
           (isMcShuffle() ? " on" : "") +
-          '" id="btn-mc-shuffle">' +
+          '" id="btn-mc-shuffle" title="' +
           (isMcShuffle() ? "乱序" : "顺序") +
+          '">' +
+          (isMcShuffle() ? "乱" : "序") +
           "</button>" +
           '<button type="button" class="ghost' +
           (isFavMc(q.id) ? " on" : "") +
-          '" id="btn-fav-mc">' +
-          (isFavMc(q.id) ? "已收" : "收") +
+          '" id="btn-fav-mc" title="' +
+          (isFavMc(q.id) ? "已收藏" : "收藏") +
+          '">' +
+          (isFavMc(q.id) ? "已" : "收") +
           "</button>" +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -1687,7 +1704,8 @@
       function syncPeekAnsBtn(root) {
         const btn = root && root.querySelector("#btn-peek-ans");
         if (!btn) return;
-        btn.textContent = shortRevealed ? "收起" : "答案";
+        btn.textContent = shortRevealed ? "起" : "答";
+        btn.title = shortRevealed ? "收起" : "答案";
       }
 
       function whyTextFor(q) {
@@ -1836,21 +1854,23 @@
           '<div class="dictation-result" id="dictation-result" hidden></div>' +
           "</div>" +
           '<div class="nav-btns">' +
-          '<button type="button" class="primary" id="btn-dictation-submit"' +
+          '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
           (done ? " disabled" : "") +
-          ">提交</button>" +
-          '<button type="button" class="ghost" id="btn-peek-ans">答案</button>' +
-          '<button type="button" class="ghost" id="btn-hint-s">提示</button>' +
+          ">交</button>" +
+          '<button type="button" class="ghost" id="btn-peek-ans" title="答案">答</button>' +
+          '<button type="button" class="ghost" id="btn-hint-s" title="提示">提</button>' +
           '<button type="button" class="ghost' +
           (shortMemorizeMode ? " on" : "") +
-          '" id="btn-memorize">背题</button>' +
-          '<button type="button" class="ghost" id="btn-prev-s">上题</button>' +
-          '<button type="button" class="ghost" id="btn-next-s">下题</button>' +
-          '<button type="button" class="danger" id="btn-restart-short">重来</button>' +
+          '" id="btn-memorize" title="背题">背</button>' +
+          '<button type="button" class="ghost" id="btn-prev-s" title="上题">上</button>' +
+          '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
+          '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
           '<button type="button" class="ghost' +
           (isFavShort(q.id) ? " on" : "") +
-          '" id="btn-fav-s">' +
-          (isFavShort(q.id) ? "已收" : "收") +
+          '" id="btn-fav-s" title="' +
+          (isFavShort(q.id) ? "已收藏" : "收藏") +
+          '">' +
+          (isFavShort(q.id) ? "已" : "收") +
           "</button>" +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
