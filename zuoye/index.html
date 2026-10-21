@@ -901,18 +901,14 @@
           .join("\n");
       }
 
-      /** 简答提示段：最多 3 段（采分点），点老师循环切换 */
+      /** 简答提示段：采分点原句（保留顿号句号等标点），最多 3 段，点老师循环切换 */
       function buildShortHintSegments(q) {
         const segs = [];
         (q.points || []).forEach((p) => {
-          const s = pointCleanChars(String(p || ""));
+          const s = String(p || "").trim();
           if (s) segs.push(s);
         });
-        if (segs.length) return segs.slice(0, 3);
-        return buildShortHintChunks(q)
-          .slice(0, 3)
-          .map((c) => c.text)
-          .filter(Boolean);
+        return segs.slice(0, 3);
       }
 
       function advanceShortHintByTeacher() {
