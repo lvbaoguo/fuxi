@@ -6,6 +6,11 @@
 #   ./push-pages.sh "commit msg" # 指定说明
 #   ./push-pages.sh --check      # 只检查线上，不推
 #
+# 代理（推 GitHub 更快/更稳）：
+#   先开 Clash Party「系统代理」；脚本会自动用 127.0.0.1:7890 等本地端口给 git。
+#   自定义：FUXI_HTTP_PROXY=http://127.0.0.1:端口 ./push-pages.sh
+#   这和「换新加坡/日本节点」不是一回事——节点在 Clash「代理组」里选；这里是让 git 走 Clash。
+#
 # 硬规则：整次 push 总预算 60 秒，超时立刻放弃（不长轮询）。
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -82,6 +87,26 @@ run_with_budget() {
   return $?
 }
 
+# 本机 Clash / mihomo 常见本地端口；可用 FUXI_HTTP_PROXY=http://127.0.0.1:xxxx 覆盖
+detect_local_proxy() {
+  if [[ -n "${FUXI_HTTP_PROXY:-}" ]]; then
+    printf '%s\n' "$FUXI_HTTP_PROXY"
+    return 0
+  fi
+  local cand
+  for cand in \
+    "http://127.0.0.1:7890" \
+    "http://127.0.0.1:7897" \
+    "http://127.0.0.1:9191" \
+    "http://127.0.0.1:1087"; do
+    if curl -sS -o /dev/null --max-time 1 -x "$cand" https://api.github.com/ >/dev/null 2>&1; then
+      printf '%s\n' "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+
 do_push() {
   export GIT_HTTP_VERSION=HTTP/1.1
   local start=$SECONDS
@@ -92,6 +117,13 @@ do_push() {
     -c http.lowSpeedTime=15
     -c http.postBuffer=524288000
   )
+  local proxy=""
+  if proxy="$(detect_local_proxy)"; then
+    log "[proxy] git push 走本机代理 $proxy（只影响这次推送，不是换节点国家）"
+    gitcfg+=(-c "http.proxy=$proxy" -c "https.proxy=$proxy")
+  else
+    log "[proxy] 未检测到本机代理；请开 Clash「系统代理」，或 export FUXI_HTTP_PROXY=http://127.0.0.1:7890"
+  fi
 
   while true; do
     local used=$((SECONDS - start))
