@@ -162,6 +162,36 @@
       font-weight: 700;
       color: #9a3412;
     }
+    .short-pane.speak {
+      margin-top: 10px;
+      border: 1px dashed #93c5fd;
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .short-pane.speak h4 {
+      margin: 0 0 6px;
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #1d4ed8;
+    }
+    .short-pane.speak .speak-tip {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .short-pane.speak ol {
+      margin: 0;
+      padding-left: 1.15em;
+    }
+    .short-pane.speak li {
+      margin: 6px 0;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: #1e3a8a;
+      font-weight: 600;
+    }
     .short-pane ol {
       margin: 0;
       padding-left: 1.15em;
@@ -1880,6 +1910,13 @@
         "资本主义世界市场",
         "主权和领土完整",
         "两个确立",
+        "党中央的核心",
+        "全党的核心",
+        "核心地位",
+        "指导地位",
+        "决定性意义",
+        "决定性因素",
+        "最大确定性",
         "六个必须坚持",
         "中国特色社会主义",
         "新民主主义革命",
@@ -1967,16 +2004,35 @@
           const inner = m.replace(/^《/, "").replace(/》$/, "");
           if (inner.length >= 2) keys.push(inner);
         });
-        /* 每句若还没有命中词，从分句抽短语补标/补判 */
+        /* 分句补短词：整段≤18 直接用；更长则取头尾短块，避免截断成半截词 */
         raw.split(/[，。；、]/).forEach((seg) => {
           const s0 = seg.replace(/\s+/g, "").trim();
           if (s0.length < 3) return;
           if (keys.some((k) => s0.indexOf(k) >= 0)) return;
-          let s = s0.replace(/^(企图|必须|坚持|强调|提出|建立|实行|进行|推动|实现|促进|维护|加强|完善|健全)/, "");
-          if (s.length >= 3 && s.length <= 16) keys.push(s.slice(0, 12));
-          else if (s0.length >= 4 && s0.length <= 14) keys.push(s0.slice(0, 10));
+          let s = s0.replace(
+            /^(企图|必须|坚持|强调|提出|建立|实行|进行|推动|实现|促进|维护|加强|完善|健全|确立)/,
+            ""
+          );
+          if (s.length < 3) s = s0;
+          if (s.length <= 18) keys.push(s);
+          else {
+            keys.push(s.slice(0, 8));
+            keys.push(s.slice(-8));
+          }
         });
         return Array.from(new Set(keys));
+      }
+
+      /** 好背版：优先 q.speak；否则把得分词串起来，方便换说法仍得分 */
+      function speakLinesFor(q) {
+        if (Array.isArray(q.speak) && q.speak.length) {
+          return q.speak.map((s) => String(s || "").trim()).filter(Boolean);
+        }
+        return (q.points || []).map((p) => {
+          const keys = extractPointKeys(p);
+          if (keys.length) return "带上：" + keys.join("、");
+          return String(p || "").trim();
+        });
       }
 
       /** 采分点纯黑展示（不再黄标）；判分仍用 extractPointKeys */
@@ -2035,6 +2091,15 @@
                   : ' <span style="color:#991b1b;font-weight:700;">✗</span>'
                 : "");
             off.appendChild(li);
+          });
+        }
+        const sp = root.querySelector("#points-speak");
+        if (sp) {
+          sp.innerHTML = "";
+          speakLinesFor(q).forEach((line) => {
+            const li = document.createElement("li");
+            li.textContent = line;
+            sp.appendChild(li);
           });
         }
       }
@@ -2138,6 +2203,9 @@
           '<div class="short-why-body" id="short-why-body"></div>' +
           "</details>" +
           '<div class="short-pane official"><h4>采分点</h4><ol id="points-official"></ol></div>' +
+          '<div class="short-pane speak"><h4>好背版（换说法也能分）</h4>' +
+          '<p class="speak-tip">不必全文照抄官话。判分认关键词：每点大约带上 2/3 得分词即可。</p>' +
+          '<ol id="points-speak"></ol></div>' +
           "</div>" +
           '<div class="dictation" id="dictation-box">' +
           "<label>默写</label>" +
