@@ -162,35 +162,37 @@
       font-weight: 700;
       color: #9a3412;
     }
-    .short-pane.speak {
+    .short-edit-panel {
       margin-top: 10px;
-      border: 1px dashed #93c5fd;
-      background: #eff6ff;
-      border-radius: 10px;
       padding: 10px 12px;
+      border: 1px solid #93c5fd;
+      border-radius: 10px;
+      background: #eff6ff;
     }
-    .short-pane.speak h4 {
-      margin: 0 0 6px;
-      font-size: 0.88rem;
-      font-weight: 800;
+    .short-edit-panel[hidden] { display: none !important; }
+    .short-edit-panel label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
       color: #1d4ed8;
+      margin-bottom: 6px;
     }
-    .short-pane.speak .speak-tip {
-      margin: 0 0 8px;
-      font-size: 0.8rem;
-      color: #64748b;
-      line-height: 1.4;
-    }
-    .short-pane.speak ol {
-      margin: 0;
-      padding-left: 1.15em;
-    }
-    .short-pane.speak li {
-      margin: 6px 0;
-      font-size: 0.92rem;
+    .short-edit-panel textarea {
+      width: 100%;
+      min-height: 120px;
+      font: inherit;
       line-height: 1.45;
-      color: #1e3a8a;
-      font-weight: 600;
+      padding: 8px 10px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .short-edit-panel .row { margin-top: 8px; gap: 6px; }
+    .short-edit-panel .hint {
+      margin: 4px 0 0;
+      font-size: 0.78rem;
+      color: #64748b;
     }
     .short-pane ol {
       margin: 0;
@@ -663,6 +665,7 @@
           mcOk: {},
           shortOk: {},
           shortDraft: {},
+          shortPointsCustom: {}, /* qid → 自改采分点字符串数组 */
           mcDay: {},
           wrongMc: {},
           wrongShort: {},
@@ -706,6 +709,36 @@
         return out;
       }
 
+      function normalizePointsCustom(map) {
+        const out = {};
+        Object.keys(map || {}).forEach((id) => {
+          const v = map[id];
+          if (Array.isArray(v)) {
+            const pts = v.map((s) => String(s || "").trim()).filter(Boolean);
+            if (pts.length) out[id] = pts;
+          } else if (typeof v === "string" && v.trim()) {
+            const pts = v
+              .split(/\n+/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            if (pts.length) out[id] = pts;
+          }
+        });
+        return out;
+      }
+
+      /** 本题采分点：有自改则用自改，否则题库原版 */
+      function pointsFor(q) {
+        if (!q || !q.id) return [];
+        const custom = state.shortPointsCustom && state.shortPointsCustom[q.id];
+        if (Array.isArray(custom) && custom.length) return custom;
+        return q.points || [];
+      }
+      function hasCustomPoints(qid) {
+        const custom = state.shortPointsCustom && state.shortPointsCustom[qid];
+        return Array.isArray(custom) && custom.length > 0;
+      }
+
       function normalizeState(raw) {
         const st = emptyState();
         if (!raw || typeof raw !== "object") return st;
@@ -713,6 +746,7 @@
         st.shortOk = stripDayPrefix(raw.shortOk);
         st.shortDraft =
           raw.shortDraft && typeof raw.shortDraft === "object" ? { ...raw.shortDraft } : {};
+        st.shortPointsCustom = normalizePointsCustom(raw.shortPointsCustom);
         st.wrongMc = normalizeWrongMap(raw.wrongMc);
         st.wrongShort = normalizeWrongMap(raw.wrongShort);
         st.favMc = normalizeFavMap(raw.favMc);
@@ -944,7 +978,7 @@
       /** 简答提示段：采分点原句（保留顿号句号等标点），最多 3 段，点老师循环切换 */
       function buildShortHintSegments(q) {
         const segs = [];
-        (q.points || []).forEach((p) => {
+        pointsFor(q).forEach((p) => {
           const s = String(p || "").trim();
           if (s) segs.push(s);
         });
@@ -2023,18 +2057,6 @@
         return Array.from(new Set(keys));
       }
 
-      /** 好背版：优先 q.speak；否则把得分词串起来，方便换说法仍得分 */
-      function speakLinesFor(q) {
-        if (Array.isArray(q.speak) && q.speak.length) {
-          return q.speak.map((s) => String(s || "").trim()).filter(Boolean);
-        }
-        return (q.points || []).map((p) => {
-          const keys = extractPointKeys(p);
-          if (keys.length) return "带上：" + keys.join("、");
-          return String(p || "").trim();
-        });
-      }
-
       /** 采分点纯黑展示（不再黄标）；判分仍用 extractPointKeys */
       function highlightKeys(s) {
         return escapeHtml(String(s || ""));
@@ -2048,8 +2070,8 @@
       }
 
       function whyTextFor(q) {
-        if (q.why && String(q.why).trim()) return String(q.why).trim();
-        return (q.points || [])
+        if (q.why && String(q.why).trim() && !hasCustomPoints(q.id)) return String(q.why).trim();
+        return pointsFor(q)
           .map(
             (p, i) =>
               i +
@@ -2077,10 +2099,14 @@
             shortWhyOpen = !!whyEl.open;
           };
         }
+        const offTitle = root.querySelector("#points-official-title");
+        if (offTitle) {
+          offTitle.textContent = hasCustomPoints(q.id) ? "采分点（自改）" : "采分点";
+        }
         const off = root.querySelector("#points-official");
         if (off) {
           off.innerHTML = "";
-          (q.points || []).forEach((p, i) => {
+          pointsFor(q).forEach((p, i) => {
             const li = document.createElement("li");
             const ok = gradeDetail && gradeDetail[i] && gradeDetail[i].pointOk;
             li.innerHTML =
@@ -2091,15 +2117,6 @@
                   : ' <span style="color:#991b1b;font-weight:700;">✗</span>'
                 : "");
             off.appendChild(li);
-          });
-        }
-        const sp = root.querySelector("#points-speak");
-        if (sp) {
-          sp.innerHTML = "";
-          speakLinesFor(q).forEach((line) => {
-            const li = document.createElement("li");
-            li.textContent = line;
-            sp.appendChild(li);
           });
         }
       }
@@ -2113,7 +2130,7 @@
 
       function gradeShortDictation(text, q) {
         const ans = normAns(text);
-        const points = q.points || [];
+        const points = pointsFor(q);
         const detail = [];
         let hitPoints = 0;
         points.forEach((p, i) => {
@@ -2202,15 +2219,24 @@
           "<summary>当时的故事</summary>" +
           '<div class="short-why-body" id="short-why-body"></div>' +
           "</details>" +
-          '<div class="short-pane official"><h4>采分点</h4><ol id="points-official"></ol></div>' +
-          '<div class="short-pane speak"><h4>好背版（换说法也能分）</h4>' +
-          '<p class="speak-tip">不必全文照抄官话。判分认关键词：每点大约带上 2/3 得分词即可。</p>' +
-          '<ol id="points-speak"></ol></div>' +
+          '<div class="short-pane official"><h4 id="points-official-title">采分点</h4><ol id="points-official"></ol></div>' +
           "</div>" +
           '<div class="dictation" id="dictation-box">' +
           "<label>默写</label>" +
           '<textarea id="short-dictation" placeholder="关键词即可…"></textarea>' +
           '<div class="dictation-result" id="dictation-result" hidden></div>' +
+          "</div>" +
+          '<div class="short-edit-panel" id="short-edit-panel" hidden>' +
+          "<label>改答案（每行一条采分点）</label>" +
+          '<textarea id="short-edit-ta" placeholder="一行一条，保存后本题按你的答案判分"></textarea>' +
+          '<p class="hint">保存后替换本题采分点；「还原」可恢复题库原版。</p>' +
+          '<div class="row nav-btns">' +
+          '<button type="button" class="primary" id="btn-edit-save">保存</button>' +
+          '<button type="button" class="ghost" id="btn-edit-cancel">取消</button>' +
+          '<button type="button" class="danger" id="btn-edit-restore"' +
+          (hasCustomPoints(q.id) ? "" : " disabled") +
+          ">还原</button>" +
+          "</div>" +
           "</div>" +
           '<div class="nav-btns">' +
           '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
@@ -2230,6 +2256,9 @@
           '">' +
           (isFavShort(q.id) ? "已" : "收") +
           "</button>" +
+          '<button type="button" class="ghost' +
+          (hasCustomPoints(q.id) ? " on" : "") +
+          '" id="btn-edit-points" title="改答案">改</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
@@ -2267,8 +2296,56 @@
             passShortQuestion(q, "过关 · 留下对照");
           } else {
             onAnswerFeedback(false);
-            toast("未过 · 对照黄标再默");
+            toast("未过 · 对照采分点再默");
           }
+        });
+        const editPanel = box.querySelector("#short-edit-panel");
+        const editTa = box.querySelector("#short-edit-ta");
+        function openEditPanel() {
+          if (!editPanel || !editTa) return;
+          editTa.value = pointsFor(q).join("\n");
+          editPanel.hidden = false;
+          editTa.focus();
+        }
+        function closeEditPanel() {
+          if (editPanel) editPanel.hidden = true;
+        }
+        $("btn-edit-points").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
+          if (editPanel && !editPanel.hidden) {
+            closeEditPanel();
+            return;
+          }
+          shortRevealed = true;
+          fillShortCompare(box, q, null);
+          openEditPanel();
+        });
+        $("btn-edit-cancel").addEventListener("click", () => closeEditPanel());
+        $("btn-edit-save").addEventListener("click", () => {
+          const pts = String((editTa && editTa.value) || "")
+            .split(/\n+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (!pts.length) {
+            toast("至少写一条采分点");
+            return;
+          }
+          if (!state.shortPointsCustom) state.shortPointsCustom = {};
+          state.shortPointsCustom[q.id] = pts;
+          save();
+          shortRevealed = true;
+          shortWhyOpen = false;
+          toast("已替换本题答案");
+          render();
+        });
+        $("btn-edit-restore").addEventListener("click", () => {
+          if (!hasCustomPoints(q.id)) return;
+          if (!confirm("还原本题为题库原版采分点？")) return;
+          delete state.shortPointsCustom[q.id];
+          save();
+          shortRevealed = true;
+          toast("已还原题库原版");
+          render();
         });
         $("btn-peek-ans").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
@@ -2467,6 +2544,7 @@
           mcOk: state.mcOk,
           shortOk: state.shortOk,
           shortDraft: state.shortDraft || {},
+          shortPointsCustom: state.shortPointsCustom || {},
           mcDay: state.mcDay,
           wrongMc: state.wrongMc,
           wrongShort: state.wrongShort,
@@ -2679,6 +2757,11 @@
         state.mcOk = Object.assign({}, state.mcOk, incoming.mcOk);
         state.shortOk = Object.assign({}, state.shortOk, incoming.shortOk);
         state.shortDraft = Object.assign({}, state.shortDraft || {}, incoming.shortDraft || {});
+        state.shortPointsCustom = Object.assign(
+          {},
+          state.shortPointsCustom || {},
+          incoming.shortPointsCustom || {}
+        );
         Object.keys(incoming.mcDay || {}).forEach((d) => {
           if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
           if (!state.mcDay[d].results) state.mcDay[d].results = {};
