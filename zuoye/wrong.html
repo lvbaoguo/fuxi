@@ -166,7 +166,9 @@
       const WRONG_FAIL_PAUSE_MS = 3000; /* 错题本：答错后停顿再打乱重来 */
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
-      const IS_FAV = /(?:\?|&)mode=fav(?:&|$)/.test(location.search || "");
+      const IS_PERM =
+        /(?:\?|&)mode=perm(?:&|$)/.test(location.search || "") ||
+        /(?:\?|&)mode=fav(?:&|$)/.test(location.search || ""); /* 旧收藏链接兼容进永久库 */
 
       function getTheme() {
         try {
@@ -197,15 +199,38 @@
         });
         return out;
       }
-      function normalizeFavMap(map) {
+      function normalizePermMap(map) {
         const out = {};
         Object.keys(map || {}).forEach((k) => {
           const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
           const v = map[k];
           if (!v) return;
-          out[id] = { at: (typeof v === "object" && v.at) || new Date().toISOString() };
+          if (typeof v === "object") {
+            out[id] = {
+              miss: Math.max(1, Math.floor(Number(v.miss) || Number(v.count) || 1)),
+              at: v.at || new Date().toISOString(),
+            };
+          } else {
+            out[id] = { miss: 1, at: new Date().toISOString() };
+          }
         });
         return out;
+      }
+      function mergeIntoPerm(dst, src, defaultMiss) {
+        const miss0 = Math.max(1, Math.floor(Number(defaultMiss) || 1));
+        Object.keys(src || {}).forEach((id) => {
+          const s = src[id];
+          const srcMiss =
+            s && typeof s === "object"
+              ? Math.max(1, Math.floor(Number(s.miss) || Number(s.count) || miss0))
+              : miss0;
+          if (!dst[id]) {
+            dst[id] = { miss: srcMiss, at: (s && s.at) || new Date().toISOString() };
+          } else {
+            dst[id].miss = Math.max(dst[id].miss || 1, srcMiss);
+          }
+        });
+        return dst;
       }
 
       function load() {
@@ -217,20 +242,28 @@
               v: 8,
               wrongMc: {},
               wrongShort: {},
-              favMc: {},
-              favShort: {},
+              permMc: {},
+              permShort: {},
               mcOk: {},
               shortOk: {},
               mcDay: {},
               pinnedPlans: {},
             };
           }
+          const wrongMc = normalizeWrongMap(raw.wrongMc);
+          const wrongShort = normalizeWrongMap(raw.wrongShort);
+          const permMc = normalizePermMap(raw.permMc);
+          const permShort = normalizePermMap(raw.permShort);
+          mergeIntoPerm(permMc, raw.favMc, 1);
+          mergeIntoPerm(permShort, raw.favShort, 1);
+          mergeIntoPerm(permMc, wrongMc, 1);
+          mergeIntoPerm(permShort, wrongShort, 1);
           return {
             v: raw.v || 8,
-            wrongMc: normalizeWrongMap(raw.wrongMc),
-            wrongShort: normalizeWrongMap(raw.wrongShort),
-            favMc: normalizeFavMap(raw.favMc),
-            favShort: normalizeFavMap(raw.favShort),
+            wrongMc: wrongMc,
+            wrongShort: wrongShort,
+            permMc: permMc,
+            permShort: permShort,
             mcOk: raw.mcOk || {},
             shortOk: raw.shortOk || {},
             shortDraft: raw.shortDraft || {},
@@ -247,8 +280,8 @@
             v: 8,
             wrongMc: {},
             wrongShort: {},
-            favMc: {},
-            favShort: {},
+            permMc: {},
+            permShort: {},
             mcOk: {},
             shortOk: {},
             mcDay: {},
@@ -271,8 +304,8 @@
             v: Math.max(Number(raw.v) || 0, 8),
             wrongMc: state.wrongMc,
             wrongShort: state.wrongShort,
-            favMc: state.favMc || {},
-            favShort: state.favShort || {},
+            permMc: state.permMc || {},
+            permShort: state.permShort || {},
             mcOk: state.mcOk,
             shortOk: state.shortOk,
             mcDay: state.mcDay,
@@ -280,6 +313,8 @@
             exportedAt: state.exportedAt,
           });
           if (state.shortDraft) next.shortDraft = state.shortDraft;
+          delete next.favMc;
+          delete next.favShort;
           localStorage.setItem(STORE, JSON.stringify(next));
           localStorage.setItem(STORE_LEGACY, JSON.stringify(next));
         } catch (_) {}
@@ -295,11 +330,31 @@
         }, 3500);
       }
 
+      function bumpPermMc(id) {
+        if (!id) return;
+        if (!state.permMc) state.permMc = {};
+        const cur = state.permMc[id];
+        state.permMc[id] = {
+          miss: (cur && cur.miss ? cur.miss : 0) + 1,
+          at: (cur && cur.at) || new Date().toISOString(),
+        };
+      }
+      function bumpPermShort(id) {
+        if (!id) return;
+        if (!state.permShort) state.permShort = {};
+        const cur = state.permShort[id];
+        state.permShort[id] = {
+          miss: (cur && cur.miss ? cur.miss : 0) + 1,
+          at: (cur && cur.at) || new Date().toISOString(),
+        };
+      }
       function noteMcWrong(id) {
         state.wrongMc[id] = { streak: 0 };
+        bumpPermMc(id);
       }
       function noteShortWrong(id) {
         state.wrongShort[id] = { streak: 0 };
+        bumpPermShort(id);
       }
       function clearAllWrongMc() {
         state.wrongMc = {};
@@ -307,18 +362,18 @@
       function clearAllWrongShort() {
         state.wrongShort = {};
       }
-      function removeFavMc(id) {
-        if (state.favMc) delete state.favMc[id];
+      function missOfMc(id) {
+        return (state.permMc && state.permMc[id] && state.permMc[id].miss) || 0;
       }
-      function removeFavShort(id) {
-        if (state.favShort) delete state.favShort[id];
+      function missOfShort(id) {
+        return (state.permShort && state.permShort[id] && state.permShort[id].miss) || 0;
       }
 
       let state = load();
       let tab = "mc";
       let mcIdx = 0;
       let shortIdx = 0;
-      let mcOrder = null; /* id[] 打乱序 */
+      let mcOrder = null; /* id[] 打乱序 / 永久库排序序 */
       let shortOrder = null;
       let picked = null;
       let judged = false;
@@ -326,12 +381,13 @@
       let holdingCorrect = false;
       let holdingFail = false; /* 错题本答错后的 3 秒锁 */
       let advanceTimer = null;
+      let permSorted = false; /* 永久库：是否按错次排序 */
 
-      if (IS_FAV) {
-        document.title = "收藏录 · 反复练习";
-        $("page-title").textContent = "收藏录";
+      if (IS_PERM) {
+        document.title = "永久库 · 答对不删";
+        $("page-title").textContent = "永久库";
         $("page-sub").innerHTML =
-          "每日作业点「收」进来。点选项即判（点答）。可反复练；收藏仍保留，除非点「移」。错题本须在错题页整本一轮全对才清。";
+          "与错题同步：答错自动进来并累计错次；这里答对<strong>不会移出</strong>。点「排序」按错次从多到少。";
       } else {
         $("page-sub").innerHTML =
           "选择答错会进来。默认<strong>点答</strong>。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会停 3 秒提示「你错了」，再打乱重来。";
@@ -349,36 +405,62 @@
       }
 
       function sourceMcIds() {
-        return Object.keys(IS_FAV ? state.favMc || {} : state.wrongMc || {});
+        return Object.keys(IS_PERM ? state.permMc || {} : state.wrongMc || {});
       }
       function sourceShortIds() {
-        return Object.keys(IS_FAV ? state.favShort || {} : state.wrongShort || {});
+        return Object.keys(IS_PERM ? state.permShort || {} : state.wrongShort || {});
+      }
+
+      function sortIdsByMiss(ids, missFn) {
+        return ids.slice().sort((a, b) => {
+          const d = missFn(b) - missFn(a);
+          if (d) return d;
+          return String(a).localeCompare(String(b));
+        });
       }
 
       function syncMcOrder() {
         const ids = sourceMcIds();
-        const alive = IS_FAV ? state.favMc || {} : state.wrongMc || {};
-        if (!mcOrder) mcOrder = shuffleIds(ids);
-        else {
+        const alive = IS_PERM ? state.permMc || {} : state.wrongMc || {};
+        if (!mcOrder) {
+          mcOrder = IS_PERM && permSorted ? sortIdsByMiss(ids, missOfMc) : shuffleIds(ids);
+        } else {
           mcOrder = mcOrder.filter((id) => alive[id]);
           ids.forEach((id) => {
             if (mcOrder.indexOf(id) < 0) mcOrder.push(id);
           });
+          if (IS_PERM && permSorted) mcOrder = sortIdsByMiss(mcOrder, missOfMc);
         }
       }
       function syncShortOrder() {
         const ids = sourceShortIds();
-        const alive = IS_FAV ? state.favShort || {} : state.wrongShort || {};
-        if (!shortOrder) shortOrder = shuffleIds(ids);
-        else {
+        const alive = IS_PERM ? state.permShort || {} : state.wrongShort || {};
+        if (!shortOrder) {
+          shortOrder = IS_PERM && permSorted ? sortIdsByMiss(ids, missOfShort) : shuffleIds(ids);
+        } else {
           shortOrder = shortOrder.filter((id) => alive[id]);
           ids.forEach((id) => {
             if (shortOrder.indexOf(id) < 0) shortOrder.push(id);
           });
+          if (IS_PERM && permSorted) shortOrder = sortIdsByMiss(shortOrder, missOfShort);
         }
       }
 
-      /** 收藏录：答对后重洗，尽量避开刚答过的题 */
+      function applyPermSort() {
+        permSorted = true;
+        mcOrder = sortIdsByMiss(sourceMcIds(), missOfMc);
+        shortOrder = sortIdsByMiss(sourceShortIds(), missOfShort);
+        mcIdx = 0;
+        shortIdx = 0;
+        picked = null;
+        judged = false;
+        shortRevealed = false;
+        holdingCorrect = false;
+        toast("已按错次从多到少排序");
+        render();
+      }
+
+      /** 永久库：答对后重洗/下移，尽量避开刚答过的题 */
       function reshuffleMcAfter(avoidId) {
         const ids = sourceMcIds();
         mcOrder = shuffleIds(ids);
@@ -461,13 +543,15 @@
           render();
           const rightEl = document.querySelector(".opt.right");
           if (rightEl) rightEl.classList.add("flash");
-          if (IS_FAV) {
-            toast("答对 · 收藏保留 · 题序已打乱");
+          if (IS_PERM) {
+            toast("对了 · 永久库保留（错" + missOfMc(q.id) + "次）");
             advanceTimer = setTimeout(() => {
               holdingCorrect = false;
               picked = null;
               judged = false;
-              reshuffleMcAfter(q.id);
+              const n = sourceMcIds().length;
+              if (permSorted && n > 0) mcIdx = (mcIdx + 1) % n;
+              else reshuffleMcAfter(q.id);
               render();
             }, 380);
             return;
@@ -497,8 +581,12 @@
               render();
             }, 380);
           }
-        } else if (IS_FAV) {
-          toast("答错了，再练");
+        } else if (IS_PERM) {
+          bumpPermMc(q.id);
+          /* 永久库答错：也回错题本，方便今日清 */
+          state.wrongMc[q.id] = { streak: 0 };
+          save();
+          toast("又错了 · 累计 " + missOfMc(q.id) + " 次（仍留在永久库）");
           render();
         } else {
           noteMcWrong(q.id);
@@ -516,11 +604,11 @@
 
       function renderMc() {
         const list = mcList();
-        $("tab-mc").textContent = (IS_FAV ? "选择收藏 " : "选择错题 ") + list.length;
-        $("tab-short").textContent = (IS_FAV ? "简答收藏 " : "简答错题 ") + shortList().length;
+        $("tab-mc").textContent = (IS_PERM ? "选择永久 " : "选择错题 ") + list.length;
+        $("tab-short").textContent = (IS_PERM ? "简答永久 " : "简答错题 ") + shortList().length;
         if (!list.length) {
-          $("work").innerHTML = IS_FAV
-            ? "<p class='hint'>收藏录还没有选择题。回每日作业点「收」。</p>"
+          $("work").innerHTML = IS_PERM
+            ? "<p class='hint'>永久库还没有选择题。答错会自动同步进来。</p>"
             : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
           return;
         }
@@ -528,6 +616,7 @@
         if (mcIdx < 0) mcIdx = 0;
         const q = list[mcIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
+        const miss = missOfMc(q.id);
         const box = document.createElement("div");
         box.className = "q-card";
         box.innerHTML =
@@ -539,16 +628,18 @@
           (mcIdx + 1) +
           "/" +
           list.length +
-          (IS_FAV ? " · 收藏反复练 · 点答" : " · 点答 · 本轮须全对才移出") +
+          (IS_PERM
+            ? " · 错" + miss + "次 · 答对不删" + (permSorted ? " · 已按错次排" : "")
+            : " · 点答 · 本轮须全对才移出") +
           " · " +
           name +
           "</div>" +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
-          (IS_FAV
+          (IS_PERM
             ? '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
-              '<button type="button" class="ghost" id="btn-unfav" title="移出收藏">移</button>'
+              '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
             : '<button type="button" class="ghost" id="btn-reshuffle" title="打乱重来">打乱重来</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -578,23 +669,30 @@
         }
         $("work").innerHTML = "";
         $("work").appendChild(box);
-        if (IS_FAV && $("btn-unfav")) {
-          $("btn-unfav").addEventListener("click", () => {
+        if (IS_PERM && $("btn-prev")) {
+          $("btn-prev").addEventListener("click", () => {
             clearAdvanceTimer();
             holdingCorrect = false;
-            removeFavMc(q.id);
-            save();
-            toast("已移出收藏录");
+            const n = list.length;
+            mcIdx = (mcIdx - 1 + n) % n;
+            picked = null;
+            judged = false;
+            render();
+          });
+          $("btn-next").addEventListener("click", () => {
+            clearAdvanceTimer();
+            holdingCorrect = false;
+            const n = list.length;
+            mcIdx = (mcIdx + 1) % n;
             picked = null;
             judged = false;
             render();
           });
         }
-        if (IS_FAV && $("btn-prev")) {
-          $("btn-prev").addEventListener("click", () => jumpMcAwayFrom(q.id));
-          $("btn-next").addEventListener("click", () => jumpMcAwayFrom(q.id));
+        if (IS_PERM && $("btn-sort-miss")) {
+          $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
-        if (!IS_FAV && $("btn-reshuffle")) {
+        if (!IS_PERM && $("btn-reshuffle")) {
           $("btn-reshuffle").addEventListener("click", () => {
             if (holdingFail) return;
             clearAdvanceTimer();
@@ -605,41 +703,13 @@
         }
       }
 
-      function jumpMcAwayFrom(currentId) {
-        const ids = sourceMcIds();
-        if (ids.length <= 1) {
-          toast(IS_FAV ? "只剩 1 道收藏，没法换题" : "只剩 1 道错题，没法换题");
+      function jumpShortAwayFrom(dir) {
+        const n = shortList().length;
+        if (n <= 1) {
+          toast(IS_PERM ? "只剩 1 道，没法换题" : "只剩 1 道错题，没法换题");
           return;
         }
-        clearAdvanceTimer();
-        holdingCorrect = false;
-        mcOrder = shuffleIds(ids);
-        let idx = Math.floor(Math.random() * mcOrder.length);
-        let guard = 0;
-        while (mcOrder[idx] === currentId && guard < 40) {
-          idx = Math.floor(Math.random() * mcOrder.length);
-          guard += 1;
-        }
-        mcIdx = idx;
-        picked = null;
-        judged = false;
-        render();
-      }
-
-      function jumpShortAwayFrom(currentId) {
-        const ids = sourceShortIds();
-        if (ids.length <= 1) {
-          toast(IS_FAV ? "只剩 1 道收藏，没法换题" : "只剩 1 道错题，没法换题");
-          return;
-        }
-        shortOrder = shuffleIds(ids);
-        let idx = Math.floor(Math.random() * shortOrder.length);
-        let guard = 0;
-        while (shortOrder[idx] === currentId && guard < 40) {
-          idx = Math.floor(Math.random() * shortOrder.length);
-          guard += 1;
-        }
-        shortIdx = idx;
+        shortIdx = (shortIdx + (dir || 1) + n) % n;
         shortRevealed = false;
         render();
       }
@@ -694,11 +764,11 @@
 
       function renderShort() {
         const list = shortList();
-        $("tab-mc").textContent = (IS_FAV ? "选择收藏 " : "选择错题 ") + mcList().length;
-        $("tab-short").textContent = (IS_FAV ? "简答收藏 " : "简答错题 ") + list.length;
+        $("tab-mc").textContent = (IS_PERM ? "选择永久 " : "选择错题 ") + mcList().length;
+        $("tab-short").textContent = (IS_PERM ? "简答永久 " : "简答错题 ") + list.length;
         if (!list.length) {
-          $("work").innerHTML = IS_FAV
-            ? "<p class='hint'>收藏录还没有简答。回每日作业点「收」。</p>"
+          $("work").innerHTML = IS_PERM
+            ? "<p class='hint'>永久库还没有简答。答错会自动同步进来。</p>"
             : "<p class='hint'>没有简答错题。</p>";
           return;
         }
@@ -706,6 +776,7 @@
         if (shortIdx < 0) shortIdx = 0;
         const q = list[shortIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
+        const miss = missOfShort(q.id);
         const box = document.createElement("div");
         box.className = "q-card";
         const lock = holdingFail ? " disabled" : "";
@@ -718,7 +789,9 @@
           (shortIdx + 1) +
           "/" +
           list.length +
-          (IS_FAV ? " · 收藏反复练" : " · 本轮须全对才移出") +
+          (IS_PERM
+            ? " · 错" + miss + "次 · 答对不删" + (permSorted ? " · 已按错次排" : "")
+            : " · 本轮须全对才移出") +
           " · " +
           name +
           "</div>" +
@@ -736,17 +809,17 @@
           '<button type="button" class="good" id="btn-pass"' +
           (shortRevealed && !holdingFail ? "" : " disabled") +
           ">" +
-          (IS_FAV ? "会了" : "会了（进下一题）") +
+          (IS_PERM ? "会了（不移出）" : "会了（进下一题）") +
           "</button>" +
           '<button type="button" class="ghost" id="btn-fail"' +
           (shortRevealed && !holdingFail ? "" : " disabled") +
           ">" +
-          (IS_FAV ? "还不会" : "还不会（整本重来）") +
+          (IS_PERM ? "还不会（+1错次）" : "还不会（整本重来）") +
           "</button>" +
-          (IS_FAV
+          (IS_PERM
             ? '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
               '<button type="button" class="ghost" id="btn-next">下一题</button>' +
-              '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
+              '<button type="button" class="primary" id="btn-sort-miss">排序</button>'
             : '<button type="button" class="ghost" id="btn-reshuffle"' +
               lock +
               ">打乱重来</button>") +
@@ -780,10 +853,12 @@
         });
         $("btn-pass").addEventListener("click", () => {
           if (holdingFail) return;
-          if (IS_FAV) {
-            toast("会了 · 收藏保留");
+          if (IS_PERM) {
+            toast("会了 · 永久库保留（错" + missOfShort(q.id) + "次）");
             shortRevealed = false;
-            reshuffleShortAfter(q.id);
+            const n = list.length;
+            if (permSorted && n > 0) shortIdx = (shortIdx + 1) % n;
+            else reshuffleShortAfter(q.id);
             render();
             return;
           }
@@ -806,9 +881,13 @@
         });
         $("btn-fail").addEventListener("click", () => {
           if (holdingFail) return;
-          if (IS_FAV) {
-            toast("再背一遍");
+          if (IS_PERM) {
+            bumpPermShort(q.id);
+            state.wrongShort[q.id] = { streak: 0 };
+            save();
+            toast("还不会 · 累计 " + missOfShort(q.id) + " 次");
             shortRevealed = false;
+            if (permSorted) shortOrder = sortIdsByMiss(sourceShortIds(), missOfShort);
             render();
             return;
           }
@@ -825,20 +904,14 @@
             render();
           }, WRONG_FAIL_PAUSE_MS);
         });
-        if (IS_FAV && $("btn-unfav")) {
-          $("btn-unfav").addEventListener("click", () => {
-            removeFavShort(q.id);
-            save();
-            toast("已移出收藏录");
-            shortRevealed = false;
-            render();
-          });
+        if (IS_PERM && $("btn-prev")) {
+          $("btn-prev").addEventListener("click", () => jumpShortAwayFrom(-1));
+          $("btn-next").addEventListener("click", () => jumpShortAwayFrom(1));
         }
-        if (IS_FAV && $("btn-prev")) {
-          $("btn-prev").addEventListener("click", () => jumpShortAwayFrom(q.id));
-          $("btn-next").addEventListener("click", () => jumpShortAwayFrom(q.id));
+        if (IS_PERM && $("btn-sort-miss")) {
+          $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
-        if (!IS_FAV && $("btn-reshuffle")) {
+        if (!IS_PERM && $("btn-reshuffle")) {
           $("btn-reshuffle").addEventListener("click", () => {
             if (holdingFail) return;
             clearAdvanceTimer();
@@ -892,6 +965,7 @@
       }
 
       applyTheme(getTheme());
+      save(); /* 把迁移后的永久库写回 */
       render();
     })();
   </script>

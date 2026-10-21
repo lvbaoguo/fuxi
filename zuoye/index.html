@@ -690,7 +690,7 @@
       <div class="menu-label">打开哪本</div>
       <div class="menu-actions">
         <a class="primary" id="link-wrong-book" href="wrong.html">错题本</a>
-        <a id="link-fav-book" href="wrong.html?mode=fav">收藏录</a>
+        <a id="link-perm-book" href="wrong.html?mode=perm">永久库</a>
       </div>
     </div>
     <div class="import-panel" id="import-panel" hidden>
@@ -853,8 +853,8 @@
           mcDay: {},
           wrongMc: {},
           wrongShort: {},
-          favMc: {},
-          favShort: {},
+          permMc: {}, /* 永久库：答错同步进来，答对不删；miss=累计错次 */
+          permShort: {},
           pinnedPlans: {},
           mcShuffle: false, /* 选择题乱序 */
           mcShuffleDate: null,
@@ -878,19 +878,41 @@
         return out;
       }
 
-      function normalizeFavMap(map) {
+      function normalizePermMap(map) {
         const out = {};
         Object.keys(map || {}).forEach((k) => {
           const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
           const v = map[k];
           if (!v) return;
           if (typeof v === "object") {
-            out[id] = { at: v.at || new Date().toISOString() };
+            const miss = Math.max(1, Math.floor(Number(v.miss) || Number(v.count) || 1));
+            out[id] = { miss: miss, at: v.at || new Date().toISOString() };
           } else {
-            out[id] = { at: new Date().toISOString() };
+            out[id] = { miss: 1, at: new Date().toISOString() };
           }
         });
         return out;
+      }
+      /** 旧收藏录 / 当前错题本 → 并入永久库（不丢历史） */
+      function mergeIntoPerm(dst, srcIds, defaultMiss) {
+        const miss0 = Math.max(1, Math.floor(Number(defaultMiss) || 1));
+        Object.keys(srcIds || {}).forEach((id) => {
+          const src = srcIds[id];
+          const srcMiss =
+            src && typeof src === "object"
+              ? Math.max(1, Math.floor(Number(src.miss) || Number(src.count) || miss0))
+              : miss0;
+          if (!dst[id]) {
+            dst[id] = {
+              miss: srcMiss,
+              at: (src && src.at) || new Date().toISOString(),
+            };
+          } else {
+            dst[id].miss = Math.max(dst[id].miss || 1, srcMiss);
+            if (src && src.at && !dst[id].at) dst[id].at = src.at;
+          }
+        });
+        return dst;
       }
 
       function normalizePointsCustom(map) {
@@ -933,8 +955,13 @@
         st.shortPointsCustom = normalizePointsCustom(raw.shortPointsCustom);
         st.wrongMc = normalizeWrongMap(raw.wrongMc);
         st.wrongShort = normalizeWrongMap(raw.wrongShort);
-        st.favMc = normalizeFavMap(raw.favMc);
-        st.favShort = normalizeFavMap(raw.favShort);
+        st.permMc = normalizePermMap(raw.permMc);
+        st.permShort = normalizePermMap(raw.permShort);
+        /* 兼容旧收藏录字段 fav* */
+        mergeIntoPerm(st.permMc, raw.favMc, 1);
+        mergeIntoPerm(st.permShort, raw.favShort, 1);
+        mergeIntoPerm(st.permMc, st.wrongMc, 1);
+        mergeIntoPerm(st.permShort, st.wrongShort, 1);
         st.pinnedPlans = raw.pinnedPlans && typeof raw.pinnedPlans === "object" ? raw.pinnedPlans : {};
         st.mcDay = raw.mcDay && typeof raw.mcDay === "object" ? raw.mcDay : {};
         st.mcShuffle = !!raw.mcShuffle;
@@ -1219,8 +1246,27 @@
         toast("今日选择题已重来：错不超过 " + MC_FAIL_ALLOW + " 题算合格（错题本还在）");
       }
 
+      function bumpPermMc(id) {
+        if (!id) return;
+        if (!state.permMc) state.permMc = {};
+        const cur = state.permMc[id];
+        state.permMc[id] = {
+          miss: (cur && cur.miss ? cur.miss : 0) + 1,
+          at: (cur && cur.at) || new Date().toISOString(),
+        };
+      }
+      function bumpPermShort(id) {
+        if (!id) return;
+        if (!state.permShort) state.permShort = {};
+        const cur = state.permShort[id];
+        state.permShort[id] = {
+          miss: (cur && cur.miss ? cur.miss : 0) + 1,
+          at: (cur && cur.at) || new Date().toISOString(),
+        };
+      }
       function noteMcWrong(id) {
         state.wrongMc[id] = { streak: 0 };
+        bumpPermMc(id);
       }
       /** 每日答对不单题移出错题本；须在错题本整本一轮全对才清 */
       function noteMcRight(id) {
@@ -1228,6 +1274,7 @@
       }
       function noteShortWrong(id) {
         state.wrongShort[id] = { streak: 0 };
+        bumpPermShort(id);
       }
       function noteShortRight(id) {
         return { removed: false, streak: 0, inWrong: !!state.wrongShort[id] };
@@ -1238,36 +1285,11 @@
       function wrongShortCount() {
         return Object.keys(state.wrongShort || {}).length;
       }
-      function favMcCount() {
-        return Object.keys(state.favMc || {}).length;
+      function permMcCount() {
+        return Object.keys(state.permMc || {}).length;
       }
-      function favShortCount() {
-        return Object.keys(state.favShort || {}).length;
-      }
-      function isFavMc(id) {
-        return !!(state.favMc && state.favMc[id]);
-      }
-      function isFavShort(id) {
-        return !!(state.favShort && state.favShort[id]);
-      }
-      /** 收入收藏录，并同步进错题本（便于反复练） */
-      function collectMc(id) {
-        if (!id) return { ok: false, already: false };
-        if (!state.favMc) state.favMc = {};
-        const already = !!state.favMc[id];
-        state.favMc[id] = { at: new Date().toISOString() };
-        noteMcWrong(id);
-        save();
-        return { ok: true, already: already };
-      }
-      function collectShort(id) {
-        if (!id) return { ok: false, already: false };
-        if (!state.favShort) state.favShort = {};
-        const already = !!state.favShort[id];
-        state.favShort[id] = { at: new Date().toISOString() };
-        noteShortWrong(id);
-        save();
-        return { ok: true, already: already };
+      function permShortCount() {
+        return Object.keys(state.permShort || {}).length;
       }
       function wrongMcList() {
         return Object.keys(state.wrongMc)
@@ -1281,6 +1303,9 @@
       }
 
       let state = load();
+      try {
+        save(); /* 迁移永久库 / 清掉旧 fav 字段 */
+      } catch (_) {}
       let date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
       let entryMode = "daily"; /* daily=每日选择 | short=简答背诵 */
       try {
@@ -1990,13 +2015,6 @@
           '">' +
           (isMcShuffle() ? "乱" : "序") +
           "</button>" +
-          '<button type="button" class="ghost' +
-          (isFavMc(q.id) ? " on" : "") +
-          '" id="btn-fav-mc" title="' +
-          (isFavMc(q.id) ? "已收藏" : "收藏") +
-          '">' +
-          (isFavMc(q.id) ? "已" : "收") +
-          "</button>" +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
@@ -2032,11 +2050,6 @@
         $("work").appendChild(box);
 
         $("btn-mc-shuffle").addEventListener("click", () => setMcShuffle(!isMcShuffle()));
-        $("btn-fav-mc").addEventListener("click", () => {
-          const r = collectMc(q.id);
-          toast(r.already ? "已在收藏录（并同步错题本）" : "已收入收藏录，并同步进错题本");
-          render();
-        });
         $("btn-prev-mc").addEventListener("click", () => {
           if (holdingCorrect) return;
           clearAdvanceTimer();
@@ -2408,13 +2421,6 @@
           '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
           '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
           '<button type="button" class="ghost' +
-          (isFavShort(q.id) ? " on" : "") +
-          '" id="btn-fav-s" title="' +
-          (isFavShort(q.id) ? "已收藏" : "收藏") +
-          '">' +
-          (isFavShort(q.id) ? "已" : "收") +
-          "</button>" +
-          '<button type="button" class="ghost' +
           (hasCustomPoints(q.id) ? " on" : "") +
           '" id="btn-edit-points" title="改答案">改</button>' +
           "</div>";
@@ -2536,12 +2542,6 @@
           }
           render();
         });
-        $("btn-fav-s").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          const r = collectShort(q.id);
-          toast(r.already ? "已在收藏录（并同步错题本）" : "已收入收藏录，并同步进错题本");
-          render();
-        });
         $("btn-prev-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           shortIdx = Math.max(0, shortIdx - 1);
@@ -2655,12 +2655,12 @@
           $("tab-short-xi").textContent = "习思想 " + xp.done + "/" + xp.total;
         }
         const wrongBtn = $("btn-wrong-page");
-        const fc = favMcCount() + favShortCount();
+        const pc = permMcCount() + permShortCount();
         if (wrongBtn) wrongBtn.textContent = wc ? "错题 " + wc : "错题";
         const linkWrong = $("link-wrong-book");
-        const linkFav = $("link-fav-book");
+        const linkPerm = $("link-perm-book");
         if (linkWrong) linkWrong.textContent = wc ? "错题本 " + wc : "错题本";
-        if (linkFav) linkFav.textContent = fc ? "收藏录 " + fc : "收藏录";
+        if (linkPerm) linkPerm.textContent = pc ? "永久库 " + pc : "永久库";
         renderNav();
         renderLock();
         if (tab === "mc") renderMc();
@@ -2706,8 +2706,8 @@
           mcDay: state.mcDay,
           wrongMc: state.wrongMc,
           wrongShort: state.wrongShort,
-          favMc: state.favMc || {},
-          favShort: state.favShort || {},
+          permMc: state.permMc || {},
+          permShort: state.permShort || {},
           pinnedPlans: state.pinnedPlans,
           mcShuffle: isMcShuffle(),
           mcShuffleDate: state.mcShuffleDate || null,
@@ -2937,13 +2937,27 @@
           if (!cur) state.wrongShort[id] = inc;
           else state.wrongShort[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
         });
-        Object.keys(incoming.favMc || {}).forEach((id) => {
-          if (!state.favMc) state.favMc = {};
-          if (!state.favMc[id]) state.favMc[id] = incoming.favMc[id];
+        Object.keys(incoming.permMc || {}).forEach((id) => {
+          if (!state.permMc) state.permMc = {};
+          const cur = state.permMc[id];
+          const inc = incoming.permMc[id];
+          if (!cur) state.permMc[id] = inc;
+          else
+            state.permMc[id] = {
+              miss: Math.max(cur.miss || 1, (inc && inc.miss) || 1),
+              at: cur.at || (inc && inc.at) || new Date().toISOString(),
+            };
         });
-        Object.keys(incoming.favShort || {}).forEach((id) => {
-          if (!state.favShort) state.favShort = {};
-          if (!state.favShort[id]) state.favShort[id] = incoming.favShort[id];
+        Object.keys(incoming.permShort || {}).forEach((id) => {
+          if (!state.permShort) state.permShort = {};
+          const cur = state.permShort[id];
+          const inc = incoming.permShort[id];
+          if (!cur) state.permShort[id] = inc;
+          else
+            state.permShort[id] = {
+              miss: Math.max(cur.miss || 1, (inc && inc.miss) || 1),
+              at: cur.at || (inc && inc.at) || new Date().toISOString(),
+            };
         });
         Object.keys(incoming.pinnedPlans || {}).forEach((d) => {
           if (!state.pinnedPlans[d]) state.pinnedPlans[d] = incoming.pinnedPlans[d];
@@ -3170,7 +3184,7 @@
       $("btn-cloud-replace").addEventListener("click", async () => {
         if (
           !confirm(
-            "用云端 progress-latest.json 整份覆盖本机进度（含错题/收藏）？本机多出来的记录会丢。确定？"
+            "用云端 progress-latest.json 整份覆盖本机进度（含错题/永久库）？本机多出来的记录会丢。确定？"
           )
         ) {
           return;
