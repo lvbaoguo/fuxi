@@ -4,10 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>错题本 · 整本全对才移出</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("pansan2-zuoye-theme");
+        document.documentElement.setAttribute("data-theme", t === "eye" ? "eye" : "warm");
+      } catch (_) {
+        document.documentElement.setAttribute("data-theme", "warm");
+      }
+    })();
+  </script>
   <style>
-    :root {
-      --bg: #efe8dc; --card: #fffdf8; --ink: #1c1917; --muted: #78716c;
-      --line: #e4ddd2; --blue: #1d4ed8; --green: #166534; --red: #991b1b;
+    :root, [data-theme="warm"] {
+      --bg: #efe8dc; --glow-a: #fecaca66; --card: #fffdf8; --surface: #fff;
+      --ink: #1c1917; --muted: #78716c; --line: #e4ddd2;
+      --blue: #1d4ed8; --green: #166534; --red: #991b1b; --on: #78716c;
+      --opt-on-bg: #eff6ff; --opt-ok-bg: #ecfdf5; --opt-bad-bg: #fef2f2;
+      --why-bg: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+      --why-line: #86efac; --why-ink: #166534; --why-body: #14532d; --why-dash: #bbf7d0;
+      --toast-bg: #1c1917;
+    }
+    [data-theme="eye"] {
+      --bg: #e8eaee; --glow-a: transparent; --card: #f3f4f6; --surface: #fafbfc;
+      --ink: #374151; --muted: #6b7280; --line: #d1d5db;
+      --blue: #3b6ea5; --green: #3f6f5a; --red: #9a4a4a; --on: #64748b;
+      --opt-on-bg: #e8eef5; --opt-ok-bg: #e6efe9; --opt-bad-bg: #f3e8e8;
+      --why-bg: #eef1f3; --why-line: #c5ced6; --why-ink: #4b5563; --why-body: #4b5563; --why-dash: #d1d5db;
+      --toast-bg: #374151;
     }
     * { box-sizing: border-box; }
     html, body { touch-action: manipulation; }
@@ -15,7 +38,7 @@
       margin: 0;
       font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
       color: var(--ink);
-      background: radial-gradient(900px 420px at 0% 0%, #fecaca66, transparent), var(--bg);
+      background: radial-gradient(900px 420px at 0% 0%, var(--glow-a), transparent), var(--bg);
       line-height: 1.5;
     }
     .wrap { max-width: 780px; margin: 0 auto; padding: 14px 12px 72px; }
@@ -29,56 +52,59 @@
     .grow { flex: 1 1 auto; }
     button {
       font: inherit; font-weight: 700; border-radius: 8px; border: 1px solid var(--line);
-      padding: 8px 10px; background: #fff; color: var(--ink); cursor: pointer;
+      padding: 8px 10px; background: var(--surface); color: var(--ink); cursor: pointer;
     }
     button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
     button.good { background: var(--green); color: #fff; border-color: var(--green); }
-    button.ghost { background: #fff; }
+    button.ghost { background: var(--surface); }
+    button.on { background: var(--on); color: #fff; border-color: var(--on); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
     .tabs button { flex: 1; }
-    .tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-    .q-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; }
+    .tabs button.on { background: var(--on); color: #fff; border-color: var(--on); }
+    .q-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); }
     .q-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
     .q-text { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
     .opt {
       display: block; width: 100%; text-align: left; margin: 6px 0; padding: 10px 12px;
-      border: 1px solid var(--line); border-radius: 10px; background: #fff;
+      border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
     }
-    .opt.on { border-color: var(--blue); background: #eff6ff; }
-    .opt.right { border-color: var(--green); background: #ecfdf5; }
+    .opt.on { border-color: var(--blue); background: var(--opt-on-bg); }
+    .opt.right { border-color: var(--green); background: var(--opt-ok-bg); }
     .opt.right.flash { animation: opt-right-flash 0.35s ease-out; }
     @keyframes opt-right-flash {
       0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
       40% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.18); }
       100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
     }
-    .opt.wrong { border-color: #fca5a5; background: #fef2f2; }
+    .opt.wrong { border-color: #fca5a5; background: var(--opt-bad-bg); }
     .explain { margin-top: 10px; padding: 10px; border-radius: 8px; background: #f5f5f4; font-size: 0.9rem; }
+    [data-theme="eye"] .explain { background: #eef1f4; }
     .points { margin: 8px 0 0; padding-left: 1.2em; }
     .points[hidden] { display: none !important; }
     .short-pane {
       border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
-      background: #fff; margin-top: 10px;
+      background: var(--surface); margin-top: 10px;
     }
-    .short-pane.official h4 { margin: 0 0 8px; font-size: 0.88rem; font-weight: 700; color: #9a3412; }
+    .short-pane.official h4 { margin: 0 0 8px; font-size: 0.88rem; font-weight: 700; color: var(--muted); }
     .short-pane ol { margin: 0; padding-left: 1.15em; }
     .short-pane li { margin: 6px 0; font-size: 0.95rem; line-height: 1.45; }
-    mark.key { background: #fde68a; padding: 0 2px; border-radius: 3px; font-weight: 700; }
+    mark.key { background: #e5e7eb; padding: 0 2px; border-radius: 3px; font-weight: 700; }
+    [data-theme="warm"] mark.key { background: #fde68a; }
     .short-why-banner {
-      margin: 0; border: 1px solid #86efac; border-radius: 10px;
-      background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%); overflow: hidden;
+      margin: 0; border: 1px solid var(--why-line); border-radius: 10px;
+      background: var(--why-bg); overflow: hidden;
     }
     .short-why-banner > summary {
       list-style: none; cursor: pointer; padding: 12px 14px; font-size: 0.92rem;
-      font-weight: 700; color: #166534; user-select: none;
+      font-weight: 700; color: var(--why-ink); user-select: none;
     }
     .short-why-banner > summary::-webkit-details-marker { display: none; }
-    .short-why-banner > summary::before { content: "▸ "; color: #15803d; }
+    .short-why-banner > summary::before { content: "▸ "; color: var(--why-ink); }
     .short-why-banner[open] > summary::before { content: "▾ "; }
     .short-why-body {
-      padding: 0 14px 14px; border-top: 1px dashed #bbf7d0;
-      font-size: 0.9rem; line-height: 1.55; color: #14532d; white-space: pre-wrap;
+      padding: 0 14px 14px; border-top: 1px dashed var(--why-dash);
+      font-size: 0.9rem; line-height: 1.55; color: var(--why-body); white-space: pre-wrap;
     }
     .hint { color: var(--muted); font-size: 0.85rem; }
     .nav-btns {
@@ -99,7 +125,7 @@
     }
     .toast {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-      background: #1c1917; color: #fff; padding: 10px 14px; border-radius: 8px;
+      background: var(--toast-bg); color: #fff; padding: 10px 14px; border-radius: 8px;
       max-width: min(520px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
     }
     .toast[hidden] { display: none !important; }
@@ -111,6 +137,8 @@
     <div class="row" style="margin-bottom:10px;">
       <a class="ghost" href="index.html" style="text-decoration:none;display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-weight:700;">← 回每日作业</a>
       <span class="grow"></span>
+      <button type="button" class="ghost" id="btn-theme-warm" title="暖色纸感">暖色</button>
+      <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
     <p class="sub" id="page-sub">选择答错会进来。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会提示后打乱重来。与每日作业共用本机进度。</p>
@@ -134,10 +162,29 @@
       }
       const STORE = "pansan2-zuoye-forced-progress";
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
+      const THEME_STORE = "pansan2-zuoye-theme";
       const WRONG_FAIL_PAUSE_MS = 3000; /* 错题本：答错后停顿再打乱重来 */
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
       const IS_FAV = /(?:\?|&)mode=fav(?:&|$)/.test(location.search || "");
+
+      function getTheme() {
+        try {
+          return localStorage.getItem(THEME_STORE) === "eye" ? "eye" : "warm";
+        } catch (_) {
+          return "warm";
+        }
+      }
+      function applyTheme(theme, withToast) {
+        const t = theme === "eye" ? "eye" : "warm";
+        document.documentElement.setAttribute("data-theme", t);
+        try {
+          localStorage.setItem(THEME_STORE, t);
+        } catch (_) {}
+        if ($("btn-theme-warm")) $("btn-theme-warm").classList.toggle("on", t === "warm");
+        if ($("btn-theme-eye")) $("btn-theme-eye").classList.toggle("on", t === "eye");
+        if (withToast) toast(t === "eye" ? "已切到护眼" : "已切到暖色");
+      }
 
       function normalizeWrongMap(map) {
         const out = {};
@@ -829,6 +876,7 @@
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
           state = load();
+          applyTheme(getTheme());
           holdingFail = false;
           holdingCorrect = false;
           clearAdvanceTimer();
@@ -836,6 +884,14 @@
         }
       });
 
+      if ($("btn-theme-warm")) {
+        $("btn-theme-warm").addEventListener("click", () => applyTheme("warm", true));
+      }
+      if ($("btn-theme-eye")) {
+        $("btn-theme-eye").addEventListener("click", () => applyTheme("eye", true));
+      }
+
+      applyTheme(getTheme());
       render();
     })();
   </script>
