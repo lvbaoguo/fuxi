@@ -619,6 +619,18 @@
       border-color: #b8923a;
     }
     .day-chip.perfect.on .w { color: #f5ecd0; }
+    /* 护眼：完美日签去掉金黄渐变，改成低饱和灰绿 */
+    [data-theme="eye"] .day-chip.perfect {
+      background: var(--chip-done-bg);
+      border-color: var(--chip-done-line);
+    }
+    [data-theme="eye"] .day-chip.perfect .w { color: var(--muted); }
+    [data-theme="eye"] .day-chip.perfect.on {
+      background: var(--on);
+      color: #fff;
+      border-color: var(--on);
+    }
+    [data-theme="eye"] .day-chip.perfect.on .w { color: #e5e7eb; }
     .nav-btns {
       display: flex;
       gap: 6px;
