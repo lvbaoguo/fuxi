@@ -648,7 +648,6 @@
         return out;
       }
 
-      const WRONG_CLEAR_STREAK = 3; /* 错题本：累计连对 3 次才移出 */
       const MC_FAIL_ALLOW = 1; /* 选择题容错：错 1 题仍合格；错 2 题起不合格 */
       const TEACHER_STORE = "pansan2-zuoye-teacher";
       /* 上传云端：GitHub Contents API → zuoye/progress-latest.json */
@@ -1038,28 +1037,15 @@
       function noteMcWrong(id) {
         state.wrongMc[id] = { streak: 0 };
       }
+      /** 每日答对不单题移出错题本；须在错题本整本一轮全对才清 */
       function noteMcRight(id) {
-        if (!state.wrongMc[id]) return { removed: false, streak: 0 };
-        const streak = (state.wrongMc[id].streak || 0) + 1;
-        if (streak >= WRONG_CLEAR_STREAK) {
-          delete state.wrongMc[id];
-          return { removed: true, streak };
-        }
-        state.wrongMc[id] = { streak };
-        return { removed: false, streak };
+        return { removed: false, streak: 0, inWrong: !!state.wrongMc[id] };
       }
       function noteShortWrong(id) {
         state.wrongShort[id] = { streak: 0 };
       }
       function noteShortRight(id) {
-        if (!state.wrongShort[id]) return { removed: false, streak: 0 };
-        const streak = (state.wrongShort[id].streak || 0) + 1;
-        if (streak >= WRONG_CLEAR_STREAK) {
-          delete state.wrongShort[id];
-          return { removed: true, streak };
-        }
-        state.wrongShort[id] = { streak };
-        return { removed: false, streak };
+        return { removed: false, streak: 0, inWrong: !!state.wrongShort[id] };
       }
       function wrongMcCount() {
         return Object.keys(state.wrongMc || {}).length;
@@ -1732,16 +1718,10 @@
         picked = key;
         if (key === q.correct) {
           setMcResult(date, q.id, "ok");
-          const wr = noteMcRight(q.id);
+          noteMcRight(q.id);
           save();
           onAnswerFeedback(true);
-          toast(
-            wr.removed
-              ? "答对 · 错题本已移出"
-              : wr.streak
-                ? "答对 · 错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
-                : "答对"
-          );
+          toast("答对");
           /* 点答：先标绿闪一下 + 烟花，再跳题 */
           holdingCorrect = true;
           judged = true;
@@ -2153,16 +2133,9 @@
 
       function passShortQuestion(q, msg) {
         state.shortOk[q.id] = 1;
-        const wr = noteShortRight(q.id);
+        noteShortRight(q.id);
         save();
-        toast(
-          msg ||
-            (wr.removed
-              ? "简答过关；错题本连对" + WRONG_CLEAR_STREAK + "次，已移出"
-              : wr.streak
-                ? "简答过关；错题本连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK
-                : "简答过关（算背过）")
-        );
+        toast(msg || "简答过关（算背过）");
         /* 不跳下一题：留下来对照自己写的内容 */
         shortRevealed = true;
         render();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>错题本 · 连对3次移出</title>
+  <title>错题本 · 整本全对才移出</title>
   <style>
     :root {
       --bg: #efe8dc; --card: #fffdf8; --ink: #1c1917; --muted: #78716c;
@@ -113,7 +113,7 @@
       <span class="grow"></span>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">选择答错会进来。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会提示后打乱重来。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -134,7 +134,7 @@
       }
       const STORE = "pansan2-zuoye-forced-progress";
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
-      const WRONG_CLEAR_STREAK = 3;
+      const WRONG_FAIL_PAUSE_MS = 3000; /* 错题本：答错后停顿再打乱重来 */
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
       const IS_FAV = /(?:\?|&)mode=fav(?:&|$)/.test(location.search || "");
@@ -251,28 +251,14 @@
       function noteMcWrong(id) {
         state.wrongMc[id] = { streak: 0 };
       }
-      function noteMcRight(id) {
-        if (!state.wrongMc[id]) return { removed: false, streak: 0 };
-        const streak = (state.wrongMc[id].streak || 0) + 1;
-        if (streak >= WRONG_CLEAR_STREAK) {
-          delete state.wrongMc[id];
-          return { removed: true, streak };
-        }
-        state.wrongMc[id] = { streak };
-        return { removed: false, streak };
-      }
       function noteShortWrong(id) {
         state.wrongShort[id] = { streak: 0 };
       }
-      function noteShortRight(id) {
-        if (!state.wrongShort[id]) return { removed: false, streak: 0 };
-        const streak = (state.wrongShort[id].streak || 0) + 1;
-        if (streak >= WRONG_CLEAR_STREAK) {
-          delete state.wrongShort[id];
-          return { removed: true, streak };
-        }
-        state.wrongShort[id] = { streak };
-        return { removed: false, streak };
+      function clearAllWrongMc() {
+        state.wrongMc = {};
+      }
+      function clearAllWrongShort() {
+        state.wrongShort = {};
       }
       function removeFavMc(id) {
         if (state.favMc) delete state.favMc[id];
@@ -291,16 +277,17 @@
       let judged = false;
       let shortRevealed = false;
       let holdingCorrect = false;
+      let holdingFail = false; /* 错题本答错后的 3 秒锁 */
       let advanceTimer = null;
 
       if (IS_FAV) {
         document.title = "收藏录 · 反复练习";
         $("page-title").textContent = "收藏录";
         $("page-sub").innerHTML =
-          "每日作业点「收」进来。点选项即判（点答）。可反复练；答对会同步推进错题本连对（满 3 次移出错题本，收藏仍保留，除非点移出）。";
+          "每日作业点「收」进来。点选项即判（点答）。可反复练；收藏仍保留，除非点「移」。错题本须在错题页整本一轮全对才清。";
       } else {
         $("page-sub").innerHTML =
-          "选择答错会进来。默认<strong>点答</strong>（点选项即判）。连对 <b>3</b> 次才移出（中途再错清零）。答对后整本打乱。与每日作业共用本机进度。";
+          "选择答错会进来。默认<strong>点答</strong>。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会停 3 秒提示「你错了」，再打乱重来。";
       }
 
       function shuffleIds(ids) {
@@ -344,7 +331,7 @@
         }
       }
 
-      /** 答对后整本重洗，并尽量避开刚答过的那道，防止连着刷同一题 */
+      /** 收藏录：答对后重洗，尽量避开刚答过的题 */
       function reshuffleMcAfter(avoidId) {
         const ids = sourceMcIds();
         mcOrder = shuffleIds(ids);
@@ -384,6 +371,22 @@
         shortIdx = idx;
       }
 
+      /** 错题本：整本打乱并从第 1 题重来 */
+      function restartMcRun() {
+        mcOrder = shuffleIds(sourceMcIds());
+        mcIdx = 0;
+        picked = null;
+        judged = false;
+        holdingCorrect = false;
+        holdingFail = false;
+      }
+      function restartShortRun() {
+        shortOrder = shuffleIds(sourceShortIds());
+        shortIdx = 0;
+        shortRevealed = false;
+        holdingFail = false;
+      }
+
       function mcList() {
         syncMcOrder();
         return mcOrder.map((id) => BANK.mcById[id]).filter(Boolean);
@@ -400,51 +403,67 @@
         }
       }
 
-      function toastMcRight(wr) {
-        if (IS_FAV) {
-          toast(
-            wr.removed
-              ? "答对 · 错题本已移出（收藏仍在）· 题序已打乱"
-              : wr.streak
-                ? "答对 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
-                : "答对 · 收藏保留 · 题序已打乱"
-          );
-        } else {
-          toast(
-            wr.removed
-              ? "连对3次，已移出 · 剩余题已打乱"
-              : "答对，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
-          );
-        }
-      }
-
       /** 点答：点选项即判 */
       function judgeMcTap(q, key) {
-        if (!q || !key || holdingCorrect) return;
+        if (!q || !key || holdingCorrect || holdingFail) return;
         clearAdvanceTimer();
         picked = key;
         judged = true;
         if (key === q.correct) {
-          const answeredId = q.id;
-          const wr = noteMcRight(answeredId);
-          save();
-          toastMcRight(wr);
           holdingCorrect = true;
           render();
           const rightEl = document.querySelector(".opt.right");
           if (rightEl) rightEl.classList.add("flash");
-          advanceTimer = setTimeout(() => {
-            holdingCorrect = false;
-            picked = null;
-            judged = false;
-            reshuffleMcAfter(answeredId);
-            render();
-          }, 380);
+          if (IS_FAV) {
+            toast("答对 · 收藏保留 · 题序已打乱");
+            advanceTimer = setTimeout(() => {
+              holdingCorrect = false;
+              picked = null;
+              judged = false;
+              reshuffleMcAfter(q.id);
+              render();
+            }, 380);
+            return;
+          }
+          /* 错题本：按序推进；本轮全对才整本移出 */
+          const total = mcList().length;
+          const doneN = mcIdx + 1;
+          if (doneN >= total) {
+            clearAllWrongMc();
+            save();
+            toast("本轮全对 · 选择错题已全部移出");
+            advanceTimer = setTimeout(() => {
+              holdingCorrect = false;
+              picked = null;
+              judged = false;
+              mcOrder = null;
+              mcIdx = 0;
+              render();
+            }, 500);
+          } else {
+            toast("对了 · 本轮 " + doneN + "/" + total);
+            advanceTimer = setTimeout(() => {
+              holdingCorrect = false;
+              picked = null;
+              judged = false;
+              mcIdx = doneN;
+              render();
+            }, 380);
+          }
+        } else if (IS_FAV) {
+          toast("答错了，再练");
+          render();
         } else {
           noteMcWrong(q.id);
           save();
-          toast("又错了，错题连对清零");
+          holdingFail = true;
+          toast("你错了");
           render();
+          advanceTimer = setTimeout(() => {
+            restartMcRun();
+            toast("已打乱，从头再来（共 " + sourceMcIds().length + " 题）");
+            render();
+          }, WRONG_FAIL_PAUSE_MS);
         }
       }
 
@@ -461,7 +480,6 @@
         if (mcIdx >= list.length) mcIdx = list.length - 1;
         if (mcIdx < 0) mcIdx = 0;
         const q = list[mcIdx];
-        const streak = (state.wrongMc[q.id] && state.wrongMc[q.id].streak) || 0;
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const box = document.createElement("div");
         box.className = "q-card";
@@ -474,21 +492,17 @@
           (mcIdx + 1) +
           "/" +
           list.length +
-          (IS_FAV ? " · 收藏反复练" : "") +
-          " · 点答 · 错题连对 " +
-          streak +
-          "/" +
-          WRONG_CLEAR_STREAK +
+          (IS_FAV ? " · 收藏反复练 · 点答" : " · 点答 · 本轮须全对才移出") +
           " · " +
           name +
           "</div>" +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
-          '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
-          '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
           (IS_FAV
-            ? '<button type="button" class="ghost" id="btn-unfav" title="移出收藏">移</button>'
-            : "") +
+            ? '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
+              '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
+              '<button type="button" class="ghost" id="btn-unfav" title="移出收藏">移</button>'
+            : '<button type="button" class="ghost" id="btn-reshuffle" title="打乱重来">打乱重来</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
@@ -503,8 +517,9 @@
             if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
           }
           if (holdingCorrect && o.key === q.correct) b.classList.add("flash");
+          b.disabled = holdingFail;
           b.addEventListener("click", () => {
-            if (holdingCorrect) return;
+            if (holdingCorrect || holdingFail) return;
             judgeMcTap(q, o.key);
           });
           opts.appendChild(b);
@@ -528,12 +543,19 @@
             render();
           });
         }
-        $("btn-prev").addEventListener("click", () => {
-          jumpMcAwayFrom(q.id);
-        });
-        $("btn-next").addEventListener("click", () => {
-          jumpMcAwayFrom(q.id);
-        });
+        if (IS_FAV && $("btn-prev")) {
+          $("btn-prev").addEventListener("click", () => jumpMcAwayFrom(q.id));
+          $("btn-next").addEventListener("click", () => jumpMcAwayFrom(q.id));
+        }
+        if (!IS_FAV && $("btn-reshuffle")) {
+          $("btn-reshuffle").addEventListener("click", () => {
+            if (holdingFail) return;
+            clearAdvanceTimer();
+            restartMcRun();
+            toast("已打乱，从头再来（共 " + sourceMcIds().length + " 题）");
+            render();
+          });
+        }
       }
 
       function jumpMcAwayFrom(currentId) {
@@ -636,10 +658,10 @@
         if (shortIdx >= list.length) shortIdx = list.length - 1;
         if (shortIdx < 0) shortIdx = 0;
         const q = list[shortIdx];
-        const streak = (state.wrongShort[q.id] && state.wrongShort[q.id].streak) || 0;
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const box = document.createElement("div");
         box.className = "q-card";
+        const lock = holdingFail ? " disabled" : "";
         box.innerHTML =
           '<div class="q-meta">' +
           courseName[q.course] +
@@ -649,11 +671,7 @@
           (shortIdx + 1) +
           "/" +
           list.length +
-          (IS_FAV ? " · 收藏反复练" : "") +
-          " · 错题连对 " +
-          streak +
-          "/" +
-          WRONG_CLEAR_STREAK +
+          (IS_FAV ? " · 收藏反复练" : " · 本轮须全对才移出") +
           " · " +
           name +
           "</div>" +
@@ -665,18 +683,26 @@
           '<div class="short-why-body" id="short-why-body"></div></details>' +
           '<div class="short-pane official"><h4>采分点</h4><ol id="points-official"></ol></div></div>' +
           '<div class="nav-btns">' +
-          '<button type="button" class="primary" id="btn-reveal">默完了，看采分点</button>' +
+          '<button type="button" class="primary" id="btn-reveal"' +
+          lock +
+          ">默完了，看采分点</button>" +
           '<button type="button" class="good" id="btn-pass"' +
-          (shortRevealed ? "" : " disabled") +
-          ">会了（计连对）</button>" +
+          (shortRevealed && !holdingFail ? "" : " disabled") +
+          ">" +
+          (IS_FAV ? "会了" : "会了（进下一题）") +
+          "</button>" +
           '<button type="button" class="ghost" id="btn-fail"' +
-          (shortRevealed ? "" : " disabled") +
-          ">还不会（清零）</button>" +
-          '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
-          '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+          (shortRevealed && !holdingFail ? "" : " disabled") +
+          ">" +
+          (IS_FAV ? "还不会" : "还不会（整本重来）") +
+          "</button>" +
           (IS_FAV
-            ? '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
-            : "") +
+            ? '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
+              '<button type="button" class="ghost" id="btn-next">下一题</button>' +
+              '<button type="button" class="ghost" id="btn-unfav">移出收藏</button>'
+            : '<button type="button" class="ghost" id="btn-reshuffle"' +
+              lock +
+              ">打乱重来</button>") +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const wrap = box.querySelector("#short-compare");
@@ -701,38 +727,56 @@
         $("work").innerHTML = "";
         $("work").appendChild(box);
         $("btn-reveal").addEventListener("click", () => {
+          if (holdingFail) return;
           shortRevealed = true;
           render();
         });
         $("btn-pass").addEventListener("click", () => {
-          const answeredId = q.id;
-          const wr = noteShortRight(answeredId);
-          save();
+          if (holdingFail) return;
           if (IS_FAV) {
-            toast(
-              wr.removed
-                ? "会了 · 错题本已移出（收藏仍在）"
-                : wr.streak
-                  ? "会了 · 错题连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 收藏保留"
-                  : "会了 · 收藏保留"
-            );
-          } else {
-            toast(
-              wr.removed
-                ? "连对3次，已移出 · 剩余题已打乱"
-                : "会了，连对 " + wr.streak + "/" + WRONG_CLEAR_STREAK + " · 题序已打乱"
-            );
+            toast("会了 · 收藏保留");
+            shortRevealed = false;
+            reshuffleShortAfter(q.id);
+            render();
+            return;
           }
-          shortRevealed = false;
-          reshuffleShortAfter(answeredId);
-          render();
+          const total = list.length;
+          const doneN = shortIdx + 1;
+          if (doneN >= total) {
+            clearAllWrongShort();
+            save();
+            toast("本轮全对 · 简答错题已全部移出");
+            shortRevealed = false;
+            shortOrder = null;
+            shortIdx = 0;
+            render();
+          } else {
+            toast("会了 · 本轮 " + doneN + "/" + total);
+            shortRevealed = false;
+            shortIdx = doneN;
+            render();
+          }
         });
         $("btn-fail").addEventListener("click", () => {
+          if (holdingFail) return;
+          if (IS_FAV) {
+            toast("再背一遍");
+            shortRevealed = false;
+            render();
+            return;
+          }
           noteShortWrong(q.id);
           save();
-          shortRevealed = false;
-          toast("错题连对清零");
+          holdingFail = true;
+          shortRevealed = true;
+          toast("你错了");
           render();
+          clearAdvanceTimer();
+          advanceTimer = setTimeout(() => {
+            restartShortRun();
+            toast("已打乱，从头再来（共 " + sourceShortIds().length + " 题）");
+            render();
+          }, WRONG_FAIL_PAUSE_MS);
         });
         if (IS_FAV && $("btn-unfav")) {
           $("btn-unfav").addEventListener("click", () => {
@@ -743,12 +787,19 @@
             render();
           });
         }
-        $("btn-prev").addEventListener("click", () => {
-          jumpShortAwayFrom(q.id);
-        });
-        $("btn-next").addEventListener("click", () => {
-          jumpShortAwayFrom(q.id);
-        });
+        if (IS_FAV && $("btn-prev")) {
+          $("btn-prev").addEventListener("click", () => jumpShortAwayFrom(q.id));
+          $("btn-next").addEventListener("click", () => jumpShortAwayFrom(q.id));
+        }
+        if (!IS_FAV && $("btn-reshuffle")) {
+          $("btn-reshuffle").addEventListener("click", () => {
+            if (holdingFail) return;
+            clearAdvanceTimer();
+            restartShortRun();
+            toast("已打乱，从头再来（共 " + sourceShortIds().length + " 题）");
+            render();
+          });
+        }
       }
 
       function render() {
@@ -759,12 +810,17 @@
       }
 
       $("tab-mc").addEventListener("click", () => {
+        if (holdingFail) return;
+        clearAdvanceTimer();
         tab = "mc";
         picked = null;
         judged = false;
+        holdingCorrect = false;
         render();
       });
       $("tab-short").addEventListener("click", () => {
+        if (holdingFail) return;
+        clearAdvanceTimer();
         tab = "short";
         shortRevealed = false;
         render();
@@ -773,6 +829,9 @@
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
           state = load();
+          holdingFail = false;
+          holdingCorrect = false;
+          clearAdvanceTimer();
           render();
         }
       });
