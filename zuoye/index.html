@@ -2465,6 +2465,38 @@
         return url.href;
       }
 
+      async function fetchCloudProgressSha(apiBase, headers) {
+        const cur = await fetch(
+          apiBase + "?ref=" + encodeURIComponent(GH_BRANCH) + "&_=" + Date.now(),
+          { headers: headers, cache: "no-store" }
+        );
+        if (cur.status === 200) {
+          const meta = await cur.json();
+          return { ok: true, sha: meta.sha || null, status: 200 };
+        }
+        if (cur.status === 404) return { ok: true, sha: null, status: 404 };
+        return {
+          ok: false,
+          status: cur.status,
+          detail: await readGhError(cur),
+        };
+      }
+
+      async function putCloudProgress(apiBase, headers, bodyText, sha, stamp) {
+        const putBody = {
+          message: "chore(zuoye): 上传本机进度 " + stamp.slice(0, 19),
+          content: utf8ToBase64(bodyText),
+          branch: GH_BRANCH,
+        };
+        if (sha) putBody.sha = sha;
+        return fetch(apiBase, {
+          method: "PUT",
+          headers: Object.assign({ "Content-Type": "application/json" }, headers),
+          body: JSON.stringify(putBody),
+          cache: "no-store",
+        });
+      }
+
       async function uploadProgressToCloud(tokenOverride) {
         let token = (tokenOverride != null ? String(tokenOverride) : getGhToken()).trim();
         if (!token) {
@@ -2493,37 +2525,35 @@
         };
         let sha = null;
         try {
-          const cur = await fetch(apiBase + "?ref=" + encodeURIComponent(GH_BRANCH), {
-            headers,
-          });
-          if (cur.status === 200) {
-            const meta = await cur.json();
-            sha = meta.sha || null;
-          } else if (cur.status === 404) {
-            sha = null;
-          } else if (cur.status === 401 || cur.status === 403) {
-            handleGhAuthFail(cur.status, await readGhError(cur));
-            return;
-          } else {
-            toast("读取云端文件失败 " + cur.status + " · " + (await readGhError(cur)));
+          const got = await fetchCloudProgressSha(apiBase, headers);
+          if (!got.ok) {
+            if (got.status === 401 || got.status === 403) {
+              handleGhAuthFail(got.status, got.detail);
+              return;
+            }
+            toast("读取云端文件失败 " + got.status + " · " + (got.detail || ""));
             return;
           }
+          sha = got.sha;
         } catch (_) {
           toast("连不上 GitHub API，检查网络后重试");
           return;
         }
         const stamp = payload.exportedAt || new Date().toISOString();
-        const putBody = {
-          message: "chore(zuoye): 上传本机进度 " + stamp.slice(0, 19),
-          content: utf8ToBase64(bodyText),
-          branch: GH_BRANCH,
-        };
-        if (sha) putBody.sha = sha;
-        const put = await fetch(apiBase, {
-          method: "PUT",
-          headers: Object.assign({ "Content-Type": "application/json" }, headers),
-          body: JSON.stringify(putBody),
-        });
+        let put;
+        try {
+          put = await putCloudProgress(apiBase, headers, bodyText, sha, stamp);
+          /* 409=别人/本机刚改过文件，sha 过期：再拉一次最新 sha 重试 */
+          if (put.status === 409) {
+            const again = await fetchCloudProgressSha(apiBase, headers);
+            if (again.ok) {
+              put = await putCloudProgress(apiBase, headers, bodyText, again.sha, stamp);
+            }
+          }
+        } catch (_) {
+          toast("上传请求失败，检查网络后重试");
+          return;
+        }
         if (put.status === 401 || put.status === 403) {
           handleGhAuthFail(put.status, await readGhError(put));
           return;
