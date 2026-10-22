@@ -1291,6 +1291,44 @@
       function permShortCount() {
         return Object.keys(state.permShort || {}).length;
       }
+      function isInWrongMc(id) {
+        return !!(state.wrongMc && state.wrongMc[id]);
+      }
+      function isInWrongShort(id) {
+        return !!(state.wrongShort && state.wrongShort[id]);
+      }
+      function isInPermMc(id) {
+        return !!(state.permMc && state.permMc[id]);
+      }
+      function isInPermShort(id) {
+        return !!(state.permShort && state.permShort[id]);
+      }
+      /**
+       * 「收」：答对也觉得不牢 → 手动塞进错题本 + 永久库。
+       * 已在两边则不重复加错次。
+       */
+      function collectMc(id) {
+        if (!id) return { ok: false, already: false };
+        const already = isInWrongMc(id) && isInPermMc(id);
+        state.wrongMc[id] = { streak: 0 };
+        if (!state.permMc) state.permMc = {};
+        if (!state.permMc[id]) {
+          state.permMc[id] = { miss: 1, at: new Date().toISOString() };
+        }
+        save();
+        return { ok: true, already: already };
+      }
+      function collectShort(id) {
+        if (!id) return { ok: false, already: false };
+        const already = isInWrongShort(id) && isInPermShort(id);
+        state.wrongShort[id] = { streak: 0 };
+        if (!state.permShort) state.permShort = {};
+        if (!state.permShort[id]) {
+          state.permShort[id] = { miss: 1, at: new Date().toISOString() };
+        }
+        save();
+        return { ok: true, already: already };
+      }
       function wrongMcList() {
         return Object.keys(state.wrongMc)
           .map((id) => BANK.mcById[id])
@@ -2015,6 +2053,9 @@
           '">' +
           (isMcShuffle() ? "乱" : "序") +
           "</button>" +
+          '<button type="button" class="ghost' +
+          (isInWrongMc(q.id) && isInPermMc(q.id) ? " on" : "") +
+          '" id="btn-collect-mc" title="收到错题本和永久库">收</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
@@ -2050,6 +2091,11 @@
         $("work").appendChild(box);
 
         $("btn-mc-shuffle").addEventListener("click", () => setMcShuffle(!isMcShuffle()));
+        $("btn-collect-mc").addEventListener("click", () => {
+          const r = collectMc(q.id);
+          toast(r.already ? "已在错题本和永久库" : "已收到错题本和永久库");
+          render();
+        });
         $("btn-prev-mc").addEventListener("click", () => {
           if (holdingCorrect) return;
           clearAdvanceTimer();
@@ -2421,6 +2467,9 @@
           '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
           '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
           '<button type="button" class="ghost' +
+          (isInWrongShort(q.id) && isInPermShort(q.id) ? " on" : "") +
+          '" id="btn-collect-s" title="收到错题本和永久库">收</button>' +
+          '<button type="button" class="ghost' +
           (hasCustomPoints(q.id) ? " on" : "") +
           '" id="btn-edit-points" title="改答案">改</button>' +
           "</div>";
@@ -2540,6 +2589,12 @@
           } else {
             toast("已退出背题");
           }
+          render();
+        });
+        $("btn-collect-s").addEventListener("click", () => {
+          if (ta) persistShortDraft(q.id, ta.value);
+          const r = collectShort(q.id);
+          toast(r.already ? "已在错题本和永久库" : "已收到错题本和永久库");
           render();
         });
         $("btn-prev-s").addEventListener("click", () => {
