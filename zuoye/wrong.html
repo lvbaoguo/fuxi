@@ -164,7 +164,6 @@
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
       const THEME_STORE = "pansan2-zuoye-theme";
       const WRONG_OK_NEED = 2; /* 同题答对 2 次才暂移出（后台仍记住） */
-      const WRONG_FAIL_PAUSE_MS = 900; /* 答错后短停再排到队尾 */
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
       const IS_PERM =
@@ -427,7 +426,7 @@
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
           WRONG_OK_NEED +
-          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答错排到队尾，优先未答。点「重」可把暂移出的题全部召回。";
+          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答错先停住看解析，点「跳」再排到队尾（优先未答）。点「重」可召回暂移。";
       }
 
       function shuffleIds(ids) {
@@ -697,19 +696,25 @@
         } else {
           noteMcWrong(q.id);
           mcAttempted[q.id] = true;
-          delete mcRunOk[q.id];
+          mcRunOk[q.id] = key; /* 回看时仍标出你选的错项 */
           save();
           holdingFail = true;
-          toast("错了 · 排到队尾");
+          toast("错了 · 先看解析，点「跳」再继续");
           render();
-          advanceTimer = setTimeout(() => {
-            holdingFail = false;
-            picked = null;
-            judged = false;
-            rebuildMcPreferFresh();
-            render();
-          }, WRONG_FAIL_PAUSE_MS);
         }
+      }
+
+      /** 答错看完后：点「跳」→ 排到队尾并优先未答 */
+      function skipMcAfterFail() {
+        if (!holdingFail) return;
+        clearAdvanceTimer();
+        holdingFail = false;
+        picked = null;
+        judged = false;
+        const cur = mcList()[mcIdx];
+        if (cur) delete mcRunOk[cur.id];
+        rebuildMcPreferFresh();
+        render();
       }
 
       function renderMc() {
@@ -778,6 +783,9 @@
               '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
             : '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
+              (holdingFail
+                ? '<button type="button" class="primary" id="btn-skip-fail" title="看完了，排到队尾继续">跳</button>'
+                : "") +
               '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题">重</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -832,12 +840,30 @@
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
         if (!IS_PERM && $("btn-prev")) {
-          $("btn-prev").addEventListener("click", () => goMcPrev());
-          $("btn-next").addEventListener("click", () => goMcNext());
+          $("btn-prev").addEventListener("click", () => {
+            if (holdingFail) {
+              toast("先点「跳」再换题");
+              return;
+            }
+            goMcPrev();
+          });
+          $("btn-next").addEventListener("click", () => {
+            if (holdingFail) {
+              toast("先点「跳」再换题");
+              return;
+            }
+            goMcNext();
+          });
+        }
+        if (!IS_PERM && $("btn-skip-fail")) {
+          $("btn-skip-fail").addEventListener("click", () => skipMcAfterFail());
         }
         if (!IS_PERM && $("btn-restore-all")) {
           $("btn-restore-all").addEventListener("click", () => {
-            if (holdingFail) return;
+            if (holdingFail) {
+              toast("先点「跳」结束本题");
+              return;
+            }
             clearAdvanceTimer();
             if (!allWrongMcIds().length && !allWrongShortIds().length) {
               toast("错题库是空的");
@@ -975,14 +1001,16 @@
           '<button type="button" class="ghost" id="btn-fail"' +
           (shortRevealed && !holdingFail ? "" : " disabled") +
           ">" +
-          (IS_PERM ? "还不会（+1错次）" : "还不会（队尾）") +
+          (IS_PERM ? "还不会（+1错次）" : "还不会") +
           "</button>" +
           (IS_PERM
             ? '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
               '<button type="button" class="ghost" id="btn-next">下一题</button>' +
               '<button type="button" class="primary" id="btn-sort-miss">排序</button>'
-            : '<button type="button" class="ghost" id="btn-prev">上</button>' +
-              '<button type="button" class="ghost" id="btn-next">下</button>' +
+            : (holdingFail
+                ? '<button type="button" class="primary" id="btn-skip-fail">跳</button>'
+                : '<button type="button" class="ghost" id="btn-prev">上</button>' +
+                  '<button type="button" class="ghost" id="btn-next">下</button>') +
               '<button type="button" class="danger" id="btn-restore-all">重</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -1051,20 +1079,44 @@
           noteShortWrong(q.id);
           shortAttempted[q.id] = true;
           save();
-          shortRevealed = false;
-          toast("还不会 · 排到队尾");
-          rebuildShortPreferFresh();
+          holdingFail = true;
+          shortRevealed = true;
+          toast("还不会 · 先看采分点，点「跳」再继续");
           render();
         });
+        if ($("btn-skip-fail")) {
+          $("btn-skip-fail").addEventListener("click", () => {
+            holdingFail = false;
+            shortRevealed = false;
+            rebuildShortPreferFresh();
+            render();
+          });
+        }
         if ($("btn-prev")) {
-          $("btn-prev").addEventListener("click", () => jumpShortAwayFrom(-1));
-          $("btn-next").addEventListener("click", () => jumpShortAwayFrom(1));
+          $("btn-prev").addEventListener("click", () => {
+            if (holdingFail) {
+              toast("先点「跳」再换题");
+              return;
+            }
+            jumpShortAwayFrom(-1);
+          });
+          $("btn-next").addEventListener("click", () => {
+            if (holdingFail) {
+              toast("先点「跳」再换题");
+              return;
+            }
+            jumpShortAwayFrom(1);
+          });
         }
         if (IS_PERM && $("btn-sort-miss")) {
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
         if (!IS_PERM && $("btn-restore-all")) {
           $("btn-restore-all").addEventListener("click", () => {
+            if (holdingFail) {
+              toast("先点「跳」结束本题");
+              return;
+            }
             if (!confirm("召回全部初始错题（含暂移出），对对清零后重刷？")) return;
             restoreAllWrongBank();
           });
