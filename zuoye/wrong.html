@@ -123,13 +123,15 @@
       line-height: 1.2;
       white-space: nowrap;
     }
-    .nav-btns .ok-need-wrap {
+    .nav-btns .ok-need-wrap,
+    .nav-btns .restore-wrap {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       margin-left: 2px;
     }
-    .nav-btns .ok-need-wrap input {
+    .nav-btns .ok-need-wrap input,
+    .nav-btns .restore-wrap input {
       width: 2.6em;
       padding: 5px 4px;
       font: inherit;
@@ -160,7 +162,7 @@
       <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对/跳后优先出还没连对的，避开刚答的。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移。「重」旁填 0 全召回、填 N 召回累计犯错≥N 的（不清累计）。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -223,7 +225,7 @@
           $("page-sub").innerHTML =
             "默认<strong>点答</strong>。同题答对 <b>" +
             need +
-            "</b> 次才<strong>暂移出</strong>。答对/「跳」后优先出还没连对的，避开刚答的；答错连对清零。点「重」召回；「设」改次数。";
+            "</b> 次才<strong>暂移出</strong>。答对/「跳」后优先还没连对的。「重」旁填 0 全召回、N 召回累计≥N（不清累计）；「设」改连对次数。";
         }
         if (!silent) toast("已设：答对 " + need + " 次才暂移");
         render();
@@ -258,6 +260,46 @@
           " />" +
           "</span>"
         );
+      }
+      /** 「重」常驻：输入框=最低累计犯错次数；0=全部召回（不清 fails） */
+      let restoreMinFails = 0;
+      function clampRestoreMinFails(n) {
+        const x = Math.floor(Number(n));
+        if (!isFinite(x) || x < 0) return 0;
+        return Math.min(99, x);
+      }
+      function restoreControlsHtml() {
+        return (
+          '<span class="restore-wrap" title="召回：0=全部；N=累计犯错≥N 的题；不清累计次数">' +
+          '<button type="button" class="danger" id="btn-restore-all">重</button>' +
+          '<input id="inp-restore-fails" type="number" min="0" max="99" step="1" value="' +
+          clampRestoreMinFails(restoreMinFails) +
+          '" />' +
+          "</span>"
+        );
+      }
+      function bindRestoreControls() {
+        const btn = $("btn-restore-all");
+        const inp = $("inp-restore-fails");
+        if (!btn) return;
+        if (inp) {
+          inp.addEventListener("change", () => {
+            restoreMinFails = clampRestoreMinFails(inp.value);
+            inp.value = String(restoreMinFails);
+          });
+        }
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          const minF = clampRestoreMinFails(inp ? inp.value : restoreMinFails);
+          restoreMinFails = minF;
+          if (inp) inp.value = String(minF);
+          const tip =
+            minF <= 0
+              ? "召回全部初始错题（含暂移）？累计犯错次数保留，连对进度清零。"
+              : "召回累计犯错 ≥ " + minF + " 次的暂移题？累计次数保留，连对进度清零。";
+          if (!confirm(tip)) return;
+          restoreWrongByMinFails(minF);
+        });
       }
       const $ = (id) => document.getElementById(id);
       const IS_PERM =
@@ -544,7 +586,7 @@
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
           wrongOkNeedOf() +
-          "</b> 次才<strong>暂移出</strong>。答对/「跳」后自动下一题：优先还没连对过的，避开刚答的；答错连对清零，继续刷到连对够次。点「重」召回；「设」改次数。";
+          "</b> 次才<strong>暂移出</strong>。答对/「跳」后优先还没连对的。「重」旁填 <b>0</b> 全召回、<b>N</b> 召回累计犯错≥N（不清累计）；「设」改连对次数。";
       }
 
       function shuffleIds(ids) {
@@ -654,15 +696,25 @@
         const idx = order.indexOf(best);
         return idx >= 0 ? idx : 0;
       }
-      function restoreAllWrongBank() {
-        allWrongMcIds().forEach((id) => {
-          const fails = (state.wrongMc[id] && state.wrongMc[id].fails) || 0;
-          state.wrongMc[id] = { streak: 0, ok: 0, parked: false, fails: fails };
-        });
-        allWrongShortIds().forEach((id) => {
-          const fails = (state.wrongShort[id] && state.wrongShort[id].fails) || 0;
-          state.wrongShort[id] = { streak: 0, ok: 0, parked: false, fails: fails };
-        });
+      /**
+       * 按累计犯错次数召回：minFails≤0 → 全部；否则 fails≥minFails。
+       * 不清 fails；连对 ok/streak 清零并取消暂移。
+       */
+      function restoreWrongByMinFails(minFails) {
+        const thr = clampRestoreMinFails(minFails);
+        let n = 0;
+        function revive(map, id) {
+          const prev = map[id] || {};
+          const fails = Math.max(0, Math.floor(Number(prev.fails) || 0));
+          if (thr > 0) {
+            if (fails < thr) return;
+            if (!prev.parked) return; /* 已在刷的不动，只召回暂移 */
+          }
+          map[id] = { streak: 0, ok: 0, parked: false, fails: fails };
+          n += 1;
+        }
+        allWrongMcIds().forEach((id) => revive(state.wrongMc, id));
+        allWrongShortIds().forEach((id) => revive(state.wrongShort, id));
         mcAttempted = {};
         shortAttempted = {};
         mcOrder = shuffleIds(activeWrongMcIds());
@@ -674,9 +726,16 @@
         holdingCorrect = false;
         holdingFail = false;
         shortRevealed = false;
+        clearAdvanceTimer();
         save();
-        const n = activeWrongMcIds().length + activeWrongShortIds().length;
-        toast("已召回全部错题 " + n + " 道，继续连对 " + wrongOkNeedOf() + " 次暂移");
+        const active = activeWrongMcIds().length + activeWrongShortIds().length;
+        if (thr <= 0) {
+          toast("已召回全部 " + active + " 道（处理 " + n + "）· 累计犯错保留");
+        } else {
+          toast(
+            "已召回累计≥" + thr + " 次 · 本次 " + n + " 道 · 库内待刷 " + active + " · 累计保留"
+          );
+        }
         render();
       }
 
@@ -837,13 +896,18 @@
             : parkedN
               ? "<p class='hint'>当前没有待刷选择错题（暂移出 " +
                 parkedN +
-                "）。点「重」可全部召回。</p><div class='nav-btns'>" +
+                "）。「重」旁填 0 全召回，填 N 召回累计犯错≥N 的。</p><div class='nav-btns'>" +
+                restoreControlsHtml() +
                 okNeedControlsHtml(false) +
                 "</div>"
               : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p><div class='nav-btns'>" +
+                restoreControlsHtml() +
                 okNeedControlsHtml(false) +
                 "</div>";
-          if (!IS_PERM) bindOkNeedControls();
+          if (!IS_PERM) {
+            bindRestoreControls();
+            bindOkNeedControls();
+          }
           return;
         }
         if (mcIdx >= list.length) mcIdx = list.length - 1;
@@ -895,9 +959,7 @@
             : (holdingFail
                 ? '<button type="button" class="primary" id="btn-skip-fail" title="看完了，下一道未扫过的题">跳</button>'
                 : "") +
-              '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题"' +
-              (holdingFail ? " disabled" : "") +
-              ">重</button>" +
+              restoreControlsHtml() +
               okNeedControlsHtml(holdingFail)) +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -956,22 +1018,10 @@
         if (!IS_PERM && $("btn-skip-fail")) {
           $("btn-skip-fail").addEventListener("click", () => skipMcAfterFail());
         }
-        if (!IS_PERM && $("btn-restore-all")) {
-          $("btn-restore-all").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」结束本题");
-              return;
-            }
-            clearAdvanceTimer();
-            if (!allWrongMcIds().length && !allWrongShortIds().length) {
-              toast("错题库是空的");
-              return;
-            }
-            if (!confirm("召回全部初始错题（含暂移出），对对清零后重刷？")) return;
-            restoreAllWrongBank();
-          });
+        if (!IS_PERM) {
+          bindRestoreControls();
+          bindOkNeedControls();
         }
-        if (!IS_PERM) bindOkNeedControls();
       }
 
       function jumpShortAwayFrom(dir) {
@@ -1045,7 +1095,14 @@
         if (!list.length) {
           $("work").innerHTML = IS_PERM
             ? "<p class='hint'>永久库还没有简答。答错会自动同步进来。</p>"
-            : "<p class='hint'>没有待刷简答错题。可点「重」召回暂移。</p>";
+            : "<p class='hint'>没有待刷简答错题。「重」旁填 0 全召回，填 N 召回累计≥N。</p><div class='nav-btns'>" +
+              restoreControlsHtml() +
+              okNeedControlsHtml(false) +
+              "</div>";
+          if (!IS_PERM) {
+            bindRestoreControls();
+            bindOkNeedControls();
+          }
           return;
         }
         if (shortIdx >= list.length) shortIdx = list.length - 1;
@@ -1112,9 +1169,7 @@
             : (holdingFail
                 ? '<button type="button" class="primary" id="btn-skip-fail">跳</button>'
                 : "") +
-              '<button type="button" class="danger" id="btn-restore-all"' +
-              (holdingFail ? " disabled" : "") +
-              ">重</button>" +
+              restoreControlsHtml() +
               okNeedControlsHtml(holdingFail)) +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
@@ -1211,17 +1266,10 @@
         if (IS_PERM && $("btn-sort-miss")) {
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
-        if (!IS_PERM && $("btn-restore-all")) {
-          $("btn-restore-all").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」结束本题");
-              return;
-            }
-            if (!confirm("召回全部初始错题（含暂移出），对对清零后重刷？")) return;
-            restoreAllWrongBank();
-          });
+        if (!IS_PERM) {
+          bindRestoreControls();
+          bindOkNeedControls();
         }
-        if (!IS_PERM) bindOkNeedControls();
       }
 
       function render() {
