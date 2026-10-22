@@ -2016,15 +2016,10 @@
           result === "ok" ? "答对" : result === "fail" ? "已错·进错题本" : "未作答";
         const box = document.createElement("div");
         box.className = "q-card";
-        const name = BANK.names[q.course][q.ch] || "";
+        /* 选题不显示科目/章节，避免章节名暗示答案（考试也没有） */
         box.innerHTML =
           '<div class="q-meta">' +
-          courseName[q.course] +
-          " · 第" +
-          q.ch +
-          "章 " +
-          name +
-          " · 第 " +
+          "第 " +
           (mcIdx + 1) +
           "/" +
           list.length +
