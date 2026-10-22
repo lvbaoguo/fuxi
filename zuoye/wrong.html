@@ -382,6 +382,8 @@
       let holdingFail = false; /* 错题本答错后的 3 秒锁 */
       let advanceTimer = null;
       let permSorted = false; /* 永久库：是否按错次排序 */
+      let mcRunOk = {}; /* 错题本本轮已答对：id → 所选 key，便于回看解析 */
+      let mcFrontier = 0; /* 本轮最远推进到的下标（含当前待答题） */
 
       if (IS_PERM) {
         document.title = "永久库 · 答对不删";
@@ -504,10 +506,44 @@
       function restartMcRun() {
         mcOrder = shuffleIds(sourceMcIds());
         mcIdx = 0;
+        mcFrontier = 0;
+        mcRunOk = {};
         picked = null;
         judged = false;
         holdingCorrect = false;
         holdingFail = false;
+      }
+      function restoreMcViewState(q) {
+        if (q && mcRunOk[q.id]) {
+          picked = mcRunOk[q.id];
+          judged = true;
+        } else {
+          picked = null;
+          judged = false;
+        }
+        holdingCorrect = false;
+      }
+      function goMcPrev() {
+        if (holdingFail) return;
+        if (mcIdx <= 0) {
+          toast("已经是本轮第 1 题");
+          return;
+        }
+        clearAdvanceTimer();
+        mcIdx -= 1;
+        restoreMcViewState(mcList()[mcIdx]);
+        render();
+      }
+      function goMcNext() {
+        if (holdingFail) return;
+        if (mcIdx >= mcFrontier) {
+          toast(mcRunOk[(mcList()[mcIdx] || {}).id] ? "后面还没答，先点选项" : "已经是当前进度");
+          return;
+        }
+        clearAdvanceTimer();
+        mcIdx += 1;
+        restoreMcViewState(mcList()[mcIdx]);
+        render();
       }
       function restartShortRun() {
         shortOrder = shuffleIds(sourceShortIds());
@@ -556,7 +592,8 @@
             }, 380);
             return;
           }
-          /* 错题本：按序推进；本轮全对才整本移出 */
+          /* 错题本：按序推进；本轮全对才整本移出；可上/下回看已答对 */
+          mcRunOk[q.id] = key;
           const total = mcList().length;
           const doneN = mcIdx + 1;
           if (doneN >= total) {
@@ -567,17 +604,20 @@
               holdingCorrect = false;
               picked = null;
               judged = false;
+              mcRunOk = {};
+              mcFrontier = 0;
               mcOrder = null;
               mcIdx = 0;
               render();
             }, 500);
           } else {
-            toast("对了 · 本轮 " + doneN + "/" + total);
+            toast("对了 · 本轮 " + doneN + "/" + total + " · 可点「上」回看");
             advanceTimer = setTimeout(() => {
               holdingCorrect = false;
+              mcIdx = doneN;
+              mcFrontier = Math.max(mcFrontier, doneN);
               picked = null;
               judged = false;
-              mcIdx = doneN;
               render();
             }, 380);
           }
@@ -617,22 +657,38 @@
         const q = list[mcIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const miss = missOfMc(q.id);
+        const reviewing = !IS_PERM && !!mcRunOk[q.id];
+        if (reviewing && !holdingCorrect) {
+          picked = mcRunOk[q.id];
+          judged = true;
+        }
         const box = document.createElement("div");
         box.className = "q-card";
         box.innerHTML =
           '<div class="q-meta">' +
-          courseName[q.course] +
-          " · 第" +
-          q.ch +
-          "章 · " +
-          (mcIdx + 1) +
-          "/" +
-          list.length +
           (IS_PERM
-            ? " · 错" + miss + "次 · 答对不删" + (permSorted ? " · 已按错次排" : "")
-            : " · 点答 · 本轮须全对才移出") +
-          " · " +
-          name +
+            ? courseName[q.course] +
+              " · 第" +
+              q.ch +
+              "章 · " +
+              (mcIdx + 1) +
+              "/" +
+              list.length +
+              " · 错" +
+              miss +
+              "次 · 答对不删" +
+              (permSorted ? " · 已按错次排" : "") +
+              " · " +
+              name
+            : /* 错题本选题不露章节，避免暗示；可回看已答对 */
+              "第 " +
+              (mcIdx + 1) +
+              "/" +
+              list.length +
+              " · 点答 · 本轮须全对才移出" +
+              (reviewing ? " · 回看" : "") +
+              " · 已过 " +
+              Object.keys(mcRunOk).length) +
           "</div>" +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
@@ -640,10 +696,13 @@
             ? '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
               '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
-            : '<button type="button" class="ghost" id="btn-reshuffle" title="打乱重来">打乱重来</button>') +
+            : '<button type="button" class="ghost" id="btn-prev" title="回看上一题">上</button>' +
+              '<button type="button" class="ghost" id="btn-next" title="回到下一题">下</button>' +
+              '<button type="button" class="ghost" id="btn-reshuffle" title="打乱重来">打乱重来</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
+        const lockedTap = holdingFail || holdingCorrect || reviewing;
         q.options.forEach((o) => {
           const b = document.createElement("button");
           b.type = "button";
@@ -655,9 +714,9 @@
             if (picked === o.key && picked !== q.correct) b.classList.add("wrong");
           }
           if (holdingCorrect && o.key === q.correct) b.classList.add("flash");
-          b.disabled = holdingFail;
+          b.disabled = lockedTap;
           b.addEventListener("click", () => {
-            if (holdingCorrect || holdingFail) return;
+            if (holdingCorrect || holdingFail || reviewing) return;
             judgeMcTap(q, o.key);
           });
           opts.appendChild(b);
@@ -691,6 +750,10 @@
         }
         if (IS_PERM && $("btn-sort-miss")) {
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
+        }
+        if (!IS_PERM && $("btn-prev")) {
+          $("btn-prev").addEventListener("click", () => goMcPrev());
+          $("btn-next").addEventListener("click", () => goMcNext());
         }
         if (!IS_PERM && $("btn-reshuffle")) {
           $("btn-reshuffle").addEventListener("click", () => {
