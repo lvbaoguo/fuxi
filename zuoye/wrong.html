@@ -160,7 +160,7 @@
       <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对/跳后自动出下一道未扫过的题，本轮不重复。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对/跳后优先出还没连对的，避开刚答的。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -214,8 +214,6 @@
         shortOrder = null;
         mcIdx = 0;
         shortIdx = 0;
-        mcPassSeen = {};
-        shortPassSeen = {};
         holdingFail = false;
         holdingCorrect = false;
         picked = null;
@@ -225,7 +223,7 @@
           $("page-sub").innerHTML =
             "默认<strong>点答</strong>。同题答对 <b>" +
             need +
-            "</b> 次才<strong>暂移出</strong>。答对/点「跳」后自动出下一道未扫过的题，本轮不重复。点「重」召回；「设」改连对次数。";
+            "</b> 次才<strong>暂移出</strong>。答对/「跳」后优先出还没连对的，避开刚答的；答错连对清零。点「重」召回；「设」改次数。";
         }
         if (!silent) toast("已设：答对 " + need + " 次才暂移");
         render();
@@ -536,8 +534,6 @@
       let permSorted = false; /* 永久库：是否按错次排序 */
       let mcAttempted = {}; /* 兼容旧字段，本场答过 */
       let shortAttempted = {};
-      let mcPassSeen = {}; /* 本轮已扫过的题 id，扫完一轮才清空可再遇 */
-      let shortPassSeen = {};
 
       if (IS_PERM) {
         document.title = "永久库 · 答对不删";
@@ -548,7 +544,7 @@
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
           wrongOkNeedOf() +
-          "</b> 次才<strong>暂移出</strong>。答对/点「跳」后<strong>自动出下一道未扫过的题</strong>，本轮不重复，全部扫过再开新一轮。点「重」召回暂移；「设」改连对次数。";
+          "</b> 次才<strong>暂移出</strong>。答对/「跳」后自动下一题：优先还没连对过的，避开刚答的；答错连对清零，继续刷到连对够次。点「重」召回；「设」改次数。";
       }
 
       function shuffleIds(ids) {
@@ -615,14 +611,17 @@
         const pos = order.indexOf(id);
         if (pos >= 0) order.splice(pos, 1);
       }
+      function wrongOkOfId(id, isShort) {
+        const m = isShort ? state.wrongShort : state.wrongMc;
+        return (m && m[id] && m[id].ok) || 0;
+      }
       /**
-       * 答完一题后：记入本轮已扫 → 优先找还没扫过的下一题；
-       * 本轮全扫完则清空已扫、打乱题序，再开一轮（仍避开刚答的那道）。
-       * remove=true 时从题序抽走（暂移）。
+       * 答完后选下一题：刚答的甩到队尾（或暂移抽走）；
+       * 优先 ok===0（还没连对），再 ok&lt;阈值；尽量不立刻重复刚答的那道。
+       * 答对未暂移的题仍留在库里，之后还会再出，直到连对够次。
        */
-      function advancePass(order, seen, justId, remove) {
+      function pickNextAfter(order, justId, remove, isShort) {
         if (!order) return 0;
-        if (justId) seen[justId] = true;
         if (remove && justId) removeFromOrder(order, justId);
         else if (justId) {
           const pos = order.indexOf(justId);
@@ -632,27 +631,28 @@
           }
         }
         if (!order.length) return 0;
-        for (let i = 0; i < order.length; i++) {
-          if (!seen[order[i]]) return i;
-        }
-        /* 本轮扫完 → 新一轮 */
-        Object.keys(seen).forEach((k) => {
-          delete seen[k];
-        });
-        const shuffled = shuffleIds(order.slice());
-        order.length = 0;
-        shuffled.forEach((id) => order.push(id));
         if (order.length === 1) return 0;
-        if (justId && order[0] === justId) return 1 % order.length;
-        return 0;
-      }
-      function passSeenCount(seen, order) {
-        if (!order || !order.length) return 0;
-        let n = 0;
-        order.forEach((id) => {
-          if (seen[id]) n += 1;
-        });
-        return n;
+        const need = wrongOkNeedOf();
+        const others = order.filter((id) => id !== justId);
+        const pool = others.length ? others : order.slice();
+        let best = null;
+        for (let i = 0; i < pool.length; i++) {
+          if (wrongOkOfId(pool[i], isShort) === 0) {
+            best = pool[i];
+            break;
+          }
+        }
+        if (best == null) {
+          for (let i = 0; i < pool.length; i++) {
+            if (wrongOkOfId(pool[i], isShort) < need) {
+              best = pool[i];
+              break;
+            }
+          }
+        }
+        if (best == null) best = pool[0];
+        const idx = order.indexOf(best);
+        return idx >= 0 ? idx : 0;
       }
       function restoreAllWrongBank() {
         allWrongMcIds().forEach((id) => {
@@ -665,8 +665,6 @@
         });
         mcAttempted = {};
         shortAttempted = {};
-        mcPassSeen = {};
-        shortPassSeen = {};
         mcOrder = shuffleIds(activeWrongMcIds());
         shortOrder = shuffleIds(activeWrongShortIds());
         mcIdx = 0;
@@ -790,14 +788,9 @@
           advanceTimer = setTimeout(() => {
             holdingCorrect = false;
             syncMcOrder();
-            const beforeLen = (mcOrder || []).length;
-            const seenBefore = passSeenCount(mcPassSeen, mcOrder);
-            mcIdx = advancePass(mcOrder, mcPassSeen, q.id, w.parked);
+            mcIdx = pickNextAfter(mcOrder, q.id, w.parked, false);
             picked = null;
             judged = false;
-            if (!w.parked && beforeLen > 1 && seenBefore + 1 >= beforeLen) {
-              toast("本轮已扫完，打乱开新一轮");
-            }
             render();
           }, 450);
         } else if (IS_PERM) {
@@ -815,7 +808,7 @@
         }
       }
 
-      /** 答错看完后：点「跳」→ 记入本轮已扫，自动下一道未扫过的 */
+      /** 答错看完后：点「跳」→ 连对已清零，下一题优先还没连对的 */
       function skipMcAfterFail() {
         if (!holdingFail) return;
         clearAdvanceTimer();
@@ -823,13 +816,10 @@
         const failId = mcOrder && mcOrder[mcIdx];
         holdingFail = false;
         holdingCorrect = false;
-        const beforeLen = (mcOrder || []).length;
-        const seenBefore = passSeenCount(mcPassSeen, mcOrder);
-        if (failId) mcIdx = advancePass(mcOrder, mcPassSeen, failId, false);
+        if (failId) mcIdx = pickNextAfter(mcOrder, failId, false, false);
         picked = null;
         judged = false;
-        if (beforeLen > 1 && seenBefore + 1 >= beforeLen) toast("本轮已扫完，打乱开新一轮");
-        else toast("下一题");
+        toast("下一题");
         render();
       }
 
@@ -861,7 +851,6 @@
         const q = list[mcIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const miss = missOfMc(q.id);
-        const seenN = IS_PERM ? 0 : passSeenCount(mcPassSeen, mcOrder);
         const box = document.createElement("div");
         box.className = "q-card";
         box.innerHTML =
@@ -890,10 +879,7 @@
               wrongOkNeedOf() +
               "暂移 · 累计犯错" +
               wrongMcFailsOf(q.id) +
-              "次 · 本轮已扫" +
-              seenN +
-              "/" +
-              list.length +
+              "次" +
               (holdingFail ? " · 看完点跳" : "") +
               (parkedN ? " · 库内暂移" + parkedN : "")) +
           "</div>" +
@@ -1096,10 +1082,7 @@
               wrongOkNeedOf() +
               "暂移 · 累计犯错" +
               wrongShortFailsOf(q.id) +
-              "次 · 本轮已扫" +
-              passSeenCount(shortPassSeen, shortOrder) +
-              "/" +
-              list.length) +
+              "次") +
           "</div>" +
           '<div class="q-text"></div>' +
           (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
@@ -1184,12 +1167,7 @@
           if (w.parked) toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
           else toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 下一题");
           syncShortOrder();
-          const beforeLen = (shortOrder || []).length;
-          const seenBefore = passSeenCount(shortPassSeen, shortOrder);
-          shortIdx = advancePass(shortOrder, shortPassSeen, q.id, w.parked);
-          if (!w.parked && beforeLen > 1 && seenBefore + 1 >= beforeLen) {
-            toast("本轮已扫完，打乱开新一轮");
-          }
+          shortIdx = pickNextAfter(shortOrder, q.id, w.parked, true);
           render();
         });
         $("btn-fail").addEventListener("click", () => {
@@ -1217,11 +1195,8 @@
             holdingFail = false;
             shortRevealed = false;
             syncShortOrder();
-            const beforeLen = (shortOrder || []).length;
-            const seenBefore = passSeenCount(shortPassSeen, shortOrder);
-            shortIdx = advancePass(shortOrder, shortPassSeen, failId, false);
-            if (beforeLen > 1 && seenBefore + 1 >= beforeLen) toast("本轮已扫完，打乱开新一轮");
-            else toast("下一题");
+            shortIdx = pickNextAfter(shortOrder, failId, false, true);
+            toast("下一题");
             render();
           });
         }
