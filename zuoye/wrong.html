@@ -160,7 +160,7 @@
       <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对暂存 1 题可「上」回看，再对才把上一题甩队尾。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对/跳后自动出下一道未扫过的题，本轮不重复。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -214,10 +214,8 @@
         shortOrder = null;
         mcIdx = 0;
         shortIdx = 0;
-        mcStashId = null;
-        shortStashId = null;
-        mcReturnIdx = null;
-        shortReturnIdx = null;
+        mcPassSeen = {};
+        shortPassSeen = {};
         holdingFail = false;
         holdingCorrect = false;
         picked = null;
@@ -227,7 +225,7 @@
           $("page-sub").innerHTML =
             "默认<strong>点答</strong>。同题答对 <b>" +
             need +
-            "</b> 次才<strong>暂移出</strong>（后台仍记住）。答对先<strong>暂存 1 题</strong>可点「上」回看，再对一题才把更早那题甩到队尾；答错看完点「跳」也排到队尾。点「重」召回暂移。旁边「设」可改次数。";
+            "</b> 次才<strong>暂移出</strong>。答对/点「跳」后自动出下一道未扫过的题，本轮不重复。点「重」召回；「设」改连对次数。";
         }
         if (!silent) toast("已设：答对 " + need + " 次才暂移");
         render();
@@ -536,15 +534,10 @@
       let holdingFail = false;
       let advanceTimer = null;
       let permSorted = false; /* 永久库：是否按错次排序 */
-      let mcRunOk = {}; /* 本场回看：id → 所选 key */
-      let mcFrontier = 0;
-      let mcAttempted = {}; /* 本场已答过（优先刷未答） */
+      let mcAttempted = {}; /* 兼容旧字段，本场答过 */
       let shortAttempted = {};
-      let shortRunOk = {};
-      let mcStashId = null; /* 答对暂存 1 题供「上」回看；再对一题才把上一题甩队尾 */
-      let mcReturnIdx = null; /* 从暂存「下」回来时的下标 */
-      let shortStashId = null;
-      let shortReturnIdx = null;
+      let mcPassSeen = {}; /* 本轮已扫过的题 id，扫完一轮才清空可再遇 */
+      let shortPassSeen = {};
 
       if (IS_PERM) {
         document.title = "永久库 · 答对不删";
@@ -555,7 +548,7 @@
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
           wrongOkNeedOf() +
-          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答对先<strong>暂存 1 题</strong>可点「上」回看，再对一题才把更早那题甩到队尾；答错看完点「跳」也排到队尾。点「重」召回暂移。";
+          "</b> 次才<strong>暂移出</strong>。答对/点「跳」后<strong>自动出下一道未扫过的题</strong>，本轮不重复，全部扫过再开新一轮。点「重」召回暂移；「设」改连对次数。";
       }
 
       function shuffleIds(ids) {
@@ -616,87 +609,50 @@
           if (IS_PERM && permSorted) shortOrder = sortIdsByMiss(shortOrder, missOfShort);
         }
       }
-      /** 刚答过的题甩到队尾；返回下一题下标（原下一位前移顶上；若本是末题则回到 0） */
-      function sendToEnd(order, id) {
-        if (!order || !order.length) return 0;
+      /** 暂移抽走 */
+      function removeFromOrder(order, id) {
+        if (!order || !order.length) return;
         const pos = order.indexOf(id);
-        if (pos < 0) return 0;
-        const wasLast = pos >= order.length - 1;
-        order.splice(pos, 1);
-        order.push(id);
+        if (pos >= 0) order.splice(pos, 1);
+      }
+      /**
+       * 答完一题后：记入本轮已扫 → 优先找还没扫过的下一题；
+       * 本轮全扫完则清空已扫、打乱题序，再开一轮（仍避开刚答的那道）。
+       * remove=true 时从题序抽走（暂移）。
+       */
+      function advancePass(order, seen, justId, remove) {
+        if (!order) return 0;
+        if (justId) seen[justId] = true;
+        if (remove && justId) removeFromOrder(order, justId);
+        else if (justId) {
+          const pos = order.indexOf(justId);
+          if (pos >= 0) {
+            order.splice(pos, 1);
+            order.push(justId);
+          }
+        }
         if (!order.length) return 0;
-        return wasLast ? 0 : pos;
+        for (let i = 0; i < order.length; i++) {
+          if (!seen[order[i]]) return i;
+        }
+        /* 本轮扫完 → 新一轮 */
+        Object.keys(seen).forEach((k) => {
+          delete seen[k];
+        });
+        const shuffled = shuffleIds(order.slice());
+        order.length = 0;
+        shuffled.forEach((id) => order.push(id));
+        if (order.length === 1) return 0;
+        if (justId && order[0] === justId) return 1 % order.length;
+        return 0;
       }
-      /** 把 moveId 甩到队尾，并返回 focusId 的新下标 */
-      function moveIdToEndKeepFocus(order, moveId, focusId) {
+      function passSeenCount(seen, order) {
         if (!order || !order.length) return 0;
-        const pos = order.indexOf(moveId);
-        if (pos >= 0) {
-          order.splice(pos, 1);
-          order.push(moveId);
-        }
-        const fi = order.indexOf(focusId);
-        return fi >= 0 ? fi : 0;
-      }
-      /** 暂移抽走；返回抽走后应停的下标 */
-      function removeFromOrder(order, id, curIdx) {
-        if (!order || !order.length) return 0;
-        const pos = order.indexOf(id);
-        if (pos < 0) return Math.min(curIdx, Math.max(0, order.length - 1));
-        order.splice(pos, 1);
-        if (!order.length) return 0;
-        let idx = curIdx;
-        if (idx > pos) idx -= 1;
-        if (idx >= order.length) idx = 0;
-        if (idx < 0) idx = 0;
-        return idx;
-      }
-      /** 答对后前进到下一题下标（跳过暂存题本身） */
-      function nextIdxBeside(order, fromId, stashId) {
-        if (!order || !order.length) return 0;
-        const start = order.indexOf(fromId);
-        const n = order.length;
-        if (n <= 1) return 0;
-        const base = start < 0 ? 0 : start;
-        for (let step = 1; step <= n; step++) {
-          const i = (base + step) % n;
-          if (stashId && order[i] === stashId) continue;
-          return i;
-        }
-        return (base + 1) % n;
-      }
-      /** 错题本选择：答对暂存 1 题；再对则把上一暂存甩队尾 */
-      function advanceMcAfterCorrect(q, parked) {
-        syncMcOrder();
-        mcReturnIdx = null;
-        if (mcStashId && mcStashId !== q.id) {
-          moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
-        }
-        if (parked) {
-          delete mcRunOk[q.id];
-          mcStashId = null;
-          mcIdx = removeFromOrder(mcOrder, q.id, mcOrder.indexOf(q.id) >= 0 ? mcOrder.indexOf(q.id) : mcIdx);
-        } else {
-          mcStashId = q.id;
-          mcIdx = nextIdxBeside(mcOrder, q.id, mcStashId);
-        }
-        /* 保证「上」能回到暂存：frontier 覆盖暂存与当前 */
-        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
-      }
-      function advanceShortAfterCorrect(q, parked) {
-        syncShortOrder();
-        shortReturnIdx = null;
-        if (shortStashId && shortStashId !== q.id) {
-          moveIdToEndKeepFocus(shortOrder, shortStashId, q.id);
-        }
-        if (parked) {
-          shortStashId = null;
-          const p = shortOrder.indexOf(q.id);
-          shortIdx = removeFromOrder(shortOrder, q.id, p >= 0 ? p : shortIdx);
-        } else {
-          shortStashId = q.id;
-          shortIdx = nextIdxBeside(shortOrder, q.id, shortStashId);
-        }
+        let n = 0;
+        order.forEach((id) => {
+          if (seen[id]) n += 1;
+        });
+        return n;
       }
       function restoreAllWrongBank() {
         allWrongMcIds().forEach((id) => {
@@ -709,15 +665,12 @@
         });
         mcAttempted = {};
         shortAttempted = {};
-        mcRunOk = {};
-        shortRunOk = {};
-        mcStashId = null;
-        shortStashId = null;
+        mcPassSeen = {};
+        shortPassSeen = {};
         mcOrder = shuffleIds(activeWrongMcIds());
         shortOrder = shuffleIds(activeWrongShortIds());
         mcIdx = 0;
         shortIdx = 0;
-        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
         picked = null;
         judged = false;
         holdingCorrect = false;
@@ -783,67 +736,6 @@
         shortIdx = idx;
       }
 
-      function restoreMcViewState(q) {
-        if (q && mcRunOk[q.id]) {
-          picked = mcRunOk[q.id];
-          judged = true;
-        } else {
-          picked = null;
-          judged = false;
-        }
-        holdingCorrect = false;
-      }
-      function goMcPrev() {
-        if (holdingFail) return;
-        clearAdvanceTimer();
-        holdingCorrect = false;
-        syncMcOrder();
-        const curId = mcOrder && mcOrder[mcIdx];
-        /* 优先跳回「答对暂存」的那一题（不依赖下标是否 >0） */
-        if (mcStashId && curId !== mcStashId) {
-          const stashPos = mcOrder.indexOf(mcStashId);
-          if (stashPos >= 0) {
-            mcReturnIdx = mcIdx;
-            mcIdx = stashPos;
-            restoreMcViewState(mcList()[mcIdx]);
-            render();
-            return;
-          }
-        }
-        if (mcIdx <= 0) {
-          toast(mcStashId && curId === mcStashId ? "已是刚答对的上一题" : "没有可回看的上一题");
-          return;
-        }
-        mcIdx -= 1;
-        restoreMcViewState(mcList()[mcIdx]);
-        render();
-      }
-      function goMcNext() {
-        if (holdingFail) return;
-        clearAdvanceTimer();
-        holdingCorrect = false;
-        syncMcOrder();
-        const curId = mcOrder && mcOrder[mcIdx];
-        /* 正在看暂存题时，「下」回到答对后的那道新题 */
-        if (mcStashId && curId === mcStashId && mcReturnIdx != null) {
-          const back = mcReturnIdx;
-          mcReturnIdx = null;
-          if (back >= 0 && back < (mcOrder || []).length) {
-            mcIdx = back;
-            restoreMcViewState(mcList()[mcIdx]);
-            render();
-            return;
-          }
-        }
-        if (mcIdx >= mcFrontier) {
-          toast("已到当前进度，继续点选项作答");
-          return;
-        }
-        mcIdx += 1;
-        restoreMcViewState(mcList()[mcIdx]);
-        render();
-      }
-
       function mcList() {
         syncMcOrder();
         return mcOrder.map((id) => BANK.mcById[id]).filter(Boolean);
@@ -884,8 +776,7 @@
             }, 380);
             return;
           }
-          /* 错题本：答对保留回看；可点「上」翻回；连对够则暂移 */
-          mcRunOk[q.id] = key;
+          /* 错题本：连对够则暂移；自动搜下一道本轮未扫过的题 */
           mcAttempted[q.id] = true;
           if (!state.wrongMc[q.id])
             state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false, fails: 0 };
@@ -894,38 +785,19 @@
           w.parked = w.ok >= wrongOkNeedOf();
           w.streak = 0;
           save();
-          if (w.parked) {
-            toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
-          } else {
-            toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 下一题后可点「上」回看");
-          }
-          /* 先写入暂存/甩旧暂存，闪动后再跳到下一题，避免「上」找不到暂存 */
-          syncMcOrder();
-          mcReturnIdx = null;
-          if (!w.parked) {
-            if (mcStashId && mcStashId !== q.id) {
-              moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
-              const stay = mcOrder.indexOf(q.id);
-              if (stay >= 0) mcIdx = stay;
-            }
-            mcStashId = q.id;
-          } else {
-            if (mcStashId && mcStashId !== q.id) {
-              moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
-            }
-            mcStashId = null;
-          }
+          if (w.parked) toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
+          else toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 下一题");
           advanceTimer = setTimeout(() => {
             holdingCorrect = false;
-            if (w.parked) {
-              delete mcRunOk[q.id];
-              mcIdx = removeFromOrder(mcOrder, q.id, mcOrder.indexOf(q.id) >= 0 ? mcOrder.indexOf(q.id) : mcIdx);
-            } else {
-              mcIdx = nextIdxBeside(mcOrder, q.id, mcStashId);
-              mcReturnIdx = mcIdx; /* 从暂存点「下」回到这道新题 */
+            syncMcOrder();
+            const beforeLen = (mcOrder || []).length;
+            const seenBefore = passSeenCount(mcPassSeen, mcOrder);
+            mcIdx = advancePass(mcOrder, mcPassSeen, q.id, w.parked);
+            picked = null;
+            judged = false;
+            if (!w.parked && beforeLen > 1 && seenBefore + 1 >= beforeLen) {
+              toast("本轮已扫完，打乱开新一轮");
             }
-            mcFrontier = Math.max(0, (mcOrder || []).length - 1);
-            restoreMcViewState(mcList()[mcIdx]);
             render();
           }, 450);
         } else if (IS_PERM) {
@@ -936,15 +808,14 @@
         } else {
           noteMcWrong(q.id);
           mcAttempted[q.id] = true;
-          mcRunOk[q.id] = key;
           save();
           holdingFail = true;
-          toast("错了 · 先看解析，点「跳」排到队尾");
+          toast("错了 · 先看解析，点「跳」继续");
           render();
         }
       }
 
-      /** 答错看完后：点「跳」→ 本题排到队尾，继续下一题 */
+      /** 答错看完后：点「跳」→ 记入本轮已扫，自动下一道未扫过的 */
       function skipMcAfterFail() {
         if (!holdingFail) return;
         clearAdvanceTimer();
@@ -952,18 +823,13 @@
         const failId = mcOrder && mcOrder[mcIdx];
         holdingFail = false;
         holdingCorrect = false;
-        if (failId) {
-          delete mcRunOk[failId];
-          if (mcStashId && mcStashId !== failId) {
-            mcIdx = moveIdToEndKeepFocus(mcOrder, mcStashId, failId);
-          }
-          mcStashId = null;
-          mcIdx = sendToEnd(mcOrder, failId);
-        }
-        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
+        const beforeLen = (mcOrder || []).length;
+        const seenBefore = passSeenCount(mcPassSeen, mcOrder);
+        if (failId) mcIdx = advancePass(mcOrder, mcPassSeen, failId, false);
         picked = null;
         judged = false;
-        toast("已排到队尾 · 下一题");
+        if (beforeLen > 1 && seenBefore + 1 >= beforeLen) toast("本轮已扫完，打乱开新一轮");
+        else toast("下一题");
         render();
       }
 
@@ -995,13 +861,7 @@
         const q = list[mcIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const miss = missOfMc(q.id);
-        /* 答错停看 vs 回看已对：不要混用，否则 holdingFail 被清掉后会锁死选项又没有「跳」 */
-        if (!IS_PERM && mcRunOk[q.id] && !holdingCorrect) {
-          picked = mcRunOk[q.id];
-          judged = true;
-        }
-        const reviewingOk =
-          !IS_PERM && !holdingFail && !!mcRunOk[q.id] && mcRunOk[q.id] === q.correct;
+        const seenN = IS_PERM ? 0 : passSeenCount(mcPassSeen, mcOrder);
         const box = document.createElement("div");
         box.className = "q-card";
         box.innerHTML =
@@ -1030,18 +890,15 @@
               wrongOkNeedOf() +
               "暂移 · 累计犯错" +
               wrongMcFailsOf(q.id) +
-              "次" +
-              (holdingFail
-                ? " · 看完点跳"
-                : reviewingOk
-                  ? " · 回看"
-                  : mcFrontier > 0
-                    ? " · 已过" + Object.keys(mcRunOk).filter((id) => mcRunOk[id]).length
-                    : "") +
+              "次 · 本轮已扫" +
+              seenN +
+              "/" +
+              list.length +
+              (holdingFail ? " · 看完点跳" : "") +
               (parkedN ? " · 库内暂移" + parkedN : "")) +
           "</div>" +
           (holdingFail
-            ? '<p class="hint" style="margin:0 0 8px;font-weight:700;color:var(--red);">答错了，先看解析，再点「跳」排到队尾</p>'
+            ? '<p class="hint" style="margin:0 0 8px;font-weight:700;color:var(--red);">答错了，先看解析，再点「跳」出下一题</p>'
             : "") +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
@@ -1050,14 +907,8 @@
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
               '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
             : (holdingFail
-                ? '<button type="button" class="primary" id="btn-skip-fail" title="看完了，排到队尾继续">跳</button>'
+                ? '<button type="button" class="primary" id="btn-skip-fail" title="看完了，下一道未扫过的题">跳</button>'
                 : "") +
-              '<button type="button" class="ghost" id="btn-prev" title="上一题"' +
-              (holdingFail ? " disabled" : "") +
-              ">上</button>" +
-              '<button type="button" class="ghost" id="btn-next" title="下一题"' +
-              (holdingFail ? " disabled" : "") +
-              ">下</button>" +
               '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题"' +
               (holdingFail ? " disabled" : "") +
               ">重</button>" +
@@ -1065,7 +916,7 @@
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
-        const lockedTap = holdingFail || holdingCorrect || reviewingOk;
+        const lockedTap = holdingFail || holdingCorrect;
         q.options.forEach((o) => {
           const b = document.createElement("button");
           b.type = "button";
@@ -1079,7 +930,7 @@
           if (holdingCorrect && o.key === q.correct) b.classList.add("flash");
           b.disabled = lockedTap;
           b.addEventListener("click", () => {
-            if (holdingCorrect || holdingFail || reviewingOk) return;
+            if (holdingCorrect || holdingFail) return;
             judgeMcTap(q, o.key);
           });
           opts.appendChild(b);
@@ -1116,22 +967,6 @@
         if (IS_PERM && $("btn-sort-miss")) {
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
-        if (!IS_PERM && $("btn-prev")) {
-          $("btn-prev").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」再换题");
-              return;
-            }
-            goMcPrev();
-          });
-          $("btn-next").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」再换题");
-              return;
-            }
-            goMcNext();
-          });
-        }
         if (!IS_PERM && $("btn-skip-fail")) {
           $("btn-skip-fail").addEventListener("click", () => skipMcAfterFail());
         }
@@ -1154,39 +989,11 @@
       }
 
       function jumpShortAwayFrom(dir) {
+        /* 仅永久库翻页；错题本无上下 */
         const n = shortList().length;
         if (n <= 1) {
-          toast(IS_PERM ? "只剩 1 道，没法换题" : "只剩 1 道错题，没法换题");
+          toast(IS_PERM ? "只剩 1 道，没法换题" : "只剩 1 道错题");
           return;
-        }
-        if (!IS_PERM && dir < 0) {
-          syncShortOrder();
-          const curId = shortOrder && shortOrder[shortIdx];
-          if (shortStashId && curId !== shortStashId) {
-            const stashPos = shortOrder.indexOf(shortStashId);
-            if (stashPos >= 0) {
-              shortReturnIdx = shortIdx;
-              shortIdx = stashPos;
-              shortRevealed = !!shortRunOk[shortStashId];
-              render();
-              return;
-            }
-          }
-          if (shortStashId && curId === shortStashId) {
-            toast("已是刚会了的上一题");
-            return;
-          }
-        }
-        if (!IS_PERM && dir > 0) {
-          syncShortOrder();
-          const curId = shortOrder && shortOrder[shortIdx];
-          if (shortStashId && curId === shortStashId && shortReturnIdx != null) {
-            shortIdx = shortReturnIdx;
-            shortReturnIdx = null;
-            shortRevealed = false;
-            render();
-            return;
-          }
         }
         shortIdx = (shortIdx + (dir || 1) + n) % n;
         shortRevealed = false;
@@ -1289,7 +1096,10 @@
               wrongOkNeedOf() +
               "暂移 · 累计犯错" +
               wrongShortFailsOf(q.id) +
-              "次") +
+              "次 · 本轮已扫" +
+              passSeenCount(shortPassSeen, shortOrder) +
+              "/" +
+              list.length) +
           "</div>" +
           '<div class="q-text"></div>' +
           (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
@@ -1319,12 +1129,6 @@
             : (holdingFail
                 ? '<button type="button" class="primary" id="btn-skip-fail">跳</button>'
                 : "") +
-              '<button type="button" class="ghost" id="btn-prev"' +
-              (holdingFail ? " disabled" : "") +
-              ">上</button>" +
-              '<button type="button" class="ghost" id="btn-next"' +
-              (holdingFail ? " disabled" : "") +
-              ">下</button>" +
               '<button type="button" class="danger" id="btn-restore-all"' +
               (holdingFail ? " disabled" : "") +
               ">重</button>" +
@@ -1369,7 +1173,6 @@
             return;
           }
           shortAttempted[q.id] = true;
-          shortRunOk[q.id] = true;
           if (!state.wrongShort[q.id])
             state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false, fails: 0 };
           const w = state.wrongShort[q.id];
@@ -1379,9 +1182,14 @@
           save();
           shortRevealed = false;
           if (w.parked) toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
-          else toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 可点「上」回看");
-          advanceShortAfterCorrect(q, w.parked);
-          if (!w.parked) shortReturnIdx = shortIdx;
+          else toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 下一题");
+          syncShortOrder();
+          const beforeLen = (shortOrder || []).length;
+          const seenBefore = passSeenCount(shortPassSeen, shortOrder);
+          shortIdx = advancePass(shortOrder, shortPassSeen, q.id, w.parked);
+          if (!w.parked && beforeLen > 1 && seenBefore + 1 >= beforeLen) {
+            toast("本轮已扫完，打乱开新一轮");
+          }
           render();
         });
         $("btn-fail").addEventListener("click", () => {
@@ -1400,7 +1208,7 @@
           save();
           holdingFail = true;
           shortRevealed = true;
-          toast("还不会 · 先看采分点，点「跳」排到队尾");
+          toast("还不会 · 先看采分点，点「跳」继续");
           render();
         });
         if ($("btn-skip-fail")) {
@@ -1409,28 +1217,19 @@
             holdingFail = false;
             shortRevealed = false;
             syncShortOrder();
-            if (shortStashId && shortStashId !== failId) {
-              shortIdx = moveIdToEndKeepFocus(shortOrder, shortStashId, failId);
-            }
-            shortStashId = null;
-            shortIdx = sendToEnd(shortOrder, failId);
-            toast("已排到队尾 · 下一题");
+            const beforeLen = (shortOrder || []).length;
+            const seenBefore = passSeenCount(shortPassSeen, shortOrder);
+            shortIdx = advancePass(shortOrder, shortPassSeen, failId, false);
+            if (beforeLen > 1 && seenBefore + 1 >= beforeLen) toast("本轮已扫完，打乱开新一轮");
+            else toast("下一题");
             render();
           });
         }
-        if ($("btn-prev")) {
+        if (IS_PERM && $("btn-prev")) {
           $("btn-prev").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」再换题");
-              return;
-            }
             jumpShortAwayFrom(-1);
           });
           $("btn-next").addEventListener("click", () => {
-            if (holdingFail) {
-              toast("先点「跳」再换题");
-              return;
-            }
             jumpShortAwayFrom(1);
           });
         }
