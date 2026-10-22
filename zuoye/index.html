@@ -870,9 +870,15 @@
           const v = map[k];
           if (!v) return;
           if (typeof v === "object") {
-            out[id] = { streak: Math.max(0, Math.floor(Number(v.streak) || 0)) };
+            const ok = Math.max(0, Math.floor(Number(v.ok) || 0));
+            const parked = !!v.parked || ok >= 2;
+            out[id] = {
+              streak: Math.max(0, Math.floor(Number(v.streak) || 0)),
+              ok: parked ? Math.max(ok, 2) : ok,
+              parked: parked,
+            };
           } else {
-            out[id] = { streak: 0 };
+            out[id] = { streak: 0, ok: 0, parked: false };
           }
         });
         return out;
@@ -1265,25 +1271,29 @@
         };
       }
       function noteMcWrong(id) {
-        state.wrongMc[id] = { streak: 0 };
+        /* 再进错题本：取消暂移，对对清零 */
+        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
         bumpPermMc(id);
       }
-      /** 每日答对不单题移出错题本；须在错题本整本一轮全对才清 */
+      /** 每日答对不单题移出错题本；错题本内连对 2 次才暂移 */
       function noteMcRight(id) {
-        return { removed: false, streak: 0, inWrong: !!state.wrongMc[id] };
+        return { removed: false, streak: 0, inWrong: !!(state.wrongMc[id] && !state.wrongMc[id].parked) };
       }
       function noteShortWrong(id) {
-        state.wrongShort[id] = { streak: 0 };
+        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
         bumpPermShort(id);
       }
       function noteShortRight(id) {
-        return { removed: false, streak: 0, inWrong: !!state.wrongShort[id] };
+        return { removed: false, streak: 0, inWrong: !!(state.wrongShort[id] && !state.wrongShort[id].parked) };
       }
       function wrongMcCount() {
-        return Object.keys(state.wrongMc || {}).length;
+        return Object.keys(state.wrongMc || {}).filter((id) => state.wrongMc[id] && !state.wrongMc[id].parked)
+          .length;
       }
       function wrongShortCount() {
-        return Object.keys(state.wrongShort || {}).length;
+        return Object.keys(state.wrongShort || {}).filter(
+          (id) => state.wrongShort[id] && !state.wrongShort[id].parked
+        ).length;
       }
       function permMcCount() {
         return Object.keys(state.permMc || {}).length;
@@ -1292,10 +1302,10 @@
         return Object.keys(state.permShort || {}).length;
       }
       function isInWrongMc(id) {
-        return !!(state.wrongMc && state.wrongMc[id]);
+        return !!(state.wrongMc && state.wrongMc[id] && !state.wrongMc[id].parked);
       }
       function isInWrongShort(id) {
-        return !!(state.wrongShort && state.wrongShort[id]);
+        return !!(state.wrongShort && state.wrongShort[id] && !state.wrongShort[id].parked);
       }
       function isInPermMc(id) {
         return !!(state.permMc && state.permMc[id]);
@@ -1310,7 +1320,7 @@
       function collectMc(id) {
         if (!id) return { ok: false, already: false };
         const already = isInWrongMc(id) && isInPermMc(id);
-        state.wrongMc[id] = { streak: 0 };
+        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
         if (!state.permMc) state.permMc = {};
         if (!state.permMc[id]) {
           state.permMc[id] = { miss: 1, at: new Date().toISOString() };
@@ -1321,7 +1331,7 @@
       function collectShort(id) {
         if (!id) return { ok: false, already: false };
         const already = isInWrongShort(id) && isInPermShort(id);
-        state.wrongShort[id] = { streak: 0 };
+        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
         if (!state.permShort) state.permShort = {};
         if (!state.permShort[id]) {
           state.permShort[id] = { miss: 1, at: new Date().toISOString() };

@@ -163,7 +163,8 @@
       const STORE = "pansan2-zuoye-forced-progress";
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
       const THEME_STORE = "pansan2-zuoye-theme";
-      const WRONG_FAIL_PAUSE_MS = 3000; /* 错题本：答错后停顿再打乱重来 */
+      const WRONG_OK_NEED = 2; /* 同题答对 2 次才暂移出（后台仍记住） */
+      const WRONG_FAIL_PAUSE_MS = 900; /* 答错后短停再排到队尾 */
       const courseName = { history: "近代史", xi: "习思想" };
       const $ = (id) => document.getElementById(id);
       const IS_PERM =
@@ -194,8 +195,17 @@
           const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
           const v = map[k];
           if (!v) return;
-          if (typeof v === "object") out[id] = { streak: Math.max(0, Math.floor(Number(v.streak) || 0)) };
-          else out[id] = { streak: 0 };
+          if (typeof v === "object") {
+            const ok = Math.max(0, Math.floor(Number(v.ok) || 0));
+            const parked = !!v.parked || ok >= WRONG_OK_NEED;
+            out[id] = {
+              streak: Math.max(0, Math.floor(Number(v.streak) || 0)),
+              ok: parked ? Math.max(ok, WRONG_OK_NEED) : ok,
+              parked: parked,
+            };
+          } else {
+            out[id] = { streak: 0, ok: 0, parked: false };
+          }
         });
         return out;
       }
@@ -349,24 +359,44 @@
         };
       }
       function noteMcWrong(id) {
-        state.wrongMc[id] = { streak: 0 };
+        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
         bumpPermMc(id);
       }
       function noteShortWrong(id) {
-        state.wrongShort[id] = { streak: 0 };
+        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
         bumpPermShort(id);
-      }
-      function clearAllWrongMc() {
-        state.wrongMc = {};
-      }
-      function clearAllWrongShort() {
-        state.wrongShort = {};
       }
       function missOfMc(id) {
         return (state.permMc && state.permMc[id] && state.permMc[id].miss) || 0;
       }
       function missOfShort(id) {
         return (state.permShort && state.permShort[id] && state.permShort[id].miss) || 0;
+      }
+      function wrongMcOkOf(id) {
+        return (state.wrongMc[id] && state.wrongMc[id].ok) || 0;
+      }
+      function wrongShortOkOf(id) {
+        return (state.wrongShort[id] && state.wrongShort[id].ok) || 0;
+      }
+      function activeWrongMcIds() {
+        return Object.keys(state.wrongMc || {}).filter((id) => state.wrongMc[id] && !state.wrongMc[id].parked);
+      }
+      function activeWrongShortIds() {
+        return Object.keys(state.wrongShort || {}).filter(
+          (id) => state.wrongShort[id] && !state.wrongShort[id].parked
+        );
+      }
+      function allWrongMcIds() {
+        return Object.keys(state.wrongMc || {});
+      }
+      function allWrongShortIds() {
+        return Object.keys(state.wrongShort || {});
+      }
+      function parkedWrongCount() {
+        const mc = allWrongMcIds().filter((id) => state.wrongMc[id] && state.wrongMc[id].parked).length;
+        const sh = allWrongShortIds().filter((id) => state.wrongShort[id] && state.wrongShort[id].parked)
+          .length;
+        return mc + sh;
       }
 
       let state = load();
@@ -379,11 +409,14 @@
       let judged = false;
       let shortRevealed = false;
       let holdingCorrect = false;
-      let holdingFail = false; /* 错题本答错后的 3 秒锁 */
+      let holdingFail = false;
       let advanceTimer = null;
       let permSorted = false; /* 永久库：是否按错次排序 */
-      let mcRunOk = {}; /* 错题本本轮已答对：id → 所选 key，便于回看解析 */
-      let mcFrontier = 0; /* 本轮最远推进到的下标（含当前待答题） */
+      let mcRunOk = {}; /* 本场回看：id → 所选 key */
+      let mcFrontier = 0;
+      let mcAttempted = {}; /* 本场已答过（优先刷未答） */
+      let shortAttempted = {};
+      let shortRunOk = {};
 
       if (IS_PERM) {
         document.title = "永久库 · 答对不删";
@@ -392,7 +425,9 @@
           "与错题同步：答错自动进来并累计错次；这里答对<strong>不会移出</strong>。点「排序」按错次从多到少。";
       } else {
         $("page-sub").innerHTML =
-          "选择答错会进来。默认<strong>点答</strong>。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会停 3 秒提示「你错了」，再打乱重来。";
+          "默认<strong>点答</strong>。同题答对 <b>" +
+          WRONG_OK_NEED +
+          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答错排到队尾，优先未答。点「重」可把暂移出的题全部召回。";
       }
 
       function shuffleIds(ids) {
@@ -407,10 +442,10 @@
       }
 
       function sourceMcIds() {
-        return Object.keys(IS_PERM ? state.permMc || {} : state.wrongMc || {});
+        return IS_PERM ? Object.keys(state.permMc || {}) : activeWrongMcIds();
       }
       function sourceShortIds() {
-        return Object.keys(IS_PERM ? state.permShort || {} : state.wrongShort || {});
+        return IS_PERM ? Object.keys(state.permShort || {}) : activeWrongShortIds();
       }
 
       function sortIdsByMiss(ids, missFn) {
@@ -421,13 +456,20 @@
         });
       }
 
+      function isAliveMc(id) {
+        if (IS_PERM) return !!(state.permMc && state.permMc[id]);
+        return !!(state.wrongMc && state.wrongMc[id] && !state.wrongMc[id].parked);
+      }
+      function isAliveShort(id) {
+        if (IS_PERM) return !!(state.permShort && state.permShort[id]);
+        return !!(state.wrongShort && state.wrongShort[id] && !state.wrongShort[id].parked);
+      }
       function syncMcOrder() {
         const ids = sourceMcIds();
-        const alive = IS_PERM ? state.permMc || {} : state.wrongMc || {};
         if (!mcOrder) {
           mcOrder = IS_PERM && permSorted ? sortIdsByMiss(ids, missOfMc) : shuffleIds(ids);
         } else {
-          mcOrder = mcOrder.filter((id) => alive[id]);
+          mcOrder = mcOrder.filter((id) => isAliveMc(id));
           ids.forEach((id) => {
             if (mcOrder.indexOf(id) < 0) mcOrder.push(id);
           });
@@ -436,16 +478,64 @@
       }
       function syncShortOrder() {
         const ids = sourceShortIds();
-        const alive = IS_PERM ? state.permShort || {} : state.wrongShort || {};
         if (!shortOrder) {
           shortOrder = IS_PERM && permSorted ? sortIdsByMiss(ids, missOfShort) : shuffleIds(ids);
         } else {
-          shortOrder = shortOrder.filter((id) => alive[id]);
+          shortOrder = shortOrder.filter((id) => isAliveShort(id));
           ids.forEach((id) => {
             if (shortOrder.indexOf(id) < 0) shortOrder.push(id);
           });
           if (IS_PERM && permSorted) shortOrder = sortIdsByMiss(shortOrder, missOfShort);
         }
+      }
+      function rebuildMcPreferFresh() {
+        const ids = sourceMcIds();
+        const orderOf = (id) => {
+          const i = (mcOrder || []).indexOf(id);
+          return i < 0 ? 99999 : i;
+        };
+        const fresh = ids.filter((id) => !mcAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
+        const rest = ids.filter((id) => mcAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
+        mcOrder = fresh.concat(rest);
+        mcIdx = 0;
+        mcFrontier = Math.max(0, mcOrder.length - 1);
+      }
+      function rebuildShortPreferFresh() {
+        const ids = sourceShortIds();
+        const orderOf = (id) => {
+          const i = (shortOrder || []).indexOf(id);
+          return i < 0 ? 99999 : i;
+        };
+        const fresh = ids.filter((id) => !shortAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
+        const rest = ids.filter((id) => shortAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
+        shortOrder = fresh.concat(rest);
+        shortIdx = 0;
+      }
+      function restoreAllWrongBank() {
+        allWrongMcIds().forEach((id) => {
+          state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
+        });
+        allWrongShortIds().forEach((id) => {
+          state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
+        });
+        mcAttempted = {};
+        shortAttempted = {};
+        mcRunOk = {};
+        shortRunOk = {};
+        mcOrder = shuffleIds(activeWrongMcIds());
+        shortOrder = shuffleIds(activeWrongShortIds());
+        mcIdx = 0;
+        shortIdx = 0;
+        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
+        picked = null;
+        judged = false;
+        holdingCorrect = false;
+        holdingFail = false;
+        shortRevealed = false;
+        save();
+        const n = activeWrongMcIds().length + activeWrongShortIds().length;
+        toast("已召回全部错题 " + n + " 道，继续连对 " + WRONG_OK_NEED + " 次暂移");
+        render();
       }
 
       function applyPermSort() {
@@ -502,17 +592,6 @@
         shortIdx = idx;
       }
 
-      /** 错题本：整本打乱并从第 1 题重来 */
-      function restartMcRun() {
-        mcOrder = shuffleIds(sourceMcIds());
-        mcIdx = 0;
-        mcFrontier = 0;
-        mcRunOk = {};
-        picked = null;
-        judged = false;
-        holdingCorrect = false;
-        holdingFail = false;
-      }
       function restoreMcViewState(q) {
         if (q && mcRunOk[q.id]) {
           picked = mcRunOk[q.id];
@@ -526,7 +605,7 @@
       function goMcPrev() {
         if (holdingFail) return;
         if (mcIdx <= 0) {
-          toast("已经是本轮第 1 题");
+          toast("已经是第 1 题");
           return;
         }
         clearAdvanceTimer();
@@ -536,20 +615,15 @@
       }
       function goMcNext() {
         if (holdingFail) return;
-        if (mcIdx >= mcFrontier) {
-          toast(mcRunOk[(mcList()[mcIdx] || {}).id] ? "后面还没答，先点选项" : "已经是当前进度");
+        const n = mcList().length;
+        if (mcIdx >= n - 1) {
+          toast("已经是最后一题");
           return;
         }
         clearAdvanceTimer();
         mcIdx += 1;
         restoreMcViewState(mcList()[mcIdx]);
         render();
-      }
-      function restartShortRun() {
-        shortOrder = shuffleIds(sourceShortIds());
-        shortIdx = 0;
-        shortRevealed = false;
-        holdingFail = false;
       }
 
       function mcList() {
@@ -592,51 +666,47 @@
             }, 380);
             return;
           }
-          /* 错题本：按序推进；本轮全对才整本移出；可上/下回看已答对 */
+          /* 错题本：同题连对 WRONG_OK_NEED 次暂移；否则排后继续 */
           mcRunOk[q.id] = key;
-          const total = mcList().length;
-          const doneN = mcIdx + 1;
-          if (doneN >= total) {
-            clearAllWrongMc();
-            save();
-            toast("本轮全对 · 选择错题已全部移出");
-            advanceTimer = setTimeout(() => {
-              holdingCorrect = false;
-              picked = null;
-              judged = false;
-              mcRunOk = {};
-              mcFrontier = 0;
-              mcOrder = null;
-              mcIdx = 0;
-              render();
-            }, 500);
+          mcAttempted[q.id] = true;
+          if (!state.wrongMc[q.id]) state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false };
+          const w = state.wrongMc[q.id];
+          w.ok = Math.min(WRONG_OK_NEED, (w.ok || 0) + 1);
+          w.parked = w.ok >= WRONG_OK_NEED;
+          w.streak = 0;
+          save();
+          if (w.parked) {
+            toast("对了 " + w.ok + "/" + WRONG_OK_NEED + " · 暂移出（点「重」可召回）");
           } else {
-            toast("对了 · 本轮 " + doneN + "/" + total + " · 可点「上」回看");
-            advanceTimer = setTimeout(() => {
-              holdingCorrect = false;
-              mcIdx = doneN;
-              mcFrontier = Math.max(mcFrontier, doneN);
-              picked = null;
-              judged = false;
-              render();
-            }, 380);
+            toast("对了 " + w.ok + "/" + WRONG_OK_NEED + " · 稍后再遇");
           }
+          advanceTimer = setTimeout(() => {
+            holdingCorrect = false;
+            delete mcRunOk[q.id];
+            picked = null;
+            judged = false;
+            rebuildMcPreferFresh();
+            render();
+          }, 450);
         } else if (IS_PERM) {
           bumpPermMc(q.id);
-          /* 永久库答错：也回错题本，方便今日清 */
-          state.wrongMc[q.id] = { streak: 0 };
+          state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false };
           save();
           toast("又错了 · 累计 " + missOfMc(q.id) + " 次（仍留在永久库）");
           render();
         } else {
           noteMcWrong(q.id);
+          mcAttempted[q.id] = true;
+          delete mcRunOk[q.id];
           save();
           holdingFail = true;
-          toast("你错了");
+          toast("错了 · 排到队尾");
           render();
           advanceTimer = setTimeout(() => {
-            restartMcRun();
-            toast("已打乱，从头再来（共 " + sourceMcIds().length + " 题）");
+            holdingFail = false;
+            picked = null;
+            judged = false;
+            rebuildMcPreferFresh();
             render();
           }, WRONG_FAIL_PAUSE_MS);
         }
@@ -644,12 +714,20 @@
 
       function renderMc() {
         const list = mcList();
-        $("tab-mc").textContent = (IS_PERM ? "选择永久 " : "选择错题 ") + list.length;
+        const parkedN = IS_PERM ? 0 : parkedWrongCount();
+        $("tab-mc").textContent =
+          (IS_PERM ? "选择永久 " : "选择错题 ") +
+          list.length +
+          (!IS_PERM && parkedN ? "（暂移" + parkedN + "）" : "");
         $("tab-short").textContent = (IS_PERM ? "简答永久 " : "简答错题 ") + shortList().length;
         if (!list.length) {
           $("work").innerHTML = IS_PERM
             ? "<p class='hint'>永久库还没有选择题。答错会自动同步进来。</p>"
-            : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
+            : parkedN
+              ? "<p class='hint'>当前没有待刷选择错题（暂移出 " +
+                parkedN +
+                "）。点「重」可全部召回。</p>"
+              : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
           return;
         }
         if (mcIdx >= list.length) mcIdx = list.length - 1;
@@ -680,15 +758,17 @@
               (permSorted ? " · 已按错次排" : "") +
               " · " +
               name
-            : /* 错题本选题不露章节，避免暗示；可回看已答对 */
-              "第 " +
+            : "第 " +
               (mcIdx + 1) +
               "/" +
               list.length +
-              " · 点答 · 本轮须全对才移出" +
+              " · 点答 · 连对" +
+              wrongMcOkOf(q.id) +
+              "/" +
+              WRONG_OK_NEED +
+              "暂移" +
               (reviewing ? " · 回看" : "") +
-              " · 已过 " +
-              Object.keys(mcRunOk).length) +
+              (parkedN ? " · 库内暂移" + parkedN : "")) +
           "</div>" +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
@@ -696,9 +776,9 @@
             ? '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
               '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
-            : '<button type="button" class="ghost" id="btn-prev" title="回看上一题">上</button>' +
-              '<button type="button" class="ghost" id="btn-next" title="回到下一题">下</button>' +
-              '<button type="button" class="ghost" id="btn-reshuffle" title="打乱重来">打乱重来</button>') +
+            : '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
+              '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
+              '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题">重</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
@@ -755,13 +835,16 @@
           $("btn-prev").addEventListener("click", () => goMcPrev());
           $("btn-next").addEventListener("click", () => goMcNext());
         }
-        if (!IS_PERM && $("btn-reshuffle")) {
-          $("btn-reshuffle").addEventListener("click", () => {
+        if (!IS_PERM && $("btn-restore-all")) {
+          $("btn-restore-all").addEventListener("click", () => {
             if (holdingFail) return;
             clearAdvanceTimer();
-            restartMcRun();
-            toast("已打乱，从头再来（共 " + sourceMcIds().length + " 题）");
-            render();
+            if (!allWrongMcIds().length && !allWrongShortIds().length) {
+              toast("错题库是空的");
+              return;
+            }
+            if (!confirm("召回全部初始错题（含暂移出），对对清零后重刷？")) return;
+            restoreAllWrongBank();
           });
         }
       }
@@ -827,12 +910,16 @@
 
       function renderShort() {
         const list = shortList();
+        const parkedN = IS_PERM ? 0 : parkedWrongCount();
         $("tab-mc").textContent = (IS_PERM ? "选择永久 " : "选择错题 ") + mcList().length;
-        $("tab-short").textContent = (IS_PERM ? "简答永久 " : "简答错题 ") + list.length;
+        $("tab-short").textContent =
+          (IS_PERM ? "简答永久 " : "简答错题 ") +
+          list.length +
+          (!IS_PERM && parkedN ? "（暂移" + parkedN + "）" : "");
         if (!list.length) {
           $("work").innerHTML = IS_PERM
             ? "<p class='hint'>永久库还没有简答。答错会自动同步进来。</p>"
-            : "<p class='hint'>没有简答错题。</p>";
+            : "<p class='hint'>没有待刷简答错题。可点「重」召回暂移。</p>";
           return;
         }
         if (shortIdx >= list.length) shortIdx = list.length - 1;
@@ -845,18 +932,29 @@
         const lock = holdingFail ? " disabled" : "";
         box.innerHTML =
           '<div class="q-meta">' +
-          courseName[q.course] +
-          " · 第" +
-          q.ch +
-          "章 · " +
-          (shortIdx + 1) +
-          "/" +
-          list.length +
           (IS_PERM
-            ? " · 错" + miss + "次 · 答对不删" + (permSorted ? " · 已按错次排" : "")
-            : " · 本轮须全对才移出") +
-          " · " +
-          name +
+            ? courseName[q.course] +
+              " · 第" +
+              q.ch +
+              "章 · " +
+              (shortIdx + 1) +
+              "/" +
+              list.length +
+              " · 错" +
+              miss +
+              "次 · 答对不删" +
+              (permSorted ? " · 已按错次排" : "") +
+              " · " +
+              name
+            : "第 " +
+              (shortIdx + 1) +
+              "/" +
+              list.length +
+              " · 连对" +
+              wrongShortOkOf(q.id) +
+              "/" +
+              WRONG_OK_NEED +
+              "暂移") +
           "</div>" +
           '<div class="q-text"></div>' +
           (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
@@ -872,20 +970,20 @@
           '<button type="button" class="good" id="btn-pass"' +
           (shortRevealed && !holdingFail ? "" : " disabled") +
           ">" +
-          (IS_PERM ? "会了（不移出）" : "会了（进下一题）") +
+          (IS_PERM ? "会了（不移出）" : "会了") +
           "</button>" +
           '<button type="button" class="ghost" id="btn-fail"' +
           (shortRevealed && !holdingFail ? "" : " disabled") +
           ">" +
-          (IS_PERM ? "还不会（+1错次）" : "还不会（整本重来）") +
+          (IS_PERM ? "还不会（+1错次）" : "还不会（队尾）") +
           "</button>" +
           (IS_PERM
             ? '<button type="button" class="ghost" id="btn-prev">上一题</button>' +
               '<button type="button" class="ghost" id="btn-next">下一题</button>' +
               '<button type="button" class="primary" id="btn-sort-miss">排序</button>'
-            : '<button type="button" class="ghost" id="btn-reshuffle"' +
-              lock +
-              ">打乱重来</button>") +
+            : '<button type="button" class="ghost" id="btn-prev">上</button>' +
+              '<button type="button" class="ghost" id="btn-next">下</button>' +
+              '<button type="button" class="danger" id="btn-restore-all">重</button>') +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const wrap = box.querySelector("#short-compare");
@@ -925,28 +1023,24 @@
             render();
             return;
           }
-          const total = list.length;
-          const doneN = shortIdx + 1;
-          if (doneN >= total) {
-            clearAllWrongShort();
-            save();
-            toast("本轮全对 · 简答错题已全部移出");
-            shortRevealed = false;
-            shortOrder = null;
-            shortIdx = 0;
-            render();
-          } else {
-            toast("会了 · 本轮 " + doneN + "/" + total);
-            shortRevealed = false;
-            shortIdx = doneN;
-            render();
-          }
+          shortAttempted[q.id] = true;
+          if (!state.wrongShort[q.id]) state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false };
+          const w = state.wrongShort[q.id];
+          w.ok = Math.min(WRONG_OK_NEED, (w.ok || 0) + 1);
+          w.parked = w.ok >= WRONG_OK_NEED;
+          w.streak = 0;
+          save();
+          shortRevealed = false;
+          if (w.parked) toast("会了 " + w.ok + "/" + WRONG_OK_NEED + " · 暂移出");
+          else toast("会了 " + w.ok + "/" + WRONG_OK_NEED + " · 稍后再遇");
+          rebuildShortPreferFresh();
+          render();
         });
         $("btn-fail").addEventListener("click", () => {
           if (holdingFail) return;
           if (IS_PERM) {
             bumpPermShort(q.id);
-            state.wrongShort[q.id] = { streak: 0 };
+            state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false };
             save();
             toast("还不会 · 累计 " + missOfShort(q.id) + " 次");
             shortRevealed = false;
@@ -955,32 +1049,24 @@
             return;
           }
           noteShortWrong(q.id);
+          shortAttempted[q.id] = true;
           save();
-          holdingFail = true;
-          shortRevealed = true;
-          toast("你错了");
+          shortRevealed = false;
+          toast("还不会 · 排到队尾");
+          rebuildShortPreferFresh();
           render();
-          clearAdvanceTimer();
-          advanceTimer = setTimeout(() => {
-            restartShortRun();
-            toast("已打乱，从头再来（共 " + sourceShortIds().length + " 题）");
-            render();
-          }, WRONG_FAIL_PAUSE_MS);
         });
-        if (IS_PERM && $("btn-prev")) {
+        if ($("btn-prev")) {
           $("btn-prev").addEventListener("click", () => jumpShortAwayFrom(-1));
           $("btn-next").addEventListener("click", () => jumpShortAwayFrom(1));
         }
         if (IS_PERM && $("btn-sort-miss")) {
           $("btn-sort-miss").addEventListener("click", () => applyPermSort());
         }
-        if (!IS_PERM && $("btn-reshuffle")) {
-          $("btn-reshuffle").addEventListener("click", () => {
-            if (holdingFail) return;
-            clearAdvanceTimer();
-            restartShortRun();
-            toast("已打乱，从头再来（共 " + sourceShortIds().length + " 题）");
-            render();
+        if (!IS_PERM && $("btn-restore-all")) {
+          $("btn-restore-all").addEventListener("click", () => {
+            if (!confirm("召回全部初始错题（含暂移出），对对清零后重刷？")) return;
+            restoreAllWrongBank();
           });
         }
       }
