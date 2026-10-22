@@ -855,6 +855,7 @@
           wrongShort: {},
           permMc: {}, /* 永久库：答错同步进来，答对不删；miss=累计错次 */
           permShort: {},
+          wrongOkNeed: 2, /* 错题本：答对几次暂移，与 wrong.html「设」同步 */
           pinnedPlans: {},
           mcShuffle: false, /* 选择题乱序 */
           mcShuffleDate: null,
@@ -863,7 +864,14 @@
         };
       }
 
-      function normalizeWrongMap(map) {
+      function clampWrongOkNeed(n) {
+        const x = Math.floor(Number(n));
+        if (!isFinite(x) || x < 1) return 2;
+        return Math.min(20, x);
+      }
+
+      function normalizeWrongMap(map, need) {
+        const needN = clampWrongOkNeed(need != null ? need : 2);
         const out = {};
         Object.keys(map || {}).forEach((k) => {
           const id = k.indexOf("|") >= 0 ? k.slice(k.indexOf("|") + 1) : k;
@@ -871,14 +879,15 @@
           if (!v) return;
           if (typeof v === "object") {
             const ok = Math.max(0, Math.floor(Number(v.ok) || 0));
-            const parked = !!v.parked || ok >= 2;
+            const parked = !!v.parked || ok >= needN;
             out[id] = {
               streak: Math.max(0, Math.floor(Number(v.streak) || 0)),
-              ok: parked ? Math.max(ok, 2) : ok,
+              ok: ok,
               parked: parked,
+              fails: Math.max(0, Math.floor(Number(v.fails) || 0)),
             };
           } else {
-            out[id] = { streak: 0, ok: 0, parked: false };
+            out[id] = { streak: 0, ok: 0, parked: false, fails: 0 };
           }
         });
         return out;
@@ -954,13 +963,16 @@
       function normalizeState(raw) {
         const st = emptyState();
         if (!raw || typeof raw !== "object") return st;
+        st.wrongOkNeed = clampWrongOkNeed(
+          raw.wrongOkNeed != null ? raw.wrongOkNeed : 2
+        );
         st.mcOk = stripDayPrefix(raw.mcOk);
         st.shortOk = stripDayPrefix(raw.shortOk);
         st.shortDraft =
           raw.shortDraft && typeof raw.shortDraft === "object" ? { ...raw.shortDraft } : {};
         st.shortPointsCustom = normalizePointsCustom(raw.shortPointsCustom);
-        st.wrongMc = normalizeWrongMap(raw.wrongMc);
-        st.wrongShort = normalizeWrongMap(raw.wrongShort);
+        st.wrongMc = normalizeWrongMap(raw.wrongMc, st.wrongOkNeed);
+        st.wrongShort = normalizeWrongMap(raw.wrongShort, st.wrongOkNeed);
         st.permMc = normalizePermMap(raw.permMc);
         st.permShort = normalizePermMap(raw.permShort);
         /* 兼容旧收藏录字段 fav* */
@@ -1271,8 +1283,14 @@
         };
       }
       function noteMcWrong(id) {
-        /* 再进错题本：取消暂移，对对清零 */
-        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
+        /* 再进错题本：取消暂移，对对清零；累计犯错 +1 */
+        const prev = state.wrongMc[id];
+        state.wrongMc[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails ? prev.fails : 0) + 1,
+        };
         bumpPermMc(id);
       }
       /** 每日答对不单题移出错题本；错题本内连对 2 次才暂移 */
@@ -1280,7 +1298,13 @@
         return { removed: false, streak: 0, inWrong: !!(state.wrongMc[id] && !state.wrongMc[id].parked) };
       }
       function noteShortWrong(id) {
-        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
+        const prev = state.wrongShort[id];
+        state.wrongShort[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails ? prev.fails : 0) + 1,
+        };
         bumpPermShort(id);
       }
       function noteShortRight(id) {
@@ -1320,7 +1344,13 @@
       function collectMc(id) {
         if (!id) return { ok: false, already: false };
         const already = isInWrongMc(id) && isInPermMc(id);
-        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
+        const prev = state.wrongMc[id];
+        state.wrongMc[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails) || 0, /* 「收」不算犯错 */
+        };
         if (!state.permMc) state.permMc = {};
         if (!state.permMc[id]) {
           state.permMc[id] = { miss: 1, at: new Date().toISOString() };
@@ -1331,7 +1361,13 @@
       function collectShort(id) {
         if (!id) return { ok: false, already: false };
         const already = isInWrongShort(id) && isInPermShort(id);
-        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
+        const prev = state.wrongShort[id];
+        state.wrongShort[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails) || 0,
+        };
         if (!state.permShort) state.permShort = {};
         if (!state.permShort[id]) {
           state.permShort[id] = { miss: 1, at: new Date().toISOString() };
@@ -2754,7 +2790,23 @@
         render();
       });
 
+      /** 错题本与每日作业共用同一 localStorage；上传前从磁盘再读错题/永久库，避免另页练完后本页内存过期 */
+      function refreshWrongFieldsFromDisk() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(STORE) || "null");
+          if (!raw) return;
+          if (raw.wrongOkNeed != null) state.wrongOkNeed = clampWrongOkNeed(raw.wrongOkNeed);
+          const need = clampWrongOkNeed(state.wrongOkNeed);
+          if (raw.wrongMc) state.wrongMc = normalizeWrongMap(raw.wrongMc, need);
+          if (raw.wrongShort) state.wrongShort = normalizeWrongMap(raw.wrongShort, need);
+          if (raw.permMc) state.permMc = normalizePermMap(raw.permMc);
+          if (raw.permShort) state.permShort = normalizePermMap(raw.permShort);
+        } catch (_) {}
+      }
+
       function buildExportPayload() {
+        flushActiveShortDraft();
+        refreshWrongFieldsFromDisk();
         return {
           v: 8,
           type: "fuxi-zuoye-forced-progress",
@@ -2764,6 +2816,7 @@
           shortDraft: state.shortDraft || {},
           shortPointsCustom: state.shortPointsCustom || {},
           mcDay: state.mcDay,
+          wrongOkNeed: clampWrongOkNeed(state.wrongOkNeed),
           wrongMc: state.wrongMc,
           wrongShort: state.wrongShort,
           permMc: state.permMc || {},
@@ -2987,15 +3040,27 @@
         });
         Object.keys(incoming.wrongMc || {}).forEach((id) => {
           const cur = state.wrongMc[id];
-          const inc = incoming.wrongMc[id];
+          const inc = incoming.wrongMc[id] || {};
           if (!cur) state.wrongMc[id] = inc;
-          else state.wrongMc[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+          else
+            state.wrongMc[id] = {
+              streak: Math.min(cur.streak || 0, inc.streak || 0),
+              ok: Math.max(cur.ok || 0, inc.ok || 0),
+              parked: !!(cur.parked || inc.parked),
+              fails: Math.max(cur.fails || 0, inc.fails || 0),
+            };
         });
         Object.keys(incoming.wrongShort || {}).forEach((id) => {
           const cur = state.wrongShort[id];
-          const inc = incoming.wrongShort[id];
+          const inc = incoming.wrongShort[id] || {};
           if (!cur) state.wrongShort[id] = inc;
-          else state.wrongShort[id] = { streak: Math.min(cur.streak || 0, inc.streak || 0) };
+          else
+            state.wrongShort[id] = {
+              streak: Math.min(cur.streak || 0, inc.streak || 0),
+              ok: Math.max(cur.ok || 0, inc.ok || 0),
+              parked: !!(cur.parked || inc.parked),
+              fails: Math.max(cur.fails || 0, inc.fails || 0),
+            };
         });
         Object.keys(incoming.permMc || {}).forEach((id) => {
           if (!state.permMc) state.permMc = {};

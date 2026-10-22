@@ -123,6 +123,25 @@
       line-height: 1.2;
       white-space: nowrap;
     }
+    .nav-btns .ok-need-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 2px;
+    }
+    .nav-btns .ok-need-wrap input {
+      width: 2.6em;
+      padding: 5px 4px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.88rem;
+      line-height: 1.2;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      background: var(--surface);
+      color: var(--ink);
+    }
     .toast {
       position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
       background: var(--toast-bg); color: #fff; padding: 10px 14px; border-radius: 8px;
@@ -141,7 +160,7 @@
       <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。须把本页错题<strong>一轮全对</strong>才全部移出；中途错一题会提示后打乱重来。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移；答对暂存 1 题可「上」回看，再对才把上一题甩队尾。与每日作业共用本机进度。</p>
 
     <div class="card">
       <div class="tabs">
@@ -163,8 +182,87 @@
       const STORE = "pansan2-zuoye-forced-progress";
       const STORE_LEGACY = "pansan2-zuoye-forced-v3";
       const THEME_STORE = "pansan2-zuoye-theme";
-      const WRONG_OK_NEED = 2; /* 同题答对 2 次才暂移出（后台仍记住） */
+      const WRONG_OK_NEED_DEFAULT = 2; /* 同题答对 N 次才暂移出（可「设」改） */
+      let wrongOkNeed = WRONG_OK_NEED_DEFAULT;
       const courseName = { history: "近代史", xi: "习思想" };
+      function clampWrongOkNeed(n) {
+        const x = Math.floor(Number(n));
+        if (!isFinite(x) || x < 1) return WRONG_OK_NEED_DEFAULT;
+        return Math.min(20, x);
+      }
+      function wrongOkNeedOf() {
+        return clampWrongOkNeed(wrongOkNeed);
+      }
+      /** 改「答对几次暂移」：按新阈值重算 parked，并刷新题序 */
+      function applyWrongOkNeed(raw, opts) {
+        const next = clampWrongOkNeed(raw);
+        const silent = opts && opts.silent;
+        wrongOkNeed = next;
+        if (state) state.wrongOkNeed = next;
+        const need = next;
+        Object.keys(state.wrongMc || {}).forEach((id) => {
+          const w = state.wrongMc[id];
+          if (!w) return;
+          w.parked = (w.ok || 0) >= need;
+        });
+        Object.keys(state.wrongShort || {}).forEach((id) => {
+          const w = state.wrongShort[id];
+          if (!w) return;
+          w.parked = (w.ok || 0) >= need;
+        });
+        mcOrder = null;
+        shortOrder = null;
+        mcIdx = 0;
+        shortIdx = 0;
+        mcStashId = null;
+        shortStashId = null;
+        mcReturnIdx = null;
+        shortReturnIdx = null;
+        holdingFail = false;
+        holdingCorrect = false;
+        picked = null;
+        judged = false;
+        save();
+        if (!IS_PERM && $("page-sub")) {
+          $("page-sub").innerHTML =
+            "默认<strong>点答</strong>。同题答对 <b>" +
+            need +
+            "</b> 次才<strong>暂移出</strong>（后台仍记住）。答对先<strong>暂存 1 题</strong>可点「上」回看，再对一题才把更早那题甩到队尾；答错看完点「跳」也排到队尾。点「重」召回暂移。旁边「设」可改次数。";
+        }
+        if (!silent) toast("已设：答对 " + need + " 次才暂移");
+        render();
+      }
+      function bindOkNeedControls() {
+        const btn = $("btn-ok-need");
+        const inp = $("inp-ok-need");
+        if (!btn || !inp) return;
+        const commit = () => applyWrongOkNeed(inp.value);
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          commit();
+        });
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+        });
+        inp.addEventListener("change", () => commit());
+      }
+      function okNeedControlsHtml(disabled) {
+        return (
+          '<span class="ok-need-wrap" title="答对几次才暂移出">' +
+          '<button type="button" class="ghost" id="btn-ok-need"' +
+          (disabled ? " disabled" : "") +
+          ">设</button>" +
+          '<input id="inp-ok-need" type="number" min="1" max="20" step="1" value="' +
+          wrongOkNeedOf() +
+          '"' +
+          (disabled ? " disabled" : "") +
+          " />" +
+          "</span>"
+        );
+      }
       const $ = (id) => document.getElementById(id);
       const IS_PERM =
         /(?:\?|&)mode=perm(?:&|$)/.test(location.search || "") ||
@@ -195,15 +293,17 @@
           const v = map[k];
           if (!v) return;
           if (typeof v === "object") {
+            const need = wrongOkNeedOf();
             const ok = Math.max(0, Math.floor(Number(v.ok) || 0));
-            const parked = !!v.parked || ok >= WRONG_OK_NEED;
+            const parked = !!v.parked || ok >= need;
             out[id] = {
               streak: Math.max(0, Math.floor(Number(v.streak) || 0)),
-              ok: parked ? Math.max(ok, WRONG_OK_NEED) : ok,
+              ok: ok,
               parked: parked,
+              fails: Math.max(0, Math.floor(Number(v.fails) || 0)), /* 累计犯错，从有此字段起计 */
             };
           } else {
-            out[id] = { streak: 0, ok: 0, parked: false };
+            out[id] = { streak: 0, ok: 0, parked: false, fails: 0 };
           }
         });
         return out;
@@ -249,6 +349,7 @@
           if (!raw || typeof raw !== "object") {
             return {
               v: 8,
+              wrongOkNeed: WRONG_OK_NEED_DEFAULT,
               wrongMc: {},
               wrongShort: {},
               permMc: {},
@@ -259,6 +360,9 @@
               pinnedPlans: {},
             };
           }
+          wrongOkNeed = clampWrongOkNeed(
+            raw.wrongOkNeed != null ? raw.wrongOkNeed : WRONG_OK_NEED_DEFAULT
+          );
           const wrongMc = normalizeWrongMap(raw.wrongMc);
           const wrongShort = normalizeWrongMap(raw.wrongShort);
           const permMc = normalizePermMap(raw.permMc);
@@ -269,6 +373,7 @@
           mergeIntoPerm(permShort, wrongShort, 1);
           return {
             v: raw.v || 8,
+            wrongOkNeed: wrongOkNeed,
             wrongMc: wrongMc,
             wrongShort: wrongShort,
             permMc: permMc,
@@ -287,6 +392,7 @@
         } catch (_) {
           return {
             v: 8,
+            wrongOkNeed: WRONG_OK_NEED_DEFAULT,
             wrongMc: {},
             wrongShort: {},
             permMc: {},
@@ -311,6 +417,7 @@
           }
           const next = Object.assign({}, raw, {
             v: Math.max(Number(raw.v) || 0, 8),
+            wrongOkNeed: wrongOkNeedOf(),
             wrongMc: state.wrongMc,
             wrongShort: state.wrongShort,
             permMc: state.permMc || {},
@@ -358,11 +465,23 @@
         };
       }
       function noteMcWrong(id) {
-        state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
+        const prev = state.wrongMc[id];
+        state.wrongMc[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails ? prev.fails : 0) + 1,
+        };
         bumpPermMc(id);
       }
       function noteShortWrong(id) {
-        state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
+        const prev = state.wrongShort[id];
+        state.wrongShort[id] = {
+          streak: 0,
+          ok: 0,
+          parked: false,
+          fails: (prev && prev.fails ? prev.fails : 0) + 1,
+        };
         bumpPermShort(id);
       }
       function missOfMc(id) {
@@ -376,6 +495,12 @@
       }
       function wrongShortOkOf(id) {
         return (state.wrongShort[id] && state.wrongShort[id].ok) || 0;
+      }
+      function wrongMcFailsOf(id) {
+        return (state.wrongMc[id] && state.wrongMc[id].fails) || 0;
+      }
+      function wrongShortFailsOf(id) {
+        return (state.wrongShort[id] && state.wrongShort[id].fails) || 0;
       }
       function activeWrongMcIds() {
         return Object.keys(state.wrongMc || {}).filter((id) => state.wrongMc[id] && !state.wrongMc[id].parked);
@@ -416,6 +541,10 @@
       let mcAttempted = {}; /* 本场已答过（优先刷未答） */
       let shortAttempted = {};
       let shortRunOk = {};
+      let mcStashId = null; /* 答对暂存 1 题供「上」回看；再对一题才把上一题甩队尾 */
+      let mcReturnIdx = null; /* 从暂存「下」回来时的下标 */
+      let shortStashId = null;
+      let shortReturnIdx = null;
 
       if (IS_PERM) {
         document.title = "永久库 · 答对不删";
@@ -425,8 +554,8 @@
       } else {
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
-          WRONG_OK_NEED +
-          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答错先停住看解析，点「跳」再排到队尾（优先未答）。点「重」可召回暂移。";
+          wrongOkNeedOf() +
+          "</b> 次才<strong>暂移出</strong>（后台仍记住）。答对先<strong>暂存 1 题</strong>可点「上」回看，再对一题才把更早那题甩到队尾；答错看完点「跳」也排到队尾。点「重」召回暂移。";
       }
 
       function shuffleIds(ids) {
@@ -487,40 +616,103 @@
           if (IS_PERM && permSorted) shortOrder = sortIdsByMiss(shortOrder, missOfShort);
         }
       }
-      function rebuildMcPreferFresh() {
-        const ids = sourceMcIds();
-        const orderOf = (id) => {
-          const i = (mcOrder || []).indexOf(id);
-          return i < 0 ? 99999 : i;
-        };
-        const fresh = ids.filter((id) => !mcAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
-        const rest = ids.filter((id) => mcAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
-        mcOrder = fresh.concat(rest);
-        mcIdx = 0;
-        mcFrontier = Math.max(0, mcOrder.length - 1);
+      /** 刚答过的题甩到队尾；返回下一题下标（原下一位前移顶上；若本是末题则回到 0） */
+      function sendToEnd(order, id) {
+        if (!order || !order.length) return 0;
+        const pos = order.indexOf(id);
+        if (pos < 0) return 0;
+        const wasLast = pos >= order.length - 1;
+        order.splice(pos, 1);
+        order.push(id);
+        if (!order.length) return 0;
+        return wasLast ? 0 : pos;
       }
-      function rebuildShortPreferFresh() {
-        const ids = sourceShortIds();
-        const orderOf = (id) => {
-          const i = (shortOrder || []).indexOf(id);
-          return i < 0 ? 99999 : i;
-        };
-        const fresh = ids.filter((id) => !shortAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
-        const rest = ids.filter((id) => shortAttempted[id]).sort((a, b) => orderOf(a) - orderOf(b));
-        shortOrder = fresh.concat(rest);
-        shortIdx = 0;
+      /** 把 moveId 甩到队尾，并返回 focusId 的新下标 */
+      function moveIdToEndKeepFocus(order, moveId, focusId) {
+        if (!order || !order.length) return 0;
+        const pos = order.indexOf(moveId);
+        if (pos >= 0) {
+          order.splice(pos, 1);
+          order.push(moveId);
+        }
+        const fi = order.indexOf(focusId);
+        return fi >= 0 ? fi : 0;
+      }
+      /** 暂移抽走；返回抽走后应停的下标 */
+      function removeFromOrder(order, id, curIdx) {
+        if (!order || !order.length) return 0;
+        const pos = order.indexOf(id);
+        if (pos < 0) return Math.min(curIdx, Math.max(0, order.length - 1));
+        order.splice(pos, 1);
+        if (!order.length) return 0;
+        let idx = curIdx;
+        if (idx > pos) idx -= 1;
+        if (idx >= order.length) idx = 0;
+        if (idx < 0) idx = 0;
+        return idx;
+      }
+      /** 答对后前进到下一题下标（跳过暂存题本身） */
+      function nextIdxBeside(order, fromId, stashId) {
+        if (!order || !order.length) return 0;
+        const start = order.indexOf(fromId);
+        const n = order.length;
+        if (n <= 1) return 0;
+        const base = start < 0 ? 0 : start;
+        for (let step = 1; step <= n; step++) {
+          const i = (base + step) % n;
+          if (stashId && order[i] === stashId) continue;
+          return i;
+        }
+        return (base + 1) % n;
+      }
+      /** 错题本选择：答对暂存 1 题；再对则把上一暂存甩队尾 */
+      function advanceMcAfterCorrect(q, parked) {
+        syncMcOrder();
+        mcReturnIdx = null;
+        if (mcStashId && mcStashId !== q.id) {
+          moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
+        }
+        if (parked) {
+          delete mcRunOk[q.id];
+          mcStashId = null;
+          mcIdx = removeFromOrder(mcOrder, q.id, mcOrder.indexOf(q.id) >= 0 ? mcOrder.indexOf(q.id) : mcIdx);
+        } else {
+          mcStashId = q.id;
+          mcIdx = nextIdxBeside(mcOrder, q.id, mcStashId);
+        }
+        /* 保证「上」能回到暂存：frontier 覆盖暂存与当前 */
+        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
+      }
+      function advanceShortAfterCorrect(q, parked) {
+        syncShortOrder();
+        shortReturnIdx = null;
+        if (shortStashId && shortStashId !== q.id) {
+          moveIdToEndKeepFocus(shortOrder, shortStashId, q.id);
+        }
+        if (parked) {
+          shortStashId = null;
+          const p = shortOrder.indexOf(q.id);
+          shortIdx = removeFromOrder(shortOrder, q.id, p >= 0 ? p : shortIdx);
+        } else {
+          shortStashId = q.id;
+          shortIdx = nextIdxBeside(shortOrder, q.id, shortStashId);
+        }
       }
       function restoreAllWrongBank() {
         allWrongMcIds().forEach((id) => {
-          state.wrongMc[id] = { streak: 0, ok: 0, parked: false };
+          const fails = (state.wrongMc[id] && state.wrongMc[id].fails) || 0;
+          state.wrongMc[id] = { streak: 0, ok: 0, parked: false, fails: fails };
         });
         allWrongShortIds().forEach((id) => {
-          state.wrongShort[id] = { streak: 0, ok: 0, parked: false };
+          const fails = (state.wrongShort[id] && state.wrongShort[id].fails) || 0;
+          state.wrongShort[id] = { streak: 0, ok: 0, parked: false, fails: fails };
         });
         mcAttempted = {};
         shortAttempted = {};
         mcRunOk = {};
         shortRunOk = {};
+        mcStashId = null;
+        shortStashId = null;
         mcOrder = shuffleIds(activeWrongMcIds());
         shortOrder = shuffleIds(activeWrongShortIds());
         mcIdx = 0;
@@ -533,7 +725,7 @@
         shortRevealed = false;
         save();
         const n = activeWrongMcIds().length + activeWrongShortIds().length;
-        toast("已召回全部错题 " + n + " 道，继续连对 " + WRONG_OK_NEED + " 次暂移");
+        toast("已召回全部错题 " + n + " 道，继续连对 " + wrongOkNeedOf() + " 次暂移");
         render();
       }
 
@@ -603,23 +795,50 @@
       }
       function goMcPrev() {
         if (holdingFail) return;
+        clearAdvanceTimer();
+        holdingCorrect = false;
+        syncMcOrder();
+        const curId = mcOrder && mcOrder[mcIdx];
+        /* 优先跳回「答对暂存」的那一题（不依赖下标是否 >0） */
+        if (mcStashId && curId !== mcStashId) {
+          const stashPos = mcOrder.indexOf(mcStashId);
+          if (stashPos >= 0) {
+            mcReturnIdx = mcIdx;
+            mcIdx = stashPos;
+            restoreMcViewState(mcList()[mcIdx]);
+            render();
+            return;
+          }
+        }
         if (mcIdx <= 0) {
-          toast("已经是第 1 题");
+          toast(mcStashId && curId === mcStashId ? "已是刚答对的上一题" : "没有可回看的上一题");
           return;
         }
-        clearAdvanceTimer();
         mcIdx -= 1;
         restoreMcViewState(mcList()[mcIdx]);
         render();
       }
       function goMcNext() {
         if (holdingFail) return;
-        const n = mcList().length;
-        if (mcIdx >= n - 1) {
-          toast("已经是最后一题");
+        clearAdvanceTimer();
+        holdingCorrect = false;
+        syncMcOrder();
+        const curId = mcOrder && mcOrder[mcIdx];
+        /* 正在看暂存题时，「下」回到答对后的那道新题 */
+        if (mcStashId && curId === mcStashId && mcReturnIdx != null) {
+          const back = mcReturnIdx;
+          mcReturnIdx = null;
+          if (back >= 0 && back < (mcOrder || []).length) {
+            mcIdx = back;
+            restoreMcViewState(mcList()[mcIdx]);
+            render();
+            return;
+          }
+        }
+        if (mcIdx >= mcFrontier) {
+          toast("已到当前进度，继续点选项作答");
           return;
         }
-        clearAdvanceTimer();
         mcIdx += 1;
         restoreMcViewState(mcList()[mcIdx]);
         render();
@@ -665,55 +884,86 @@
             }, 380);
             return;
           }
-          /* 错题本：同题连对 WRONG_OK_NEED 次暂移；否则排后继续 */
+          /* 错题本：答对保留回看；可点「上」翻回；连对够则暂移 */
           mcRunOk[q.id] = key;
           mcAttempted[q.id] = true;
-          if (!state.wrongMc[q.id]) state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false };
+          if (!state.wrongMc[q.id])
+            state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false, fails: 0 };
           const w = state.wrongMc[q.id];
-          w.ok = Math.min(WRONG_OK_NEED, (w.ok || 0) + 1);
-          w.parked = w.ok >= WRONG_OK_NEED;
+          w.ok = Math.min(wrongOkNeedOf(), (w.ok || 0) + 1);
+          w.parked = w.ok >= wrongOkNeedOf();
           w.streak = 0;
           save();
           if (w.parked) {
-            toast("对了 " + w.ok + "/" + WRONG_OK_NEED + " · 暂移出（点「重」可召回）");
+            toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
           } else {
-            toast("对了 " + w.ok + "/" + WRONG_OK_NEED + " · 稍后再遇");
+            toast("对了 " + w.ok + "/" + wrongOkNeedOf() + " · 下一题后可点「上」回看");
+          }
+          /* 先写入暂存/甩旧暂存，闪动后再跳到下一题，避免「上」找不到暂存 */
+          syncMcOrder();
+          mcReturnIdx = null;
+          if (!w.parked) {
+            if (mcStashId && mcStashId !== q.id) {
+              moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
+              const stay = mcOrder.indexOf(q.id);
+              if (stay >= 0) mcIdx = stay;
+            }
+            mcStashId = q.id;
+          } else {
+            if (mcStashId && mcStashId !== q.id) {
+              moveIdToEndKeepFocus(mcOrder, mcStashId, q.id);
+            }
+            mcStashId = null;
           }
           advanceTimer = setTimeout(() => {
             holdingCorrect = false;
-            delete mcRunOk[q.id];
-            picked = null;
-            judged = false;
-            rebuildMcPreferFresh();
+            if (w.parked) {
+              delete mcRunOk[q.id];
+              mcIdx = removeFromOrder(mcOrder, q.id, mcOrder.indexOf(q.id) >= 0 ? mcOrder.indexOf(q.id) : mcIdx);
+            } else {
+              mcIdx = nextIdxBeside(mcOrder, q.id, mcStashId);
+              mcReturnIdx = mcIdx; /* 从暂存点「下」回到这道新题 */
+            }
+            mcFrontier = Math.max(0, (mcOrder || []).length - 1);
+            restoreMcViewState(mcList()[mcIdx]);
             render();
           }, 450);
         } else if (IS_PERM) {
-          bumpPermMc(q.id);
-          state.wrongMc[q.id] = { streak: 0, ok: 0, parked: false };
+          noteMcWrong(q.id); /* 含永久库 miss + 错题本 fails */
           save();
           toast("又错了 · 累计 " + missOfMc(q.id) + " 次（仍留在永久库）");
           render();
         } else {
           noteMcWrong(q.id);
           mcAttempted[q.id] = true;
-          mcRunOk[q.id] = key; /* 回看时仍标出你选的错项 */
+          mcRunOk[q.id] = key;
           save();
           holdingFail = true;
-          toast("错了 · 先看解析，点「跳」再继续");
+          toast("错了 · 先看解析，点「跳」排到队尾");
           render();
         }
       }
 
-      /** 答错看完后：点「跳」→ 排到队尾并优先未答 */
+      /** 答错看完后：点「跳」→ 本题排到队尾，继续下一题 */
       function skipMcAfterFail() {
         if (!holdingFail) return;
         clearAdvanceTimer();
+        syncMcOrder();
+        const failId = mcOrder && mcOrder[mcIdx];
         holdingFail = false;
+        holdingCorrect = false;
+        if (failId) {
+          delete mcRunOk[failId];
+          if (mcStashId && mcStashId !== failId) {
+            mcIdx = moveIdToEndKeepFocus(mcOrder, mcStashId, failId);
+          }
+          mcStashId = null;
+          mcIdx = sendToEnd(mcOrder, failId);
+        }
+        mcFrontier = Math.max(0, (mcOrder || []).length - 1);
         picked = null;
         judged = false;
-        const cur = mcList()[mcIdx];
-        if (cur) delete mcRunOk[cur.id];
-        rebuildMcPreferFresh();
+        toast("已排到队尾 · 下一题");
         render();
       }
 
@@ -731,8 +981,13 @@
             : parkedN
               ? "<p class='hint'>当前没有待刷选择错题（暂移出 " +
                 parkedN +
-                "）。点「重」可全部召回。</p>"
-              : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p>";
+                "）。点「重」可全部召回。</p><div class='nav-btns'>" +
+                okNeedControlsHtml(false) +
+                "</div>"
+              : "<p class='hint'>没有选择错题。去每日作业里答错会自动进来。</p><div class='nav-btns'>" +
+                okNeedControlsHtml(false) +
+                "</div>";
+          if (!IS_PERM) bindOkNeedControls();
           return;
         }
         if (mcIdx >= list.length) mcIdx = list.length - 1;
@@ -740,11 +995,13 @@
         const q = list[mcIdx];
         const name = (BANK.names[q.course] && BANK.names[q.course][q.ch]) || "";
         const miss = missOfMc(q.id);
-        const reviewing = !IS_PERM && !!mcRunOk[q.id];
-        if (reviewing && !holdingCorrect) {
+        /* 答错停看 vs 回看已对：不要混用，否则 holdingFail 被清掉后会锁死选项又没有「跳」 */
+        if (!IS_PERM && mcRunOk[q.id] && !holdingCorrect) {
           picked = mcRunOk[q.id];
           judged = true;
         }
+        const reviewingOk =
+          !IS_PERM && !holdingFail && !!mcRunOk[q.id] && mcRunOk[q.id] === q.correct;
         const box = document.createElement("div");
         box.className = "q-card";
         box.innerHTML =
@@ -770,27 +1027,45 @@
               " · 点答 · 连对" +
               wrongMcOkOf(q.id) +
               "/" +
-              WRONG_OK_NEED +
-              "暂移" +
-              (reviewing ? " · 回看" : "") +
+              wrongOkNeedOf() +
+              "暂移 · 累计犯错" +
+              wrongMcFailsOf(q.id) +
+              "次" +
+              (holdingFail
+                ? " · 看完点跳"
+                : reviewingOk
+                  ? " · 回看"
+                  : mcFrontier > 0
+                    ? " · 已过" + Object.keys(mcRunOk).filter((id) => mcRunOk[id]).length
+                    : "") +
               (parkedN ? " · 库内暂移" + parkedN : "")) +
           "</div>" +
+          (holdingFail
+            ? '<p class="hint" style="margin:0 0 8px;font-weight:700;color:var(--red);">答错了，先看解析，再点「跳」排到队尾</p>'
+            : "") +
           '<div class="q-text"></div><div id="opts"></div><div id="explain" class="explain" hidden></div>' +
           '<div class="nav-btns">' +
           (IS_PERM
             ? '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
               '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
               '<button type="button" class="primary" id="btn-sort-miss" title="按错次从多到少">排序</button>'
-            : '<button type="button" class="ghost" id="btn-prev" title="上一题">上</button>' +
-              '<button type="button" class="ghost" id="btn-next" title="下一题">下</button>' +
-              (holdingFail
+            : (holdingFail
                 ? '<button type="button" class="primary" id="btn-skip-fail" title="看完了，排到队尾继续">跳</button>'
                 : "") +
-              '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题">重</button>') +
+              '<button type="button" class="ghost" id="btn-prev" title="上一题"' +
+              (holdingFail ? " disabled" : "") +
+              ">上</button>" +
+              '<button type="button" class="ghost" id="btn-next" title="下一题"' +
+              (holdingFail ? " disabled" : "") +
+              ">下</button>" +
+              '<button type="button" class="danger" id="btn-restore-all" title="召回全部暂移错题"' +
+              (holdingFail ? " disabled" : "") +
+              ">重</button>" +
+              okNeedControlsHtml(holdingFail)) +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const opts = box.querySelector("#opts");
-        const lockedTap = holdingFail || holdingCorrect || reviewing;
+        const lockedTap = holdingFail || holdingCorrect || reviewingOk;
         q.options.forEach((o) => {
           const b = document.createElement("button");
           b.type = "button";
@@ -804,15 +1079,17 @@
           if (holdingCorrect && o.key === q.correct) b.classList.add("flash");
           b.disabled = lockedTap;
           b.addEventListener("click", () => {
-            if (holdingCorrect || holdingFail || reviewing) return;
+            if (holdingCorrect || holdingFail || reviewingOk) return;
             judgeMcTap(q, o.key);
           });
           opts.appendChild(b);
         });
-        if (judged && q.explain) {
+        if (judged) {
           const ex = box.querySelector("#explain");
           ex.hidden = false;
-          ex.textContent = "解析：" + q.explain + "（答案 " + q.correct + "）";
+          ex.textContent =
+            (q.explain ? "解析：" + q.explain + "（答案 " + q.correct + "）" : "答案 " + q.correct) +
+            (holdingFail ? " · 看完点「跳」" : "");
         }
         $("work").innerHTML = "";
         $("work").appendChild(box);
@@ -873,6 +1150,7 @@
             restoreAllWrongBank();
           });
         }
+        if (!IS_PERM) bindOkNeedControls();
       }
 
       function jumpShortAwayFrom(dir) {
@@ -880,6 +1158,35 @@
         if (n <= 1) {
           toast(IS_PERM ? "只剩 1 道，没法换题" : "只剩 1 道错题，没法换题");
           return;
+        }
+        if (!IS_PERM && dir < 0) {
+          syncShortOrder();
+          const curId = shortOrder && shortOrder[shortIdx];
+          if (shortStashId && curId !== shortStashId) {
+            const stashPos = shortOrder.indexOf(shortStashId);
+            if (stashPos >= 0) {
+              shortReturnIdx = shortIdx;
+              shortIdx = stashPos;
+              shortRevealed = !!shortRunOk[shortStashId];
+              render();
+              return;
+            }
+          }
+          if (shortStashId && curId === shortStashId) {
+            toast("已是刚会了的上一题");
+            return;
+          }
+        }
+        if (!IS_PERM && dir > 0) {
+          syncShortOrder();
+          const curId = shortOrder && shortOrder[shortIdx];
+          if (shortStashId && curId === shortStashId && shortReturnIdx != null) {
+            shortIdx = shortReturnIdx;
+            shortReturnIdx = null;
+            shortRevealed = false;
+            render();
+            return;
+          }
         }
         shortIdx = (shortIdx + (dir || 1) + n) % n;
         shortRevealed = false;
@@ -979,8 +1286,10 @@
               " · 连对" +
               wrongShortOkOf(q.id) +
               "/" +
-              WRONG_OK_NEED +
-              "暂移") +
+              wrongOkNeedOf() +
+              "暂移 · 累计犯错" +
+              wrongShortFailsOf(q.id) +
+              "次") +
           "</div>" +
           '<div class="q-text"></div>' +
           (q.lead ? '<p class="hint">提示：' + q.lead + "</p>" : "") +
@@ -1009,9 +1318,17 @@
               '<button type="button" class="primary" id="btn-sort-miss">排序</button>'
             : (holdingFail
                 ? '<button type="button" class="primary" id="btn-skip-fail">跳</button>'
-                : '<button type="button" class="ghost" id="btn-prev">上</button>' +
-                  '<button type="button" class="ghost" id="btn-next">下</button>') +
-              '<button type="button" class="danger" id="btn-restore-all">重</button>') +
+                : "") +
+              '<button type="button" class="ghost" id="btn-prev"' +
+              (holdingFail ? " disabled" : "") +
+              ">上</button>" +
+              '<button type="button" class="ghost" id="btn-next"' +
+              (holdingFail ? " disabled" : "") +
+              ">下</button>" +
+              '<button type="button" class="danger" id="btn-restore-all"' +
+              (holdingFail ? " disabled" : "") +
+              ">重</button>" +
+              okNeedControlsHtml(holdingFail)) +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         const wrap = box.querySelector("#short-compare");
@@ -1052,23 +1369,25 @@
             return;
           }
           shortAttempted[q.id] = true;
-          if (!state.wrongShort[q.id]) state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false };
+          shortRunOk[q.id] = true;
+          if (!state.wrongShort[q.id])
+            state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false, fails: 0 };
           const w = state.wrongShort[q.id];
-          w.ok = Math.min(WRONG_OK_NEED, (w.ok || 0) + 1);
-          w.parked = w.ok >= WRONG_OK_NEED;
+          w.ok = Math.min(wrongOkNeedOf(), (w.ok || 0) + 1);
+          w.parked = w.ok >= wrongOkNeedOf();
           w.streak = 0;
           save();
           shortRevealed = false;
-          if (w.parked) toast("会了 " + w.ok + "/" + WRONG_OK_NEED + " · 暂移出");
-          else toast("会了 " + w.ok + "/" + WRONG_OK_NEED + " · 稍后再遇");
-          rebuildShortPreferFresh();
+          if (w.parked) toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 暂移出");
+          else toast("会了 " + w.ok + "/" + wrongOkNeedOf() + " · 可点「上」回看");
+          advanceShortAfterCorrect(q, w.parked);
+          if (!w.parked) shortReturnIdx = shortIdx;
           render();
         });
         $("btn-fail").addEventListener("click", () => {
           if (holdingFail) return;
           if (IS_PERM) {
-            bumpPermShort(q.id);
-            state.wrongShort[q.id] = { streak: 0, ok: 0, parked: false };
+            noteShortWrong(q.id);
             save();
             toast("还不会 · 累计 " + missOfShort(q.id) + " 次");
             shortRevealed = false;
@@ -1081,14 +1400,21 @@
           save();
           holdingFail = true;
           shortRevealed = true;
-          toast("还不会 · 先看采分点，点「跳」再继续");
+          toast("还不会 · 先看采分点，点「跳」排到队尾");
           render();
         });
         if ($("btn-skip-fail")) {
           $("btn-skip-fail").addEventListener("click", () => {
+            const failId = q.id;
             holdingFail = false;
             shortRevealed = false;
-            rebuildShortPreferFresh();
+            syncShortOrder();
+            if (shortStashId && shortStashId !== failId) {
+              shortIdx = moveIdToEndKeepFocus(shortOrder, shortStashId, failId);
+            }
+            shortStashId = null;
+            shortIdx = sendToEnd(shortOrder, failId);
+            toast("已排到队尾 · 下一题");
             render();
           });
         }
@@ -1121,6 +1447,7 @@
             restoreAllWrongBank();
           });
         }
+        if (!IS_PERM) bindOkNeedControls();
       }
 
       function render() {
@@ -1149,11 +1476,15 @@
 
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
+          /* 停看答错/答对闪动时不要清状态，否则「跳」会消失、选项被锁死 */
+          const keepUi = holdingFail || holdingCorrect;
           state = load();
           applyTheme(getTheme());
-          holdingFail = false;
-          holdingCorrect = false;
-          clearAdvanceTimer();
+          if (!keepUi) {
+            clearAdvanceTimer();
+            holdingFail = false;
+            holdingCorrect = false;
+          }
           render();
         }
       });
