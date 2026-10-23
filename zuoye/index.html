@@ -698,9 +698,7 @@
     body.simple-short .wrap > .import-panel,
     body.simple-short .wrap > .entry-tabs,
     body.simple-short .wrap > .day-nav,
-    body.simple-short .wrap > .card.hint,
-    body.simple-short #teacher-pet,
-    body.simple-short #btn-teacher-show {
+    body.simple-short .wrap > .card.hint {
       display: none !important;
     }
     body.simple-short .wrap > .card > .row,
@@ -713,11 +711,35 @@
       max-width: 780px;
       padding-top: 10px;
     }
-    body.simple-short .wrap > .card {
+    body.simple-short .wrap > .card:not(.hint) {
       border: none;
       background: transparent;
       padding: 0;
       box-shadow: none;
+    }
+    /* 简化模式：老师贴进题卡右下角（图示位置），不随整页藏掉 */
+    body.simple-short #work .q-card {
+      position: relative;
+      padding-bottom: 100px;
+    }
+    body.simple-short #teacher-pet:not([hidden]) {
+      display: block !important;
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      width: 84px;
+      z-index: 8;
+    }
+    body.simple-short #teacher-pet .teacher-fig {
+      width: 76px;
+      height: 84px;
+    }
+    body.simple-short #teacher-pet .teacher-bubble {
+      bottom: 88px;
+      width: min(200px, calc(100vw - 40px));
+    }
+    body.simple-short #teacher-pet .teacher-tools {
+      display: none; /* 简化区只留形象，隐按钮仍可用「老师」唤回 */
     }
   </style>
 </head>
@@ -809,6 +831,26 @@
         <button type="button" id="tab-short-xi">习思想</button>
       </div>
       <div id="work"></div>
+      <div id="teacher-pet" class="teacher-pet" aria-live="polite">
+        <div id="teacher-bubble" class="teacher-bubble" hidden></div>
+        <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="简答：点我按「记」逐句提示">
+          <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
+          <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
+          <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
+          <rect x="28" y="62" width="24" height="10" rx="3" fill="#fff" opacity="0.9"/>
+          <circle cx="40" cy="40" r="20" fill="#fde7d6"/>
+          <path d="M20 42 Q22 16 40 14 Q58 16 60 42 Q50 34 40 34 Q30 34 20 42Z" fill="#292524"/>
+          <circle cx="33" cy="40" r="2.2" fill="#1c1917"/>
+          <circle cx="47" cy="40" r="2.2" fill="#1c1917"/>
+          <path d="M33 48 Q40 53 47 48" stroke="#1c1917" fill="none" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M58 60 Q70 48 68 36" stroke="#fde7d6" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+          <circle cx="22" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
+          <circle cx="58" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
+        </svg>
+        <div class="teacher-tools">
+          <button type="button" id="btn-teacher-hide" title="隐藏老师">隐</button>
+        </div>
+      </div>
     </div>
 
     <div class="card hint">
@@ -818,26 +860,6 @@
     </div>
   </div>
   <div id="toast" class="toast" hidden></div>
-  <div id="teacher-pet" class="teacher-pet" aria-live="polite">
-    <div id="teacher-bubble" class="teacher-bubble" hidden></div>
-    <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="简答：点我循环提示采分点">
-      <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
-      <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
-      <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
-      <rect x="28" y="62" width="24" height="10" rx="3" fill="#fff" opacity="0.9"/>
-      <circle cx="40" cy="40" r="20" fill="#fde7d6"/>
-      <path d="M20 42 Q22 16 40 14 Q58 16 60 42 Q50 34 40 34 Q30 34 20 42Z" fill="#292524"/>
-      <circle cx="33" cy="40" r="2.2" fill="#1c1917"/>
-      <circle cx="47" cy="40" r="2.2" fill="#1c1917"/>
-      <path d="M33 48 Q40 53 47 48" stroke="#1c1917" fill="none" stroke-width="1.6" stroke-linecap="round"/>
-      <path d="M58 60 Q70 48 68 36" stroke="#fde7d6" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-      <circle cx="22" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
-      <circle cx="58" cy="46" r="3" fill="#fca5a5" opacity="0.7"/>
-    </svg>
-    <div class="teacher-tools">
-      <button type="button" id="btn-teacher-hide" title="隐藏老师">隐</button>
-    </div>
-  </div>
   <button type="button" id="btn-teacher-show" class="teacher-show" hidden title="显示老师">老师</button>
   <script src="data.js"></script>
   <script>
@@ -1556,8 +1578,31 @@
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
       let shortSimpleUi = false; /* 「简」：只留题卡 */
+      function teacherPetHomeAfterWork() {
+        const work = $("work");
+        const pet = $("teacher-pet");
+        if (!work || !pet || !work.parentElement) return;
+        work.parentElement.insertBefore(pet, work.nextSibling);
+      }
+      function ensureTeacherOutOfWork() {
+        const pet = $("teacher-pet");
+        const work = $("work");
+        if (pet && work && work.contains(pet)) teacherPetHomeAfterWork();
+      }
+      function dockTeacherForSimple() {
+        const pet = $("teacher-pet");
+        if (!pet) return;
+        if (shortSimpleUi && entryMode === "short") {
+          const card = document.querySelector("#work .q-card");
+          if (card) card.appendChild(pet);
+          else teacherPetHomeAfterWork();
+        } else {
+          teacherPetHomeAfterWork();
+        }
+      }
       function syncSimpleShortUi() {
         document.body.classList.toggle("simple-short", !!(shortSimpleUi && entryMode === "short"));
+        dockTeacherForSimple();
       }
       function toggleShortSimpleUi() {
         if (entryMode !== "short") return false;
@@ -2168,7 +2213,9 @@
       function renderMc() {
         const list = currentMcList();
         if (!list.length) {
+          ensureTeacherOutOfWork();
           $("work").innerHTML = "<p class='hint'>这一天没有选择题。</p>";
+          dockTeacherForSimple();
           return;
         }
         if (mcIdx >= list.length) mcIdx = list.length - 1;
@@ -2247,8 +2294,10 @@
           explain.hidden = false;
           explain.textContent = "解析：" + q.explain + "（答案 " + q.correct + "）";
         }
+        ensureTeacherOutOfWork();
         $("work").innerHTML = "";
         $("work").appendChild(box);
+        dockTeacherForSimple();
 
         $("btn-mc-shuffle").addEventListener("click", () => setMcShuffle(!isMcShuffle()));
         $("btn-collect-mc").addEventListener("click", () => {
@@ -2559,7 +2608,9 @@
       function renderShort() {
         const list = currentShortList();
         if (!list.length) {
+          ensureTeacherOutOfWork();
           $("work").innerHTML = "<p class='hint'>这一天没有简答题。</p>";
+          dockTeacherForSimple();
           return;
         }
         if (shortIdx >= list.length) shortIdx = list.length - 1;
@@ -2640,8 +2691,10 @@
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
         fillShortCompare(box, q, null);
+        ensureTeacherOutOfWork();
         $("work").innerHTML = "";
         $("work").appendChild(box);
+        dockTeacherForSimple();
 
         const ta = box.querySelector("#short-dictation");
         const resultEl = box.querySelector("#dictation-result");
