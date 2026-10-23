@@ -303,6 +303,37 @@
       font-size: 0.78rem;
       color: #64748b;
     }
+    .short-memo-panel {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    .short-memo-panel[hidden] { display: none !important; }
+    .short-memo-panel label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .short-memo-panel textarea {
+      width: 100%;
+      min-height: 88px;
+      font: inherit;
+      line-height: 1.45;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .short-memo-panel .hint {
+      margin: 4px 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
     .short-pane ol {
       margin: 0;
       padding-left: 1.15em;
@@ -850,6 +881,7 @@
           shortOk: {},
           shortDraft: {},
           shortPointsCustom: {}, /* qid → 自改采分点字符串数组 */
+          shortMemo: {}, /* qid → 本题还没记住的地方（「记」） */
           mcDay: {},
           wrongMc: {},
           wrongShort: {},
@@ -959,6 +991,20 @@
         const custom = state.shortPointsCustom && state.shortPointsCustom[qid];
         return Array.isArray(custom) && custom.length > 0;
       }
+      function shortMemoOf(qid) {
+        return (state.shortMemo && state.shortMemo[qid]) || "";
+      }
+      function hasShortMemo(qid) {
+        return !!String(shortMemoOf(qid) || "").trim();
+      }
+      function persistShortMemo(qid, text) {
+        if (!qid) return;
+        if (!state.shortMemo || typeof state.shortMemo !== "object") state.shortMemo = {};
+        const v = String(text || "");
+        if (!v.trim()) delete state.shortMemo[qid];
+        else state.shortMemo[qid] = v;
+        save();
+      }
 
       function normalizeState(raw) {
         const st = emptyState();
@@ -971,6 +1017,14 @@
         st.shortDraft =
           raw.shortDraft && typeof raw.shortDraft === "object" ? { ...raw.shortDraft } : {};
         st.shortPointsCustom = normalizePointsCustom(raw.shortPointsCustom);
+        st.shortMemo =
+          raw.shortMemo && typeof raw.shortMemo === "object"
+            ? Object.keys(raw.shortMemo).reduce((acc, k) => {
+                const v = String(raw.shortMemo[k] || "").trim();
+                if (v) acc[k] = String(raw.shortMemo[k] || "");
+                return acc;
+              }, {})
+            : {};
         st.wrongMc = normalizeWrongMap(raw.wrongMc, st.wrongOkNeed);
         st.wrongShort = normalizeWrongMap(raw.wrongShort, st.wrongOkNeed);
         st.permMc = normalizePermMap(raw.permMc);
@@ -2496,6 +2550,11 @@
           ">还原</button>" +
           "</div>" +
           "</div>" +
+          '<div class="short-memo-panel" id="short-memo-panel" hidden>' +
+          "<label>还没记住</label>" +
+          '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…"></textarea>' +
+          '<p class="hint">回车保存（Shift+回车换行）；下次点「记」会展开。</p>' +
+          "</div>" +
           '<div class="nav-btns">' +
           '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
           (done ? " disabled" : "") +
@@ -2513,6 +2572,9 @@
           '<button type="button" class="ghost' +
           (hasCustomPoints(q.id) ? " on" : "") +
           '" id="btn-edit-points" title="改答案">改</button>' +
+          '<button type="button" class="ghost' +
+          (hasShortMemo(q.id) ? " on" : "") +
+          '" id="btn-short-memo" title="记下还没记住的地方">记</button>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
@@ -2557,6 +2619,7 @@
         const editTa = box.querySelector("#short-edit-ta");
         function openEditPanel() {
           if (!editPanel || !editTa) return;
+          if (memoPanel && !memoPanel.hidden) closeMemoPanel();
           editTa.value = pointsFor(q).join("\n");
           editPanel.hidden = false;
           editTa.focus();
@@ -2601,6 +2664,42 @@
           toast("已还原题库原版");
           render();
         });
+        const memoPanel = box.querySelector("#short-memo-panel");
+        const memoTa = box.querySelector("#short-memo-ta");
+        function openMemoPanel() {
+          if (!memoPanel || !memoTa) return;
+          if (editPanel && !editPanel.hidden) closeEditPanel();
+          memoTa.value = shortMemoOf(q.id);
+          memoPanel.hidden = false;
+          memoTa.focus();
+          const len = memoTa.value.length;
+          try {
+            memoTa.setSelectionRange(len, len);
+          } catch (_) {}
+        }
+        function closeMemoPanel() {
+          if (memoPanel) memoPanel.hidden = true;
+        }
+        if ($("btn-short-memo")) {
+          $("btn-short-memo").addEventListener("click", () => {
+            if (ta) persistShortDraft(q.id, ta.value);
+            if (memoPanel && !memoPanel.hidden) {
+              closeMemoPanel();
+              return;
+            }
+            openMemoPanel();
+          });
+        }
+        if (memoTa) {
+          memoTa.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" || e.shiftKey) return;
+            e.preventDefault();
+            persistShortMemo(q.id, memoTa.value);
+            toast(String(memoTa.value || "").trim() ? "已记下" : "已清空本题笔记");
+            const btn = $("btn-short-memo");
+            if (btn) btn.classList.toggle("on", hasShortMemo(q.id));
+          });
+        }
         $("btn-peek-ans").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           shortRevealed = !shortRevealed;
@@ -2815,6 +2914,7 @@
           shortOk: state.shortOk,
           shortDraft: state.shortDraft || {},
           shortPointsCustom: state.shortPointsCustom || {},
+          shortMemo: state.shortMemo || {},
           mcDay: state.mcDay,
           wrongOkNeed: clampWrongOkNeed(state.wrongOkNeed),
           wrongMc: state.wrongMc,
@@ -3033,6 +3133,7 @@
           state.shortPointsCustom || {},
           incoming.shortPointsCustom || {}
         );
+        state.shortMemo = Object.assign({}, state.shortMemo || {}, incoming.shortMemo || {});
         Object.keys(incoming.mcDay || {}).forEach((d) => {
           if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
           if (!state.mcDay[d].results) state.mcDay[d].results = {};
