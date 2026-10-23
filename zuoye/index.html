@@ -687,6 +687,38 @@
       .dictation label { font-size: 0.82rem; }
       .short-why-banner > summary { padding: 10px 12px; font-size: 0.88rem; }
     }
+    /* 简答「简」：只留题卡（#work） */
+    body.simple-short .wrap > h1,
+    body.simple-short .wrap > .sub,
+    body.simple-short .wrap > .lock,
+    body.simple-short .wrap > .card.row,
+    body.simple-short .wrap > .theme-menu,
+    body.simple-short .wrap > .export-menu,
+    body.simple-short .wrap > .wrong-menu,
+    body.simple-short .wrap > .import-panel,
+    body.simple-short .wrap > .entry-tabs,
+    body.simple-short .wrap > .day-nav,
+    body.simple-short .wrap > .card.hint,
+    body.simple-short #teacher-pet,
+    body.simple-short #btn-teacher-show {
+      display: none !important;
+    }
+    body.simple-short .wrap > .card > .row,
+    body.simple-short .wrap > .card > .prog-rows,
+    body.simple-short .wrap > .card > .prog-extra,
+    body.simple-short .wrap > .card > .tabs {
+      display: none !important;
+    }
+    body.simple-short .wrap {
+      max-width: 780px;
+      padding-top: 10px;
+    }
+    body.simple-short .wrap > .card {
+      border: none;
+      background: transparent;
+      padding: 0;
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
@@ -1523,6 +1555,18 @@
       let shortRevealed = false;
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
+      let shortSimpleUi = false; /* 「简」：只留题卡 */
+      function syncSimpleShortUi() {
+        document.body.classList.toggle("simple-short", !!(shortSimpleUi && entryMode === "short"));
+      }
+      function toggleShortSimpleUi() {
+        if (entryMode !== "short") return false;
+        shortSimpleUi = !shortSimpleUi;
+        syncSimpleShortUi();
+        toast(shortSimpleUi ? "简化答题 · 再点「简」恢复" : "已恢复完整界面");
+        render();
+        return true;
+      }
       function toggleShortMemorize() {
         if (entryMode !== "short") return false;
         flushActiveShortDraft();
@@ -2402,13 +2446,6 @@
         return escapeHtml(String(s || ""));
       }
 
-      function syncPeekAnsBtn(root) {
-        const btn = root && root.querySelector("#btn-peek-ans");
-        if (!btn) return;
-        btn.textContent = shortRevealed ? "起" : "答";
-        btn.title = shortRevealed ? "收起" : "答案";
-      }
-
       function whyTextFor(q) {
         if (q.why && String(q.why).trim() && !hasCustomPoints(q.id)) return String(q.why).trim();
         return pointsFor(q)
@@ -2428,7 +2465,6 @@
         const wrap = root.querySelector("#short-compare");
         if (!wrap) return;
         wrap.hidden = !show;
-        syncPeekAnsBtn(root);
         if (!show) return;
         const whyBody = root.querySelector("#short-why-body");
         if (whyBody) whyBody.textContent = whyTextFor(q);
@@ -2575,7 +2611,6 @@
           '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
           (done ? " disabled" : "") +
           ">交</button>" +
-          '<button type="button" class="ghost" id="btn-peek-ans" title="答案">答</button>' +
           '<button type="button" class="ghost' +
           (shortMemorizeMode ? " on" : "") +
           '" id="btn-memorize" title="背题（Ctrl/⌘+F）">背</button>' +
@@ -2591,6 +2626,9 @@
           '<button type="button" class="ghost' +
           (hasShortMemo(q.id) ? " on" : "") +
           '" id="btn-short-memo" title="记下还没记住的地方">记</button>' +
+          '<button type="button" class="ghost' +
+          (shortSimpleUi ? " on" : "") +
+          '" id="btn-short-simple" title="简化界面，只留本题">简</button>' +
           "</div>" +
           '<div class="short-memo-panel" id="short-memo-panel"' +
           (shortMemoOpen ? "" : " hidden") +
@@ -2612,8 +2650,6 @@
           showShortGrade(box, q, draft, resultEl);
         } else if (shortRevealed) {
           fillShortCompare(box, q, null);
-        } else {
-          syncPeekAnsBtn(box);
         }
 
         if (ta) {
@@ -2629,7 +2665,6 @@
           }
           persistShortDraft(q.id, text);
           const grade = showShortGrade(box, q, text, resultEl);
-          syncPeekAnsBtn(box);
           if (grade.pass) {
             onAnswerFeedback(true);
             passShortQuestion(q, "过关 · 留下对照");
@@ -2742,29 +2777,17 @@
             if (hasShortMemo(q.id)) toast("已展开笔记");
           });
         }
-        $("btn-peek-ans").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          shortRevealed = !shortRevealed;
-          if (shortRevealed) {
-            const text = (ta && ta.value) || draft;
-            if (text && normAns(text).length >= 6) {
-              showShortGrade(box, q, text, resultEl);
-            } else {
-              fillShortCompare(box, q, null);
-              if (resultEl) resultEl.hidden = true;
-            }
-            toast(done ? "已展开" : "已展开 · 偷看不算过关");
-          } else {
-            fillShortCompare(box, q, null);
-            if (resultEl) resultEl.hidden = true;
-            toast("已收起");
-          }
-          syncPeekAnsBtn(box);
-        });
         $("btn-memorize").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           toggleShortMemorize();
         });
+        if ($("btn-short-simple")) {
+          $("btn-short-simple").addEventListener("click", () => {
+            if (ta) persistShortDraft(q.id, ta.value);
+            if (memoTa) commitMemo(false);
+            toggleShortSimpleUi();
+          });
+        }
         $("btn-collect-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           const r = collectShort(q.id);
@@ -2808,6 +2831,7 @@
 
       function render() {
         tab = entryMode === "short" ? "short" : "mc";
+        syncSimpleShortUi();
         if (entryMode === "short") ensureShortDayForCourse(shortCourse);
         const st = dayStats(date);
         $("day-label").textContent = shortDate(date) + " " + weekdayLabel(date);
