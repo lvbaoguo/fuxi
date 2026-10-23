@@ -1646,9 +1646,12 @@
         render();
         return true;
       }
-      /* 简答朗读：题目 + 采分点（网页拿不到手机音量键，只能点扬声器） */
+      /* 简答朗读：题目 + 采分点（分段停顿；优选自然中文女声） */
       let shortSpeaking = false;
+      let shortSpeakQueue = [];
+      const SPEAK_VOICE_STORE = "pansan2-zuoye-speak-voice";
       function stopShortSpeak() {
+        shortSpeakQueue = [];
         try {
           if (window.speechSynthesis) speechSynthesis.cancel();
         } catch (_) {}
@@ -1656,28 +1659,113 @@
         const btn = document.getElementById("btn-short-speak");
         if (btn) btn.classList.remove("on");
       }
-      function buildShortSpeakText(q) {
-        if (!q) return "";
+      function softenSpeakText(s) {
+        return String(s || "")
+          .replace(/[“”「」『』]/g, "")
+          .replace(/[（(]/g, "，")
+          .replace(/[）)]/g, "，")
+          .replace(/；/g, "。")
+          .replace(/、/g, "，")
+          .replace(/\s+/g, "")
+          .replace(/，{2,}/g, "，")
+          .replace(/。{2,}/g, "。")
+          .trim();
+      }
+      function buildShortSpeakChunks(q) {
+        if (!q) return [];
+        const chunks = [];
+        const title = softenSpeakText(q.text);
+        if (title) {
+          chunks.push("题目。");
+          chunks.push(title);
+        }
         const pts = pointsFor(q);
-        const parts = ["题目。" + String(q.text || "").trim()];
         if (pts.length) {
-          parts.push("答案如下。");
+          chunks.push("答案。");
           pts.forEach((p, i) => {
-            parts.push("第" + (i + 1) + "点。" + String(p || "").trim());
+            const body = softenSpeakText(p);
+            if (!body) return;
+            chunks.push("第" + (i + 1) + "点。");
+            chunks.push(body);
           });
         }
-        return parts.filter(Boolean).join("");
+        return chunks;
+      }
+      function scoreZhVoice(v) {
+        const name = (v.name || "") + " " + (v.lang || "");
+        const n = name.toLowerCase();
+        let s = 0;
+        if (/zh[-_]?cn|cmn-hans/i.test(v.lang)) s += 40;
+        else if (/zh|cmn|chinese|中文|普通话/i.test(name)) s += 20;
+        else return -100;
+        /* 自然女声优先；避开常见机械男声 */
+        if (/enhanced|premium|neural|自然|优质|enhanced/i.test(name)) s += 35;
+        if (/ting[-_]?ting|婷婷|mei[-_]?jia|美嘉|meijia|xiaoxiao|晓晓|xiaoyi|晓伊|yunxi|云希|yunyang|云扬|sinji|sin-ji|haohao|浩浩/i.test(n))
+          s += 50;
+        if (/female|女|ting|mei|xiao|yun|jia/i.test(n)) s += 15;
+        if (/google.*中文|google.*普通话|microsoft.*xiaoxiao|microsoft.*xiaoyi/i.test(n)) s += 25;
+        if (/kangkang|刚子|liang|liangliang|男|male|yu[-_]?shu|yushu|hanhan|han[-_]?han/i.test(n)) s -= 40;
+        if (/compact|eloquence|novelty/i.test(n)) s -= 20;
+        return s;
       }
       function pickZhVoice() {
         try {
           const list = speechSynthesis.getVoices() || [];
-          return (
-            list.find((v) => /zh[-_]?CN/i.test(v.lang)) ||
-            list.find((v) => /zh|Chinese|中文/i.test(v.lang + " " + v.name)) ||
-            null
-          );
+          if (!list.length) return null;
+          let preferName = "";
+          try {
+            preferName = localStorage.getItem(SPEAK_VOICE_STORE) || "";
+          } catch (_) {}
+          if (preferName) {
+            const hit = list.find((v) => v.name === preferName);
+            if (hit) return hit;
+          }
+          const ranked = list
+            .map((v) => ({ v: v, s: scoreZhVoice(v) }))
+            .filter((x) => x.s > 0)
+            .sort((a, b) => b.s - a.s);
+          const best = ranked[0] && ranked[0].v;
+          if (best) {
+            try {
+              localStorage.setItem(SPEAK_VOICE_STORE, best.name);
+            } catch (_) {}
+          }
+          return best || null;
         } catch (_) {
           return null;
+        }
+      }
+      function speakNextChunk(voice) {
+        if (!shortSpeaking) return;
+        if (!shortSpeakQueue.length) {
+          shortSpeaking = false;
+          const btn = document.getElementById("btn-short-speak");
+          if (btn) btn.classList.remove("on");
+          return;
+        }
+        const text = shortSpeakQueue.shift();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "zh-CN";
+        /* 略慢、略高，少机械感 */
+        u.rate = text.length <= 6 ? 0.9 : 0.88;
+        u.pitch = 1.08;
+        u.volume = 1;
+        if (voice) u.voice = voice;
+        u.onend = () => {
+          if (!shortSpeaking) return;
+          /* 段间短停，像人换气 */
+          setTimeout(() => speakNextChunk(voice), text.length <= 6 ? 220 : 380);
+        };
+        u.onerror = () => {
+          shortSpeaking = false;
+          shortSpeakQueue = [];
+          const btn = document.getElementById("btn-short-speak");
+          if (btn) btn.classList.remove("on");
+        };
+        try {
+          speechSynthesis.speak(u);
+        } catch (_) {
+          shortSpeaking = false;
         }
       }
       function toggleShortSpeak(q) {
@@ -1691,35 +1779,33 @@
           toast("已停止朗读");
           return;
         }
-        const text = buildShortSpeakText(q);
-        if (!text) {
+        const chunks = buildShortSpeakChunks(q);
+        if (!chunks.length) {
           toast("没有可朗读内容");
           return;
         }
         const start = () => {
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = "zh-CN";
-          u.rate = 0.95;
           const voice = pickZhVoice();
-          if (voice) u.voice = voice;
-          u.onend = () => {
-            shortSpeaking = false;
-            const btn = document.getElementById("btn-short-speak");
-            if (btn) btn.classList.remove("on");
-          };
-          u.onerror = () => {
-            shortSpeaking = false;
-            const btn = document.getElementById("btn-short-speak");
-            if (btn) btn.classList.remove("on");
-          };
+          shortSpeakQueue = chunks.slice();
           shortSpeaking = true;
           const btn = document.getElementById("btn-short-speak");
           if (btn) btn.classList.add("on");
           try {
             speechSynthesis.cancel();
           } catch (_) {}
-          speechSynthesis.speak(u);
-          toast("朗读中 · 再点扬声器停止");
+          /* iOS：先 speak 空句解锁；再开队列 */
+          try {
+            const kick = new SpeechSynthesisUtterance("\u200b");
+            kick.volume = 0;
+            kick.rate = 1;
+            if (voice) kick.voice = voice;
+            kick.onend = () => speakNextChunk(voice);
+            speechSynthesis.speak(kick);
+          } catch (_) {
+            speakNextChunk(voice);
+          }
+          const tip = voice ? "朗读中 · " + voice.name.replace(/\s*\(.*\)/, "") : "朗读中";
+          toast(tip + " · 再点停止");
         };
         const voices = speechSynthesis.getVoices();
         if (!voices || !voices.length) {
@@ -1729,7 +1815,7 @@
           } catch (_) {}
           setTimeout(() => {
             if (!shortSpeaking) start();
-          }, 280);
+          }, 320);
         } else {
           start();
         }
