@@ -1523,6 +1523,17 @@
       let shortRevealed = false;
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
+      function toggleShortMemorize() {
+        if (entryMode !== "short") return false;
+        flushActiveShortDraft();
+        shortMemorizeMode = !shortMemorizeMode;
+        shortRevealed = shortMemorizeMode;
+        shortWhyOpen = false;
+        if (shortMemorizeMode) toast("背题模式 · 默认显示采分点");
+        else toast("已退出背题");
+        render();
+        return true;
+      }
       let shortWhyOpen = false;
       const shortHintShown = {}; /* 兼容旧逻辑；简答提示改由老师点击循环 */
       const shortHintSegAt = {}; /* qid → 下一段下标（对 segments 取模） */
@@ -2567,7 +2578,7 @@
           '<button type="button" class="ghost" id="btn-peek-ans" title="答案">答</button>' +
           '<button type="button" class="ghost' +
           (shortMemorizeMode ? " on" : "") +
-          '" id="btn-memorize" title="背题">背</button>' +
+          '" id="btn-memorize" title="背题（Ctrl/⌘+F）">背</button>' +
           '<button type="button" class="ghost" id="btn-prev-s" title="上题">上</button>' +
           '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
           '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
@@ -2752,15 +2763,7 @@
         });
         $("btn-memorize").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
-          shortMemorizeMode = !shortMemorizeMode;
-          shortRevealed = shortMemorizeMode;
-          shortWhyOpen = false;
-          if (shortMemorizeMode) {
-            toast("背题模式 · 默认显示采分点");
-          } else {
-            toast("已退出背题");
-          }
-          render();
+          toggleShortMemorize();
         });
         $("btn-collect-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
@@ -3497,6 +3500,20 @@
       }
       syncTeacherUi();
       applyTheme(getTheme());
+
+      /* 简答页：Ctrl+F / ⌘+F 切换「背」（拦截浏览器查找） */
+      document.addEventListener(
+        "keydown",
+        (e) => {
+          if (e.key !== "f" && e.key !== "F") return;
+          if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+          if (entryMode !== "short") return;
+          e.preventDefault();
+          e.stopPropagation();
+          toggleShortMemorize();
+        },
+        true
+      );
 
       tab = entryMode === "short" ? "short" : "mc";
       if (entryMode === "short") ensureShortDayForCourse(shortCourse);
