@@ -455,6 +455,18 @@
       width: 96px;
       user-select: none;
       -webkit-user-select: none;
+      touch-action: none;
+    }
+    .teacher-pet.placed {
+      right: auto;
+      bottom: auto;
+    }
+    .teacher-pet.dragging {
+      z-index: 80;
+    }
+    .teacher-pet.dragging .teacher-fig {
+      animation: none;
+      cursor: grabbing;
     }
     .teacher-pet[hidden] { display: none !important; }
     .teacher-bubble {
@@ -481,7 +493,7 @@
       width: 88px;
       height: 96px;
       margin-left: auto;
-      cursor: pointer;
+      cursor: grab;
       animation: teacher-bob 2.4s ease-in-out infinite;
       filter: drop-shadow(0 4px 6px rgba(28, 25, 23, 0.18));
     }
@@ -717,29 +729,14 @@
       padding: 0;
       box-shadow: none;
     }
-    /* 简化模式：老师贴进题卡右下角（图示位置），不随整页藏掉 */
-    body.simple-short #work .q-card {
-      position: relative;
-      padding-bottom: 100px;
-    }
+    /* 简化模式：老师仍显示，可自由拖；不钉死题卡角 */
     body.simple-short #teacher-pet:not([hidden]) {
       display: block !important;
-      position: absolute;
-      right: 6px;
-      bottom: 6px;
-      width: 84px;
-      z-index: 8;
-    }
-    body.simple-short #teacher-pet .teacher-fig {
-      width: 76px;
-      height: 84px;
-    }
-    body.simple-short #teacher-pet .teacher-bubble {
-      bottom: 88px;
-      width: min(200px, calc(100vw - 40px));
+      position: fixed;
+      z-index: 35;
     }
     body.simple-short #teacher-pet .teacher-tools {
-      display: none; /* 简化区只留形象，隐按钮仍可用「老师」唤回 */
+      display: none;
     }
   </style>
 </head>
@@ -833,7 +830,7 @@
       <div id="work"></div>
       <div id="teacher-pet" class="teacher-pet" aria-live="polite">
         <div id="teacher-bubble" class="teacher-bubble" hidden></div>
-        <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="简答：点我按「记」逐句提示">
+        <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="拖动可挪位置；点一下按「记」提示">
           <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
           <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
           <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
@@ -1579,10 +1576,12 @@
       let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
       let shortSimpleUi = false; /* 「简」：只留题卡 */
       function teacherPetHomeAfterWork() {
-        const work = $("work");
         const pet = $("teacher-pet");
-        if (!work || !pet || !work.parentElement) return;
-        work.parentElement.insertBefore(pet, work.nextSibling);
+        if (!pet) return;
+        /* 挂 body，fixed 拖动不被题卡裁切 */
+        if (pet.parentElement !== document.body) {
+          document.body.appendChild(pet);
+        }
       }
       function ensureTeacherOutOfWork() {
         const pet = $("teacher-pet");
@@ -1590,15 +1589,8 @@
         if (pet && work && work.contains(pet)) teacherPetHomeAfterWork();
       }
       function dockTeacherForSimple() {
-        const pet = $("teacher-pet");
-        if (!pet) return;
-        if (shortSimpleUi && entryMode === "short") {
-          const card = document.querySelector("#work .q-card");
-          if (card) card.appendChild(pet);
-          else teacherPetHomeAfterWork();
-        } else {
-          teacherPetHomeAfterWork();
-        }
+        teacherPetHomeAfterWork();
+        applyTeacherPos();
       }
       function syncSimpleShortUi() {
         document.body.classList.toggle("simple-short", !!(shortSimpleUi && entryMode === "short"));
@@ -1612,8 +1604,39 @@
         render();
         return true;
       }
+      let pendingDictationCaret = null; /* 背题重绘后还原默写框光标 */
+      function captureDictationCaret() {
+        const ta = document.getElementById("short-dictation");
+        if (!ta || document.activeElement !== ta) {
+          pendingDictationCaret = null;
+          return;
+        }
+        pendingDictationCaret = {
+          start: ta.selectionStart,
+          end: ta.selectionEnd,
+        };
+      }
+      function restoreDictationCaret() {
+        const pending = pendingDictationCaret;
+        pendingDictationCaret = null;
+        if (!pending) return;
+        const ta = document.getElementById("short-dictation");
+        if (!ta) return;
+        const apply = () => {
+          ta.focus({ preventScroll: true });
+          try {
+            const len = ta.value.length;
+            const a = Math.max(0, Math.min(pending.start, len));
+            const b = Math.max(0, Math.min(pending.end, len));
+            ta.setSelectionRange(a, b);
+          } catch (_) {}
+        };
+        apply();
+        requestAnimationFrame(apply);
+      }
       function toggleShortMemorize() {
         if (entryMode !== "short") return false;
+        captureDictationCaret();
         flushActiveShortDraft();
         shortMemorizeMode = !shortMemorizeMode;
         shortRevealed = shortMemorizeMode;
@@ -1622,6 +1645,94 @@
         else toast("已退出背题");
         render();
         return true;
+      }
+      /* 简答朗读：题目 + 采分点（网页拿不到手机音量键，只能点扬声器） */
+      let shortSpeaking = false;
+      function stopShortSpeak() {
+        try {
+          if (window.speechSynthesis) speechSynthesis.cancel();
+        } catch (_) {}
+        shortSpeaking = false;
+        const btn = document.getElementById("btn-short-speak");
+        if (btn) btn.classList.remove("on");
+      }
+      function buildShortSpeakText(q) {
+        if (!q) return "";
+        const pts = pointsFor(q);
+        const parts = ["题目。" + String(q.text || "").trim()];
+        if (pts.length) {
+          parts.push("答案如下。");
+          pts.forEach((p, i) => {
+            parts.push("第" + (i + 1) + "点。" + String(p || "").trim());
+          });
+        }
+        return parts.filter(Boolean).join("");
+      }
+      function pickZhVoice() {
+        try {
+          const list = speechSynthesis.getVoices() || [];
+          return (
+            list.find((v) => /zh[-_]?CN/i.test(v.lang)) ||
+            list.find((v) => /zh|Chinese|中文/i.test(v.lang + " " + v.name)) ||
+            null
+          );
+        } catch (_) {
+          return null;
+        }
+      }
+      function toggleShortSpeak(q) {
+        if (!q) return;
+        if (!window.speechSynthesis) {
+          toast("当前浏览器不支持朗读");
+          return;
+        }
+        if (shortSpeaking) {
+          stopShortSpeak();
+          toast("已停止朗读");
+          return;
+        }
+        const text = buildShortSpeakText(q);
+        if (!text) {
+          toast("没有可朗读内容");
+          return;
+        }
+        const start = () => {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = "zh-CN";
+          u.rate = 0.95;
+          const voice = pickZhVoice();
+          if (voice) u.voice = voice;
+          u.onend = () => {
+            shortSpeaking = false;
+            const btn = document.getElementById("btn-short-speak");
+            if (btn) btn.classList.remove("on");
+          };
+          u.onerror = () => {
+            shortSpeaking = false;
+            const btn = document.getElementById("btn-short-speak");
+            if (btn) btn.classList.remove("on");
+          };
+          shortSpeaking = true;
+          const btn = document.getElementById("btn-short-speak");
+          if (btn) btn.classList.add("on");
+          try {
+            speechSynthesis.cancel();
+          } catch (_) {}
+          speechSynthesis.speak(u);
+          toast("朗读中 · 再点扬声器停止");
+        };
+        const voices = speechSynthesis.getVoices();
+        if (!voices || !voices.length) {
+          speechSynthesis.addEventListener("voiceschanged", start, { once: true });
+          try {
+            speechSynthesis.getVoices();
+          } catch (_) {}
+          setTimeout(() => {
+            if (!shortSpeaking) start();
+          }, 280);
+        } else {
+          start();
+        }
       }
       let shortWhyOpen = false;
       const shortHintShown = {}; /* 兼容旧逻辑；简答提示改由老师点击循环 */
@@ -1667,19 +1778,48 @@
       function pickLine(arr) {
         return arr[Math.floor(Math.random() * arr.length)];
       }
-      function isTeacherHidden() {
+      function readTeacherStore() {
         try {
           const raw = JSON.parse(localStorage.getItem(TEACHER_STORE) || "null");
-          return !!(raw && raw.hidden);
+          return raw && typeof raw === "object" ? raw : {};
         } catch (_) {
-          return false;
+          return {};
         }
       }
-      function setTeacherHidden(hidden) {
+      function writeTeacherStore(patch) {
         try {
-          localStorage.setItem(TEACHER_STORE, JSON.stringify({ hidden: !!hidden }));
+          const next = Object.assign({}, readTeacherStore(), patch || {});
+          localStorage.setItem(TEACHER_STORE, JSON.stringify(next));
         } catch (_) {}
+      }
+      function isTeacherHidden() {
+        return !!readTeacherStore().hidden;
+      }
+      function setTeacherHidden(hidden) {
+        writeTeacherStore({ hidden: !!hidden });
         syncTeacherUi();
+      }
+      function applyTeacherPos() {
+        const pet = $("teacher-pet");
+        if (!pet) return;
+        const s = readTeacherStore();
+        if (typeof s.x === "number" && typeof s.y === "number" && isFinite(s.x) && isFinite(s.y)) {
+          const w = pet.offsetWidth || 96;
+          const h = pet.offsetHeight || 110;
+          const x = Math.max(0, Math.min(Math.round(s.x), Math.max(0, window.innerWidth - w)));
+          const y = Math.max(0, Math.min(Math.round(s.y), Math.max(0, window.innerHeight - h)));
+          pet.classList.add("placed");
+          pet.style.left = x + "px";
+          pet.style.top = y + "px";
+          pet.style.right = "auto";
+          pet.style.bottom = "auto";
+        } else {
+          pet.classList.remove("placed");
+          pet.style.left = "";
+          pet.style.top = "";
+          pet.style.right = "";
+          pet.style.bottom = "";
+        }
       }
       function syncTeacherUi() {
         const pet = $("teacher-pet");
@@ -1688,6 +1828,7 @@
         const hide = isTeacherHidden();
         pet.hidden = hide;
         show.hidden = !hide;
+        if (!hide) applyTeacherPos();
       }
       function teacherSpeak(msg, mood) {
         const bubble = $("teacher-bubble");
@@ -2680,6 +2821,9 @@
           '<button type="button" class="ghost' +
           (shortSimpleUi ? " on" : "") +
           '" id="btn-short-simple" title="简化界面，只留本题">简</button>' +
+          '<button type="button" class="ghost' +
+          (shortSpeaking ? " on" : "") +
+          '" id="btn-short-speak" title="朗读本题题目和采分点（再点停止）" aria-label="朗读">🔊</button>' +
           "</div>" +
           '<div class="short-memo-panel" id="short-memo-panel"' +
           (shortMemoOpen ? "" : " hidden") +
@@ -2708,6 +2852,7 @@
         if (ta) {
           ta.addEventListener("input", () => persistShortDraft(q.id, ta.value));
         }
+        restoreDictationCaret();
 
         $("btn-dictation-submit").addEventListener("click", () => {
           if (done) return;
@@ -2841,6 +2986,11 @@
             toggleShortSimpleUi();
           });
         }
+        if ($("btn-short-speak")) {
+          $("btn-short-speak").addEventListener("click", () => {
+            toggleShortSpeak(q);
+          });
+        }
         $("btn-collect-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           const r = collectShort(q.id);
@@ -2848,6 +2998,7 @@
           render();
         });
         $("btn-prev-s").addEventListener("click", () => {
+          stopShortSpeak();
           if (ta) persistShortDraft(q.id, ta.value);
           if (memoTa) commitMemo(false);
           shortMemoOpen = false;
@@ -2857,6 +3008,7 @@
           render();
         });
         $("btn-next-s").addEventListener("click", () => {
+          stopShortSpeak();
           if (ta) persistShortDraft(q.id, ta.value);
           if (memoTa) commitMemo(false);
           shortMemoOpen = false;
@@ -2871,6 +3023,7 @@
           ) {
             return;
           }
+          stopShortSpeak();
           Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
           Object.keys(shortHintSegAt).forEach((k) => delete shortHintSegAt[k]);
           restartAllShortDrafts();
@@ -3551,12 +3704,16 @@
       window.addEventListener("pagehide", hardSaveShortDraft);
       window.addEventListener("beforeunload", hardSaveShortDraft);
       document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") hardSaveShortDraft();
+        if (document.visibilityState === "hidden") {
+          hardSaveShortDraft();
+          stopShortSpeak();
+        }
       });
 
       const btnTeacherHide = $("btn-teacher-hide");
       const btnTeacherShow = $("btn-teacher-show");
       const teacherFig = $("teacher-fig");
+      const teacherPet = $("teacher-pet");
       if (btnTeacherHide) {
         btnTeacherHide.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -3569,12 +3726,73 @@
           teacherSpeak("我回来了。继续刷。", "neutral");
         });
       }
-      if (teacherFig) {
-        teacherFig.addEventListener("click", () => {
+      /* 拖老师：松手记位置；位移很小才算点击提示 */
+      if (teacherFig && teacherPet) {
+        let dragOn = false;
+        let dragMoved = false;
+        let dragSx = 0;
+        let dragSy = 0;
+        let dragOx = 0;
+        let dragOy = 0;
+        teacherFig.addEventListener("pointerdown", (e) => {
+          if (e.button != null && e.button !== 0) return;
+          if (isTeacherHidden()) return;
+          e.preventDefault();
+          const rect = teacherPet.getBoundingClientRect();
+          dragOn = true;
+          dragMoved = false;
+          dragSx = e.clientX;
+          dragSy = e.clientY;
+          dragOx = rect.left;
+          dragOy = rect.top;
+          teacherPet.classList.add("dragging", "placed");
+          teacherPet.style.left = dragOx + "px";
+          teacherPet.style.top = dragOy + "px";
+          teacherPet.style.right = "auto";
+          teacherPet.style.bottom = "auto";
+          try {
+            teacherFig.setPointerCapture(e.pointerId);
+          } catch (_) {}
+        });
+        teacherFig.addEventListener("pointermove", (e) => {
+          if (!dragOn) return;
+          const dx = e.clientX - dragSx;
+          const dy = e.clientY - dragSy;
+          if (Math.abs(dx) + Math.abs(dy) > 5) dragMoved = true;
+          const w = teacherPet.offsetWidth || 96;
+          const h = teacherPet.offsetHeight || 110;
+          let nx = dragOx + dx;
+          let ny = dragOy + dy;
+          nx = Math.max(0, Math.min(nx, window.innerWidth - w));
+          ny = Math.max(0, Math.min(ny, window.innerHeight - h));
+          teacherPet.style.left = nx + "px";
+          teacherPet.style.top = ny + "px";
+        });
+        function endTeacherDrag(e) {
+          if (!dragOn) return;
+          dragOn = false;
+          teacherPet.classList.remove("dragging");
+          try {
+            if (e && e.pointerId != null) teacherFig.releasePointerCapture(e.pointerId);
+          } catch (_) {}
+          const rect = teacherPet.getBoundingClientRect();
+          writeTeacherStore({ x: Math.round(rect.left), y: Math.round(rect.top) });
+        }
+        teacherFig.addEventListener("pointerup", endTeacherDrag);
+        teacherFig.addEventListener("pointercancel", endTeacherDrag);
+        teacherFig.addEventListener("click", (e) => {
+          if (dragMoved) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            dragMoved = false;
+            return;
+          }
           if (advanceShortHintByTeacher()) return;
           teacherSpeak(pickLine(TEACHER_LINES.idle), "neutral");
         });
+        window.addEventListener("resize", () => applyTeacherPos());
       }
+      teacherPetHomeAfterWork();
       syncTeacherUi();
       applyTheme(getTheme());
 
