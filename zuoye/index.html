@@ -1258,14 +1258,23 @@
           .join("\n");
       }
 
-      /** 简答提示段：采分点原句（保留顿号句号等标点），最多 3 段，点老师循环切换 */
-      function buildShortHintSegments(q) {
-        const segs = [];
-        pointsFor(q).forEach((p) => {
-          const s = String(p || "").trim();
-          if (s) segs.push(s);
-        });
-        return segs.slice(0, 3);
+      /** 老师提示：按「记」里的内容逐句（按行；单行再按句号拆） */
+      function buildMemoHintSegments(q) {
+        if (!q || !q.id) return [];
+        const raw = String(shortMemoOf(q.id) || "").trim();
+        if (!raw) return [];
+        let segs = raw
+          .split(/\n+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (segs.length === 1) {
+          const parts = segs[0]
+            .split(/(?<=[。！？；;])\s*/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (parts.length > 1) segs = parts;
+        }
+        return segs;
       }
 
       function advanceShortHintByTeacher() {
@@ -1273,9 +1282,9 @@
         if (isTeacherHidden()) return false;
         const q = currentShortQ();
         if (!q) return false;
-        const segs = buildShortHintSegments(q);
+        const segs = buildMemoHintSegments(q);
         if (!segs.length) {
-          teacherSpeak("这题暂无提示", "neutral");
+          teacherSpeak("先点「记」写下还没记住的，再点我一句一句提", "neutral");
           return true;
         }
         const at = shortHintSegAt[q.id] || 0;
@@ -1513,6 +1522,7 @@
       let judged = false;
       let shortRevealed = false;
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
+      let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
       let shortWhyOpen = false;
       const shortHintShown = {}; /* 兼容旧逻辑；简答提示改由老师点击循环 */
       const shortHintSegAt = {}; /* qid → 下一段下标（对 segments 取模） */
@@ -2550,11 +2560,6 @@
           ">还原</button>" +
           "</div>" +
           "</div>" +
-          '<div class="short-memo-panel" id="short-memo-panel" hidden>' +
-          "<label>还没记住</label>" +
-          '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…"></textarea>' +
-          '<p class="hint">回车保存（Shift+回车换行）；下次点「记」会展开。</p>' +
-          "</div>" +
           '<div class="nav-btns">' +
           '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
           (done ? " disabled" : "") +
@@ -2575,6 +2580,13 @@
           '<button type="button" class="ghost' +
           (hasShortMemo(q.id) ? " on" : "") +
           '" id="btn-short-memo" title="记下还没记住的地方">记</button>' +
+          "</div>" +
+          '<div class="short-memo-panel" id="short-memo-panel"' +
+          (shortMemoOpen ? "" : " hidden") +
+          ">" +
+          "<label>还没记住</label>" +
+          '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…（失焦或再点「记」也会保存）"></textarea>' +
+          '<p class="hint">回车保存（Shift+回车换行）；老师点击按这里的内容一句一句提示。</p>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
@@ -2666,9 +2678,22 @@
         });
         const memoPanel = box.querySelector("#short-memo-panel");
         const memoTa = box.querySelector("#short-memo-ta");
+        function syncMemoBtn() {
+          const btn = $("btn-short-memo");
+          if (btn) btn.classList.toggle("on", hasShortMemo(q.id));
+        }
+        function commitMemo(showToast) {
+          if (!memoTa) return;
+          persistShortMemo(q.id, memoTa.value);
+          syncMemoBtn();
+          if (showToast) {
+            toast(String(memoTa.value || "").trim() ? "已记下" : "已清空本题笔记");
+          }
+        }
         function openMemoPanel() {
           if (!memoPanel || !memoTa) return;
           if (editPanel && !editPanel.hidden) closeEditPanel();
+          shortMemoOpen = true;
           memoTa.value = shortMemoOf(q.id);
           memoPanel.hidden = false;
           memoTa.focus();
@@ -2677,27 +2702,33 @@
             memoTa.setSelectionRange(len, len);
           } catch (_) {}
         }
-        function closeMemoPanel() {
+        function closeMemoPanel(saveNow) {
+          if (saveNow !== false) commitMemo(false);
+          shortMemoOpen = false;
           if (memoPanel) memoPanel.hidden = true;
+        }
+        if (memoTa) {
+          memoTa.value = shortMemoOf(q.id);
+          memoTa.addEventListener("blur", () => commitMemo(false));
+          memoTa.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" || e.shiftKey) return;
+            e.preventDefault();
+            commitMemo(true);
+          });
+        }
+        if (shortMemoOpen && memoPanel) {
+          memoPanel.hidden = false;
         }
         if ($("btn-short-memo")) {
           $("btn-short-memo").addEventListener("click", () => {
             if (ta) persistShortDraft(q.id, ta.value);
             if (memoPanel && !memoPanel.hidden) {
-              closeMemoPanel();
+              closeMemoPanel(true);
+              toast(hasShortMemo(q.id) ? "已收起（内容已保存）" : "已收起");
               return;
             }
             openMemoPanel();
-          });
-        }
-        if (memoTa) {
-          memoTa.addEventListener("keydown", (e) => {
-            if (e.key !== "Enter" || e.shiftKey) return;
-            e.preventDefault();
-            persistShortMemo(q.id, memoTa.value);
-            toast(String(memoTa.value || "").trim() ? "已记下" : "已清空本题笔记");
-            const btn = $("btn-short-memo");
-            if (btn) btn.classList.toggle("on", hasShortMemo(q.id));
+            if (hasShortMemo(q.id)) toast("已展开笔记");
           });
         }
         $("btn-peek-ans").addEventListener("click", () => {
@@ -2739,6 +2770,8 @@
         });
         $("btn-prev-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
+          if (memoTa) commitMemo(false);
+          shortMemoOpen = false;
           shortIdx = Math.max(0, shortIdx - 1);
           shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
@@ -2746,6 +2779,8 @@
         });
         $("btn-next-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
+          if (memoTa) commitMemo(false);
+          shortMemoOpen = false;
           shortIdx = Math.min(list.length - 1, shortIdx + 1);
           shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
