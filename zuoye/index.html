@@ -495,7 +495,16 @@
       transition: transform 0.15s ease;
     }
     .short-acc-item.open .short-acc-banner .chev { transform: rotate(90deg); }
-    .short-acc-banner { touch-action: none; user-select: none; -webkit-user-select: none; }
+    /* 默认允许竖滑；仅排序态才 touch-action:none，否则手机滑不动 */
+    .short-acc-banner {
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .short-acc-item.drag-ready .short-acc-banner,
+    .short-acc-item.dragging .short-acc-banner {
+      touch-action: none;
+    }
     .short-acc-item.dragging {
       opacity: 0.95;
       box-shadow: 0 10px 24px var(--shadow);
@@ -3065,6 +3074,8 @@
           let movedInDrag = false;
           let grabOffsetY = 0;
           let itemOriginTop = 0;
+          const PRESS_MS = 420;
+          const SCROLL_CANCEL_PX = 12;
 
           function clearPress() {
             if (pressTimer) {
@@ -3072,13 +3083,45 @@
               pressTimer = null;
             }
           }
+          function clearArmListeners() {
+            document.removeEventListener("pointermove", onArmMove, true);
+            document.removeEventListener("pointerup", onArmUp, true);
+            document.removeEventListener("pointercancel", onArmUp, true);
+          }
           function clearDragListeners() {
             document.removeEventListener("pointermove", onDocMove, true);
             document.removeEventListener("pointerup", onDocUp, true);
             document.removeEventListener("pointercancel", onDocUp, true);
-            banner.removeEventListener("pointermove", onDocMove);
-            banner.removeEventListener("pointerup", onDocUp);
-            banner.removeEventListener("pointercancel", onDocUp);
+          }
+          function armDragCapture(pid) {
+            clearArmListeners();
+            clearDragListeners();
+            activePid = pid;
+            try {
+              banner.setPointerCapture(pid);
+            } catch (_) {}
+            /* passive:false 才能 preventDefault，否则拖时页面仍会跟滑 */
+            document.addEventListener("pointermove", onDocMove, {
+              capture: true,
+              passive: false,
+            });
+            document.addEventListener("pointerup", onDocUp, true);
+            document.addEventListener("pointercancel", onDocUp, true);
+          }
+          /* 长按等待期：只监听是否在滑，绝不 capture / preventDefault */
+          function onArmMove(e) {
+            if (activePid != null && e.pointerId !== activePid) return;
+            if (Math.abs(e.clientY - startY) > SCROLL_CANCEL_PX) {
+              clearPress();
+              clearArmListeners();
+              activePid = null;
+            }
+          }
+          function onArmUp(e) {
+            if (activePid != null && e.pointerId !== activePid) return;
+            clearPress();
+            clearArmListeners();
+            activePid = null;
           }
           function commitDomOrder(announce) {
             const ids = Array.prototype.map
@@ -3239,11 +3282,12 @@
             grabOffsetY = startY - rect.top;
             stopShortSpeak();
             ensureSortBar();
-            toast("按住拖动，或点 ↑↓");
+            toast("可拖动，或点 ↑↓");
+            /* 手指还按着：现在才抢触摸；长按前绝不 capture */
+            if (activePid != null) armDragCapture(activePid);
           }
           function beginPointerTrack(e) {
             if (e.button != null && e.button !== 0) return;
-            /* 点在排序按钮上：不接管 */
             if (e.target && e.target.closest && e.target.closest(".short-acc-sortbtns")) {
               return;
             }
@@ -3252,32 +3296,28 @@
             startY = e.clientY;
             activePid = e.pointerId;
             clearPress();
+            clearArmListeners();
             clearDragListeners();
-            try {
-              banner.setPointerCapture(e.pointerId);
-            } catch (_) {}
-            /* document + banner 双挂，避免只 capture 到横幅时丢 move */
-            document.addEventListener("pointermove", onDocMove, true);
-            document.addEventListener("pointerup", onDocUp, true);
-            document.addEventListener("pointercancel", onDocUp, true);
-            banner.addEventListener("pointermove", onDocMove);
-            banner.addEventListener("pointerup", onDocUp);
-            banner.addEventListener("pointercancel", onDocUp);
 
             if (item.classList.contains("drag-ready")) {
-              /* 已黄：按下即拖，不必再长按 */
+              /* 已黄：这次按下才开始拖 */
               dragMode = true;
               item.classList.add("dragging");
               const rect = item.getBoundingClientRect();
               itemOriginTop = rect.top;
               grabOffsetY = startY - rect.top;
+              armDragCapture(e.pointerId);
               return;
             }
+            /* 普通滑动：不 capture，页面照常滚；静止够久才进排序 */
             dragMode = false;
+            document.addEventListener("pointermove", onArmMove, true);
+            document.addEventListener("pointerup", onArmUp, true);
+            document.addEventListener("pointercancel", onArmUp, true);
             pressTimer = setTimeout(() => {
               pressTimer = null;
               enterDragReady();
-            }, 380);
+            }, PRESS_MS);
           }
 
           banner.addEventListener("pointerdown", beginPointerTrack);
