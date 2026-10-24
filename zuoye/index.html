@@ -829,7 +829,7 @@
       <div id="work"></div>
       <div id="teacher-pet" class="teacher-pet" aria-live="polite">
         <div id="teacher-bubble" class="teacher-bubble" hidden></div>
-        <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="拖动可挪位置；点一下按「记」提示">
+        <svg class="teacher-fig" id="teacher-fig" viewBox="0 0 88 100" role="img" aria-label="老师" title="拖动可挪；点一下提示一句采分点">
           <line x1="68" y1="36" x2="82" y2="10" stroke="#92400e" stroke-width="3.2" stroke-linecap="round"/>
           <circle cx="83" cy="8" r="3.4" fill="#b45309"/>
           <ellipse cx="40" cy="78" rx="24" ry="18" fill="#1d4ed8"/>
@@ -1308,23 +1308,12 @@
           .join("\n");
       }
 
-      /** 老师提示：按「记」里的内容逐句（按行；单行再按句号拆） */
-      function buildMemoHintSegments(q) {
-        if (!q || !q.id) return [];
-        const raw = String(shortMemoOf(q.id) || "").trim();
-        if (!raw) return [];
-        let segs = raw
-          .split(/\n+/)
-          .map((s) => s.trim())
+      /** 老师提示：按本题采分点一句一句（点一下下一点） */
+      function buildAnswerHintSegments(q) {
+        if (!q) return [];
+        return pointsFor(q)
+          .map((p) => String(p || "").trim())
           .filter(Boolean);
-        if (segs.length === 1) {
-          const parts = segs[0]
-            .split(/(?<=[。！？；;])\s*/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-          if (parts.length > 1) segs = parts;
-        }
-        return segs;
       }
 
       function advanceShortHintByTeacher() {
@@ -1332,9 +1321,9 @@
         if (isTeacherHidden()) return false;
         const q = currentShortQ();
         if (!q) return false;
-        const segs = buildMemoHintSegments(q);
+        const segs = buildAnswerHintSegments(q);
         if (!segs.length) {
-          teacherSpeak("先点「记」写下还没记住的，再点我一句一句提", "neutral");
+          teacherSpeak("这题没有采分点可提。", "neutral");
           return true;
         }
         const at = shortHintSegAt[q.id] || 0;
@@ -2916,7 +2905,7 @@
           ">" +
           "<label>还没记住</label>" +
           '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…（失焦或再点「记」也会保存）"></textarea>' +
-          '<p class="hint">回车保存（Shift+回车换行）；老师点击按这里的内容一句一句提示。</p>' +
+          '<p class="hint">回车保存（Shift+回车换行）。点右下角老师：按采分点一句一句提示。</p>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
