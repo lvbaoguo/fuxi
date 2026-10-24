@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>每日作业</title>
+  <title>作业 · 分科大扫除</title>
   <script>
     /* 尽早上色，避免闪一下暖底 */
     (function () {
@@ -742,8 +742,8 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>每日作业</h1>
-    <p class="sub">每日选择 + 简答精简（近代史30·习思想34）· 🔥必背在前 / ⭐眼熟在后 · 考 10/24–25</p>
+    <h1>作业</h1>
+    <p class="sub">近代史 / 习思想分科刷 · 选择全章合池大扫除 · 简答精简必背在前</p>
 
     <div id="lock" class="lock">今日未完成</div>
 
@@ -769,10 +769,12 @@
       <button type="button" class="ghost" id="btn-cloud-upload-menu">上传</button>
     </div>
     <div class="wrong-menu" id="wrong-menu" hidden>
-      <div class="menu-label">打开哪本</div>
+      <div class="menu-label">打开哪本（按科目）</div>
       <div class="menu-actions">
-        <a class="primary" id="link-wrong-book" href="wrong.html">错题本</a>
-        <a id="link-perm-book" href="wrong.html?mode=perm">永久库</a>
+        <a class="primary" id="link-wrong-history" href="wrong.html?course=history">近代史错题</a>
+        <a class="primary" id="link-wrong-xi" href="wrong.html?course=xi">习思想错题</a>
+        <a id="link-perm-history" href="wrong.html?mode=perm&course=history">近代史永久</a>
+        <a id="link-perm-xi" href="wrong.html?mode=perm&course=xi">习思想永久</a>
       </div>
     </div>
     <div class="import-panel" id="import-panel" hidden>
@@ -796,11 +798,11 @@
     </div>
 
     <div class="entry-tabs" id="entry-tabs">
-      <button type="button" class="on" id="entry-daily">每日选择</button>
-      <button type="button" id="entry-short">简答背诵</button>
+      <button type="button" class="on" id="entry-history">近代史</button>
+      <button type="button" id="entry-xi">习思想</button>
     </div>
 
-    <div class="day-nav" id="day-nav"></div>
+    <div class="day-nav" id="day-nav" hidden></div>
 
     <div class="card">
       <div class="row" style="justify-content:space-between;">
@@ -820,12 +822,9 @@
         </div>
       </div>
       <p class="hint prog-extra" id="prog-text"></p>
-      <div class="tabs" id="tabs-mc" hidden>
+      <div class="tabs" id="tabs-kind">
         <button type="button" class="on" id="tab-mc">选择题</button>
-      </div>
-      <div class="tabs" id="tabs-short" hidden>
-        <button type="button" class="on" id="tab-short-history">近代史</button>
-        <button type="button" id="tab-short-xi">习思想</button>
+        <button type="button" id="tab-short">简答</button>
       </div>
       <div id="work"></div>
       <div id="teacher-pet" class="teacher-pet" aria-live="polite">
@@ -851,7 +850,7 @@
     </div>
 
     <div class="card hint">
-      选择：错≤1=合格，全对=完美合格（金绿渐变页签）；错≥2不合格可「重」。右下角老师可「隐」。
+      已取消每日排期：顶栏选近代史/习思想，科内切选择或简答；选择=该科全章合池。错题本按科目分开。右下角老师可「隐」。
       刷题对照（可选）：<a href="../index.html">本地 fuxi</a> ·
       <a href="https://lvbaoguo.github.io/fuxi/" target="_blank" rel="noopener">线上 fuxi</a>。
     </div>
@@ -1329,7 +1328,7 @@
       }
 
       function advanceShortHintByTeacher() {
-        if (entryMode !== "short") return false;
+        if (tab !== "short") return false;
         if (isTeacherHidden()) return false;
         const q = currentShortQ();
         if (!q) return false;
@@ -1354,6 +1353,45 @@
         }
         return state.mcDay[d];
       }
+      function courseMcPoolKey(c) {
+        return "pool-" + (c === "xi" ? "xi" : "history");
+      }
+      function activeMcDayKey() {
+        return courseMcPoolKey(course);
+      }
+      function courseMcIds(c) {
+        const pack = (BANK.mc && BANK.mc[c === "xi" ? "xi" : "history"]) || {};
+        const ids = [];
+        Object.keys(pack)
+          .map((k) => Number(k))
+          .filter((n) => isFinite(n))
+          .sort((a, b) => a - b)
+          .forEach((ch) => {
+            (pack[String(ch)] || pack[ch] || []).forEach((q) => {
+              if (q && q.id) ids.push(q.id);
+            });
+          });
+        return ids;
+      }
+      function ensureCoursePoolSeeded(c) {
+        const key = courseMcPoolKey(c);
+        const day = ensureMcDay(key);
+        if (day.seeded) return;
+        const allow = new Set(courseMcIds(c));
+        Object.keys(state.mcDay || {}).forEach((d) => {
+          if (String(d).indexOf("pool-") === 0) return;
+          const res = (state.mcDay[d] && state.mcDay[d].results) || {};
+          Object.keys(res).forEach((id) => {
+            if (!allow.has(id) || day.results[id]) return;
+            day.results[id] = res[id];
+          });
+        });
+        allow.forEach((id) => {
+          if (!day.results[id] && state.mcOk && state.mcOk[id]) day.results[id] = "ok";
+        });
+        day.seeded = 1;
+        save();
+      }
       function mcResult(d, id) {
         const day = ensureMcDay(d);
         return day.results[id] || null; /* ok | fail | null */
@@ -1364,9 +1402,11 @@
       }
       function restartMcDay(d) {
         clearAdvanceTimer();
-        const plan = dayPlan(d);
-        ensureMcDay(d).results = {};
-        (plan.mcIds || []).forEach((id) => {
+        const key = d || activeMcDayKey();
+        const ids = courseMcIds(course);
+        ensureMcDay(key).results = {};
+        ensureMcDay(key).seeded = 1;
+        ids.forEach((id) => {
           delete state.mcOk[id];
         });
         save();
@@ -1375,7 +1415,10 @@
         judged = false;
         answerComboOk = 0;
         answerComboFail = 0;
-        toast("今日选择题已重来：错不超过 " + MC_FAIL_ALLOW + " 题算合格（错题本还在）");
+        toast(
+          (course === "xi" ? "习思想" : "近代史") +
+            "选择题已重来（错题本还在）"
+        );
       }
 
       function bumpPermMc(id) {
@@ -1505,44 +1548,66 @@
         save(); /* 迁移永久库 / 清掉旧 fav 字段 */
       } catch (_) {}
       let date = BANK.schedule.some((s) => s.date === todayStr()) ? todayStr() : BANK.schedule[0].date;
-      let entryMode = "daily"; /* daily=每日选择 | short=简答背诵 */
+      /* 2026-10-24：取消每日向 → 分科页 history|xi；科内 tab=mc|short */
+      let course = "history";
       try {
-        const em = sessionStorage.getItem(STORE + "-entry");
-        if (em === "daily" || em === "short") entryMode = em;
+        const c = sessionStorage.getItem(STORE + "-course");
+        if (c === "history" || c === "xi") course = c;
+        else {
+          const legacy = sessionStorage.getItem(STORE + "-shortCourse");
+          if (legacy === "history" || legacy === "xi") course = legacy;
+        }
       } catch (_) {}
-      let shortCourse = "history"; /* history | xi */
+      let tab = "mc"; /* mc | short */
       try {
-        const sc = sessionStorage.getItem(STORE + "-shortCourse");
-        if (sc === "history" || sc === "xi") shortCourse = sc;
+        const t = sessionStorage.getItem(STORE + "-tab");
+        if (t === "mc" || t === "short") tab = t;
+        else {
+          const em = sessionStorage.getItem(STORE + "-entry");
+          if (em === "short") tab = "short";
+        }
       } catch (_) {}
-      let tab = "mc"; /* mc | short — 由 entryMode 驱动 */
+      let shortCourse = course; /* 兼容旧函数名：始终跟 course */
       let mcIdx = 0;
       let shortIdx = 0;
 
-      function setEntryMode(mode) {
-        entryMode = mode === "short" ? "short" : "daily";
-        tab = entryMode === "short" ? "short" : "mc";
+      function setCourse(next) {
+        course = next === "xi" ? "xi" : "history";
+        shortCourse = course;
         try {
-          sessionStorage.setItem(STORE + "-entry", entryMode);
+          sessionStorage.setItem(STORE + "-course", course);
         } catch (_) {}
-        if (entryMode === "short") {
-          ensureShortDayForCourse(shortCourse);
-          shortIdx = nextUnansweredShort();
-        } else {
-          mcIdx = nextUnansweredMc();
-        }
-        render();
-      }
-      function setShortCourse(course) {
-        shortCourse = course === "xi" ? "xi" : "history";
-        try {
-          sessionStorage.setItem(STORE + "-shortCourse", shortCourse);
-        } catch (_) {}
-        ensureShortDayForCourse(shortCourse);
-        shortIdx = nextUnansweredShort();
+        ensureCoursePoolSeeded(course);
         shortRevealed = shortMemorizeMode;
         shortWhyOpen = false;
+        shortMemoOpen = false;
+        stopShortSpeak();
+        if (tab === "short") shortIdx = nextUnansweredShort();
+        else mcIdx = nextUnansweredMc();
+        picked = null;
+        judged = false;
         render();
+      }
+      function setTab(next) {
+        tab = next === "short" ? "short" : "mc";
+        try {
+          sessionStorage.setItem(STORE + "-tab", tab);
+        } catch (_) {}
+        shortRevealed = shortMemorizeMode;
+        shortWhyOpen = false;
+        stopShortSpeak();
+        if (tab === "short") shortIdx = nextUnansweredShort();
+        else mcIdx = nextUnansweredMc();
+        picked = null;
+        judged = false;
+        render();
+      }
+      function setEntryMode(mode) {
+        /* 兼容旧调用：daily→选择，short→简答 */
+        setTab(mode === "short" ? "short" : "mc");
+      }
+      function setShortCourse(c) {
+        setCourse(c);
       }
       function keepSetFor(course) {
         const k = BANK.shortKeep && BANK.shortKeep[course];
@@ -1593,11 +1658,11 @@
         applyTeacherPos();
       }
       function syncSimpleShortUi() {
-        document.body.classList.toggle("simple-short", !!(shortSimpleUi && entryMode === "short"));
+        document.body.classList.toggle("simple-short", !!(shortSimpleUi && tab === "short"));
         dockTeacherForSimple();
       }
       function toggleShortSimpleUi() {
-        if (entryMode !== "short") return false;
+        if (tab !== "short") return false;
         shortSimpleUi = !shortSimpleUi;
         syncSimpleShortUi();
         toast(shortSimpleUi ? "简化答题 · 再点「简」恢复" : "已恢复完整界面");
@@ -1635,7 +1700,7 @@
         requestAnimationFrame(apply);
       }
       function toggleShortMemorize() {
-        if (entryMode !== "short") return false;
+        if (tab !== "short") return false;
         captureDictationCaret();
         flushActiveShortDraft();
         shortMemorizeMode = !shortMemorizeMode;
@@ -2019,8 +2084,13 @@
       }
 
       function dayStats(d) {
-        const plan = dayPlan(d);
-        const shortIds = dayShortIds(d);
+        ensureCoursePoolSeeded(course);
+        const poolKey = activeMcDayKey();
+        const plan = {
+          phase: course === "xi" ? "习思想" : "近代史",
+          mcIds: courseMcIds(course),
+        };
+        const shortIds = keepShortList(course).map((q) => q.id);
         let mcTotal = plan.mcIds.length;
         let shortTotal = shortIds.length;
         let mcOkN = 0;
@@ -2028,7 +2098,7 @@
         let mcAnswered = 0;
         let shortDone = 0;
         plan.mcIds.forEach((id) => {
-          const r = mcResult(d, id);
+          const r = mcResult(poolKey, id);
           if (r === "ok") {
             mcOkN += 1;
             mcAnswered += 1;
@@ -2040,26 +2110,13 @@
         shortIds.forEach((id) => {
           if (isShortOk(id)) shortDone += 1;
         });
-        /* 入口拆分：每日选择只算选择；简答背诵只算整科精简进度 */
-        if (entryMode === "daily") {
-          shortTotal = 0;
-          shortDone = 0;
-        } else {
-          mcTotal = 0;
-          mcOkN = 0;
-          mcFailN = 0;
-          mcAnswered = 0;
-          const kp = courseKeepProgress(shortCourse);
-          shortTotal = kp.total;
-          shortDone = kp.done;
-        }
         const mcEmpty = mcTotal === 0;
         const mcFinished = mcTotal > 0 && mcAnswered >= mcTotal;
         const mcPerfect = mcFinished && mcFailN === 0;
-        const mcPass = mcFinished && mcFailN <= MC_FAIL_ALLOW;
+        const mcPass = mcFinished; /* 合池大扫除：答完即过，不再每日容错 */
         const shortOk = shortTotal === 0 || shortDone >= shortTotal;
         const total = mcTotal + shortTotal;
-        const done = mcAnswered + shortDone;
+        const done = mcOkN + shortDone;
         const ok = total > 0 && (mcEmpty || mcPass) && shortOk;
         const perfect = ok && (mcEmpty ? shortOk : mcPerfect);
         return {
@@ -2073,12 +2130,12 @@
           shortDone,
           total,
           done,
-          unqualified: entryMode === "daily" && mcFailN > MC_FAIL_ALLOW,
+          unqualified: false,
           mcPerfect,
           mcPass: mcEmpty || mcPass,
-          mcClean: mcEmpty || mcPass, /* 兼容旧调用：容错内也算选择过关 */
+          mcClean: mcEmpty || mcPass,
           ok,
-          perfect: entryMode === "daily" && perfect,
+          perfect,
         };
       }
 
@@ -2114,9 +2171,10 @@
         return !!state.mcShuffle;
       }
       function rebuildMcShuffle() {
-        const ids = (dayPlan(date).mcIds || []).slice();
+        ensureCoursePoolSeeded(course);
+        const ids = courseMcIds(course).slice();
         state.mcShuffle = true;
-        state.mcShuffleDate = date;
+        state.mcShuffleDate = activeMcDayKey();
         state.mcShuffleIds = shuffleIds(ids);
       }
       function setMcShuffle(on) {
@@ -2125,12 +2183,12 @@
         const curId = (currentMcList()[mcIdx] || {}).id;
         if (next) {
           rebuildMcShuffle();
-          toast("乱序 · 今日选择已打乱");
+          toast("乱序 · 本科选择已打乱");
         } else {
           state.mcShuffle = false;
           state.mcShuffleDate = null;
           state.mcShuffleIds = null;
-          toast("顺序 · 按派题顺序");
+          toast("顺序 · 按章节顺序");
         }
         save();
         const list = currentMcList();
@@ -2143,12 +2201,13 @@
         render();
       }
       function currentMcList() {
-        const planIds = dayPlan(date).mcIds || [];
+        ensureCoursePoolSeeded(course);
+        const planIds = courseMcIds(course);
         if (!isMcShuffle()) {
           return planIds.map((id) => BANK.mcById[id]).filter(Boolean);
         }
         if (
-          state.mcShuffleDate !== date ||
+          state.mcShuffleDate !== activeMcDayKey() ||
           !Array.isArray(state.mcShuffleIds) ||
           !state.mcShuffleIds.length
         ) {
@@ -2227,22 +2286,20 @@
         return null;
       }
       function dayShortList(d) {
-        /* 简答背诵：不再按日切片，整科精简题一条龙 */
-        if (entryMode === "short") return keepShortList(shortCourse);
-        return chapterShortList(d);
+        return keepShortList(course);
       }
       function dayShortIds(d) {
         return dayShortList(d).map((q) => q.id);
       }
       function currentShortList() {
-        if (entryMode === "short") return keepShortList(shortCourse);
-        return dayShortList(date);
+        return keepShortList(course);
       }
 
       function nextUnansweredMc() {
         const list = currentMcList();
+        const key = activeMcDayKey();
         for (let i = 0; i < list.length; i++) {
-          if (!mcResult(date, list[i].id)) return i;
+          if (!mcResult(key, list[i].id)) return i;
         }
         return Math.min(mcIdx, Math.max(0, list.length - 1));
       }
@@ -2256,98 +2313,48 @@
 
       function renderNav() {
         const nav = $("day-nav");
+        if (!nav) return;
         nav.innerHTML = "";
-        if (entryMode === "short") {
-          nav.hidden = true;
-          return;
-        }
-        nav.hidden = false;
-        const days = BANK.schedule || [];
-        days.forEach((s) => {
-          const st = dayStats(s.date);
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "day-chip";
-          if (s.date === date) btn.classList.add("on");
-          if (st.perfect) btn.classList.add("perfect");
-          else if (st.ok) btn.classList.add("done");
-          btn.innerHTML =
-            '<span class="d">' +
-            shortDate(s.date) +
-            '</span><span class="w">' +
-            weekdayLabel(s.date) +
-            " " +
-            st.done +
-            "/" +
-            st.total +
-            "</span>";
-          btn.addEventListener("click", () => {
-            date = s.date;
-            picked = null;
-            judged = false;
-            shortRevealed = shortMemorizeMode;
-            shortWhyOpen = false;
-            mcIdx = nextUnansweredMc();
-            shortIdx = nextUnansweredShort();
-            render();
-          });
-          nav.appendChild(btn);
-        });
+        nav.hidden = true; /* 已取消每日向 */
       }
 
       function renderLock() {
-        const today = todayStr();
         const lock = $("lock");
-        if (entryMode === "short") {
-          const kp = courseKeepProgress(shortCourse);
-          const name = shortCourse === "xi" ? "习思想" : "近代史";
+        const name = course === "xi" ? "习思想" : "近代史";
+        const st = dayStats(date);
+        if (tab === "short") {
+          const kp = courseKeepProgress(course);
           if (kp.total && kp.done >= kp.total) {
             lock.className = "lock ok";
-            lock.innerHTML = name + "简答精简已过<small>" + kp.done + "/" + kp.total + "</small>";
+            lock.innerHTML = name + "简答已清<small>" + kp.done + "/" + kp.total + "</small>";
           } else {
             lock.className = "lock";
             lock.innerHTML =
-              name +
-              "简答 " +
-              kp.done +
-              "/" +
-              kp.total +
-              "<small>合上书能写关键词</small>";
+              name + "简答 " + kp.done + "/" + kp.total + "<small>精简合上书能写</small>";
           }
           return;
         }
-        const hasToday = BANK.schedule.some((s) => s.date === today);
-        const t = dayStats(hasToday ? today : date);
-        if (hasToday && t.perfect) {
+        if (st.mcTotal > 0 && st.mcPerfect) {
           lock.className = "lock perfect";
-          lock.innerHTML = "完美合格<small>零失误 · 可玩了</small>";
-        } else if (hasToday && t.ok) {
+          lock.innerHTML = name + "选择全对<small>" + st.mcDone + "/" + st.mcTotal + "</small>";
+        } else if (st.mcTotal > 0 && st.mcClean) {
           lock.className = "lock ok";
           lock.innerHTML =
-            "合格<small>错" + t.mcFailN + "题（容错" + MC_FAIL_ALLOW + "）· 可玩了</small>";
-        } else if (hasToday && t.unqualified) {
+            name + "选择已清<small>" + st.mcDone + "/" + st.mcTotal + " · 错" + st.mcFailN + "</small>";
+        } else if (st.mcTotal > 0) {
           lock.className = "lock";
           lock.innerHTML =
-            "不合格 · 错" + t.mcFailN + "<small>点重来，错不超过" + MC_FAIL_ALLOW + "题才合格</small>";
-        } else if (hasToday) {
-          lock.className = "lock";
-          lock.innerHTML =
-            "未完成 " +
-            t.done +
+            name +
+            "选择大扫除 " +
+            st.mcAnswered +
             "/" +
-            t.total +
-            "<small>错≤" +
-            MC_FAIL_ALLOW +
-            "算合格；全对=完美合格</small>";
+            st.mcTotal +
+            "<small>错" +
+            st.mcFailN +
+            " · 全章合池</small>";
         } else {
-          lock.className = t.perfect ? "lock perfect" : t.ok ? "lock ok" : "lock";
-          lock.innerHTML = t.perfect
-            ? "该日完美合格"
-            : t.ok
-              ? "该日合格"
-              : t.unqualified
-                ? "该日不合格<small>可重来</small>"
-                : "该日未过关";
+          lock.className = "lock";
+          lock.innerHTML = name + "暂无选择题";
         }
       }
 
@@ -2380,29 +2387,24 @@
         picked = null;
         mcIdx = nextUnansweredMc();
         const after = dayStats(date);
-        if (after.mcAnswered >= after.mcTotal && after.unqualified) {
-          toast("今日不合格：错≥" + (MC_FAIL_ALLOW + 1) + "，点「重」再刷");
-          teacherCommentDay(after);
-        } else if (after.perfect) {
-          toast("完美合格");
-          teacherCommentDay(after);
-        } else if (after.ok) {
-          toast("合格");
+        if (after.mcTotal > 0 && after.mcPerfect) {
+          toast("本科选择全对 · 清完了");
           teacherCommentDay(after);
         } else if (after.mcTotal > 0 && after.mcClean) {
-          toast("选择题过关");
+          toast("本科选择已清完");
+          teacherCommentDay(after);
         }
         render();
       }
 
       function submitMcAnswer(q, key) {
         if (!q || !key) return;
-        const already = mcResult(date, q.id);
+        const already = mcResult(activeMcDayKey(), q.id);
         if (already === "ok" || already === "fail") return;
         clearAdvanceTimer();
         picked = key;
         if (key === q.correct) {
-          setMcResult(date, q.id, "ok");
+          setMcResult(activeMcDayKey(), q.id, "ok");
           noteMcRight(q.id);
           save();
           onAnswerFeedback(true);
@@ -2417,7 +2419,7 @@
           if (rightEl) rightEl.classList.add("flash");
           advanceTimer = setTimeout(finishMcCorrectAdvance, 380);
         } else {
-          setMcResult(date, q.id, "fail");
+          setMcResult(activeMcDayKey(), q.id, "fail");
           noteMcWrong(q.id);
           judged = true;
           save();
@@ -2448,7 +2450,7 @@
         if (mcIdx >= list.length) mcIdx = list.length - 1;
         if (mcIdx < 0) mcIdx = 0;
         const q = list[mcIdx];
-        const result = mcResult(date, q.id); /* ok | fail | null */
+        const result = mcResult(activeMcDayKey(), q.id); /* ok | fail | null */
         const locked = result === "ok" || result === "fail" || holdingCorrect;
         const st = dayStats(date);
         const statusText =
@@ -2464,13 +2466,11 @@
           list.length +
           " 题 · " +
           statusText +
-          (st.perfect
-            ? " · 完美合格"
-            : st.ok
-              ? " · 合格"
-              : st.unqualified
-                ? " · 今日不合格"
-                : "") +
+          (st.mcPerfect
+            ? " · 本科全对"
+            : st.mcClean
+              ? " · 本科已清"
+              : "") +
           "</div>" +
           '<div class="q-text"></div>' +
           '<div id="opts"></div>' +
@@ -2537,7 +2537,7 @@
           clearAdvanceTimer();
           mcIdx = Math.max(0, mcIdx - 1);
           const prev = list[mcIdx];
-          const r = prev ? mcResult(date, prev.id) : null;
+          const r = prev ? mcResult(activeMcDayKey(), prev.id) : null;
           picked = null;
           judged = r === "ok" || r === "fail";
           render();
@@ -2553,12 +2553,12 @@
             mcIdx = Math.min(list.length - 1, mcIdx + 1);
           }
           const nq = list[mcIdx];
-          const r = nq ? mcResult(date, nq.id) : null;
+          const r = nq ? mcResult(activeMcDayKey(), nq.id) : null;
           picked = null;
           judged = r === "ok" || r === "fail";
           const after = dayStats(date);
           if (after.mcAnswered >= after.mcTotal && after.unqualified) {
-            toast("选择题已答完，但今日不合格。点「重」再刷（错≤" + MC_FAIL_ALLOW + "合格）");
+            toast("本科选择已扫完 · 错" + after.mcFailN + " · 可继续「重」或刷错题本");
           } else if (after.perfect) {
             toast("完美合格");
           } else if (after.ok) {
@@ -2586,7 +2586,7 @@
           ) {
             return;
           }
-          restartMcDay(date);
+          restartMcDay(activeMcDayKey());
           render();
         });
       }
@@ -3121,37 +3121,61 @@
         });
       }
 
+      function wrongCountForCourse(c) {
+        let n = 0;
+        Object.keys(state.wrongMc || {}).forEach((id) => {
+          const w = state.wrongMc[id];
+          if (!w || w.parked) return;
+          const q = BANK.mcById[id];
+          if (q && q.course === c) n += 1;
+        });
+        Object.keys(state.wrongShort || {}).forEach((id) => {
+          const w = state.wrongShort[id];
+          if (!w || w.parked) return;
+          const q = BANK.shortById[id];
+          if (q && q.course === c) n += 1;
+        });
+        return n;
+      }
+      function permCountForCourse(c) {
+        let n = 0;
+        Object.keys(state.permMc || {}).forEach((id) => {
+          const q = BANK.mcById[id];
+          if (q && q.course === c) n += 1;
+        });
+        Object.keys(state.permShort || {}).forEach((id) => {
+          const q = BANK.shortById[id];
+          if (q && q.course === c) n += 1;
+        });
+        return n;
+      }
+
       function render() {
-        tab = entryMode === "short" ? "short" : "mc";
+        shortCourse = course;
+        tab = tab === "short" ? "short" : "mc";
         syncSimpleShortUi();
-        if (entryMode === "short") ensureShortDayForCourse(shortCourse);
+        ensureCoursePoolSeeded(course);
         const st = dayStats(date);
-        $("day-label").textContent = shortDate(date) + " " + weekdayLabel(date);
-        if (entryMode === "short") {
-          const kp = courseKeepProgress(shortCourse);
-          $("phase").textContent =
-            (shortCourse === "xi" ? "习思想" : "近代史") +
-            "简答精简 · " +
-            kp.done +
-            "/" +
-            kp.total;
+        const cname = course === "xi" ? "习思想" : "近代史";
+        $("day-label").textContent = cname + " · 全章合池";
+        if (tab === "short") {
+          const kp = courseKeepProgress(course);
+          $("phase").textContent = cname + "简答 · " + kp.done + "/" + kp.total;
         } else {
-          $("phase").textContent = shortenPhase(st.plan.phase);
+          $("phase").textContent =
+            cname + "选择 · " + st.mcDone + "/" + st.mcTotal + (st.mcFailN ? " 错" + st.mcFailN : "");
         }
         if (st.perfect) {
-          $("pill").textContent = "完美合格";
+          $("pill").textContent = "本科清完";
           $("pill").className = "pill perfect";
-        } else if (st.ok) {
-          $("pill").textContent = "合格";
-          $("pill").className = "pill ok";
-        } else if (st.unqualified) {
-          $("pill").textContent = "今日不合格";
-          $("pill").className = "pill bad";
-        } else if (entryMode === "daily" && st.mcTotal > 0 && st.mcClean) {
-          $("pill").textContent = "选择题过关";
+        } else if (tab === "mc" && st.mcTotal > 0 && st.mcClean) {
+          $("pill").textContent = "选择清完";
           $("pill").className = "pill mc";
+        } else if (tab === "short" && st.shortTotal > 0 && st.shortDone >= st.shortTotal) {
+          $("pill").textContent = "简答清完";
+          $("pill").className = "pill ok";
         } else {
-          $("pill").textContent = "未过关";
+          $("pill").textContent = "扫除中";
           $("pill").className = "pill";
         }
         const mcPct = st.mcTotal ? Math.round((st.mcDone / st.mcTotal) * 100) : 0;
@@ -3162,80 +3186,50 @@
           st.mcDone +
           "/" +
           st.mcTotal +
-          (st.mcFailN
-            ? " 错" + st.mcFailN
-            : st.mcTotal > 0 && st.mcPerfect
-              ? " 完美"
-              : st.mcTotal > 0 && st.mcClean
-                ? " 合格"
-                : "");
+          (st.mcFailN ? " 错" + st.mcFailN : st.mcTotal > 0 && st.mcPerfect ? " 全对" : "");
         $("prog-short").textContent = st.shortDone + "/" + st.shortTotal;
-        const wc = wrongMcCount() + wrongShortCount();
-        if (entryMode === "short") {
-          const kp = courseKeepProgress(shortCourse);
-          $("prog-text").textContent =
-            "精简必背 " + kp.total + " 道 · 已过 " + kp.done + "/" + kp.total + " · 错题 " + wc;
-        } else {
-          $("prog-text").textContent =
-            "错题 " +
-            wc +
-            (st.unqualified
-              ? " · 不合格"
-              : st.perfect
-                ? " · 完美合格"
-                : st.ok
-                  ? " · 合格"
-                  : "");
-        }
-        $("entry-daily").classList.toggle("on", entryMode === "daily");
-        $("entry-short").classList.toggle("on", entryMode === "short");
-        $("row-mc").hidden = entryMode !== "daily";
-        $("row-short").hidden = entryMode !== "short";
-        $("tabs-mc").hidden = true; /* 每日选择直接出题，不再要子 tab */
-        $("tabs-short").hidden = entryMode !== "short";
-        if ($("tab-short-history")) {
-          const hp = courseKeepProgress("history");
-          $("tab-short-history").classList.toggle("on", shortCourse === "history");
-          $("tab-short-history").textContent = "近代史 " + hp.done + "/" + hp.total;
-        }
-        if ($("tab-short-xi")) {
-          const xp = courseKeepProgress("xi");
-          $("tab-short-xi").classList.toggle("on", shortCourse === "xi");
-          $("tab-short-xi").textContent = "习思想 " + xp.done + "/" + xp.total;
-        }
+        const wh = wrongCountForCourse("history");
+        const wx = wrongCountForCourse("xi");
+        const wc = wh + wx;
+        $("prog-text").textContent =
+          cname +
+          (tab === "mc" ? " 选择全章合池大扫除" : " 简答精简") +
+          " · 本科错题 " +
+          wrongCountForCourse(course) +
+          " · 总错题 " +
+          wc;
+        if ($("entry-history")) $("entry-history").classList.toggle("on", course === "history");
+        if ($("entry-xi")) $("entry-xi").classList.toggle("on", course === "xi");
+        $("row-mc").hidden = false;
+        $("row-short").hidden = false;
+        if ($("tabs-kind")) $("tabs-kind").hidden = false;
+        if ($("tab-mc")) $("tab-mc").classList.toggle("on", tab === "mc");
+        if ($("tab-short")) $("tab-short").classList.toggle("on", tab === "short");
         const wrongBtn = $("btn-wrong-page");
-        const pc = permMcCount() + permShortCount();
         if (wrongBtn) wrongBtn.textContent = wc ? "错题 " + wc : "错题";
-        const linkWrong = $("link-wrong-book");
-        const linkPerm = $("link-perm-book");
-        if (linkWrong) linkWrong.textContent = wc ? "错题本 " + wc : "错题本";
-        if (linkPerm) linkPerm.textContent = pc ? "永久库 " + pc : "永久库";
+        const lh = $("link-wrong-history");
+        const lx = $("link-wrong-xi");
+        const ph = $("link-perm-history");
+        const px = $("link-perm-xi");
+        if (lh) lh.textContent = wh ? "近代史错题 " + wh : "近代史错题";
+        if (lx) lx.textContent = wx ? "习思想错题 " + wx : "习思想错题";
+        if (ph) ph.textContent = "近代史永久 " + permCountForCourse("history");
+        if (px) px.textContent = "习思想永久 " + permCountForCourse("xi");
+        if ($("day-nav")) $("day-nav").hidden = true;
         renderNav();
         renderLock();
         if (tab === "mc") renderMc();
         else renderShort();
       }
 
-      $("entry-daily").addEventListener("click", () => setEntryMode("daily"));
-      $("entry-short").addEventListener("click", () => setEntryMode("short"));
-      $("tab-short-history").addEventListener("click", () => setShortCourse("history"));
-      $("tab-short-xi").addEventListener("click", () => setShortCourse("xi"));
+      if ($("entry-history")) $("entry-history").addEventListener("click", () => setCourse("history"));
+      if ($("entry-xi")) $("entry-xi").addEventListener("click", () => setCourse("xi"));
+      if ($("tab-mc")) $("tab-mc").addEventListener("click", () => setTab("mc"));
+      if ($("tab-short")) $("tab-short").addEventListener("click", () => setTab("short"));
       $("btn-today").addEventListener("click", () => {
-        if (entryMode === "short") {
-          const days = courseShortDays(shortCourse);
-          const today = todayStr();
-          date = days.some((s) => s.date === today)
-            ? today
-            : days[0]
-              ? days[0].date
-              : date;
-        } else {
-          date = BANK.schedule.some((s) => s.date === todayStr())
-            ? todayStr()
-            : BANK.schedule[0].date;
-        }
-        mcIdx = nextUnansweredMc();
-        shortIdx = nextUnansweredShort();
+        /* 「今」= 跳到本科下一道未答 */
+        if (tab === "short") shortIdx = nextUnansweredShort();
+        else mcIdx = nextUnansweredMc();
         picked = null;
         judged = false;
         shortRevealed = shortMemorizeMode;
@@ -3888,7 +3882,7 @@
         (e) => {
           if (e.key !== "f" && e.key !== "F") return;
           if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-          if (entryMode !== "short") return;
+          if (tab !== "short") return;
           e.preventDefault();
           e.stopPropagation();
           toggleShortMemorize();
@@ -3896,8 +3890,9 @@
         true
       );
 
-      tab = entryMode === "short" ? "short" : "mc";
-      if (entryMode === "short") ensureShortDayForCourse(shortCourse);
+      shortCourse = course;
+      tab = tab === "short" ? "short" : "mc";
+      ensureCoursePoolSeeded(course);
       mcIdx = nextUnansweredMc();
       shortIdx = nextUnansweredShort();
       render();

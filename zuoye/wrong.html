@@ -162,9 +162,13 @@
       <button type="button" class="ghost" id="btn-theme-eye" title="冷灰护眼">护眼</button>
     </div>
     <h1 id="page-title">错题本</h1>
-    <p class="sub" id="page-sub">选择答错会进来。连对够次才暂移。「重」旁填 0 全召回、填 N 召回累计犯错≥N 的（不清累计）。与每日作业共用本机进度。</p>
+    <p class="sub" id="page-sub">按科目分开收集。连对够次才暂移。「重」旁填 0 全召回、填 N 召回累计犯错≥N（不清累计）。与作业页共用本机进度。</p>
 
     <div class="card">
+      <div class="tabs" id="tabs-course">
+        <button type="button" class="on" id="tab-course-history">近代史</button>
+        <button type="button" id="tab-course-xi">习思想</button>
+      </div>
       <div class="tabs">
         <button type="button" class="on" id="tab-mc">选择错题</button>
         <button type="button" id="tab-short">简答错题</button>
@@ -305,6 +309,35 @@
       const IS_PERM =
         /(?:\?|&)mode=perm(?:&|$)/.test(location.search || "") ||
         /(?:\?|&)mode=fav(?:&|$)/.test(location.search || ""); /* 旧收藏链接兼容进永久库 */
+      let courseFilter = "history";
+      try {
+        const m = /(?:\?|&)course=(history|xi)(?:&|$)/.exec(location.search || "");
+        if (m) courseFilter = m[1];
+        else {
+          const saved = sessionStorage.getItem("pansan2-zuoye-wrong-course");
+          if (saved === "history" || saved === "xi") courseFilter = saved;
+        }
+      } catch (_) {}
+      function setCourseFilter(c) {
+        courseFilter = c === "xi" ? "xi" : "history";
+        try {
+          sessionStorage.setItem("pansan2-zuoye-wrong-course", courseFilter);
+        } catch (_) {}
+        mcOrder = null;
+        shortOrder = null;
+        mcIdx = 0;
+        shortIdx = 0;
+        holdingFail = false;
+        holdingCorrect = false;
+        picked = null;
+        judged = false;
+        shortRevealed = false;
+        render();
+      }
+      function idInCourse(id, kind) {
+        const q = kind === "short" ? BANK.shortById && BANK.shortById[id] : BANK.mcById && BANK.mcById[id];
+        return !!(q && q.course === courseFilter);
+      }
 
       function getTheme() {
         try {
@@ -541,18 +574,21 @@
         return (state.wrongShort[id] && state.wrongShort[id].fails) || 0;
       }
       function activeWrongMcIds() {
-        return Object.keys(state.wrongMc || {}).filter((id) => state.wrongMc[id] && !state.wrongMc[id].parked);
+        return Object.keys(state.wrongMc || {}).filter(
+          (id) => state.wrongMc[id] && !state.wrongMc[id].parked && idInCourse(id, "mc")
+        );
       }
       function activeWrongShortIds() {
         return Object.keys(state.wrongShort || {}).filter(
-          (id) => state.wrongShort[id] && !state.wrongShort[id].parked
+          (id) =>
+            state.wrongShort[id] && !state.wrongShort[id].parked && idInCourse(id, "short")
         );
       }
       function allWrongMcIds() {
-        return Object.keys(state.wrongMc || {});
+        return Object.keys(state.wrongMc || {}).filter((id) => idInCourse(id, "mc"));
       }
       function allWrongShortIds() {
-        return Object.keys(state.wrongShort || {});
+        return Object.keys(state.wrongShort || {}).filter((id) => idInCourse(id, "short"));
       }
       function parkedWrongCount() {
         const mc = allWrongMcIds().filter((id) => state.wrongMc[id] && state.wrongMc[id].parked).length;
@@ -581,7 +617,7 @@
         document.title = "永久库 · 答对不删";
         $("page-title").textContent = "永久库";
         $("page-sub").innerHTML =
-          "与错题同步：答错自动进来并累计错次；这里答对<strong>不会移出</strong>。点「排序」按错次从多到少。";
+          "按科目查看。答错自动进来并累计错次；这里答对<strong>不会移出</strong>。点「排序」按错次从多到少。";
       } else {
         $("page-sub").innerHTML =
           "默认<strong>点答</strong>。同题答对 <b>" +
@@ -601,10 +637,14 @@
       }
 
       function sourceMcIds() {
-        return IS_PERM ? Object.keys(state.permMc || {}) : activeWrongMcIds();
+        return IS_PERM
+          ? Object.keys(state.permMc || {}).filter((id) => idInCourse(id, "mc"))
+          : activeWrongMcIds();
       }
       function sourceShortIds() {
-        return IS_PERM ? Object.keys(state.permShort || {}) : activeWrongShortIds();
+        return IS_PERM
+          ? Object.keys(state.permShort || {}).filter((id) => idInCourse(id, "short"))
+          : activeWrongShortIds();
       }
 
       function sortIdsByMiss(ids, missFn) {
@@ -1273,12 +1313,39 @@
       }
 
       function render() {
+        if ($("tab-course-history")) {
+          $("tab-course-history").classList.toggle("on", courseFilter === "history");
+          $("tab-course-history").textContent =
+            "近代史" + (IS_PERM ? "永久" : "错题");
+        }
+        if ($("tab-course-xi")) {
+          $("tab-course-xi").classList.toggle("on", courseFilter === "xi");
+          $("tab-course-xi").textContent = "习思想" + (IS_PERM ? "永久" : "错题");
+        }
+        const cname = courseName[courseFilter] || "";
+        if ($("page-title")) {
+          $("page-title").textContent = IS_PERM ? cname + "永久库" : cname + "错题本";
+        }
         $("tab-mc").classList.toggle("on", tab === "mc");
         $("tab-short").classList.toggle("on", tab === "short");
         if (tab === "mc") renderMc();
         else renderShort();
       }
 
+      if ($("tab-course-history")) {
+        $("tab-course-history").addEventListener("click", () => {
+          if (holdingFail) return;
+          clearAdvanceTimer();
+          setCourseFilter("history");
+        });
+      }
+      if ($("tab-course-xi")) {
+        $("tab-course-xi").addEventListener("click", () => {
+          if (holdingFail) return;
+          clearAdvanceTimer();
+          setCourseFilter("xi");
+        });
+      }
       $("tab-mc").addEventListener("click", () => {
         if (holdingFail) return;
         clearAdvanceTimer();
