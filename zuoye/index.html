@@ -451,38 +451,82 @@
       margin: 10px 0 0;
       white-space: pre-wrap;
     }
-    .dictation {
-      margin: 12px 0 4px;
-      padding: 10px;
-      border: 1px dashed var(--dict-line);
-      border-radius: 10px;
-      background: var(--dict-bg);
-    }
-    .dictation label {
-      display: block;
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: var(--dict-ink);
-      margin-bottom: 6px;
-    }
-    .dictation textarea {
-      width: 100%;
-      min-height: 110px;
-      resize: vertical;
+    .short-acc { display: flex; flex-direction: column; gap: 8px; }
+    .short-acc-item {
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
-      font: inherit;
-      line-height: 1.5;
+      border-radius: 12px;
       background: var(--surface);
+      overflow: hidden;
     }
-    .dictation-result {
-      margin-top: 8px;
-      font-size: 0.88rem;
-      line-height: 1.45;
+    .short-acc-banner {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      text-align: left;
+      padding: 12px 12px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+      color: var(--ink);
     }
-    .dictation-result.pass { color: var(--green); font-weight: 700; }
-    .dictation-result.fail { color: var(--red); font-weight: 700; }
+    .short-acc-banner:hover { background: var(--opt-on-bg); }
+    .short-acc-item.open .short-acc-banner {
+      background: var(--opt-on-bg);
+      border-bottom: 1px solid var(--line);
+    }
+    .short-acc-banner .n {
+      flex: 0 0 auto;
+      font-weight: 900;
+      color: var(--blue);
+      font-size: 0.86rem;
+    }
+    .short-acc-banner .t {
+      flex: 1;
+      font-weight: 700;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .short-acc-banner .chev {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-weight: 900;
+      transition: transform 0.15s ease;
+    }
+    .short-acc-item.open .short-acc-banner .chev { transform: rotate(90deg); }
+    .short-acc-banner { touch-action: none; user-select: none; -webkit-user-select: none; }
+    .short-acc-item.dragging {
+      opacity: 0.95;
+      box-shadow: 0 10px 24px var(--shadow);
+      z-index: 20;
+      position: relative;
+      outline: 2px solid #f59e0b;
+      /* 不用 CSS transform：跟手位移用 inline translateY */
+    }
+    .short-acc-item.drag-ready .short-acc-banner {
+      background: #fef3c7;
+    }
+    .short-acc-sortbtns {
+      display: none;
+      gap: 8px;
+      padding: 8px 12px 10px;
+      background: #fffbeb;
+      border-top: 1px solid #fcd34d;
+    }
+    .short-acc-item.drag-ready .short-acc-sortbtns {
+      display: flex;
+    }
+    .short-acc-sortbtns button {
+      flex: 1;
+      font-weight: 800;
+      padding: 10px 8px;
+    }
+    .short-acc-body {
+      padding: 10px 12px 12px;
+    }
+    .short-acc-body[hidden] { display: none !important; }
+    .dictation, .dictation-result { display: none !important; }
     .short-hint {
       margin-top: 8px;
       padding: 8px 10px;
@@ -1620,7 +1664,7 @@
       } catch (_) {}
       let shortCourse = course; /* 兼容旧函数名：始终跟 course */
       let mcIdx = 0;
-      let shortIdx = 0;
+      let shortIdx = -1; /* -1=全部收起 */
 
       function setCourse(next) {
         course = next === "xi" ? "xi" : "history";
@@ -1633,7 +1677,7 @@
         shortWhyOpen = false;
         shortMemoOpen = false;
         stopShortSpeak();
-        if (tab === "short") shortIdx = nextUnansweredShort();
+        if (tab === "short") shortIdx = -1;
         else mcIdx = nextUnansweredMc();
         picked = null;
         judged = false;
@@ -1647,7 +1691,7 @@
         shortRevealed = shortMemorizeMode;
         shortWhyOpen = false;
         stopShortSpeak();
-        if (tab === "short") shortIdx = nextUnansweredShort();
+        if (tab === "short") shortIdx = -1;
         else mcIdx = nextUnansweredMc();
         picked = null;
         judged = false;
@@ -2978,413 +3022,520 @@
 
       function renderShort() {
         const list = currentShortList();
+        ensureTeacherOutOfWork();
         if (!list.length) {
-          ensureTeacherOutOfWork();
-          $("work").innerHTML = "<p class='hint'>这一天没有简答题。</p>";
+          $("work").innerHTML = "<p class='hint'>本科没有简答题。</p>";
           dockTeacherForSimple();
           return;
         }
         if (shortIdx >= list.length) shortIdx = list.length - 1;
-        if (shortIdx < 0) shortIdx = 0;
-        const q = list[shortIdx];
-        const done = isShortOk(q.id);
-        const draft = (state.shortDraft && state.shortDraft[q.id]) || "";
-        const tag = shortTagLabel(q);
-        const box = document.createElement("div");
-        box.className = "q-card";
-        box.innerHTML =
-          '<div class="q-meta">' +
-          "<strong>第" +
-          (shortIdx + 1) +
-          "题</strong>/" +
-          list.length +
-          " · " +
-          courseName[q.course] +
-          " · 第" +
-          q.ch +
-          "章" +
-          (done ? " · 已过" : "") +
-          (tag ? ' <span class="' + tag.cls + '">' + tag.text + "</span>" : "") +
-          "</div>" +
-          '<div class="q-text"></div>' +
-          '<div id="short-compare" class="short-answer-block" hidden>' +
-          '<details class="short-why-banner" id="short-why">' +
-          "<summary>当时的故事</summary>" +
-          '<div class="short-why-body" id="short-why-body"></div>' +
-          "</details>" +
-          '<div class="short-pane official"><h4 id="points-official-title">采分点</h4><ol id="points-official"></ol></div>' +
-          "</div>" +
-          '<div class="dictation" id="dictation-box">' +
-          "<label>默写</label>" +
-          '<textarea id="short-dictation" placeholder="关键词即可…"></textarea>' +
-          '<div class="dictation-result" id="dictation-result" hidden></div>' +
-          "</div>" +
-          '<div class="short-edit-panel" id="short-edit-panel" hidden>' +
-          "<label>改答案（每行一条采分点）</label>" +
-          '<textarea id="short-edit-ta" placeholder="一行一条，保存后本题按你的答案判分"></textarea>' +
-          '<p class="hint">保存后替换本题采分点；「还原」可恢复题库原版。</p>' +
-          '<div class="row nav-btns">' +
-          '<button type="button" class="primary" id="btn-edit-save">保存</button>' +
-          '<button type="button" class="ghost" id="btn-edit-cancel">取消</button>' +
-          '<button type="button" class="danger" id="btn-edit-restore"' +
-          (hasCustomPoints(q.id) ? "" : " disabled") +
-          ">还原</button>" +
-          "</div>" +
-          "</div>" +
-          '<div class="nav-btns">' +
-          '<button type="button" class="primary" id="btn-dictation-submit" title="提交"' +
-          (done ? " disabled" : "") +
-          ">交</button>" +
-          '<button type="button" class="ghost' +
-          (shortMemorizeMode ? " on" : "") +
-          '" id="btn-memorize" title="背题（Ctrl/⌘+F）">背</button>' +
-          '<button type="button" class="ghost" id="btn-prev-s" title="上题">上</button>' +
-          '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
-          '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
-          '<button type="button" class="ghost' +
-          (isInWrongShort(q.id) && isInPermShort(q.id) ? " on" : "") +
-          '" id="btn-collect-s" title="收到错题本和永久库">收</button>' +
-          '<button type="button" class="ghost' +
-          (hasCustomPoints(q.id) ? " on" : "") +
-          '" id="btn-edit-points" title="改答案">改</button>' +
-          '<button type="button" class="ghost' +
-          (hasShortMemo(q.id) ? " on" : "") +
-          '" id="btn-short-memo" title="记下还没记住的地方">记</button>' +
-          '<button type="button" class="ghost' +
-          (shortSimpleUi ? " on" : "") +
-          '" id="btn-short-simple" title="简化界面，只留本题">简</button>' +
-          '<button type="button" class="ghost' +
-          (shortSpeaking ? " on" : "") +
-          '" id="btn-short-speak" title="朗读本题题目和采分点（再点停止）" aria-label="朗读">🔊</button>' +
-          '<button type="button" class="ghost' +
-          (shortOrderOpen ? " on" : "") +
-          '" id="btn-short-order" title="自定义题号顺序">序</button>' +
-          "</div>" +
-          '<div class="short-memo-panel" id="short-memo-panel"' +
-          (shortMemoOpen ? "" : " hidden") +
-          ">" +
-          "<label>还没记住</label>" +
-          '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…（失焦或再点「记」也会保存）"></textarea>' +
-          '<p class="hint">回车保存（Shift+回车换行）。点右下角老师：按采分点一句一句提示。</p>' +
-          "</div>" +
-          '<div class="short-order-panel" id="short-order-panel"' +
-          (shortOrderOpen ? "" : " hidden") +
-          ">" +
-          "<label>自定义排序（题号 1～" +
-          list.length +
-          "）</label>" +
-          '<div class="order-move">' +
-          "<span>把第</span>" +
-          '<input type="number" id="order-from" min="1" max="' +
-          list.length +
-          '" value="' +
-          (shortIdx + 1) +
-          '">' +
-          "<span>题移到第</span>" +
-          '<input type="number" id="order-to" min="1" max="' +
-          list.length +
-          '" value="1">' +
-          "<span>题</span>" +
-          '<select id="order-place"><option value="before">前面</option><option value="after">后面</option></select>' +
-          '<button type="button" class="primary" id="btn-order-move">移动</button>' +
-          "</div>" +
-          "<label>或整表输入新顺序（空格/逗号分隔，未写的号自动接后）</label>" +
-          '<textarea id="order-bulk-ta" placeholder="例如：12 1 2 3 10"></textarea>' +
-          '<div class="row nav-btns" style="margin-top:8px">' +
-          '<button type="button" class="primary" id="btn-order-apply">按序号重排</button>' +
-          '<button type="button" class="ghost" id="btn-order-reset">恢复默认</button>' +
-          '<button type="button" class="ghost" id="btn-order-close">收起</button>' +
-          "</div>" +
-          '<ul class="short-order-list" id="short-order-list"></ul>' +
-          '<p class="hint">顺序只存在本机；导出进度会带上。</p>' +
-          "</div>";
-        box.querySelector(".q-text").textContent = q.text;
-        if (shortMemorizeMode) shortRevealed = true;
-        fillShortCompare(box, q, null);
-        ensureTeacherOutOfWork();
-        $("work").innerHTML = "";
-        $("work").appendChild(box);
-        dockTeacherForSimple();
+        /* shortIdx < 0 → 全部收起 */
+        shortRevealed = shortIdx >= 0;
+        const wrap = document.createElement("div");
+        wrap.className = "short-acc";
+        wrap.id = "short-acc-root";
 
-        const ta = box.querySelector("#short-dictation");
-        const resultEl = box.querySelector("#dictation-result");
-        if (ta) ta.value = draft;
-        if (shortRevealed && draft) {
-          showShortGrade(box, q, draft, resultEl);
-        } else if (shortRevealed) {
-          fillShortCompare(box, q, null);
-        }
+        list.forEach((q, i) => {
+          const open = i === shortIdx;
+          const done = isShortOk(q.id);
+          const tag = shortTagLabel(q);
+          const item = document.createElement("div");
+          item.className = "short-acc-item" + (open ? " open" : "");
+          item.dataset.i = String(i);
+          item.dataset.id = q.id;
 
-        if (ta) {
-          ta.addEventListener("input", () => persistShortDraft(q.id, ta.value));
-        }
-        restoreDictationCaret();
+          const banner = document.createElement("button");
+          banner.type = "button";
+          banner.className = "short-acc-banner";
+          banner.title = "点一下展开/收起；长按拖动排序";
+          banner.innerHTML =
+            '<span class="n">第' +
+            (i + 1) +
+            "题</span>" +
+            (tag ? '<span class="' + tag.cls + '">' + tag.text + "</span>" : "") +
+            '<span class="t"></span><span class="chev">▸</span>';
+          banner.querySelector(".t").textContent =
+            q.text + (done ? " · 已过" : "") + " · 第" + q.ch + "章";
 
-        $("btn-dictation-submit").addEventListener("click", () => {
-          if (done) return;
-          const text = (ta && ta.value) || "";
-          if (!normAns(text) || normAns(text).length < 6) {
-            toast("先写再提交");
-            return;
-          }
-          persistShortDraft(q.id, text);
-          const grade = showShortGrade(box, q, text, resultEl);
-          if (grade.pass) {
-            onAnswerFeedback(true);
-            passShortQuestion(q, "过关 · 留下对照");
-          } else {
-            onAnswerFeedback(false);
-            toast("未过 · 对照采分点再默");
-          }
-        });
-        const editPanel = box.querySelector("#short-edit-panel");
-        const editTa = box.querySelector("#short-edit-ta");
-        function openEditPanel() {
-          if (!editPanel || !editTa) return;
-          if (memoPanel && !memoPanel.hidden) closeMemoPanel();
-          editTa.value = pointsFor(q).join("\n");
-          editPanel.hidden = false;
-          editTa.focus();
-        }
-        function closeEditPanel() {
-          if (editPanel) editPanel.hidden = true;
-        }
-        $("btn-edit-points").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          if (editPanel && !editPanel.hidden) {
-            closeEditPanel();
-            return;
-          }
-          shortRevealed = true;
-          fillShortCompare(box, q, null);
-          openEditPanel();
-        });
-        $("btn-edit-cancel").addEventListener("click", () => closeEditPanel());
-        $("btn-edit-save").addEventListener("click", () => {
-          const pts = String((editTa && editTa.value) || "")
-            .split(/\n+/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-          if (!pts.length) {
-            toast("至少写一条采分点");
-            return;
-          }
-          if (!state.shortPointsCustom) state.shortPointsCustom = {};
-          state.shortPointsCustom[q.id] = pts;
-          save();
-          shortRevealed = true;
-          shortWhyOpen = false;
-          toast("已替换本题答案");
-          render();
-        });
-        $("btn-edit-restore").addEventListener("click", () => {
-          if (!hasCustomPoints(q.id)) return;
-          if (!confirm("还原本题为题库原版采分点？")) return;
-          delete state.shortPointsCustom[q.id];
-          save();
-          shortRevealed = true;
-          toast("已还原题库原版");
-          render();
-        });
-        const memoPanel = box.querySelector("#short-memo-panel");
-        const memoTa = box.querySelector("#short-memo-ta");
-        function syncMemoBtn() {
-          const btn = $("btn-short-memo");
-          if (btn) btn.classList.toggle("on", hasShortMemo(q.id));
-        }
-        function commitMemo(showToast) {
-          if (!memoTa) return;
-          persistShortMemo(q.id, memoTa.value);
-          syncMemoBtn();
-          if (showToast) {
-            toast(String(memoTa.value || "").trim() ? "已记下" : "已清空本题笔记");
-          }
-        }
-        function openMemoPanel() {
-          if (!memoPanel || !memoTa) return;
-          if (editPanel && !editPanel.hidden) closeEditPanel();
-          shortOrderOpen = false;
-          const op = box.querySelector("#short-order-panel");
-          if (op) op.hidden = true;
-          shortMemoOpen = true;
-          memoTa.value = shortMemoOf(q.id);
-          memoPanel.hidden = false;
-          memoTa.focus();
-          const len = memoTa.value.length;
-          try {
-            memoTa.setSelectionRange(len, len);
-          } catch (_) {}
-        }
-        function closeMemoPanel(saveNow) {
-          if (saveNow !== false) commitMemo(false);
-          shortMemoOpen = false;
-          if (memoPanel) memoPanel.hidden = true;
-        }
-        if (memoTa) {
-          memoTa.value = shortMemoOf(q.id);
-          memoTa.addEventListener("blur", () => commitMemo(false));
-          memoTa.addEventListener("keydown", (e) => {
-            if (e.key !== "Enter" || e.shiftKey) return;
-            e.preventDefault();
-            commitMemo(true);
-          });
-        }
-        if (shortMemoOpen && memoPanel) {
-          memoPanel.hidden = false;
-        }
-        if ($("btn-short-memo")) {
-          $("btn-short-memo").addEventListener("click", () => {
-            if (ta) persistShortDraft(q.id, ta.value);
-            if (memoPanel && !memoPanel.hidden) {
-              closeMemoPanel(true);
-              toast(hasShortMemo(q.id) ? "已收起（内容已保存）" : "已收起");
-              return;
+          let pressTimer = null;
+          let dragMode = false;
+          let suppressClick = false;
+          let startY = 0;
+          let activePid = null;
+          let movedInDrag = false;
+          let grabOffsetY = 0;
+          let itemOriginTop = 0;
+
+          function clearPress() {
+            if (pressTimer) {
+              clearTimeout(pressTimer);
+              pressTimer = null;
             }
-            openMemoPanel();
-            if (hasShortMemo(q.id)) toast("已展开笔记");
-          });
-        }
-        $("btn-memorize").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          toggleShortMemorize();
-        });
-        if ($("btn-short-simple")) {
-          $("btn-short-simple").addEventListener("click", () => {
-            if (ta) persistShortDraft(q.id, ta.value);
-            if (memoTa) commitMemo(false);
-            toggleShortSimpleUi();
-          });
-        }
-        if ($("btn-short-speak")) {
-          $("btn-short-speak").addEventListener("click", () => {
-            toggleShortSpeak(q);
-          });
-        }
-        const orderPanel = box.querySelector("#short-order-panel");
-        const orderListEl = box.querySelector("#short-order-list");
-        function fillOrderList() {
-          if (!orderListEl) return;
-          orderListEl.innerHTML = "";
-          list.forEach((qq, i) => {
-            const li = document.createElement("li");
-            if (i === shortIdx) li.className = "cur";
-            li.innerHTML =
-              '<span class="n">' +
-              (i + 1) +
-              "</span><span class=\"t\">" +
-              String(qq.text || "").replace(/</g, "&lt;") +
-              "</span>";
-            orderListEl.appendChild(li);
-          });
-        }
-        if (shortOrderOpen && orderPanel) {
-          orderPanel.hidden = false;
-          fillOrderList();
-          const bulk = box.querySelector("#order-bulk-ta");
-          if (bulk) {
-            bulk.value = list.map((_, i) => i + 1).join(" ");
           }
-        }
-        if ($("btn-short-order")) {
-          $("btn-short-order").addEventListener("click", () => {
-            if (ta) persistShortDraft(q.id, ta.value);
-            if (memoPanel && !memoPanel.hidden) closeMemoPanel(true);
-            if (orderPanel && !orderPanel.hidden) {
-              shortOrderOpen = false;
-              orderPanel.hidden = true;
-              toast("已收起排序");
-              return;
-            }
-            shortOrderOpen = true;
-            if (orderPanel) orderPanel.hidden = false;
-            fillOrderList();
-            const bulk = box.querySelector("#order-bulk-ta");
-            if (bulk) bulk.value = list.map((_, i) => i + 1).join(" ");
-          });
-        }
-        if ($("btn-order-move")) {
-          $("btn-order-move").addEventListener("click", () => {
-            const fromEl = $("order-from");
-            const toEl = $("order-to");
-            const placeEl = $("order-place");
-            if (
-              moveShortByNumbers(
-                fromEl && fromEl.value,
-                toEl && toEl.value,
-                placeEl && placeEl.value === "after" ? "after" : "before"
-              )
-            ) {
-              shortOrderOpen = true;
-              render();
-            }
-          });
-        }
-        if ($("btn-order-apply")) {
-          $("btn-order-apply").addEventListener("click", () => {
-            const bulk = $("order-bulk-ta");
-            if (applyShortOrderNumbersText(bulk && bulk.value)) {
-              shortOrderOpen = true;
-              render();
-            }
-          });
-        }
-        if ($("btn-order-reset")) {
-          $("btn-order-reset").addEventListener("click", () => {
-            resetShortOrderCustom();
-            shortOrderOpen = true;
+          function clearDragListeners() {
+            document.removeEventListener("pointermove", onDocMove, true);
+            document.removeEventListener("pointerup", onDocUp, true);
+            document.removeEventListener("pointercancel", onDocUp, true);
+            banner.removeEventListener("pointermove", onDocMove);
+            banner.removeEventListener("pointerup", onDocUp);
+            banner.removeEventListener("pointercancel", onDocUp);
+          }
+          function commitDomOrder(announce) {
+            const ids = Array.prototype.map
+              .call(wrap.querySelectorAll(".short-acc-item"), (el) => el.dataset.id)
+              .filter(Boolean);
+            const same =
+              ids.length === list.length && ids.every((id, idx) => id === list[idx].id);
+            if (same || ids.length !== list.length) return false;
+            persistShortOrder(course, ids);
+            shortIdx = -1;
+            shortMemoOpen = false;
+            if (announce !== false) toast("已调整顺序");
             render();
+            return true;
+          }
+          function resetItemTransform() {
+            item.style.transform = "";
+            item.style.zIndex = "";
+            item.style.transition = "";
+          }
+          function placeItemByY(clientY) {
+            /* 先清位移再量布局位置，否则 getBoundingClientRect 含 translate 会算歪 */
+            item.style.transform = "";
+            const siblings = Array.prototype.slice.call(
+              wrap.querySelectorAll(".short-acc-item")
+            );
+            let beforeEl = null;
+            for (let s = 0; s < siblings.length; s++) {
+              const el = siblings[s];
+              if (el === item) continue;
+              const r = el.getBoundingClientRect();
+              if (clientY < r.top + r.height / 2) {
+                beforeEl = el;
+                break;
+              }
+            }
+            if (beforeEl) {
+              if (item.nextSibling !== beforeEl) wrap.insertBefore(item, beforeEl);
+            } else if (wrap.lastElementChild !== item) {
+              wrap.appendChild(item);
+            }
+            itemOriginTop = item.getBoundingClientRect().top;
+            item.style.transform =
+              "translateY(" + (clientY - itemOriginTop - grabOffsetY) + "px)";
+          }
+          function ensureSortBar() {
+            let bar = item.querySelector(".short-acc-sortbtns");
+            if (bar) return bar;
+            bar = document.createElement("div");
+            bar.className = "short-acc-sortbtns";
+            bar.innerHTML =
+              '<button type="button" class="ghost" data-dir="-1">↑ 上移</button>' +
+              '<button type="button" class="ghost" data-dir="1">↓ 下移</button>' +
+              '<button type="button" class="primary" data-done="1">完成</button>';
+            bar.addEventListener("pointerdown", (ev) => {
+              /* 点按钮时不要抢横幅的拖动手势 */
+              ev.stopPropagation();
+            });
+            bar.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const btn = ev.target.closest("button");
+              if (!btn) return;
+              if (btn.getAttribute("data-done")) {
+                exitSortMode(false);
+                toast("已退出排序");
+                return;
+              }
+              const d = Number(btn.getAttribute("data-dir"));
+              if (d) swapWithNeighbor(d);
+            });
+            if (banner.nextSibling) item.insertBefore(bar, banner.nextSibling);
+            else item.appendChild(bar);
+            return bar;
+          }
+          function exitSortMode(didCommit) {
+            dragMode = false;
+            resetItemTransform();
+            item.classList.remove("dragging", "drag-ready");
+            const sortBtns = item.querySelector(".short-acc-sortbtns");
+            if (sortBtns) sortBtns.remove();
+            suppressClick = true;
+            if (!didCommit) {
+              /* no-op */
+            }
+          }
+          function endDrag() {
+            clearPress();
+            if (activePid != null) {
+              try {
+                banner.releasePointerCapture(activePid);
+              } catch (_) {}
+              activePid = null;
+            }
+            clearDragListeners();
+            if (!dragMode && !item.classList.contains("drag-ready")) return;
+            item.classList.remove("dragging");
+            resetItemTransform();
+            if (movedInDrag) {
+              const ok = commitDomOrder(true);
+              if (!ok) {
+                /* 顺序没变：仍留在排序态，可用 ↑↓ */
+                item.classList.add("drag-ready");
+                ensureSortBar();
+                suppressClick = true;
+              }
+              dragMode = false;
+            } else {
+              /* 只是长按亮黄 / 点住没拖：保持排序态，下次按下可直接拖 */
+              dragMode = false;
+              item.classList.add("drag-ready");
+              ensureSortBar();
+              suppressClick = true;
+            }
+          }
+          function onDocMove(e) {
+            if (activePid != null && e.pointerId !== activePid) return;
+            const dy = e.clientY - startY;
+            if (!dragMode) {
+              if (Math.abs(dy) > 14) clearPress();
+              return;
+            }
+            e.preventDefault();
+            if (Math.abs(dy) > 4) movedInDrag = true;
+            item.style.transition = "none";
+            item.style.zIndex = "20";
+            placeItemByY(e.clientY);
+          }
+          function onDocUp(e) {
+            if (activePid != null && e.pointerId !== activePid) return;
+            endDrag();
+          }
+          function swapWithNeighbor(dir) {
+            const ids = resolveShortOrderIds(course).slice();
+            const at = ids.indexOf(q.id);
+            if (at < 0) return;
+            const j = at + dir;
+            if (j < 0 || j >= ids.length) {
+              toast(dir < 0 ? "已经是第一题" : "已经是最后一题");
+              return;
+            }
+            const t = ids[at];
+            ids[at] = ids[j];
+            ids[j] = t;
+            persistShortOrder(course, ids);
+            shortIdx = -1;
+            shortMemoOpen = false;
+            toast(dir < 0 ? "已上移" : "已下移");
+            render();
+          }
+          function enterDragReady() {
+            dragMode = true;
+            suppressClick = true;
+            movedInDrag = false;
+            item.classList.add("dragging", "drag-ready");
+            const rect = item.getBoundingClientRect();
+            itemOriginTop = rect.top;
+            grabOffsetY = startY - rect.top;
+            stopShortSpeak();
+            ensureSortBar();
+            toast("按住拖动，或点 ↑↓");
+          }
+          function beginPointerTrack(e) {
+            if (e.button != null && e.button !== 0) return;
+            /* 点在排序按钮上：不接管 */
+            if (e.target && e.target.closest && e.target.closest(".short-acc-sortbtns")) {
+              return;
+            }
+            suppressClick = false;
+            movedInDrag = false;
+            startY = e.clientY;
+            activePid = e.pointerId;
+            clearPress();
+            clearDragListeners();
+            try {
+              banner.setPointerCapture(e.pointerId);
+            } catch (_) {}
+            /* document + banner 双挂，避免只 capture 到横幅时丢 move */
+            document.addEventListener("pointermove", onDocMove, true);
+            document.addEventListener("pointerup", onDocUp, true);
+            document.addEventListener("pointercancel", onDocUp, true);
+            banner.addEventListener("pointermove", onDocMove);
+            banner.addEventListener("pointerup", onDocUp);
+            banner.addEventListener("pointercancel", onDocUp);
+
+            if (item.classList.contains("drag-ready")) {
+              /* 已黄：按下即拖，不必再长按 */
+              dragMode = true;
+              item.classList.add("dragging");
+              const rect = item.getBoundingClientRect();
+              itemOriginTop = rect.top;
+              grabOffsetY = startY - rect.top;
+              return;
+            }
+            dragMode = false;
+            pressTimer = setTimeout(() => {
+              pressTimer = null;
+              enterDragReady();
+            }, 380);
+          }
+
+          banner.addEventListener("pointerdown", beginPointerTrack);
+          banner.addEventListener("click", (e) => {
+            if (suppressClick || item.classList.contains("drag-ready")) {
+              e.preventDefault();
+              e.stopPropagation();
+              suppressClick = false;
+              return;
+            }
+            stopShortSpeak();
+            shortMemoOpen = false;
+            shortWhyOpen = false;
+            if (shortIdx === i) shortIdx = -1;
+            else shortIdx = i;
+            shortRevealed = shortIdx >= 0;
+            render();
+            if (shortIdx >= 0) {
+              const el = document.querySelector(
+                '.short-acc-item[data-i="' + shortIdx + '"]'
+              );
+              if (el) {
+                try {
+                  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                } catch (_) {}
+              }
+            }
           });
-        }
-        if ($("btn-order-close")) {
-          $("btn-order-close").addEventListener("click", () => {
-            shortOrderOpen = false;
-            if (orderPanel) orderPanel.hidden = true;
-          });
-        }
-        $("btn-collect-s").addEventListener("click", () => {
-          if (ta) persistShortDraft(q.id, ta.value);
-          const r = collectShort(q.id);
-          toast(r.already ? "已在错题本和永久库" : "已收到错题本和永久库");
-          render();
-        });
-        $("btn-prev-s").addEventListener("click", () => {
-          stopShortSpeak();
-          if (ta) persistShortDraft(q.id, ta.value);
-          if (memoTa) commitMemo(false);
-          shortMemoOpen = false;
-          shortOrderOpen = false;
-          shortIdx = Math.max(0, shortIdx - 1);
-          shortRevealed = shortMemorizeMode;
-          shortWhyOpen = false;
-          render();
-        });
-        $("btn-next-s").addEventListener("click", () => {
-          stopShortSpeak();
-          if (ta) persistShortDraft(q.id, ta.value);
-          if (memoTa) commitMemo(false);
-          shortMemoOpen = false;
-          shortOrderOpen = false;
-          shortIdx = Math.min(list.length - 1, shortIdx + 1);
-          shortRevealed = shortMemorizeMode;
-          shortWhyOpen = false;
-          render();
-        });
-        $("btn-restart-short").addEventListener("click", () => {
-          if (
-            !confirm("清空全部简答默写，并取消所有简答过关？选择题不动。确定？")
-          ) {
+          item.appendChild(banner);
+
+          const body = document.createElement("div");
+          body.className = "short-acc-body";
+          if (!open) {
+            body.hidden = true;
+            item.appendChild(body);
+            wrap.appendChild(item);
             return;
           }
-          stopShortSpeak();
-          Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
-          Object.keys(shortHintSegAt).forEach((k) => delete shortHintSegAt[k]);
-          restartAllShortDrafts();
-          shortMemorizeMode = false;
-          shortRevealed = false;
-          shortWhyOpen = false;
-          toast("全部简答文稿已清");
-          render();
+
+          body.innerHTML =
+            '<div id="short-compare" class="short-answer-block">' +
+            '<details class="short-why-banner" id="short-why">' +
+            "<summary>当时的故事</summary>" +
+            '<div class="short-why-body" id="short-why-body"></div>' +
+            "</details>" +
+            '<div class="short-pane official"><h4 id="points-official-title">采分点</h4><ol id="points-official"></ol></div>' +
+            "</div>" +
+            '<div class="short-edit-panel" id="short-edit-panel" hidden>' +
+            "<label>改答案（每行一条采分点）</label>" +
+            '<textarea id="short-edit-ta" placeholder="一行一条"></textarea>' +
+            '<p class="hint">保存后替换本题采分点；「还原」可恢复题库原版。</p>' +
+            '<div class="row nav-btns">' +
+            '<button type="button" class="primary" id="btn-edit-save">保存</button>' +
+            '<button type="button" class="ghost" id="btn-edit-cancel">取消</button>' +
+            '<button type="button" class="danger" id="btn-edit-restore"' +
+            (hasCustomPoints(q.id) ? "" : " disabled") +
+            ">还原</button>" +
+            "</div></div>" +
+            '<div class="nav-btns">' +
+            '<button type="button" class="ghost" id="btn-prev-s" title="上题">上</button>' +
+            '<button type="button" class="ghost" id="btn-next-s" title="下题">下</button>' +
+            '<button type="button" class="danger" id="btn-restart-short" title="重来">重</button>' +
+            '<button type="button" class="ghost' +
+            (isInWrongShort(q.id) && isInPermShort(q.id) ? " on" : "") +
+            '" id="btn-collect-s" title="收到错题本和永久库">收</button>' +
+            '<button type="button" class="ghost' +
+            (hasCustomPoints(q.id) ? " on" : "") +
+            '" id="btn-edit-points" title="改答案">改</button>' +
+            '<button type="button" class="ghost' +
+            (hasShortMemo(q.id) ? " on" : "") +
+            '" id="btn-short-memo" title="记下还没记住的地方">记</button>' +
+            '<button type="button" class="ghost' +
+            (shortSimpleUi ? " on" : "") +
+            '" id="btn-short-simple" title="简化界面">简</button>' +
+            '<button type="button" class="ghost' +
+            (shortSpeaking ? " on" : "") +
+            '" id="btn-short-speak" title="朗读本题" aria-label="朗读">🔊</button>' +
+            "</div>" +
+            '<div class="short-memo-panel" id="short-memo-panel"' +
+            (shortMemoOpen ? "" : " hidden") +
+            ">" +
+            "<label>还没记住</label>" +
+            '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…"></textarea>' +
+            '<p class="hint">回车保存。长按横幅可拖动排序；点老师一句一句提示。</p>' +
+            "</div>";
+
+          item.appendChild(body);
+          wrap.appendChild(item);
+
+          fillShortCompare(body, q, null);
+          const compare = body.querySelector("#short-compare");
+          if (compare) compare.hidden = false;
+
+          const editPanel = body.querySelector("#short-edit-panel");
+          const editTa = body.querySelector("#short-edit-ta");
+          function openEditPanel() {
+            if (!editPanel || !editTa) return;
+            if (memoPanel && !memoPanel.hidden) closeMemoPanel();
+            editTa.value = pointsFor(q).join("\n");
+            editPanel.hidden = false;
+            editTa.focus();
+          }
+          function closeEditPanel() {
+            if (editPanel) editPanel.hidden = true;
+          }
+          const btnEdit = body.querySelector("#btn-edit-points");
+          if (btnEdit) {
+            btnEdit.addEventListener("click", () => {
+              if (editPanel && !editPanel.hidden) {
+                closeEditPanel();
+                return;
+              }
+              openEditPanel();
+            });
+          }
+          const btnEditCancel = body.querySelector("#btn-edit-cancel");
+          if (btnEditCancel) btnEditCancel.addEventListener("click", () => closeEditPanel());
+          const btnEditSave = body.querySelector("#btn-edit-save");
+          if (btnEditSave) {
+            btnEditSave.addEventListener("click", () => {
+              const pts = String((editTa && editTa.value) || "")
+                .split(/\n+/)
+                .map((x) => x.trim())
+                .filter(Boolean);
+              if (!pts.length) {
+                toast("至少写一条采分点");
+                return;
+              }
+              if (!state.shortPointsCustom) state.shortPointsCustom = {};
+              state.shortPointsCustom[q.id] = pts;
+              save();
+              toast("已替换本题答案");
+              render();
+            });
+          }
+          const btnEditRestore = body.querySelector("#btn-edit-restore");
+          if (btnEditRestore) {
+            btnEditRestore.addEventListener("click", () => {
+              if (!hasCustomPoints(q.id)) return;
+              if (!confirm("还原本题为题库原版采分点？")) return;
+              delete state.shortPointsCustom[q.id];
+              save();
+              toast("已还原题库原版");
+              render();
+            });
+          }
+
+          const memoPanel = body.querySelector("#short-memo-panel");
+          const memoTa = body.querySelector("#short-memo-ta");
+          function syncMemoBtn() {
+            const btn = body.querySelector("#btn-short-memo");
+            if (btn) btn.classList.toggle("on", hasShortMemo(q.id));
+          }
+          function commitMemo(showToast) {
+            if (!memoTa) return;
+            persistShortMemo(q.id, memoTa.value);
+            syncMemoBtn();
+            if (showToast) {
+              toast(String(memoTa.value || "").trim() ? "已记下" : "已清空本题笔记");
+            }
+          }
+          function openMemoPanel() {
+            if (!memoPanel || !memoTa) return;
+            if (editPanel && !editPanel.hidden) closeEditPanel();
+            shortMemoOpen = true;
+            memoTa.value = shortMemoOf(q.id);
+            memoPanel.hidden = false;
+            memoTa.focus();
+          }
+          function closeMemoPanel(saveNow) {
+            if (saveNow !== false) commitMemo(false);
+            shortMemoOpen = false;
+            if (memoPanel) memoPanel.hidden = true;
+          }
+          if (memoTa) {
+            memoTa.value = shortMemoOf(q.id);
+            memoTa.addEventListener("blur", () => commitMemo(false));
+            memoTa.addEventListener("keydown", (e) => {
+              if (e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              commitMemo(true);
+            });
+          }
+          if (shortMemoOpen && memoPanel) memoPanel.hidden = false;
+          const btnMemo = body.querySelector("#btn-short-memo");
+          if (btnMemo) {
+            btnMemo.addEventListener("click", () => {
+              if (memoPanel && !memoPanel.hidden) {
+                closeMemoPanel(true);
+                toast(hasShortMemo(q.id) ? "已收起（内容已保存）" : "已收起");
+                return;
+              }
+              openMemoPanel();
+            });
+          }
+          const btnSimple = body.querySelector("#btn-short-simple");
+          if (btnSimple) {
+            btnSimple.addEventListener("click", () => {
+              if (memoTa) commitMemo(false);
+              toggleShortSimpleUi();
+            });
+          }
+          const btnSpeak = body.querySelector("#btn-short-speak");
+          if (btnSpeak) {
+            btnSpeak.addEventListener("click", () => toggleShortSpeak(q));
+          }
+
+          const btnCollect = body.querySelector("#btn-collect-s");
+          if (btnCollect) {
+            btnCollect.addEventListener("click", () => {
+              const r = collectShort(q.id);
+              toast(r.already ? "已在错题本和永久库" : "已收到错题本和永久库");
+              render();
+            });
+          }
+          const btnPrev = body.querySelector("#btn-prev-s");
+          if (btnPrev) {
+            btnPrev.addEventListener("click", () => {
+              stopShortSpeak();
+              if (memoTa) commitMemo(false);
+              shortMemoOpen = false;
+              shortIdx = Math.max(0, shortIdx - 1);
+              shortWhyOpen = false;
+              render();
+            });
+          }
+          const btnNext = body.querySelector("#btn-next-s");
+          if (btnNext) {
+            btnNext.addEventListener("click", () => {
+              stopShortSpeak();
+              if (memoTa) commitMemo(false);
+              shortMemoOpen = false;
+              shortIdx = Math.min(list.length - 1, (shortIdx < 0 ? 0 : shortIdx + 1));
+              shortWhyOpen = false;
+              render();
+            });
+          }
+          const btnRestart = body.querySelector("#btn-restart-short");
+          if (btnRestart) {
+            btnRestart.addEventListener("click", () => {
+              if (!confirm("清空本科简答过关与默写草稿？选择题不动。确定？")) return;
+              stopShortSpeak();
+              Object.keys(shortHintShown).forEach((k) => delete shortHintShown[k]);
+              Object.keys(shortHintSegAt).forEach((k) => delete shortHintSegAt[k]);
+              restartAllShortDrafts();
+              shortMemorizeMode = false;
+              shortRevealed = false;
+              shortIdx = -1;
+              shortWhyOpen = false;
+              toast("全部简答进度已清");
+              render();
+            });
+          }
         });
+
+        $("work").innerHTML = "";
+        $("work").appendChild(wrap);
+        dockTeacherForSimple();
       }
 
       function wrongCountForCourse(c) {
@@ -3494,11 +3645,11 @@
       if ($("tab-short")) $("tab-short").addEventListener("click", () => setTab("short"));
       $("btn-today").addEventListener("click", () => {
         /* 「今」= 跳到本科下一道未答 */
-        if (tab === "short") shortIdx = nextUnansweredShort();
+        if (tab === "short") shortIdx = -1;
         else mcIdx = nextUnansweredMc();
         picked = null;
         judged = false;
-        shortRevealed = shortMemorizeMode;
+        shortRevealed = false;
         shortWhyOpen = false;
         render();
       });
@@ -3731,7 +3882,7 @@
         state = normalizeState(payload);
         save();
         mcIdx = nextUnansweredMc();
-        shortIdx = nextUnansweredShort();
+        shortIdx = -1;
         picked = null;
         judged = false;
         render();
@@ -3815,7 +3966,7 @@
         if (Array.isArray(incoming.mcShuffleIds)) state.mcShuffleIds = incoming.mcShuffleIds.slice();
         save();
         mcIdx = nextUnansweredMc();
-        shortIdx = nextUnansweredShort();
+        shortIdx = -1;
         render();
       }
 
@@ -4150,7 +4301,7 @@
       syncTeacherUi();
       applyTheme(getTheme());
 
-      /* 简答页：Ctrl+F / ⌘+F 切换「背」（拦截浏览器查找） */
+      /* 简答页：Ctrl+F / ⌘+F 展开下一题（拦截浏览器查找） */
       document.addEventListener(
         "keydown",
         (e) => {
@@ -4159,7 +4310,12 @@
           if (tab !== "short") return;
           e.preventDefault();
           e.stopPropagation();
-          toggleShortMemorize();
+          const list = currentShortList();
+          if (!list.length) return;
+          shortIdx = Math.min(list.length - 1, (shortIdx < 0 ? 0 : shortIdx + 1));
+          shortMemoOpen = false;
+          shortWhyOpen = false;
+          render();
         },
         true
       );
@@ -4168,7 +4324,7 @@
       tab = tab === "short" ? "short" : "mc";
       ensureCoursePoolSeeded(course);
       mcIdx = nextUnansweredMc();
-      shortIdx = nextUnansweredShort();
+      shortIdx = -1;
       render();
     })();
   </script>
