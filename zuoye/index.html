@@ -303,22 +303,26 @@
       font-size: 0.78rem;
       color: #64748b;
     }
-    .short-memo-panel {
+    .short-memo-panel,
+    .short-order-panel {
       margin-top: 10px;
       padding: 10px 12px;
       border: 1px solid var(--line);
       border-radius: 10px;
       background: var(--surface);
     }
-    .short-memo-panel[hidden] { display: none !important; }
-    .short-memo-panel label {
+    .short-memo-panel[hidden],
+    .short-order-panel[hidden] { display: none !important; }
+    .short-memo-panel label,
+    .short-order-panel label {
       display: block;
       font-size: 0.85rem;
       font-weight: 700;
       color: var(--muted);
       margin-bottom: 6px;
     }
-    .short-memo-panel textarea {
+    .short-memo-panel textarea,
+    .short-order-panel textarea {
       width: 100%;
       min-height: 88px;
       font: inherit;
@@ -329,11 +333,64 @@
       resize: vertical;
       box-sizing: border-box;
     }
-    .short-memo-panel .hint {
+    .short-memo-panel .hint,
+    .short-order-panel .hint {
       margin: 4px 0 0;
       font-size: 0.78rem;
       color: var(--muted);
     }
+    .short-order-panel .order-move {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+    .short-order-panel .order-move input {
+      width: 52px;
+      padding: 6px 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      font: inherit;
+      font-weight: 800;
+    }
+    .short-order-panel .order-move select {
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 700;
+      background: var(--surface);
+    }
+    .short-order-list {
+      max-height: 180px;
+      overflow: auto;
+      margin: 8px 0 0;
+      padding: 0;
+      list-style: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+    }
+    .short-order-list li {
+      display: flex;
+      gap: 8px;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+    .short-order-list li:last-child { border-bottom: none; }
+    .short-order-list .n {
+      flex: 0 0 28px;
+      font-weight: 900;
+      color: var(--blue);
+    }
+    .short-order-list .t { flex: 1; color: var(--ink); }
+    .short-order-list li.cur { background: var(--opt-on-bg); }
     .short-pane ol {
       margin: 0;
       padding-left: 1.15em;
@@ -932,6 +989,7 @@
           shortDraft: {},
           shortPointsCustom: {}, /* qid → 自改采分点字符串数组 */
           shortMemo: {}, /* qid → 本题还没记住的地方（「记」） */
+          shortOrderCustom: {}, /* course → id[] 本机自定义简答顺序 */
           mcDay: {},
           wrongMc: {},
           wrongShort: {},
@@ -1074,6 +1132,10 @@
                 if (v) acc[k] = String(raw.shortMemo[k] || "");
                 return acc;
               }, {})
+            : {};
+        st.shortOrderCustom =
+          raw.shortOrderCustom && typeof raw.shortOrderCustom === "object"
+            ? raw.shortOrderCustom
             : {};
         st.wrongMc = normalizeWrongMap(raw.wrongMc, st.wrongOkNeed);
         st.wrongShort = normalizeWrongMap(raw.wrongShort, st.wrongOkNeed);
@@ -1628,6 +1690,7 @@
       let shortRevealed = false;
       let shortMemorizeMode = false; /* 背题：默认展开采分点 */
       let shortMemoOpen = false; /* 「记」面板是否展开（换题时关掉） */
+      let shortOrderOpen = false; /* 「序」自定义排序面板 */
       let shortSimpleUi = false; /* 「简」：只留题卡 */
       function teacherPetHomeAfterWork() {
         const pet = $("teacher-pet");
@@ -2262,11 +2325,103 @@
         }
         return sortShortsByChapter(planList.filter((q) => !keep || keep.has(q.id)));
       }
-      function keepShortList(course) {
-        /* 严格按 shortKeep 顺序（必背在前、眼熟在后），不再按章重排 */
-        const ids = (BANK.shortKeep && BANK.shortKeep[course]) || [];
+      function bankShortIds(c) {
+        const ids = (BANK.shortKeep && BANK.shortKeep[c]) || [];
+        return ids.slice();
+      }
+      function resolveShortOrderIds(c) {
+        const base = bankShortIds(c);
+        if (!base.length) return [];
+        const custom =
+          state.shortOrderCustom && Array.isArray(state.shortOrderCustom[c])
+            ? state.shortOrderCustom[c]
+            : null;
+        if (!custom || !custom.length) return base;
+        const baseSet = new Set(base);
+        const seen = new Set();
+        const out = [];
+        custom.forEach((id) => {
+          if (!baseSet.has(id) || seen.has(id)) return;
+          seen.add(id);
+          out.push(id);
+        });
+        base.forEach((id) => {
+          if (seen.has(id)) return;
+          seen.add(id);
+          out.push(id);
+        });
+        return out;
+      }
+      function keepShortList(c) {
+        const ids = resolveShortOrderIds(c || course);
         if (!BANK.shortById || !ids.length) return [];
-        return ids.map((id) => BANK.shortById[id]).filter((q) => q && q.course === course);
+        return ids.map((id) => BANK.shortById[id]).filter((q) => q && q.course === (c || course));
+      }
+      function persistShortOrder(c, ids) {
+        if (!state.shortOrderCustom || typeof state.shortOrderCustom !== "object") {
+          state.shortOrderCustom = {};
+        }
+        state.shortOrderCustom[c] = ids.slice();
+        save();
+      }
+      function moveShortByNumbers(fromN, toN, place) {
+        const orig = resolveShortOrderIds(course).slice();
+        const n = orig.length;
+        const from = Math.floor(Number(fromN));
+        const to = Math.floor(Number(toN));
+        if (!isFinite(from) || !isFinite(to) || from < 1 || to < 1 || from > n || to > n) {
+          toast("题号要在 1～" + n + " 之间");
+          return false;
+        }
+        if (from === to) {
+          toast("同一个号，不用动");
+          return false;
+        }
+        const moveId = orig[from - 1];
+        const targetId = orig[to - 1];
+        const arr = orig.filter((id) => id !== moveId);
+        let idx = arr.indexOf(targetId);
+        if (idx < 0) idx = 0;
+        if (place === "after") idx += 1;
+        arr.splice(idx, 0, moveId);
+        persistShortOrder(course, arr);
+        shortIdx = arr.indexOf(moveId);
+        if (shortIdx < 0) shortIdx = 0;
+        toast("已把第" + from + "题移到第" + to + "题" + (place === "after" ? "后面" : "前面"));
+        return true;
+      }
+      function applyShortOrderNumbersText(text) {
+        const base = resolveShortOrderIds(course);
+        const nums = String(text || "")
+          .split(/[\s,，、;；]+/)
+          .map((s) => Math.floor(Number(s)))
+          .filter((n) => isFinite(n) && n >= 1 && n <= base.length);
+        if (!nums.length) {
+          toast("请输入题号，如：3 1 2 5");
+          return false;
+        }
+        const seen = new Set();
+        const out = [];
+        nums.forEach((n) => {
+          if (seen.has(n)) return;
+          seen.add(n);
+          out.push(base[n - 1]);
+        });
+        base.forEach((id) => {
+          if (out.indexOf(id) >= 0) return;
+          out.push(id);
+        });
+        persistShortOrder(course, out);
+        shortIdx = 0;
+        toast("已按输入序号重排");
+        return true;
+      }
+      function resetShortOrderCustom() {
+        if (!state.shortOrderCustom) state.shortOrderCustom = {};
+        delete state.shortOrderCustom[course];
+        save();
+        shortIdx = 0;
+        toast("已恢复题库默认顺序");
       }
       function shortTagLabel(q) {
         const t = q && q.shortTag;
@@ -2839,13 +2994,15 @@
         box.className = "q-card";
         box.innerHTML =
           '<div class="q-meta">' +
+          "<strong>第" +
+          (shortIdx + 1) +
+          "题</strong>/" +
+          list.length +
+          " · " +
           courseName[q.course] +
           " · 第" +
           q.ch +
-          "章 · " +
-          (shortIdx + 1) +
-          "/" +
-          list.length +
+          "章" +
           (done ? " · 已过" : "") +
           (tag ? ' <span class="' + tag.cls + '">' + tag.text + "</span>" : "") +
           "</div>" +
@@ -2899,6 +3056,9 @@
           '<button type="button" class="ghost' +
           (shortSpeaking ? " on" : "") +
           '" id="btn-short-speak" title="朗读本题题目和采分点（再点停止）" aria-label="朗读">🔊</button>' +
+          '<button type="button" class="ghost' +
+          (shortOrderOpen ? " on" : "") +
+          '" id="btn-short-order" title="自定义题号顺序">序</button>' +
           "</div>" +
           '<div class="short-memo-panel" id="short-memo-panel"' +
           (shortMemoOpen ? "" : " hidden") +
@@ -2906,6 +3066,37 @@
           "<label>还没记住</label>" +
           '<textarea id="short-memo-ta" placeholder="写本题还没背住的地方…（失焦或再点「记」也会保存）"></textarea>' +
           '<p class="hint">回车保存（Shift+回车换行）。点右下角老师：按采分点一句一句提示。</p>' +
+          "</div>" +
+          '<div class="short-order-panel" id="short-order-panel"' +
+          (shortOrderOpen ? "" : " hidden") +
+          ">" +
+          "<label>自定义排序（题号 1～" +
+          list.length +
+          "）</label>" +
+          '<div class="order-move">' +
+          "<span>把第</span>" +
+          '<input type="number" id="order-from" min="1" max="' +
+          list.length +
+          '" value="' +
+          (shortIdx + 1) +
+          '">' +
+          "<span>题移到第</span>" +
+          '<input type="number" id="order-to" min="1" max="' +
+          list.length +
+          '" value="1">' +
+          "<span>题</span>" +
+          '<select id="order-place"><option value="before">前面</option><option value="after">后面</option></select>' +
+          '<button type="button" class="primary" id="btn-order-move">移动</button>' +
+          "</div>" +
+          "<label>或整表输入新顺序（空格/逗号分隔，未写的号自动接后）</label>" +
+          '<textarea id="order-bulk-ta" placeholder="例如：12 1 2 3 10"></textarea>' +
+          '<div class="row nav-btns" style="margin-top:8px">' +
+          '<button type="button" class="primary" id="btn-order-apply">按序号重排</button>' +
+          '<button type="button" class="ghost" id="btn-order-reset">恢复默认</button>' +
+          '<button type="button" class="ghost" id="btn-order-close">收起</button>' +
+          "</div>" +
+          '<ul class="short-order-list" id="short-order-list"></ul>' +
+          '<p class="hint">顺序只存在本机；导出进度会带上。</p>' +
           "</div>";
         box.querySelector(".q-text").textContent = q.text;
         if (shortMemorizeMode) shortRevealed = true;
@@ -3012,6 +3203,9 @@
         function openMemoPanel() {
           if (!memoPanel || !memoTa) return;
           if (editPanel && !editPanel.hidden) closeEditPanel();
+          shortOrderOpen = false;
+          const op = box.querySelector("#short-order-panel");
+          if (op) op.hidden = true;
           shortMemoOpen = true;
           memoTa.value = shortMemoOf(q.id);
           memoPanel.hidden = false;
@@ -3066,6 +3260,87 @@
             toggleShortSpeak(q);
           });
         }
+        const orderPanel = box.querySelector("#short-order-panel");
+        const orderListEl = box.querySelector("#short-order-list");
+        function fillOrderList() {
+          if (!orderListEl) return;
+          orderListEl.innerHTML = "";
+          list.forEach((qq, i) => {
+            const li = document.createElement("li");
+            if (i === shortIdx) li.className = "cur";
+            li.innerHTML =
+              '<span class="n">' +
+              (i + 1) +
+              "</span><span class=\"t\">" +
+              String(qq.text || "").replace(/</g, "&lt;") +
+              "</span>";
+            orderListEl.appendChild(li);
+          });
+        }
+        if (shortOrderOpen && orderPanel) {
+          orderPanel.hidden = false;
+          fillOrderList();
+          const bulk = box.querySelector("#order-bulk-ta");
+          if (bulk) {
+            bulk.value = list.map((_, i) => i + 1).join(" ");
+          }
+        }
+        if ($("btn-short-order")) {
+          $("btn-short-order").addEventListener("click", () => {
+            if (ta) persistShortDraft(q.id, ta.value);
+            if (memoPanel && !memoPanel.hidden) closeMemoPanel(true);
+            if (orderPanel && !orderPanel.hidden) {
+              shortOrderOpen = false;
+              orderPanel.hidden = true;
+              toast("已收起排序");
+              return;
+            }
+            shortOrderOpen = true;
+            if (orderPanel) orderPanel.hidden = false;
+            fillOrderList();
+            const bulk = box.querySelector("#order-bulk-ta");
+            if (bulk) bulk.value = list.map((_, i) => i + 1).join(" ");
+          });
+        }
+        if ($("btn-order-move")) {
+          $("btn-order-move").addEventListener("click", () => {
+            const fromEl = $("order-from");
+            const toEl = $("order-to");
+            const placeEl = $("order-place");
+            if (
+              moveShortByNumbers(
+                fromEl && fromEl.value,
+                toEl && toEl.value,
+                placeEl && placeEl.value === "after" ? "after" : "before"
+              )
+            ) {
+              shortOrderOpen = true;
+              render();
+            }
+          });
+        }
+        if ($("btn-order-apply")) {
+          $("btn-order-apply").addEventListener("click", () => {
+            const bulk = $("order-bulk-ta");
+            if (applyShortOrderNumbersText(bulk && bulk.value)) {
+              shortOrderOpen = true;
+              render();
+            }
+          });
+        }
+        if ($("btn-order-reset")) {
+          $("btn-order-reset").addEventListener("click", () => {
+            resetShortOrderCustom();
+            shortOrderOpen = true;
+            render();
+          });
+        }
+        if ($("btn-order-close")) {
+          $("btn-order-close").addEventListener("click", () => {
+            shortOrderOpen = false;
+            if (orderPanel) orderPanel.hidden = true;
+          });
+        }
         $("btn-collect-s").addEventListener("click", () => {
           if (ta) persistShortDraft(q.id, ta.value);
           const r = collectShort(q.id);
@@ -3077,6 +3352,7 @@
           if (ta) persistShortDraft(q.id, ta.value);
           if (memoTa) commitMemo(false);
           shortMemoOpen = false;
+          shortOrderOpen = false;
           shortIdx = Math.max(0, shortIdx - 1);
           shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
@@ -3087,6 +3363,7 @@
           if (ta) persistShortDraft(q.id, ta.value);
           if (memoTa) commitMemo(false);
           shortMemoOpen = false;
+          shortOrderOpen = false;
           shortIdx = Math.min(list.length - 1, shortIdx + 1);
           shortRevealed = shortMemorizeMode;
           shortWhyOpen = false;
@@ -3252,6 +3529,7 @@
           shortDraft: state.shortDraft || {},
           shortPointsCustom: state.shortPointsCustom || {},
           shortMemo: state.shortMemo || {},
+          shortOrderCustom: state.shortOrderCustom || {},
           mcDay: state.mcDay,
           wrongOkNeed: clampWrongOkNeed(state.wrongOkNeed),
           wrongMc: state.wrongMc,
@@ -3471,6 +3749,13 @@
           incoming.shortPointsCustom || {}
         );
         state.shortMemo = Object.assign({}, state.shortMemo || {}, incoming.shortMemo || {});
+        if (incoming.shortOrderCustom && typeof incoming.shortOrderCustom === "object") {
+          state.shortOrderCustom = Object.assign(
+            {},
+            state.shortOrderCustom || {},
+            incoming.shortOrderCustom
+          );
+        }
         Object.keys(incoming.mcDay || {}).forEach((d) => {
           if (!state.mcDay[d]) state.mcDay[d] = { results: {} };
           if (!state.mcDay[d].results) state.mcDay[d].results = {};
