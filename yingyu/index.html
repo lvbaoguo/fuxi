@@ -498,6 +498,30 @@
     .tag-pick .tag-list button { width: 100%; justify-content: flex-start; }
     .tag-pick .tag-actions { display: flex; gap: 8px; margin-top: 10px; }
     .tag-pick .tag-actions button { flex: 1; }
+    .note-sync-menu {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      z-index: 11000; width: min(420px, calc(100vw - 24px));
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      border-bottom-width: 4px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+      box-shadow: 0 10px 28px rgba(0,0,0,.12);
+    }
+    .note-sync-menu[hidden], .note-sync-panel[hidden] { display: none !important; }
+    .note-sync-menu button { width: 100%; }
+    .note-sync-panel {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      z-index: 11000; width: min(520px, calc(100vw - 24px));
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      border-bottom-width: 4px; padding: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.12);
+    }
+    .note-sync-panel label { display: block; font-weight: 800; margin-bottom: 6px; font-size: 0.9rem; }
+    .note-sync-panel textarea {
+      width: 100%; min-height: 120px; box-sizing: border-box; font: inherit; font-size: 0.82rem;
+      padding: 10px; border-radius: 12px; border: 1px solid var(--line); resize: vertical;
+    }
+    .note-sync-panel .nrow { margin-top: 10px; }
+    .note-sync-panel .danger {
+      background: #fff; color: #b42318; border-color: #f3b4ae;
+    }
   </style>
 </head>
 <body>
@@ -510,6 +534,30 @@
   <div class="wrap" id="app"></div>
   <div id="toast" class="toast" hidden></div>
   <div id="tag-pick-overlay" class="tag-pick-overlay" hidden aria-hidden="true"></div>
+  <div id="note-export-menu" class="note-sync-menu" hidden>
+    <button type="button" id="note-export-text">导出文本（复制）</button>
+    <button type="button" id="note-export-json">导出 JSON 文件</button>
+    <button type="button" class="primary" id="note-cloud-upload-menu">上传到云端</button>
+  </div>
+  <div id="note-import-panel" class="note-sync-panel" hidden>
+    <label for="note-import-text">粘贴导出的笔记 JSON</label>
+    <textarea id="note-import-text" placeholder='{"v":1,"type":"fuxi-yingyu-notes",...}' spellcheck="false"></textarea>
+    <div class="nrow">
+      <button type="button" class="primary" id="note-import-apply">合并导入</button>
+      <button type="button" class="danger" id="note-cloud-replace" title="用仓库 notes-latest.json 整份覆盖本机">从云端覆盖</button>
+      <button type="button" id="note-import-cancel">取消</button>
+    </div>
+  </div>
+  <div id="note-token-panel" class="note-sync-panel" hidden>
+    <label for="note-gh-token">GitHub Token（Fine-grained：只勾 fuxi · Contents=Read and write）</label>
+    <textarea id="note-gh-token" rows="3" placeholder="粘贴 github_pat_… 整段" spellcheck="false" autocomplete="off"></textarea>
+    <p class="hint-line" style="margin-top:6px">只存本机。也可复用作业页已存的 Token。</p>
+    <div class="nrow">
+      <button type="button" class="primary" id="note-token-save-upload">保存并上传</button>
+      <button type="button" id="note-token-clear">清除</button>
+      <button type="button" id="note-token-cancel">取消</button>
+    </div>
+  </div>
   <div id="theme-picker-overlay" class="theme-picker-overlay" hidden aria-hidden="true">
     <div class="theme-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="theme-picker-title" tabindex="-1">
       <p id="theme-picker-title" class="theme-picker-title">主题</p>
@@ -2023,8 +2071,11 @@
         html += '<div class="tag-rail" id="note-tag-rail"></div>';
         html += '<input class="nsearch" id="note-q" placeholder="在当前展开的标签里搜" value="' + escapeHtml(noteQ) + '">';
         html += '<div id="note-list"></div>';
-        html += '<details class="more"><summary>笔记导出 / 导入</summary><div class="more-row">' +
-          '<button type="button" id="note-export">导出</button><button type="button" id="note-import">导入</button></div></details>';
+        html += '<details class="more" open><summary>笔记同步（同近代史作业页）</summary><div class="more-row">' +
+          '<button type="button" id="note-btn-export">导出</button>' +
+          '<button type="button" class="primary" id="note-btn-upload">上传</button>' +
+          '<button type="button" id="note-btn-import">导入</button></div>' +
+          '<p class="hint-line" style="margin-top:8px">导出文本/JSON · 上传到仓库 notes-latest.json · 另一端「从云端覆盖」或合并导入</p></details>';
         app.innerHTML = html;
         paintTagRail();
         paintNoteList();
@@ -2040,7 +2091,6 @@
         if (join) join.addEventListener("click", function () { autoAddWord(); });
         const quick = $("nf-quick");
         if (quick) {
-          // 只认点「保存」：回车/输入法完成键不再触发查词，避免输一半就查
           quick.addEventListener("keydown", function (ev) {
             if (ev.key === "Enter") ev.preventDefault();
           });
@@ -2055,57 +2105,316 @@
           noteQ = ev.target.value;
           paintNoteList();
         });
-        $("note-export").addEventListener("click", exportNotes);
-        $("note-import").addEventListener("click", importNotes);
+        const ex = $("note-btn-export");
+        if (ex) ex.addEventListener("click", function () { toggleNoteExportMenu(); });
+        const up = $("note-btn-upload");
+        if (up) up.addEventListener("click", function () { onNoteCloudUploadClick(); });
+        const im = $("note-btn-import");
+        if (im) im.addEventListener("click", function () { toggleNoteImportPanel(); });
       }
-      function exportNotes() {
-        const payload = JSON.stringify({
+
+      const GH_OWNER = "lvbaoguo";
+      const GH_REPO = "fuxi";
+      const GH_BRANCH = "master";
+      const GH_NOTES_PATH = "yingyu/notes-latest.json";
+      const GH_TOKEN_STORE = "fuxi-yingyu-gh-token";
+      const GH_TOKEN_FALLBACK = "pansan2-zuoye-gh-token";
+      const CLOUD_NOTES_URL = "https://lvbaoguo.github.io/fuxi/yingyu/notes-latest.json";
+
+      function buildNotesPayload() {
+        const tags = allTagNames();
+        notes.forEach(function (n) {
+          if (n.tag && tags.indexOf(n.tag) < 0) tags.push(n.tag);
+        });
+        return {
+          v: 1,
           type: "fuxi-yingyu-notes",
-          notes: notes,
-          tags: noteTags,
           exportedAt: new Date().toISOString(),
-        }, null, 2);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(payload).then(function () { toast("笔记已复制"); }, function () { prompt("复制下面 JSON：", payload); });
-        } else {
-          prompt("复制下面 JSON：", payload);
+          notes: notes,
+          tags: tags,
+        };
+      }
+      function hideNoteSyncPanels() {
+        const a = $("note-export-menu");
+        const b = $("note-import-panel");
+        const c = $("note-token-panel");
+        if (a) a.hidden = true;
+        if (b) b.hidden = true;
+        if (c) c.hidden = true;
+      }
+      function toggleNoteExportMenu() {
+        const menu = $("note-export-menu");
+        if (!menu) return;
+        const open = menu.hidden;
+        hideNoteSyncPanels();
+        menu.hidden = !open;
+      }
+      function toggleNoteImportPanel() {
+        const panel = $("note-import-panel");
+        if (!panel) return;
+        const open = panel.hidden;
+        hideNoteSyncPanels();
+        panel.hidden = !open;
+        if (!panel.hidden) {
+          const ta = $("note-import-text");
+          if (ta) { ta.value = ""; ta.focus(); }
         }
       }
-      function importNotes() {
-        const text = prompt("粘贴导出的笔记 JSON：");
-        if (!text) return;
+      function showNoteTokenPanel(prefill) {
+        hideNoteSyncPanels();
+        const p = $("note-token-panel");
+        const ta = $("note-gh-token");
+        if (!p || !ta) return;
+        p.hidden = false;
+        ta.value = prefill != null ? prefill : getNoteGhToken();
+        ta.focus();
+      }
+      function getNoteGhToken() {
         try {
-          const raw = JSON.parse(text);
-          const incoming = raw && raw.type === "fuxi-yingyu-notes" ? raw.notes : null;
-          if (!Array.isArray(incoming)) throw new Error("bad");
-          if (Array.isArray(raw.tags)) {
-            raw.tags.forEach(function (t) { ensureTag(t); });
-          }
-          incoming.forEach(function (n) {
-            if (!n || !n.en) return;
-            const item = normalizeNote(n);
-            if (item.tag) ensureTag(item.tag);
-            const hit = notes.find(function (x) {
-              return (item.id && x.id === item.id) ||
-                (x.kind === item.kind && x.en.toLowerCase() === item.en.toLowerCase() &&
-                  (item.kind !== "phrase" || x.reply === item.reply));
-            });
-            if (hit) {
-              Object.keys(item).forEach(function (k) {
-                if (k === "id" || k === "mark") return;
-                if (item[k] !== "" && item[k] != null) hit[k] = item[k];
-              });
-              if (n.mark === 0 || n.mark === 1 || n.mark === 2) hit.mark = n.mark;
-            } else {
-              notes.push(item);
-            }
-          });
-          saveNotes();
-          toast("已并进笔记");
-          render();
+          return String(localStorage.getItem(GH_TOKEN_STORE) || localStorage.getItem(GH_TOKEN_FALLBACK) || "").trim();
+        } catch (_) { return ""; }
+      }
+      function setNoteGhToken(token) {
+        try {
+          const t = String(token || "").trim();
+          if (t) localStorage.setItem(GH_TOKEN_STORE, t);
+          else localStorage.removeItem(GH_TOKEN_STORE);
+        } catch (_) {}
+      }
+      function utf8ToBase64(str) {
+        const bytes = new TextEncoder().encode(str);
+        let bin = "";
+        bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+        return btoa(bin);
+      }
+      function cloudNotesFetchUrl() {
+        if (location.protocol === "file:") return CLOUD_NOTES_URL + "?t=" + Date.now();
+        const url = new URL("notes-latest.json", location.href);
+        url.searchParams.set("t", String(Date.now()));
+        return url.href;
+      }
+      async function readGhError(res) {
+        try {
+          const err = await res.json();
+          return err.message || res.statusText || String(res.status);
         } catch (_) {
-          toast("导入失败：格式不对");
+          return res.statusText || String(res.status);
         }
+      }
+      async function fetchCloudNotesSha(apiBase, headers) {
+        const cur = await fetch(apiBase + "?ref=" + encodeURIComponent(GH_BRANCH) + "&_=" + Date.now(), {
+          headers: headers, cache: "no-store",
+        });
+        if (cur.status === 200) {
+          const meta = await cur.json();
+          return { ok: true, sha: meta.sha || null };
+        }
+        if (cur.status === 404) return { ok: true, sha: null };
+        return { ok: false, status: cur.status, detail: await readGhError(cur) };
+      }
+      async function putCloudNotes(apiBase, headers, bodyText, sha, stamp) {
+        const putBody = {
+          message: "chore(yingyu): 上传本机笔记 " + stamp.slice(0, 19),
+          content: utf8ToBase64(bodyText),
+          branch: GH_BRANCH,
+        };
+        if (sha) putBody.sha = sha;
+        return fetch(apiBase, {
+          method: "PUT",
+          headers: Object.assign({ "Content-Type": "application/json" }, headers),
+          body: JSON.stringify(putBody),
+          cache: "no-store",
+        });
+      }
+      async function uploadNotesToCloud(tokenOverride) {
+        let token = (tokenOverride != null ? String(tokenOverride) : getNoteGhToken()).trim();
+        if (!token) {
+          showNoteTokenPanel("");
+          toast("先粘贴 Token，再点「保存并上传」");
+          return;
+        }
+        if (token.indexOf("github_pat_") !== 0 && token.indexOf("ghp_") !== 0) {
+          showNoteTokenPanel(token);
+          toast("Token 格式不对：应以 github_pat_ 或 ghp_ 开头");
+          return;
+        }
+        const payload = buildNotesPayload();
+        const bodyText = JSON.stringify(payload, null, 2);
+        const apiBase = "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/contents/" + GH_NOTES_PATH;
+        const headers = {
+          Accept: "application/vnd.github+json",
+          Authorization: "Bearer " + token,
+          "X-GitHub-Api-Version": "2022-11-28",
+        };
+        let sha = null;
+        try {
+          const got = await fetchCloudNotesSha(apiBase, headers);
+          if (!got.ok) {
+            if (got.status === 401 || got.status === 403) {
+              setNoteGhToken("");
+              showNoteTokenPanel("");
+              toast(got.status === 403 ? "无权限(403)：Token 须勾 fuxi 且 Contents=读写" : "Token 无效(401)");
+              return;
+            }
+            toast("读云端失败 " + got.status);
+            return;
+          }
+          sha = got.sha;
+        } catch (_) {
+          toast("连不上 GitHub API");
+          return;
+        }
+        const stamp = payload.exportedAt || new Date().toISOString();
+        let put;
+        try {
+          put = await putCloudNotes(apiBase, headers, bodyText, sha, stamp);
+          if (put.status === 409) {
+            const again = await fetchCloudNotesSha(apiBase, headers);
+            if (again.ok) put = await putCloudNotes(apiBase, headers, bodyText, again.sha, stamp);
+          }
+        } catch (_) {
+          toast("上传请求失败");
+          return;
+        }
+        if (put.status === 401 || put.status === 403) {
+          setNoteGhToken("");
+          showNoteTokenPanel("");
+          toast("Token 无效或无权限");
+          return;
+        }
+        if (!put.ok) {
+          toast("上传失败 " + put.status + " · " + (await readGhError(put)));
+          return;
+        }
+        setNoteGhToken(token);
+        hideNoteSyncPanels();
+        toast("已上传云端 · 手机强刷后可「从云端覆盖」");
+      }
+      async function onNoteCloudUploadClick() {
+        hideNoteSyncPanels();
+        if (!getNoteGhToken()) {
+          showNoteTokenPanel("");
+          toast("先粘贴 Token，再点「保存并上传」");
+          return;
+        }
+        await uploadNotesToCloud();
+      }
+      function applyNotesMerge(raw) {
+        if (!raw || raw.type !== "fuxi-yingyu-notes" || !Array.isArray(raw.notes)) throw new Error("bad");
+        if (Array.isArray(raw.tags)) raw.tags.forEach(function (t) { ensureTag(t); });
+        raw.notes.forEach(function (n) {
+          if (!n || !n.en) return;
+          const item = normalizeNote(n);
+          if (item.tag) ensureTag(item.tag);
+          const hit = notes.find(function (x) {
+            return (item.id && x.id === item.id) ||
+              (x.kind === item.kind && x.en.toLowerCase() === item.en.toLowerCase() &&
+                (item.kind !== "phrase" || x.reply === item.reply));
+          });
+          if (hit) {
+            Object.keys(item).forEach(function (k) {
+              if (k === "id" || k === "mark") return;
+              if (item[k] !== "" && item[k] != null) hit[k] = item[k];
+            });
+            if (n.mark === 0 || n.mark === 1 || n.mark === 2) hit.mark = n.mark;
+          } else {
+            notes.push(item);
+          }
+        });
+        saveNotes();
+      }
+      function applyNotesReplace(raw) {
+        if (!raw || raw.type !== "fuxi-yingyu-notes" || !Array.isArray(raw.notes)) throw new Error("bad");
+        notes = raw.notes.map(normalizeNote).filter(function (n) { return n.en; });
+        noteTags = [];
+        if (Array.isArray(raw.tags)) raw.tags.forEach(function (t) { ensureTag(t); });
+        notes.forEach(function (n) { if (n.tag) ensureTag(n.tag); });
+        saveNotes();
+      }
+      function downloadNotesJson(payload) {
+        const text = JSON.stringify(payload, null, 2);
+        const blob = new Blob([text], { type: "application/json" });
+        const a = document.createElement("a");
+        const name = "yingyu-notes-" + new Date().toISOString().slice(0, 10) + ".json";
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+        return name;
+      }
+      function bindNoteSyncUiOnce() {
+        if (bindNoteSyncUiOnce.done) return;
+        bindNoteSyncUiOnce.done = true;
+        const et = $("note-export-text");
+        if (et) et.addEventListener("click", function () {
+          hideNoteSyncPanels();
+          const text = JSON.stringify(buildNotesPayload(), null, 2);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { toast("笔记已复制"); }, function () { prompt("复制下面 JSON：", text); });
+          } else prompt("复制下面 JSON：", text);
+        });
+        const ej = $("note-export-json");
+        if (ej) ej.addEventListener("click", function () {
+          hideNoteSyncPanels();
+          try {
+            toast("已下载 " + downloadNotesJson(buildNotesPayload()));
+          } catch (_) { toast("下载失败，改用导出文本"); }
+        });
+        const eu = $("note-cloud-upload-menu");
+        if (eu) eu.addEventListener("click", function () { onNoteCloudUploadClick(); });
+        const ia = $("note-import-apply");
+        if (ia) ia.addEventListener("click", function () {
+          try {
+            applyNotesMerge(JSON.parse(($("note-import-text") && $("note-import-text").value) || ""));
+            hideNoteSyncPanels();
+            toast("已合并导入");
+            render();
+          } catch (_) { toast("导入失败：请粘贴本页导出的笔记 JSON"); }
+        });
+        const ir = $("note-cloud-replace");
+        if (ir) ir.addEventListener("click", async function () {
+          if (!confirm("用云端 notes-latest.json 整份覆盖本机笔记？本机多出来的会丢。确定？")) return;
+          try {
+            const res = await fetch(cloudNotesFetchUrl(), { cache: "no-store" });
+            if (!res.ok) throw new Error("http");
+            applyNotesReplace(await res.json());
+            hideNoteSyncPanels();
+            toast("已从云端覆盖本机笔记");
+            render();
+          } catch (_) {
+            toast("拉取云端失败：确认已推 notes-latest.json");
+          }
+        });
+        const ic = $("note-import-cancel");
+        if (ic) ic.addEventListener("click", function () { hideNoteSyncPanels(); });
+        const ts = $("note-token-save-upload");
+        if (ts) ts.addEventListener("click", async function () {
+          const ta = $("note-gh-token");
+          const token = ta ? String(ta.value || "").trim() : "";
+          if (!token) { toast("请先粘贴 Token"); return; }
+          setNoteGhToken(token);
+          await uploadNotesToCloud(token);
+        });
+        const tc = $("note-token-clear");
+        if (tc) tc.addEventListener("click", function () {
+          setNoteGhToken("");
+          if ($("note-gh-token")) $("note-gh-token").value = "";
+          toast("已清除本机 Token");
+        });
+        const tx = $("note-token-cancel");
+        if (tx) tx.addEventListener("click", function () { hideNoteSyncPanels(); });
+      }
+      async function maybeSeedNotesFromCloud() {
+        if (notes.length) return false;
+        try {
+          const res = await fetch(cloudNotesFetchUrl(), { cache: "no-store" });
+          if (!res.ok) return false;
+          const raw = await res.json();
+          if (!raw || !Array.isArray(raw.notes) || !raw.notes.length) return false;
+          applyNotesReplace(raw);
+          toast("已从云端载入笔记 " + notes.length + " 条");
+          return true;
+        } catch (_) { return false; }
       }
 
       function render() {
@@ -2517,7 +2826,11 @@
         });
       })();
 
+      bindNoteSyncUiOnce();
       render();
+      maybeSeedNotesFromCloud().then(function (ok) {
+        if (ok && view === "notes") render();
+      });
     })();
   </script>
 </body>
