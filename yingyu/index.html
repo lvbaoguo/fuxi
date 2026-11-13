@@ -584,6 +584,7 @@
   <script src="data.js"></script>
   <script src="lexicon.js"></script>
   <script src="lexicon-extra.js"></script>
+  <script src="lexicon-audio.js"></script>
   <script>
     (function () {
       const BANK = window.EN_BANK;
@@ -964,9 +965,19 @@
           a.src = url;
         });
       }
+      function precomputedUsAudio(word) {
+        const key = String(word || "").trim().toLowerCase();
+        const map = window.EN_LEXICON_AUDIO || {};
+        return (key && map[key]) || "";
+      }
       async function resolveAccentAudio(word, accent, apiUrls) {
         const list = [];
-        if (accent === "us") list.push(camUsPath(word));
+        // 词库预探测美音优先，避免每次点喇叭现场撞墙
+        if (accent === "us") {
+          const pref = precomputedUsAudio(word);
+          if (pref) list.push(pref);
+          list.push(camUsPath(word));
+        }
         gstaticCandidates(word, accent).forEach(function (u) { list.push(u); });
         (apiUrls || []).forEach(function (u) {
           if (!u) return;
@@ -977,8 +988,16 @@
           else if (accent === "uk" && matchUk) list.unshift(u);
           else if (list.indexOf(u) < 0) list.push(u);
         });
-        for (let i = 0; i < list.length; i++) {
-          const ok = await probeAudioUrl(list[i]);
+        // 去重保序
+        const seen = {};
+        const uniq = [];
+        list.forEach(function (u) {
+          if (!u || seen[u]) return;
+          seen[u] = 1;
+          uniq.push(u);
+        });
+        for (let i = 0; i < uniq.length; i++) {
+          const ok = await probeAudioUrl(uniq[i]);
           if (ok) return ok;
         }
         return "";
@@ -1039,7 +1058,7 @@
             }
           } catch (_) {}
         }
-        const audioUs = await resolveAccentAudio(q, "us", apiAudio);
+        const audioUs = precomputedUsAudio(q) || await resolveAccentAudio(q, "us", apiAudio);
         const audioUk = await resolveAccentAudio(q, "uk", apiAudio);
         return {
           en: local.en || q,
@@ -1347,7 +1366,8 @@
             const key = String(en || "").trim().toLowerCase();
             btn.disabled = true;
             try {
-              const us = await resolveAccentAudio(en, "us", []);
+              let us = precomputedUsAudio(en);
+              if (!us) us = await resolveAccentAudio(en, "us", []);
               const opt = openLexEn === key ? undefined : { rate: 1 };
               await playNoteText({ audioUs: us }, opt);
             } catch (_) {
