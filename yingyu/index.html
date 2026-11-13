@@ -590,15 +590,26 @@
       let openLexEn = "";
       let noteAudio = null;
       let bankLevelMap = null;
-      let lexPosCat = localStorage.getItem("fuxi-yingyu-lex-pos") || "noun";
+      let lexPosCat = (function () {
+        const v = localStorage.getItem("fuxi-yingyu-lex-pos") || "noun";
+        // 旧「功能词」拆开后兼容
+        if (v === "func") return "pron";
+        return v;
+      })();
       let lexQ = "";
+      // 中学常见词性全分类（客观常用十类 + 多义/组合/未标）
       const LEX_POS_TABS = [
         { id: "noun", name: "名词" },
         { id: "verb", name: "动词" },
         { id: "adj", name: "形容词" },
         { id: "adv", name: "副词" },
-        { id: "multi", name: "兼类多义" },
-        { id: "func", name: "功能词" },
+        { id: "pron", name: "代词" },
+        { id: "num", name: "数词" },
+        { id: "prep", name: "介词" },
+        { id: "conj", name: "连词" },
+        { id: "interj", name: "感叹词" },
+        { id: "det", name: "限定/冠词" },
+        { id: "multi", name: "多义词" },
         { id: "phrase", name: "组合词" },
         { id: "unknown", name: "未标注" },
       ];
@@ -1072,7 +1083,7 @@
         const e = String(en || "").trim();
         return /\s/.test(e) || e.indexOf("-") >= 0;
       }
-      // 宽松归属：兼类词在「兼类」能看到，点名词/动词也能看到（沾边就算，不互斥）
+      // 宽松归属：多义词在「多义词」能看到，点名词/动词等也能看到（沾边即入）
       function lexMatchesPos(en, pos, cat) {
         const phrase = lexIsPhrase(en);
         if (cat === "phrase") return phrase;
@@ -1085,7 +1096,12 @@
         if (cat === "verb") return p.indexOf("动词") >= 0;
         if (cat === "adj") return p.indexOf("形容词") >= 0;
         if (cat === "adv") return p.indexOf("副词") >= 0;
-        if (cat === "func") return /代词|限定词|介词|连词|数词|感叹词|冠词/.test(p);
+        if (cat === "pron") return p.indexOf("代词") >= 0;
+        if (cat === "num") return p.indexOf("数词") >= 0;
+        if (cat === "prep") return p.indexOf("介词") >= 0;
+        if (cat === "conj") return p.indexOf("连词") >= 0;
+        if (cat === "interj") return p.indexOf("感叹词") >= 0;
+        if (cat === "det") return /限定词|冠词/.test(p);
         return false;
       }
       function allLexRows() {
@@ -1148,13 +1164,38 @@
         });
       }
       function lexPosCounts() {
-        const counts = { noun: 0, verb: 0, adj: 0, adv: 0, multi: 0, func: 0, phrase: 0, unknown: 0 };
+        const counts = {};
+        LEX_POS_TABS.forEach(function (t) { counts[t.id] = 0; });
         allLexRows().forEach(function (row) {
           LEX_POS_TABS.forEach(function (t) {
             if (lexMatchesPos(row.en, row.pos, t.id)) counts[t.id]++;
           });
         });
         return counts;
+      }
+      function bindLexPosTabs() {
+        const rail = $("lex-pos-tabs");
+        if (!rail) return;
+        rail.querySelectorAll("[data-lex-pos]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const next = btn.getAttribute("data-lex-pos");
+            if (!next || next === lexPosCat) {
+              // 已选中再点：只把该标签滚进可视区，不整页重绘
+              try { btn.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }); } catch (_) {}
+              return;
+            }
+            const keep = rail.scrollLeft;
+            lexPosCat = next;
+            try { localStorage.setItem("fuxi-yingyu-lex-pos", lexPosCat); } catch (_) {}
+            rail.querySelectorAll("[data-lex-pos]").forEach(function (b) {
+              b.classList.toggle("on", b.getAttribute("data-lex-pos") === lexPosCat);
+            });
+            paintLexList();
+            // 保持横向进度，并把点中的标签轻轻带进视野（不整条拉回左边）
+            rail.scrollLeft = keep;
+            try { btn.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }); } catch (_) {}
+          });
+        });
       }
       function renderLex() {
         const counts = lexPosCounts();
@@ -1176,13 +1217,7 @@
         html += '<div id="lex-list"></div>';
         app.innerHTML = html;
         paintLexList();
-        app.querySelectorAll("[data-lex-pos]").forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            lexPosCat = btn.getAttribute("data-lex-pos");
-            try { localStorage.setItem("fuxi-yingyu-lex-pos", lexPosCat); } catch (_) {}
-            render();
-          });
-        });
+        bindLexPosTabs();
         $("lex-q").addEventListener("input", function (ev) {
           lexQ = ev.target.value;
           paintLexList();
@@ -1195,8 +1230,8 @@
         const words = lexWordsForPos(lexPosCat);
         const tabName = (LEX_POS_TABS.find(function (t) { return t.id === lexPosCat; }) || {}).name || "";
         if (count) {
-          const soft = (lexPosCat === "noun" || lexPosCat === "verb" || lexPosCat === "adj" || lexPosCat === "adv")
-            ? " · 含兼类（沾边即入）" : "";
+          const soft = /^(noun|verb|adj|adv|pron|num|prep|conj|interj|det)$/.test(lexPosCat)
+            ? " · 含多义（沾边即入）" : "";
           count.textContent = tabName + " · 共 " + words.length + " 个" + soft + " · 点横幅展开详情 · 📢 快速听音";
         }
         if (!words.length) {
