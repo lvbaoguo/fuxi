@@ -1,0 +1,2435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>小学英语</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("fuxi-yingyu-theme-v1") || "default";
+        if (t === "pixel" || t === "mist") document.documentElement.setAttribute("data-theme", t);
+        var f = localStorage.getItem("fuxi-yingyu-font-v1") || "normal";
+        if (f === "large" || f === "xlarge") document.documentElement.setAttribute("data-font", f);
+      } catch (_) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #efe8dc;
+      --card: #fffdf8;
+      --ink: #1c1917;
+      --text: #1c1917;
+      --muted: #78716c;
+      --line: #e4ddd2;
+      --border: #e4ddd2;
+      --blue: #1d4ed8;
+      --green: #166534;
+      --ok: #15803d;
+      --red: #991b1b;
+      --ok-bg: #ecfdf5;
+      --bad-bg: #fef2f2;
+      --shadow: rgba(28, 25, 23, 0.06);
+      --accent: #c2410c;
+      --accent-soft: #ffedd5;
+      --radius: 12px;
+      --sticky: #efe8dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 17px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 10% -10%, #fecaca55, transparent 55%),
+        radial-gradient(800px 400px at 100% 0%, #fde68a44, transparent 50%),
+        var(--bg);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+    html[data-theme="mist"] {
+      --bg: #f3f9ef;
+      --card: #fbfef9;
+      --ink: #243028;
+      --text: #243028;
+      --muted: #5a6d60;
+      --line: #d5e4cf;
+      --border: #d5e4cf;
+      --sticky: #eef6ea;
+      --accent: #3d9a6a;
+      --accent-soft: #e3f5ea;
+      --ok: #2f8f5b;
+      --red: #d35448;
+      --ok-bg: #e3f5ea;
+      --bad-bg: #fdecea;
+      --shadow: rgba(36, 48, 40, 0.06);
+    }
+    html[data-theme="mist"] body,
+    html[data-theme="mist"] body.view-notes {
+      color: var(--ink);
+      background-color: #e8f3e2;
+      background-image:
+        radial-gradient(ellipse 65% 40% at 15% 0%, rgba(255, 255, 255, 0.85) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 90% 100%, rgba(120, 200, 150, 0.22) 0%, transparent 55%),
+        linear-gradient(165deg, #eaf6e4 0%, #f3f9ef 45%, #e2f0da 100%);
+      background-attachment: fixed;
+    }
+    html[data-theme="mist"] .path-banner { background: #3d9a6a; border-bottom-color: #2f8f5b; }
+    html[data-theme="mist"] .node.now { background: #3d9a6a; border-bottom-color: #2f8f5b; }
+    html[data-theme="mist"] .start-pop { color: #2f8f5b; border-color: #3d9a6a; }
+    html[data-theme="mist"] .modes button.on { background: #243028; border-color: #243028; }
+    html[data-theme="pixel"] {
+      --bg: rgba(255, 244, 214, 0.82);
+      --card: #fff8dc;
+      --ink: #2d220e;
+      --text: #2d220e;
+      --muted: #6e5728;
+      --line: rgba(110, 78, 22, 0.28);
+      --border: rgba(110, 78, 22, 0.28);
+      --sticky: rgba(255, 236, 180, 0.92);
+      --accent: #c47a12;
+      --accent-soft: rgba(255, 220, 120, 0.9);
+      --ok: #4a7a32;
+      --red: #c44a28;
+      --ok-bg: #e8f0d8;
+      --bad-bg: #f8e0d8;
+      --shadow: rgba(58, 42, 16, 0.08);
+      --radius: 0px;
+    }
+    html[data-theme="pixel"] body,
+    html[data-theme="pixel"] body.view-notes {
+      color: var(--ink);
+      background-color: #f3e08a;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 88%, rgba(255, 246, 200, 0.5) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 35% at 82% 12%, rgba(160, 110, 30, 0.16) 0%, transparent 55%),
+        linear-gradient(180deg, #c9a24a 0%, #e2c25c 36%, #f0da82 68%, #f8ecc0 100%);
+      background-attachment: fixed;
+    }
+    html[data-theme="pixel"] body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          118deg,
+          transparent 0 17px,
+          rgba(70, 48, 10, 0.07) 17px 18px,
+          transparent 18px 41px
+        );
+      opacity: 0.85;
+    }
+    html[data-theme="pixel"] .modes,
+    html[data-theme="pixel"] .wrap,
+    html[data-theme="pixel"] .toast,
+    html[data-theme="pixel"] .dock,
+    html[data-theme="pixel"] .theme-picker-overlay { position: relative; z-index: 1; }
+    html[data-theme="pixel"] .modes button,
+    html[data-theme="pixel"] .chip,
+    html[data-theme="pixel"] .node,
+    html[data-theme="pixel"] .start-pop,
+    html[data-theme="pixel"] .opt,
+    html[data-theme="pixel"] .face,
+    html[data-theme="pixel"] .nform,
+    html[data-theme="pixel"] .ncard,
+    html[data-theme="pixel"] .answer-box,
+    html[data-theme="pixel"] .nsearch,
+    html[data-theme="pixel"] .theme-picker-dialog,
+    html[data-theme="pixel"] .theme-picker-opt,
+    html[data-theme="pixel"] .theme-picker-close { border-radius: 0 !important; }
+    html[data-theme="pixel"] .path-banner { background: #c47a12; border-bottom-color: #8a5410; border-radius: 0; }
+    html[data-theme="pixel"] .node { background: #f0c43a; border-bottom-color: #3a2a10; color: #3a2a10; }
+    html[data-theme="pixel"] .node.now { background: #c47a12; border-bottom-color: #3a2a10; color: #fff8dc; }
+    html[data-theme="pixel"] .node.lock { background: #e6d39a; border-bottom-color: #b59a4a; color: #8a7438; }
+    html[data-theme="pixel"] .start-pop { color: #8a5410; border-color: #3a2a10; }
+    html[data-theme="pixel"] .modes button.on { background: #3a2a10; border-color: #3a2a10; }
+    html[data-font="large"] .wrap,
+    html[data-font="large"] .modes { zoom: 1.28; }
+    html[data-font="xlarge"] .wrap,
+    html[data-font="xlarge"] .modes { zoom: 1.48; }
+    @supports not (zoom: 1) {
+      html[data-font="large"] body { font-size: 19px; line-height: 1.7; }
+      html[data-font="xlarge"] body { font-size: 22px; line-height: 1.75; }
+    }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 14px 14px calc(28px + env(safe-area-inset-bottom)); }
+    h1 { font-size: 1.45rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 12px; }
+    button, a.btn {
+      font: inherit; font-weight: 700; border-radius: 10px; border: 1px solid var(--line);
+      padding: 10px 12px; background: #fff; color: var(--ink); cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+    }
+    button.primary {
+      background: #58cc02; color: #fff; border-color: #46a302; border-bottom-width: 4px;
+    }
+    button.primary:active { transform: translateY(2px); border-bottom-width: 2px; }
+    button.ghost { background: transparent; }
+    button.block { width: 100%; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .top .grow { flex: 1; }
+    .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .chip {
+      flex: 0 0 auto; border-radius: 999px; padding: 6px 12px; font-weight: 700;
+      border: 1px solid var(--line); background: #fff; font-size: 0.92rem;
+    }
+    .chip.on { background: #1c1917; color: #fff; border-color: #1c1917; }
+    .path-banner {
+      margin-top: 14px; background: #ff9600; color: #fff; border-radius: 16px;
+      padding: 12px 14px; border-bottom: 4px solid #e08300;
+    }
+    .path-banner b { display: block; font-size: 1.05rem; }
+    .path-banner span { display: block; margin-top: 2px; font-size: 0.88rem; font-weight: 700; }
+    .path { width: min(100%, 280px); margin: 18px auto 0; }
+    .path-node { position: relative; height: 92px; }
+    .node {
+      position: absolute; left: 50%; top: 26px; width: 66px; height: 56px;
+      margin-left: calc(-33px + var(--x)); border: none; border-bottom: 6px solid #e6b800;
+      border-radius: 18px; background: #ffd900; color: #b45309; font-size: 1.35rem;
+    }
+    .node.now { background: #ff9600; border-bottom-color: #d97800; color: #fff; }
+    .node.lock { background: #e7e5e4; border-bottom-color: #d6d3d1; color: #a8a29e; }
+    .node:active:not(:disabled) { transform: translateY(2px); border-bottom-width: 3px; }
+    .start-pop {
+      position: absolute; left: 50%; top: 0; margin-left: var(--x); transform: translateX(-50%);
+      background: #fff; color: #c2410c; border: 2px solid #ff9600; border-bottom-width: 4px;
+      border-radius: 12px; padding: 2px 12px; z-index: 1;
+    }
+    .node-name {
+      position: absolute; left: 50%; bottom: 0; margin-left: var(--x); transform: translateX(-50%);
+      font-size: 0.75rem; font-weight: 800; color: #57534e; white-space: nowrap;
+    }
+    .wrong-line {
+      margin: 12px 0 0; font-size: 0.92rem;
+    }
+    .wrong-line button { background: #fef2f2; border-color: #fecaca; color: var(--red); }
+    details.more { margin-top: 16px; color: var(--muted); font-size: 0.88rem; }
+    details.more summary { cursor: pointer; }
+    .more-row { display: flex; gap: 8px; margin-top: 8px; }
+    .play-top {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+      position: sticky; top: 0; z-index: 2; background: var(--sticky); padding: 4px 0 6px;
+    }
+    .play-top .grow { flex: 1; font-weight: 800; text-align: center; }
+    .combo {
+      display: inline-block; background: #ffedd5; color: #c2410c; border-radius: 999px;
+      padding: 2px 10px; animation: pop .35s ease;
+    }
+    .bar { height: 16px; background: #e7e5e4; border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+    .bar > i {
+      display: block; height: 100%; width: 0; border-radius: 99px;
+      background: linear-gradient(90deg, #58cc02, #b8f24a);
+      transition: width .45s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    .q-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 8px; }
+    .q-text { font-size: 1.2rem; font-weight: 800; margin: 0 0 12px; white-space: pre-wrap; }
+    .lines {
+      background: #fff; border: 1px dashed var(--line); border-radius: 12px;
+      padding: 10px 12px; margin-bottom: 10px;
+    }
+    .opt {
+      display: block; width: 100%; text-align: left; margin-bottom: 8px;
+      padding: 14px; border-radius: 14px; font-weight: 700; border-bottom-width: 4px;
+      transition: transform .12s ease, background .15s ease;
+    }
+    .opt:active { transform: translateY(2px); border-bottom-width: 2px; }
+    .opt.right { border-color: #46a302; background: #d7ffb8; color: #3f6212; animation: pop .35s ease; }
+    .opt.wrong { border-color: #ea2b2b; background: #ffdfe0; color: #7f1d1d; animation: shake .42s ease; }
+    .answer-box {
+      width: 100%; font: inherit; font-weight: 700; padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--line); margin-bottom: 8px;
+    }
+    .explain {
+      margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+      background: #fff; border: 1px solid var(--line); font-size: 0.95rem;
+    }
+    .hint { color: var(--muted); font-size: 0.85rem; margin: 8px 0; }
+    .stack { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .face {
+      width: 100%; min-height: 200px; border-radius: 18px; border: 1px solid var(--line);
+      background: var(--card); box-shadow: 0 8px 22px var(--shadow);
+      font-size: 1.7rem; font-weight: 800; padding: 24px 16px; text-align: center;
+    }
+    .face.open { background: #d7ffb8; border-color: #58cc02; color: #3f6212; animation: pop .28s ease; }
+    .score { font-size: 2.4rem; font-weight: 800; text-align: center; margin: 0; letter-spacing: -0.04em; }
+    .banner { font-size: 1.8rem; font-weight: 900; text-align: center; margin: 4px 0 0; }
+    .stars { display: flex; justify-content: center; gap: 8px; margin: 6px 0 2px; }
+    .star {
+      font-size: 3.4rem; line-height: 1; color: #d6d3d1;
+      opacity: 0.35; transform: scale(.85);
+    }
+    .star.on {
+      color: #ffd900;
+      animation: starIn .45s cubic-bezier(.2, 1.6, .4, 1) both;
+    }
+    .star.on:nth-child(2) { animation-delay: .16s; }
+    .star.on:nth-child(3) { animation-delay: .32s; }
+    .confetti { pointer-events: none; position: fixed; inset: 0; overflow: hidden; z-index: 15; }
+    .confetti i {
+      position: absolute; top: -14px; width: 9px; height: 14px; border-radius: 2px;
+      animation: fall 1.15s ease-in forwards;
+    }
+    .dock {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; overflow: hidden;
+      padding: 16px 16px calc(14px + env(safe-area-inset-bottom));
+      animation: dockIn .28s cubic-bezier(.2, 1.25, .4, 1);
+    }
+    .dock.ok { background: #d7ffb8; color: #14532d; }
+    .dock.bad { background: #ffdfe0; color: #7f1d1d; }
+    .dock-inner { max-width: 520px; margin: 0 auto; }
+    .dock .mark { font-size: 1.7rem; font-weight: 900; display: flex; align-items: center; gap: 10px; }
+    .dock .mark i {
+      width: 44px; height: 44px; border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center; font-style: normal; color: #fff;
+      font-weight: 900; animation: pop .35s ease;
+    }
+    .dock.ok .mark i { background: #58cc02; }
+    .dock.bad .mark i { background: #ff4b4b; }
+    .dock .ans { font-size: 1.2rem; font-weight: 800; margin: 8px 0 12px; }
+    .dock button.go {
+      width: 100%; color: #fff; border: none; border-radius: 14px;
+      border-bottom: 4px solid transparent; padding: 14px; font-size: 1.08rem; font-weight: 800;
+    }
+    .dock.ok button.go { background: #58cc02; border-bottom-color: #46a302; }
+    .dock.bad button.go { background: #ff4b4b; border-bottom-color: #ea2b2b; }
+    .dock button.go:active { transform: translateY(2px); border-bottom-width: 2px; }
+    .sparks { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; }
+    .sparks b {
+      position: absolute; bottom: 28px; width: 8px; height: 8px; border-radius: 50%;
+      animation: spark .65s ease-out forwards;
+    }
+    body.has-dock .wrap { padding-bottom: 210px; }
+    @keyframes pop {
+      0% { transform: scale(.86); }
+      55% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(4px); }
+    }
+    @keyframes dockIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes starIn { from { opacity: 0; transform: scale(.2) rotate(-18deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+    @keyframes fall { to { transform: translateY(105vh) rotate(280deg); opacity: .15; } }
+    @keyframes spark { to { transform: translateY(-90px) scale(.3); opacity: 0; } }
+    .score-sub { text-align: center; color: var(--muted); margin: 0 0 12px; }
+    .miss { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+    .miss b { display: block; }
+    .miss span { color: var(--green); font-weight: 700; }
+    .tag { font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+    .foot { margin-top: 18px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+    .toast {
+      position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: #1c1917; color: #fff; padding: 10px 14px; border-radius: 8px;
+      max-width: min(480px, calc(100% - 24px)); z-index: 30; font-size: 0.9rem;
+    }
+    .toast[hidden] { display: none !important; }
+    .modes {
+      max-width: 520px; margin: 0 auto; padding: 12px 14px 0;
+      display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px;
+    }
+    .modes button { border-bottom-width: 4px; }
+    .modes button.on { background: #1c1917; color: #fff; border-color: #1c1917; }
+    .modes #btn-theme { min-width: 64px; }
+    html:not([data-theme]) body.view-notes {
+      background:
+        radial-gradient(800px 360px at 0% 0%, #dbeafe66, transparent 55%),
+        #f4f1ea;
+    }
+    .theme-picker-overlay {
+      position: fixed; inset: 0; z-index: 11000;
+      background: rgba(10, 12, 24, 0.55);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .theme-picker-overlay[hidden] { display: none !important; }
+    .theme-picker-dialog {
+      width: 100%; max-width: 420px; padding: 22px 22px 18px;
+      border-radius: var(--radius); background: var(--card);
+      border: 1px solid var(--border); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+      color: var(--ink);
+    }
+    .theme-picker-title { margin: 0 0 6px; font-size: 1.05rem; font-weight: 700; }
+    .theme-picker-hint { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+    .theme-picker-section { margin: 0 0 14px; }
+    .theme-picker-section-title {
+      margin: 0 0 8px; font-size: 13px; font-weight: 700;
+      color: var(--muted); letter-spacing: 0.04em;
+    }
+    .theme-picker-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .theme-picker-opts--font { grid-template-columns: 1fr 1fr 1fr; }
+    .theme-picker-opt {
+      margin: 0; padding: 14px 12px; border-radius: 10px;
+      border: 2px solid var(--border); background: var(--card); color: var(--ink);
+      font: inherit; font-weight: 700; cursor: pointer; text-align: left;
+    }
+    .theme-picker-opt:hover { border-color: var(--accent); }
+    .theme-picker-opt.is-on {
+      border-color: var(--accent); background: var(--accent-soft);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    .theme-picker-opt small {
+      display: block; margin-top: 4px; font-weight: 500; font-size: 12px; color: var(--muted);
+    }
+    .theme-picker-close {
+      margin: 0; padding: 8px 16px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card); color: var(--ink);
+      font: inherit; font-weight: 600; cursor: pointer;
+    }
+    html[data-theme="mist"] .theme-picker-opt.is-on {
+      background: var(--accent-soft); border-color: var(--accent);
+    }
+    html[data-theme="pixel"] .theme-picker-opt.is-on {
+      background: var(--accent-soft); border-color: var(--accent);
+    }
+    .nform, .ncard {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      border-bottom-width: 4px; margin-top: 10px;
+    }
+    .nform { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .nform input, .nform textarea, .nsearch {
+      width: 100%; font: inherit; font-weight: 700; padding: 12px 14px;
+      border-radius: 12px; border: 1px solid var(--line); background: #fff;
+    }
+    .nform textarea { min-height: 72px; resize: vertical; font-weight: 600; }
+    .nrow { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nrow button { flex: 1; min-width: 72px; }
+    .nsearch { margin-top: 12px; }
+    .ncard { padding: 10px 12px; }
+    .ncard .ntop { display: flex; align-items: flex-start; gap: 8px; }
+    .ncard .ntop > div { flex: 1; min-width: 0; }
+    .ncard b.nword-tall {
+      display: block; font-size: 1.32rem; font-weight: 900; color: var(--accent); letter-spacing: 0.01em;
+    }
+    .ncard .meta, .ncard .ex, .ncard .src, .ncard .explain, .ncard .row {
+      display: block; margin-top: 5px; color: var(--ink); font-size: 0.9rem; font-weight: 600;
+    }
+    .ncard .row .k { color: var(--muted); font-weight: 700; margin-right: 4px; }
+    .ncard .row .empty { color: var(--muted); font-weight: 600; }
+    .ncard .row-dim { color: var(--muted); font-size: 0.82rem; font-weight: 600; opacity: 0.88; }
+    .ncard .row-dim .k { color: var(--muted); font-weight: 650; }
+    .ncard .row-hi { color: var(--ink); font-size: 1.02rem; font-weight: 800; margin-top: 7px; }
+    .ncard .row-hi .k { color: var(--accent); font-weight: 800; }
+    .ncard .row-hi .v-edit { color: var(--ink); font-weight: 900; }
+    .ncard .v-edit {
+      cursor: text; border-radius: 6px; padding: 1px 4px; margin: -1px -4px;
+      border-bottom: 1px dashed transparent;
+    }
+    .ncard .v-edit:hover {
+      background: var(--accent-soft); border-bottom-color: var(--accent);
+    }
+    .ncard .v-edit input, .ncard .v-edit textarea {
+      width: 100%; max-width: 100%; box-sizing: border-box;
+      font: inherit; font-weight: 700; padding: 6px 8px; margin-top: 4px;
+      border-radius: 10px; border: 1px solid var(--accent); background: #fff; color: var(--ink);
+    }
+    .ncard .v-edit textarea { min-height: 64px; resize: vertical; }
+    .ncard .explain { white-space: pre-wrap; color: var(--ink); opacity: 0.85; }
+    .ncard .reply { margin-top: 6px; font-weight: 800; }
+    .ncard .play-row {
+      margin-top: 8px; display: flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 0.88rem; font-weight: 700; flex-wrap: wrap;
+    }
+    .nops { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .nops button { flex: 1; padding: 8px 6px; font-size: 0.88rem; min-width: 56px; }
+    /* 横幅：短文案居中，长了铺满左起；喇叭钉右侧 */
+    .ncard-banner { padding: 8px 10px; cursor: pointer; user-select: none; }
+    .ncard-banner:active { transform: scale(0.997); }
+    .nbanner-lite {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      min-width: 0; min-height: 36px; padding-right: 44px; box-sizing: border-box;
+    }
+    .nbanner-main {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: max-content; max-width: 100%; min-width: 0; margin: 0 auto;
+    }
+    .nbanner-lite .nword {
+      flex: 0 0 auto; font-size: 1.08rem; font-weight: 900; line-height: 1.2; color: var(--accent);
+      max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nbanner-lite .nmeta {
+      flex: 0 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap;
+      -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+      font-size: 0.88rem; font-weight: 750; color: var(--ink);
+    }
+    .nbanner-lite .nmeta .k { color: var(--accent); font-weight: 800; }
+    .nbanner-lite .nmeta .v { color: var(--ink); font-weight: 900; }
+    .nbanner-lite .nmeta .sep { color: var(--muted); margin: 0 6px; font-weight: 600; opacity: 0.7; }
+    .nbanner-lite > .spk {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    }
+    .ncard.is-open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .ncard .fold-hint { margin: 0 0 6px; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
+    .play-rate {
+      flex: 0 0 auto; width: 4.2em; font: inherit; font-weight: 700; font-size: 0.78rem;
+      padding: 3px 2px 3px 5px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    }
+    .play-rate:disabled { opacity: 0.45; }
+    .nempty { color: var(--muted); text-align: center; margin: 22px 0; }
+    .spk {
+      flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--line); background: #fff; font-size: 1rem; padding: 0;
+    }
+    .spk:disabled { opacity: 0.4; }
+    .note-tabs { display: flex; gap: 6px; margin-top: 4px; }
+    .note-tabs .chip { flex: 1; text-align: center; }
+    .hint-line { margin: 0; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+    .tag-rail {
+      display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 6px;
+      -webkit-overflow-scrolling: touch; margin-top: 10px;
+    }
+    .tag-rail .chip { flex: 0 0 auto; white-space: nowrap; }
+    .tag-pick-overlay {
+      position: fixed; inset: 0; z-index: 12000; background: rgba(10,12,24,.45);
+      display: flex; align-items: flex-end; justify-content: center; padding: 16px;
+    }
+    .tag-pick-overlay[hidden] { display: none !important; }
+    .tag-pick {
+      width: 100%; max-width: 520px; background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; border-bottom-width: 4px; padding: 14px; max-height: 70vh; overflow: auto;
+    }
+    .tag-pick h3 { margin: 0 0 6px; font-size: 1.05rem; }
+    .tag-pick .hint-line { margin-bottom: 10px; }
+    .tag-pick .tag-list { display: flex; flex-direction: column; gap: 8px; }
+    .tag-pick .tag-list button { width: 100%; justify-content: flex-start; }
+    .tag-pick .tag-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .tag-pick .tag-actions button { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="modes" role="tablist">
+    <button type="button" id="mode-path" role="tab">多邻国版</button>
+    <button type="button" id="mode-notes" role="tab">笔记版</button>
+    <button type="button" id="mode-lex" role="tab">词库</button>
+    <button type="button" id="btn-theme" title="主题与字号">主题</button>
+  </div>
+  <div class="wrap" id="app"></div>
+  <div id="toast" class="toast" hidden></div>
+  <div id="tag-pick-overlay" class="tag-pick-overlay" hidden aria-hidden="true"></div>
+  <div id="theme-picker-overlay" class="theme-picker-overlay" hidden aria-hidden="true">
+    <div class="theme-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="theme-picker-title" tabindex="-1">
+      <p id="theme-picker-title" class="theme-picker-title">主题</p>
+      <p class="theme-picker-hint">下面分「主题」和「字号」两块，选完立刻生效，下次打开还记得。</p>
+      <div class="theme-picker-section">
+        <p class="theme-picker-section-title">主题</p>
+        <div class="theme-picker-opts">
+          <button type="button" class="theme-picker-opt" data-theme="default">默认<small>暖纸橙条</small></button>
+          <button type="button" class="theme-picker-opt" data-theme="mist">雾灰护眼<small>薄荷绿纸 · 不刺眼</small></button>
+          <button type="button" class="theme-picker-opt" data-theme="pixel">像素风<small>土黄废土</small></button>
+        </div>
+      </div>
+      <div class="theme-picker-section">
+        <p class="theme-picker-section-title">字号</p>
+        <div class="theme-picker-opts theme-picker-opts--font">
+          <button type="button" class="theme-picker-opt" data-font="normal">标准<small>默认大小</small></button>
+          <button type="button" class="theme-picker-opt" data-font="large">加大<small>约 1.3 倍</small></button>
+          <button type="button" class="theme-picker-opt" data-font="xlarge">特大<small>老年 / 老花</small></button>
+        </div>
+      </div>
+      <button type="button" class="theme-picker-close" id="theme-picker-close">关闭</button>
+    </div>
+  </div>
+  <script src="data.js"></script>
+  <script src="lexicon.js"></script>
+  <script>
+    (function () {
+      const BANK = window.EN_BANK;
+      const app = document.getElementById("app");
+      if (!BANK) {
+        app.textContent = "缺少 data.js";
+        return;
+      }
+      const STORE = "fuxi-yingyu-progress-v1";
+      const NOTE_STORE = "fuxi-yingyu-notes-v1";
+      const TAG_STORE = "fuxi-yingyu-note-tags-v1";
+      const VIEW_STORE = "fuxi-yingyu-view";
+      const RATE_STORE = "fuxi-yingyu-rate-v1";
+      const POS_ZH = {
+        noun: "名词", verb: "动词", adjective: "形容词", adverb: "副词",
+        pronoun: "代词", preposition: "介词", conjunction: "连词",
+        interjection: "感叹词", determiner: "限定词", exclamation: "感叹词",
+        numeral: "数词", article: "冠词",
+      };
+      const KINDS = ["fill", "patch", "dialogue", "mc", "zh2en"];
+      const KIND_NAME = { fill: "填空", patch: "补写", dialogue: "对话", mc: "选择", zh2en: "默写" };
+      const CHOICE = { fill: 1, mc: 1, dialogue: 1 };
+
+      let state = load();
+      let screen = "home";
+      let round = [];
+      let results = [];
+      let idx = 0;
+      let judged = false;
+      let picked = null;
+      let streak = 0;
+      let bestStreak = 0;
+      let cardIdx = 0;
+      let cardOpen = false;
+      let cardDir = "zh";
+      let playToken = 0;
+      let advanceTimer = null;
+      let roundNote = "";
+      let shownPct = 0;
+      let view = (function () {
+        const v = localStorage.getItem(VIEW_STORE);
+        return v === "notes" || v === "lex" ? v : "path";
+      })();
+      let notes = loadNotes();
+      let noteTags = loadTagNames();
+      let noteQ = "";
+      let noteTagFilter = "all"; // 首次默认「全部」；null=收起, "all"=全部, 其它=标签名
+      let noteEditId = "";
+      let notePanel = "word"; // word | phrase
+      let noteRate = localStorage.getItem(RATE_STORE) === "slow" ? "slow" : "fast";
+      let openNoteId = "";
+      let openLexEn = "";
+      let noteAudio = null;
+      let bankLevelMap = null;
+      let lexPosCat = localStorage.getItem("fuxi-yingyu-lex-pos") || "noun";
+      let lexQ = "";
+      const LEX_POS_TABS = [
+        { id: "noun", name: "名词" },
+        { id: "verb", name: "动词" },
+        { id: "adj", name: "形容词" },
+        { id: "adv", name: "副词" },
+        { id: "multi", name: "兼类多义" },
+        { id: "func", name: "功能词" },
+        { id: "phrase", name: "组合词" },
+        { id: "unknown", name: "未标注" },
+      ];
+
+      function $(id) { return document.getElementById(id); }
+      function toast(msg) {
+        const el = $("toast");
+        el.textContent = msg;
+        el.hidden = false;
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function () { el.hidden = true; }, 2400);
+      }
+      let audioCtx = null;
+      function audio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
+      }
+      function tone(freq, when, dur, type, vol) {
+        const ctx = audio();
+        if (!ctx) return;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type || "triangle";
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(vol || 0.06, when);
+        g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(when);
+        o.stop(when + dur + 0.02);
+      }
+      function playOk() {
+        const ctx = audio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const base = streak >= 3 ? 698 : 523;
+        tone(base, t, 0.1, "triangle", 0.07);
+        tone(base * 1.26, t + 0.08, 0.14, "triangle", 0.07);
+        if (streak >= 3) tone(base * 1.5, t + 0.16, 0.16, "triangle", 0.06);
+      }
+      function playBad() {
+        const ctx = audio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        tone(196, t, 0.12, "sine", 0.05);
+        tone(146, t + 0.09, 0.16, "sine", 0.04);
+      }
+      function playWin(n) {
+        const ctx = audio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        [523, 659, 784, 1046].slice(0, Math.max(1, n + 1)).forEach(function (f, i) {
+          tone(f, t + i * 0.11, 0.16, "triangle", 0.06);
+        });
+      }
+      function praise() {
+        if (streak >= 5) return "停不下来！";
+        if (streak >= 3) return "连对 " + streak + "！";
+        if (streak === 2) return "漂亮！";
+        return ["不错！", "对了！", "漂亮！"][idx % 3];
+      }
+      function load() {
+        const blank = { v: 1, ok: {}, wrong: {}, gradeId: "g3a", unitId: "g3a-u1" };
+        try {
+          const raw = JSON.parse(localStorage.getItem(STORE) || "null");
+          if (!raw || typeof raw !== "object") return blank;
+          return {
+            v: 1,
+            ok: raw.ok || {},
+            wrong: raw.wrong || {},
+            gradeId: raw.gradeId || "g3a",
+            unitId: raw.unitId || "g3a-u1",
+          };
+        } catch (_) {
+          return blank;
+        }
+      }
+      function save() {
+        try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (_) {}
+      }
+      function loadNotes() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(NOTE_STORE) || "[]");
+          if (!Array.isArray(raw)) return [];
+          return raw.filter(function (n) { return n && n.en; }).map(normalizeNote);
+        } catch (_) {
+          return [];
+        }
+      }
+      function normalizeNote(n) {
+        const mark = n.mark === 1 || n.mark === 2 ? n.mark : 0;
+        const kind = n.kind === "phrase" ? "phrase" : "word";
+        return {
+          id: String(n.id || ("n" + Math.random().toString(36).slice(2, 8))),
+          kind: kind,
+          en: String(n.en || ""),
+          zh: String(n.zh || ""),
+          ipa: String(n.ipa || ""),
+          xieyin: String(n.xieyin || ""),
+          pos: String(n.pos || ""),
+          level: n.level === "high" || n.level === "mid" ? n.level : "",
+          levelNote: String(n.levelNote || ""),
+          reply: String(n.reply || ""),
+          explain: String(n.explain || ""),
+          ex: String(n.ex || ""),
+          src: String(n.src || ""),
+          audioUs: String(n.audioUs || ""),
+          audioUk: String(n.audioUk || ""),
+          tag: String(n.tag || ""),
+          mark: mark,
+          at: n.at || 0,
+        };
+      }
+      function saveNotes() {
+        try { localStorage.setItem(NOTE_STORE, JSON.stringify(notes)); } catch (_) {}
+      }
+      function loadTagNames() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(TAG_STORE) || "[]");
+          if (!Array.isArray(raw)) return [];
+          return raw.map(function (t) { return String(t || "").trim(); }).filter(Boolean);
+        } catch (_) {
+          return [];
+        }
+      }
+      function saveTagNames() {
+        try { localStorage.setItem(TAG_STORE, JSON.stringify(noteTags)); } catch (_) {}
+      }
+      function allTagNames() {
+        const map = {};
+        noteTags.forEach(function (t) { if (t) map[t] = 1; });
+        notes.forEach(function (n) { if (n.tag) map[n.tag] = 1; });
+        return Object.keys(map).sort(function (a, b) { return a.localeCompare(b, "zh"); });
+      }
+      function ensureTag(name) {
+        const t = String(name || "").trim();
+        if (!t) return "";
+        if (noteTags.indexOf(t) < 0) {
+          noteTags.push(t);
+          saveTagNames();
+        }
+        return t;
+      }
+      function countByTag(tag) {
+        if (tag === "all") return notes.length;
+        return notes.filter(function (n) { return n.tag === tag; }).length;
+      }
+      function pickTag(title) {
+        return new Promise(function (resolve) {
+          const overlay = $("tag-pick-overlay");
+          if (!overlay) { resolve(""); return; }
+          const tags = allTagNames();
+          let html = '<div class="tag-pick" role="dialog" aria-modal="true">';
+          html += "<h3>" + escapeHtml(title || "存到哪个标签？") + "</h3>";
+          html += '<p class="hint-line">选已有标签，或自定义新名字</p><div class="tag-list">';
+          if (!tags.length) html += '<p class="hint-line">还没有标签，先自定义一个</p>';
+          tags.forEach(function (t) {
+            html += '<button type="button" data-pick-tag="' + escapeHtml(t) + '">' + escapeHtml(t) +
+              " · " + countByTag(t) + "</button>";
+          });
+          html += '<button type="button" class="primary" data-pick-tag="__custom__">自定义…</button>';
+          html += '</div><div class="tag-actions"><button type="button" data-pick-cancel>取消</button></div></div>';
+          overlay.innerHTML = html;
+          overlay.hidden = false;
+          overlay.setAttribute("aria-hidden", "false");
+          function close(val) {
+            overlay.hidden = true;
+            overlay.setAttribute("aria-hidden", "true");
+            overlay.innerHTML = "";
+            overlay.onclick = null;
+            resolve(val);
+          }
+          overlay.onclick = function (ev) { if (ev.target === overlay) close(null); };
+          overlay.querySelectorAll("[data-pick-tag]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              const v = btn.getAttribute("data-pick-tag");
+              if (v === "__custom__") {
+                const name = prompt("新标签名称：");
+                if (!name || !String(name).trim()) return;
+                close(ensureTag(name));
+                return;
+              }
+              close(ensureTag(v));
+            });
+          });
+          const cancel = overlay.querySelector("[data-pick-cancel]");
+          if (cancel) cancel.addEventListener("click", function () { close(null); });
+        });
+      }
+      function savePlayRate() {
+        try { localStorage.setItem(RATE_STORE, noteRate); } catch (_) {}
+      }
+      function playRateSelectHtml(disabled) {
+        return '<select class="play-rate" data-play-rate' + (disabled ? " disabled" : "") + ">" +
+          '<option value="fast"' + (noteRate !== "slow" ? " selected" : "") + ">快速</option>" +
+          '<option value="slow"' + (noteRate === "slow" ? " selected" : "") + ">慢速</option>" +
+          "</select>";
+      }
+      function bindPlayRateSelects(root) {
+        (root || document).querySelectorAll("[data-play-rate]").forEach(function (sel) {
+          sel.addEventListener("change", function () {
+            noteRate = sel.value === "slow" ? "slow" : "fast";
+            savePlayRate();
+            (root || document).querySelectorAll("[data-play-rate]").forEach(function (other) {
+              if (other !== sel) other.value = noteRate;
+            });
+          });
+        });
+      }
+      function buildBankLevelMap() {
+        if (bankLevelMap) return bankLevelMap;
+        bankLevelMap = {};
+        (BANK.grades || []).forEach(function (g) {
+          (g.units || []).forEach(function (u) {
+            (u.words || []).forEach(function (w) {
+              const key = String(w.en || "").trim().toLowerCase();
+              if (!key || bankLevelMap[key]) return;
+              bankLevelMap[key] = {
+                level: "mid",
+                levelNote: (g.name || "") + (u.title ? " · " + u.title : ""),
+              };
+            });
+          });
+        });
+        return bankLevelMap;
+      }
+      function bankHit(word) {
+        const key = String(word || "").trim().toLowerCase();
+        if (!key) return null;
+        let found = null;
+        (BANK.grades || []).some(function (g) {
+          return (g.units || []).some(function (u) {
+            return (u.words || []).some(function (w) {
+              if (String(w.en || "").trim().toLowerCase() !== key) return false;
+              found = {
+                en: w.en,
+                zh: w.zh || "",
+                level: "mid",
+                levelNote: (g.name || "") + (u.title ? " · " + u.title : ""),
+              };
+              return true;
+            });
+          });
+        });
+        return found;
+      }
+      function localLexHit(word) {
+        const key = String(word || "").trim().toLowerCase();
+        if (!key) return null;
+        const lex = (window.EN_LEXICON && window.EN_LEXICON[key]) || null;
+        const bank = bankHit(key);
+        if (!lex && !bank) return null;
+        return {
+          en: (bank && bank.en) || (lex && lex.en) || key,
+          zh: (lex && lex.zh) || (bank && bank.zh) || "",
+          pos: (lex && lex.pos) || "",
+          ipa: (lex && lex.ipa) || "",
+          xieyin: (lex && lex.xieyin) || "",
+          level: (bank && bank.level) || (lex && lex.level) || "high",
+          levelNote: (bank && bank.levelNote) || (lex && lex.levelNote) || "课外 / 待确认",
+        };
+      }
+      function guessLevel(word) {
+        const hit = localLexHit(word);
+        if (hit) return { level: hit.level, levelNote: hit.levelNote, zh: hit.zh };
+        return { level: "high", levelNote: "课外 / 待确认", zh: "" };
+      }
+      function camUsPath(word) {
+        const w = String(word || "").trim().toLowerCase().replace(/[^a-z']/g, "");
+        if (!w) return "";
+        const pad = (w + "_____").slice(0, 5);
+        return "https://dictionary.cambridge.org/media/english/us_pron/" +
+          w[0] + "/" + w.slice(0, 3) + "/" + pad + "/" + w + ".mp3";
+      }
+      function gstaticCandidates(word, accent) {
+        const w = String(word || "").trim().toLowerCase().replace(/[^a-z'-]/g, "");
+        if (!w) return [];
+        const tag = accent === "uk" ? "gb" : "us";
+        return [
+          "https://ssl.gstatic.com/dictionary/static/sounds/20200429/" + w + "--_" + tag + "_1.mp3",
+          "https://ssl.gstatic.com/dictionary/static/sounds/oxford/" + w + "--_" + tag + "_1.mp3",
+        ];
+      }
+      function probeAudioUrl(url) {
+        return new Promise(function (resolve) {
+          if (!url) return resolve("");
+          const a = new Audio();
+          let done = false;
+          const finish = function (ok) {
+            if (done) return;
+            done = true;
+            a.removeAttribute("src");
+            a.load();
+            resolve(ok ? url : "");
+          };
+          const t = setTimeout(function () { finish(false); }, 1800);
+          a.preload = "metadata";
+          a.onloadeddata = function () { clearTimeout(t); finish(true); };
+          a.oncanplaythrough = function () { clearTimeout(t); finish(true); };
+          a.onerror = function () { clearTimeout(t); finish(false); };
+          a.src = url;
+        });
+      }
+      async function resolveAccentAudio(word, accent, apiUrls) {
+        const list = [];
+        if (accent === "us") list.push(camUsPath(word));
+        gstaticCandidates(word, accent).forEach(function (u) { list.push(u); });
+        (apiUrls || []).forEach(function (u) {
+          if (!u) return;
+          const low = u.toLowerCase();
+          const matchUs = low.indexOf("-us") >= 0 || low.indexOf("_us") >= 0 || low.indexOf("/us") >= 0;
+          const matchUk = low.indexOf("-uk") >= 0 || low.indexOf("_gb") >= 0 || low.indexOf("-gb") >= 0 || low.indexOf("/uk") >= 0;
+          if (accent === "us" && matchUs) list.unshift(u);
+          else if (accent === "uk" && matchUk) list.unshift(u);
+          else if (list.indexOf(u) < 0) list.push(u);
+        });
+        for (let i = 0; i < list.length; i++) {
+          const ok = await probeAudioUrl(list[i]);
+          if (ok) return ok;
+        }
+        return "";
+      }
+      async function lookupWord(word) {
+        const q = String(word || "").trim().toLowerCase();
+        if (!q) throw new Error("empty");
+        const local = localLexHit(q) || {};
+        let zh = local.zh || "";
+        let ipa = local.ipa || "";
+        let pos = local.pos || "";
+        let xieyin = local.xieyin || "";
+        let level = local.level || "high";
+        let levelNote = local.levelNote || "课外 / 待确认";
+        let apiAudio = [];
+        try {
+          const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q));
+          if (res.ok) {
+            const data = await res.json();
+            const entry = data && data[0];
+            if (entry) {
+              const posList = [];
+              (entry.phonetics || []).forEach(function (p) {
+                if (p && p.audio) apiAudio.push(p.audio);
+                if (!ipa && p && p.text) ipa = p.text;
+              });
+              if (!ipa && entry.phonetic) ipa = entry.phonetic;
+              (entry.meanings || []).forEach(function (m) {
+                const p = POS_ZH[m.partOfSpeech] || m.partOfSpeech || "";
+                if (p && posList.indexOf(p) < 0) posList.push(p);
+              });
+              if (!pos && posList.length) pos = posList.join(" / ");
+            }
+          }
+        } catch (_) {}
+        if (!zh) {
+          try {
+            const tr = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=en|zh-CN");
+            if (tr.ok) {
+              const tj = await tr.json();
+              zh = ((tj.responseData && tj.responseData.translatedText) || "").trim();
+              if (zh.toLowerCase() === q) zh = "";
+            }
+          } catch (_) {}
+        }
+        const audioUs = await resolveAccentAudio(q, "us", apiAudio);
+        const audioUk = await resolveAccentAudio(q, "uk", apiAudio);
+        return {
+          en: local.en || q,
+          zh: zh,
+          ipa: ipa,
+          xieyin: xieyin,
+          pos: pos,
+          level: level,
+          levelNote: levelNote,
+          ex: "",
+          src: "",
+          audioUs: audioUs,
+          audioUk: audioUk,
+          kind: "word",
+        };
+      }
+      function stopNoteAudio() {
+        if (noteAudio) {
+          try { noteAudio.pause(); } catch (_) {}
+          noteAudio = null;
+        }
+      }
+      async function playNoteText(urls, opt) {
+        stopNoteAudio();
+        // 只播美音真人；没有就不播，绝不 TTS / 英音凑数
+        const prefer = (urls && urls.audioUs) || "";
+        if (!prefer) throw new Error("no-audio");
+        const forced = opt && opt.rate;
+        const rate = forced != null ? forced : (noteRate === "slow" ? 0.72 : 1);
+        await new Promise(function (resolve, reject) {
+          const a = new Audio(prefer);
+          noteAudio = a;
+          a.playbackRate = rate;
+          a.onended = function () { resolve("real"); };
+          a.onerror = function () { reject(new Error("audio")); };
+          const p = a.play();
+          if (p && p.then) p.then(function () {}, reject);
+        });
+        return "real";
+      }
+      function bannerMetaHtml(zh, xieyin) {
+        const parts = [];
+        parts.push('<span class="k">中译：</span><span class="v">' + (zh ? escapeHtml(zh) : '<span class="empty">未填</span>') + "</span>");
+        parts.push('<span class="sep">·</span>');
+        parts.push('<span class="k">谐音：</span><span class="v">' + (xieyin ? escapeHtml(xieyin) : '<span class="empty">未填</span>') + "</span>");
+        return parts.join("");
+      }
+      function setView(next) {
+        view = next === "notes" || next === "lex" ? next : "path";
+        try { localStorage.setItem(VIEW_STORE, view); } catch (_) {}
+        document.body.classList.toggle("view-notes", view === "notes" || view === "lex");
+        const pathBtn = $("mode-path");
+        const noteBtn = $("mode-notes");
+        const lexBtn = $("mode-lex");
+        if (pathBtn) {
+          pathBtn.classList.toggle("on", view === "path");
+          pathBtn.setAttribute("aria-selected", view === "path" ? "true" : "false");
+        }
+        if (noteBtn) {
+          noteBtn.classList.toggle("on", view === "notes");
+          noteBtn.setAttribute("aria-selected", view === "notes" ? "true" : "false");
+        }
+        if (lexBtn) {
+          lexBtn.classList.toggle("on", view === "lex");
+          lexBtn.setAttribute("aria-selected", view === "lex" ? "true" : "false");
+        }
+        render();
+      }
+      function wordGradeMeta(en) {
+        const key = String(en || "").trim().toLowerCase();
+        let meta = { gradeOrder: 999, gradeName: "", unit: "", zh: "" };
+        (BANK.grades || []).some(function (g, gi) {
+          return (g.units || []).some(function (u) {
+            return (u.words || []).some(function (w) {
+              if (String(w.en || "").trim().toLowerCase() !== key) return false;
+              meta = {
+                gradeOrder: gi,
+                gradeName: g.name || "",
+                unit: u.title || "",
+                zh: w.zh || "",
+              };
+              return true;
+            });
+          });
+        });
+        return meta;
+      }
+      function lexIsPhrase(en) {
+        const e = String(en || "").trim();
+        return /\s/.test(e) || e.indexOf("-") >= 0;
+      }
+      // 宽松归属：兼类词在「兼类」能看到，点名词/动词也能看到（沾边就算，不互斥）
+      function lexMatchesPos(en, pos, cat) {
+        const phrase = lexIsPhrase(en);
+        if (cat === "phrase") return phrase;
+        if (phrase) return false;
+        const p = String(pos || "").trim();
+        if (cat === "unknown") return !p;
+        if (!p) return false;
+        if (cat === "multi") return p.indexOf("/") >= 0;
+        if (cat === "noun") return p.indexOf("名词") >= 0;
+        if (cat === "verb") return p.indexOf("动词") >= 0;
+        if (cat === "adj") return p.indexOf("形容词") >= 0;
+        if (cat === "adv") return p.indexOf("副词") >= 0;
+        if (cat === "func") return /代词|限定词|介词|连词|数词|感叹词|冠词/.test(p);
+        return false;
+      }
+      function allLexRows() {
+        const seen = {};
+        const list = [];
+        (BANK.grades || []).forEach(function (g, gi) {
+          (g.units || []).forEach(function (u) {
+            (u.words || []).forEach(function (w) {
+              const key = String(w.en || "").trim().toLowerCase();
+              if (!key || seen[key]) return;
+              seen[key] = 1;
+              const hit = localLexHit(key) || {};
+              list.push({
+                en: w.en || key,
+                zh: hit.zh || w.zh || "",
+                pos: hit.pos || "",
+                ipa: hit.ipa || "",
+                xieyin: hit.xieyin || "",
+                level: "mid",
+                levelNote: (g.name || "") + (u.title ? " · " + u.title : ""),
+                unit: u.title || "",
+                gradeOrder: gi,
+                gradeName: g.name || "",
+              });
+            });
+          });
+        });
+        const lex = window.EN_LEXICON || {};
+        Object.keys(lex).forEach(function (k) {
+          if (seen[k]) return;
+          seen[k] = 1;
+          const item = lex[k];
+          const meta = wordGradeMeta(k);
+          list.push({
+            en: item.en || k,
+            zh: item.zh || meta.zh || "",
+            pos: item.pos || "",
+            ipa: item.ipa || "",
+            xieyin: item.xieyin || "",
+            level: item.level || "high",
+            levelNote: meta.gradeName
+              ? (meta.gradeName + (meta.unit ? " · " + meta.unit : ""))
+              : (item.levelNote || "扩展"),
+            unit: meta.unit || "",
+            gradeOrder: meta.gradeOrder,
+            gradeName: meta.gradeName || "",
+          });
+        });
+        return list;
+      }
+      function lexWordsForPos(cat) {
+        const q = lexQ.trim().toLowerCase();
+        return allLexRows().filter(function (row) {
+          if (!lexMatchesPos(row.en, row.pos, cat)) return false;
+          if (!q) return true;
+          return (row.en + " " + row.zh + " " + row.pos + " " + row.levelNote).toLowerCase().indexOf(q) >= 0;
+        }).sort(function (a, b) {
+          if (a.gradeOrder !== b.gradeOrder) return a.gradeOrder - b.gradeOrder;
+          return String(a.en).localeCompare(String(b.en));
+        });
+      }
+      function lexPosCounts() {
+        const counts = { noun: 0, verb: 0, adj: 0, adv: 0, multi: 0, func: 0, phrase: 0, unknown: 0 };
+        allLexRows().forEach(function (row) {
+          LEX_POS_TABS.forEach(function (t) {
+            if (lexMatchesPos(row.en, row.pos, t.id)) counts[t.id]++;
+          });
+        });
+        return counts;
+      }
+      function renderLex() {
+        const counts = lexPosCounts();
+        const visibleTabs = LEX_POS_TABS.filter(function (t) {
+          return (counts[t.id] || 0) > 0 || t.id === lexPosCat;
+        });
+        if (!visibleTabs.some(function (t) { return t.id === lexPosCat; })) {
+          lexPosCat = (visibleTabs[0] && visibleTabs[0].id) || "noun";
+          try { localStorage.setItem("fuxi-yingyu-lex-pos", lexPosCat); } catch (_) {}
+        }
+        let html = '<div class="tag-rail" id="lex-pos-tabs">';
+        visibleTabs.forEach(function (t) {
+          html += '<button type="button" class="chip' + (lexPosCat === t.id ? " on" : "") +
+            '" data-lex-pos="' + t.id + '">' + escapeHtml(t.name) + " " + (counts[t.id] || 0) + "</button>";
+        });
+        html += "</div>";
+        html += '<input class="nsearch" id="lex-q" placeholder="在本类里搜英文或中文" value="' + escapeHtml(lexQ) + '">';
+        html += '<p class="hint-line" id="lex-count" style="margin-top:8px"></p>';
+        html += '<div id="lex-list"></div>';
+        app.innerHTML = html;
+        paintLexList();
+        app.querySelectorAll("[data-lex-pos]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            lexPosCat = btn.getAttribute("data-lex-pos");
+            try { localStorage.setItem("fuxi-yingyu-lex-pos", lexPosCat); } catch (_) {}
+            render();
+          });
+        });
+        $("lex-q").addEventListener("input", function (ev) {
+          lexQ = ev.target.value;
+          paintLexList();
+        });
+      }
+      function paintLexList() {
+        const box = $("lex-list");
+        const count = $("lex-count");
+        if (!box) return;
+        const words = lexWordsForPos(lexPosCat);
+        const tabName = (LEX_POS_TABS.find(function (t) { return t.id === lexPosCat; }) || {}).name || "";
+        if (count) {
+          const soft = (lexPosCat === "noun" || lexPosCat === "verb" || lexPosCat === "adj" || lexPosCat === "adv")
+            ? " · 含兼类（沾边即入）" : "";
+          count.textContent = tabName + " · 共 " + words.length + " 个" + soft + " · 点横幅展开详情 · 📢 快速听音";
+        }
+        if (!words.length) {
+          box.innerHTML = '<p class="nempty">这栏没有词</p>';
+          return;
+        }
+        let html = "";
+        words.forEach(function (w) {
+          const key = String(w.en || "").trim().toLowerCase();
+          const open = openLexEn === key;
+          if (!open) {
+            html += '<article class="ncard ncard-banner" data-lex-toggle="' + escapeHtml(key) + '"><div class="nbanner-lite">';
+            html += '<div class="nbanner-main">';
+            html += '<b class="nword" title="' + escapeHtml(w.en) + '">' + escapeHtml(w.en) + "</b>";
+            html += '<div class="nmeta">' + bannerMetaHtml(w.zh, w.xieyin) + "</div>";
+            html += "</div>";
+            html += '<button type="button" class="spk" data-lex-play data-en="' +
+              escapeHtml(w.en) + '" title="美音真人 · 快速">📢</button>';
+            html += "</div></article>";
+          } else {
+            html += '<article class="ncard is-open" data-lex-toggle="' + escapeHtml(key) + '">';
+            html += '<p class="fold-hint">竖版详情 · 再点标题可收起</p>';
+            html += '<b class="nword-tall">' + escapeHtml(w.en) + "</b>";
+            if (w.levelNote || w.level) {
+              html += '<div class="row row-dim"><span class="k">课本：</span>' + escapeHtml(
+                levelLabel(w) || "—"
+              ) + "</div>";
+            }
+            html += '<div class="row row-dim"><span class="k">类型：</span>' + (w.pos ? escapeHtml(w.pos) : '<span class="empty">未填</span>') + "</div>";
+            html += '<div class="row row-dim"><span class="k">音标：</span>' + (w.ipa ? escapeHtml(w.ipa) : '<span class="empty">未填</span>') + "</div>";
+            html += '<div class="row row-hi"><span class="k">中译：</span>' + (w.zh ? escapeHtml(w.zh) : '<span class="empty">未填</span>') + "</div>";
+            html += '<div class="row row-hi"><span class="k">谐音：</span>' + (w.xieyin ? escapeHtml(w.xieyin) : '<span class="empty">未填</span>') + "</div>";
+            html += '<div class="play-row"><button type="button" class="spk" data-lex-play data-en="' +
+              escapeHtml(w.en) + '" title="美音真人">📢</button>' + playRateSelectHtml(false) + "</div>";
+            html += '<div class="nops"><button type="button" class="primary" data-lex-add="' +
+              escapeHtml(w.en) + '">加入笔记</button>' +
+              '<button type="button" data-lex-fold="' + escapeHtml(key) + '">收起</button></div></article>';
+          }
+        });
+        box.innerHTML = html;
+        bindLexCardActions(box);
+      }
+      function bindLexCardActions(box) {
+        if (!box) return;
+        bindPlayRateSelects(box);
+        box.querySelectorAll("[data-lex-toggle]").forEach(function (card) {
+          card.addEventListener("click", function (ev) {
+            if (ev.target.closest("[data-lex-play],[data-lex-add],[data-play-rate],.play-rate,button,select,a")) return;
+            const key = card.getAttribute("data-lex-toggle");
+            openLexEn = openLexEn === key ? "" : key;
+            paintLexList();
+          });
+        });
+        box.querySelectorAll("[data-lex-fold]").forEach(function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            openLexEn = "";
+            paintLexList();
+          });
+        });
+        box.querySelectorAll("[data-lex-play]").forEach(function (btn) {
+          btn.addEventListener("click", async function (ev) {
+            ev.stopPropagation();
+            const en = btn.getAttribute("data-en");
+            const key = String(en || "").trim().toLowerCase();
+            btn.disabled = true;
+            try {
+              const us = await resolveAccentAudio(en, "us", []);
+              const opt = openLexEn === key ? undefined : { rate: 1 };
+              await playNoteText({ audioUs: us }, opt);
+            } catch (_) {
+              toast("没有美音真人音，不播合成音");
+            }
+            btn.disabled = false;
+          });
+        });
+        box.querySelectorAll("[data-lex-add]").forEach(function (btn) {
+          btn.addEventListener("click", async function (ev) {
+            ev.stopPropagation();
+            const en = btn.getAttribute("data-lex-add");
+            btn.disabled = true;
+            btn.textContent = "保存中…";
+            try {
+              const hit = await lookupWord(en);
+              const tag = await pickTag("「" + hit.en + "」存到哪个标签？");
+              if (tag == null) {
+                btn.disabled = false;
+                btn.textContent = "加入笔记";
+                return;
+              }
+              const existing = notes.find(function (n) {
+                return n.kind === "word" && n.en.toLowerCase() === String(hit.en).toLowerCase();
+              });
+              if (existing) {
+                ["zh", "ipa", "pos", "xieyin", "level", "levelNote", "audioUs", "audioUk"].forEach(function (k) {
+                  if (hit[k]) existing[k] = hit[k];
+                });
+                existing.tag = tag;
+                existing.at = Date.now();
+                saveNotes();
+                toast("已更新到「" + tag + "」");
+              } else {
+                notes.unshift(Object.assign({
+                  id: "n" + Date.now().toString(36),
+                  mark: 0,
+                  at: Date.now(),
+                  ex: "",
+                  reply: "",
+                  explain: "",
+                  tag: tag,
+                }, hit));
+                saveNotes();
+                toast("已保存到「" + tag + "」");
+              }
+              noteTagFilter = tag;
+            } catch (_) {
+              toast("保存失败");
+            }
+            btn.disabled = false;
+            btn.textContent = "加入笔记";
+          });
+        });
+      }
+      function gradeById(id) {
+        return BANK.grades.find(function (g) { return g.id === id; }) || BANK.grades[0];
+      }
+      function currentGrade() { return gradeById(state.gradeId); }
+      function unitById(g, id) {
+        return (g.units || []).find(function (u) { return u.id === id; }) || (g.units || [])[0];
+      }
+      function currentUnit() { return unitById(currentGrade(), state.unitId); }
+      function normAns(s) {
+        return String(s || "").trim().replace(/[.!?。！？]+$/g, "").replace(/\s+/g, " ").toLowerCase();
+      }
+      function acceptMatch(user, acceptList) {
+        const u = normAns(user);
+        return (acceptList || []).some(function (a) { return normAns(a) === u; });
+      }
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+      function shuffle(list) {
+        const a = list.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = a[i]; a[i] = a[j]; a[j] = t;
+        }
+        return a;
+      }
+      function drillCount(unit) {
+        let n = 0;
+        KINDS.forEach(function (k) { n += (((unit.drills || {})[k]) || []).length; });
+        return n;
+      }
+      function unitCleared(unit) {
+        const ids = [];
+        KINDS.forEach(function (k) {
+          (((unit.drills || {})[k]) || []).forEach(function (q) { ids.push(q.id); });
+        });
+        if (!ids.length) (unit.words || []).forEach(function (w) { ids.push(wordQuestion(unit, w).id); });
+        if (!ids.length) return false;
+        return ids.every(function (id) { return state.ok[id]; });
+      }
+      function pathCurrent(units) {
+        for (let i = 0; i < units.length; i++) {
+          if (!unitCleared(units[i])) return i;
+        }
+        return Math.max(0, units.length - 1);
+      }
+      function unitShort(unit) {
+        return String(unit.title || "").replace(/^Unit\s*\d+\s*/i, "") || unit.title || "";
+      }
+      function wordQuestion(unit, w) {
+        const slug = String(w.en || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        return {
+          kind: "zh2en",
+          id: unit.id + "-w-" + slug,
+          zh: w.zh,
+          answer: w.en,
+          accept: [w.en],
+          fromWord: true,
+        };
+      }
+      function eachQuestion(fn) {
+        BANK.grades.forEach(function (g) {
+          (g.units || []).forEach(function (unit) {
+            KINDS.forEach(function (k) {
+              (((unit.drills || {})[k]) || []).forEach(function (q) {
+                fn(Object.assign({ kind: k }, q));
+              });
+            });
+            (unit.words || []).forEach(function (w) { fn(wordQuestion(unit, w)); });
+          });
+        });
+      }
+      function buildRound(unit) {
+        const buckets = {};
+        KINDS.forEach(function (k) {
+          buckets[k] = shuffle((((unit.drills || {})[k]) || []).map(function (q) {
+            return Object.assign({ kind: k }, q);
+          }));
+        });
+        const have = {};
+        buckets.zh2en.forEach(function (q) { have[normAns(q.answer)] = 1; });
+        const extra = [];
+        (unit.words || []).forEach(function (w) {
+          if (have[normAns(w.en)]) return;
+          extra.push(wordQuestion(unit, w));
+        });
+        buckets.zh2en = buckets.zh2en.concat(shuffle(extra));
+        const keys = KINDS.filter(function (k) { return buckets[k].length; });
+        const mixed = [];
+        let guard = 0;
+        while (mixed.length < 10 && guard++ < 40) {
+          let grew = false;
+          keys.forEach(function (k) {
+            if (mixed.length >= 10) return;
+            const q = buckets[k].shift();
+            if (!q) return;
+            mixed.push(q);
+            grew = true;
+          });
+          if (!grew) break;
+        }
+        return shuffle(mixed);
+      }
+      function buildWrongRound() {
+        const list = [];
+        const seen = {};
+        eachQuestion(function (q) {
+          if (!state.wrong[q.id] || seen[q.id]) return;
+          seen[q.id] = 1;
+          list.push(q);
+        });
+        return shuffle(list).slice(0, 10);
+      }
+      function qPrompt(item) {
+        if (item.kind === "dialogue") return (item.lines || []).join(" / ");
+        if (item.kind === "zh2en") return item.zh || "";
+        if (item.kind === "mc") return item.stem || "";
+        return item.prompt || "";
+      }
+      function markOk(id) {
+        state.ok[id] = 1;
+        delete state.wrong[id];
+        save();
+      }
+      function markWrong(id) {
+        state.wrong[id] = { at: new Date().toISOString() };
+        delete state.ok[id];
+        save();
+      }
+      function note(status) {
+        const item = round[idx];
+        if (!item) return;
+        results[idx] = {
+          status: status,
+          prompt: qPrompt(item),
+          answer: item.answer || "",
+          kind: item.kind,
+        };
+      }
+      function clearAdvance() {
+        clearTimeout(advanceTimer);
+        advanceTimer = null;
+      }
+      function goNext() {
+        clearAdvance();
+        if (idx < round.length - 1) {
+          idx += 1;
+          judged = false;
+          picked = null;
+          playToken += 1;
+          render();
+          return;
+        }
+        screen = "done";
+        render();
+      }
+      function answeredRight(item) {
+        if (item.kind === "patch" || item.kind === "zh2en") return picked === "ok";
+        return picked === item.answer;
+      }
+      function sparkHtml() {
+        const colors = ["#58cc02", "#ffd900", "#1cb0f6", "#ff9600", "#ce82ff", "#ff4b4b"];
+        let h = "";
+        for (let i = 0; i < 6; i++) {
+          h += '<b style="left:' + (10 + i * 15) + "%;background:" + colors[i] + ";animation-delay:" + (i * 0.04) + 's"></b>';
+        }
+        return h;
+      }
+      function dockHtml(item) {
+        const ok = answeredRight(item);
+        if (ok) {
+          const showAns = item.kind === "patch" || item.kind === "zh2en";
+          return '<div class="dock ok"><div class="sparks">' + sparkHtml() + '</div><div class="dock-inner">' +
+            '<div class="mark"><i>✓</i>' + escapeHtml(praise()) + "</div>" +
+            (showAns ? '<div class="ans">' + escapeHtml(item.answer || "") + "</div>" : "") +
+            '<button type="button" class="go" id="next">继续</button></div></div>';
+        }
+        return '<div class="dock bad"><div class="dock-inner">' +
+          '<div class="mark"><i>✕</i>正确答案</div>' +
+          '<div class="ans">' + escapeHtml(item.answer || "") + "</div>" +
+          (item.explain ? '<p class="hint">' + escapeHtml(item.explain) + "</p>" : "") +
+          '<button type="button" class="go" id="next">知道了</button></div></div>';
+      }
+      function quit() {
+        clearAdvance();
+        screen = "home";
+        render();
+      }
+      function startRound(fromWrong) {
+        clearAdvance();
+        const unit = currentUnit();
+        round = fromWrong ? buildWrongRound() : buildRound(unit);
+        if (!round.length) {
+          toast(fromWrong ? "还没有错题" : "这章没有词，也没有题");
+          return;
+        }
+        results = [];
+        idx = 0;
+        judged = false;
+        picked = null;
+        streak = 0;
+        bestStreak = 0;
+        shownPct = 0;
+        playToken += 1;
+        const dN = unit ? drillCount(unit) : 0;
+        roundNote = fromWrong ? "错题再刷" : (dN < 4 ? "这章句子题还少，本局主要是默写单词" : "");
+        screen = "play";
+        render();
+      }
+      function openCards(unit) {
+        state.unitId = unit.id;
+        save();
+        if (!(unit.words || []).length) {
+          toast("这章还没有单词，直接开一局");
+          startRound(false);
+          return;
+        }
+        cardIdx = 0;
+        cardOpen = false;
+        screen = "cards";
+        render();
+      }
+
+      function noteShown() {
+        if (noteTagFilter == null) return [];
+        const q = noteQ.trim().toLowerCase();
+        return notes.filter(function (n) {
+          if (noteTagFilter !== "all" && n.tag !== noteTagFilter) return false;
+          if (!q) return true;
+          return (n.en + " " + n.zh + " " + n.tag + " " + n.reply + " " + n.explain + " " + n.ex + " " + n.src + " " + n.pos)
+            .toLowerCase().indexOf(q) >= 0;
+        }).sort(function (a, b) { return (b.at || 0) - (a.at || 0); });
+      }
+      function levelLabel(n) {
+        // 只留「中·三年级上」；Unit 名一律不展示
+        let note = String(n.levelNote || "").trim();
+        if (note === "课本词表" || note === "课外 / 待确认" || note === "扩展") note = "";
+        note = note.split(/[·•]/)[0].trim().replace(/\s*Unit\s*\d+.*$/i, "").trim();
+        const lv = n.level === "high" ? "高" : n.level === "mid" ? "中" : "";
+        if (lv && note) return lv + "·" + note;
+        return note || lv || "";
+      }
+      function bindNoteInlineEdit(box) {
+        if (!box) return;
+        box.querySelectorAll(".v-edit").forEach(function (span) {
+          span.addEventListener("click", async function (ev) {
+            ev.stopPropagation();
+            if (span.querySelector("input,textarea")) return;
+            const field = span.getAttribute("data-inline-field");
+            const id = span.getAttribute("data-note-id");
+            const n = notes.find(function (x) { return x.id === id; });
+            if (!n || !field) return;
+            if (field === "tag") {
+              const tag = await pickTag("「" + n.en + "」改到哪个标签？");
+              if (tag == null) return;
+              n.tag = tag;
+              n.at = Date.now();
+              noteTagFilter = tag;
+              saveNotes();
+              toast("已改标签");
+              paintTagRail();
+              paintNoteList();
+              return;
+            }
+            const cur = n[field] || "";
+            const multi = field === "explain" || field === "ex";
+            const input = document.createElement(multi ? "textarea" : "input");
+            if (!multi) input.type = "text";
+            input.value = cur;
+            input.setAttribute("aria-label", "编辑" + field);
+            span.textContent = "";
+            span.appendChild(input);
+            input.focus();
+            input.select();
+            let done = false;
+            function finish(save) {
+              if (done) return;
+              done = true;
+              if (save) {
+                n[field] = String(input.value || "").trim();
+                n.at = Date.now();
+                saveNotes();
+                toast("已保存");
+              }
+              paintNoteList();
+            }
+            input.addEventListener("click", function (e) { e.stopPropagation(); });
+            input.addEventListener("keydown", function (e) {
+              e.stopPropagation();
+              if (e.key === "Escape") {
+                e.preventDefault();
+                finish(false);
+              } else if (e.key === "Enter" && !(multi && e.shiftKey)) {
+                e.preventDefault();
+                finish(true);
+              }
+            });
+            input.addEventListener("blur", function () { finish(true); });
+          });
+        });
+      }
+      function paintNoteList() {
+        const box = $("note-list");
+        if (!box) return;
+        if (noteTagFilter == null) {
+          box.innerHTML = '<p class="nempty">列表已收起。点上面「全部」或某个标签展开。<br>横幅点一条可看竖版详情。</p>';
+          return;
+        }
+        const list = noteShown();
+        if (!list.length) {
+          box.innerHTML = '<p class="nempty">' + (notes.length ? "这个标签下还没有词" : "还没有笔记。填英文点「保存」，选个标签存放。") + "</p>";
+          return;
+        }
+        let html = "";
+        list.forEach(function (n) {
+          const hasReal = !!n.audioUs;
+          const open = openNoteId === n.id;
+          if (!open) {
+            html += '<article class="ncard ncard-banner" data-note-toggle="' + n.id + '"><div class="nbanner-lite">';
+            html += '<div class="nbanner-main">';
+            html += '<b class="nword" title="' + escapeHtml(n.en) + '">' + escapeHtml(n.en) + "</b>";
+            html += '<div class="nmeta">' + bannerMetaHtml(n.zh, n.xieyin) + "</div>";
+            html += "</div>";
+            html += '<button type="button" class="spk" data-play="' + n.id + '"' +
+              (hasReal ? "" : " disabled") +
+              ' title="' + (hasReal ? "美音真人 · 快速" : "没有美音真人音") + '">📢</button>';
+            html += "</div></article>";
+          } else {
+            function editRow(label, field, value, hi) {
+              const shown = value
+                ? escapeHtml(value)
+                : '<span class="empty">未填 · 点这改</span>';
+              return '<div class="row ' + (hi ? "row-hi" : "row-dim") + '"><span class="k">' + label + "</span>" +
+                '<span class="v-edit" data-inline-field="' + field + '" data-note-id="' + n.id +
+                '" title="点这里改，回车保存">' + shown + "</span></div>";
+            }
+            html += '<article class="ncard is-open" data-note-toggle="' + n.id + '">';
+            html += '<p class="fold-hint">点字段可改 · 回车保存 / Esc取消 · 再点空白处收起</p>';
+            html += '<div class="ntop"><div>';
+            html += '<b class="nword-tall">' + escapeHtml(n.en) + "</b>";
+            if (n.kind === "phrase") {
+              html += editRow("标签：", "tag", n.tag || "未分类", false);
+              html += editRow("回答：", "reply", n.reply, false);
+              html += editRow("中译：", "zh", n.zh, true);
+              html += editRow("解释：", "explain", n.explain, false);
+            } else {
+              html += editRow("标签：", "tag", n.tag || "未分类", false);
+              html += '<div class="row row-dim"><span class="k">课本：</span>' +
+                (levelLabel(n) ? escapeHtml(levelLabel(n)) : '<span class="empty">未填</span>') + "</div>";
+              html += editRow("类型：", "pos", n.pos, false);
+              html += editRow("音标：", "ipa", n.ipa, false);
+              html += editRow("中译：", "zh", n.zh, true);
+              html += editRow("谐音：", "xieyin", n.xieyin, true);
+              html += editRow("例句：", "ex", n.ex, false);
+            }
+            html += '<div class="play-row"><button type="button" class="spk" data-play="' + n.id + '"' +
+              (hasReal ? "" : " disabled") +
+              ' title="' + (hasReal ? "美音真人" : "没有美音真人音") + '">📢</button>' +
+              playRateSelectHtml(!hasReal);
+            if (!hasReal) html += "<span>暂无真人音</span>";
+            html += "</div></div></div>";
+            html += '<div class="nops"><button type="button" data-edit="' + n.id +
+              '">换标签</button><button type="button" data-del="' + n.id +
+              '">删</button><button type="button" data-note-fold="' + n.id + '">收起</button></div></article>';
+          }
+        });
+        box.innerHTML = html;
+        bindPlayRateSelects(box);
+        bindNoteInlineEdit(box);
+        box.querySelectorAll("[data-note-toggle]").forEach(function (card) {
+          card.addEventListener("click", function (ev) {
+            if (ev.target.closest("[data-play],[data-edit],[data-del],[data-note-fold],[data-play-rate],.play-rate,.v-edit,button,select,a,input,textarea")) return;
+            const id = card.getAttribute("data-note-toggle");
+            openNoteId = openNoteId === id ? "" : id;
+            paintNoteList();
+          });
+        });
+        box.querySelectorAll("[data-note-fold]").forEach(function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            openNoteId = "";
+            paintNoteList();
+          });
+        });
+        box.querySelectorAll("[data-play]").forEach(function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            const n = notes.find(function (x) { return x.id === btn.getAttribute("data-play"); });
+            if (!n) return;
+            const opt = openNoteId === n.id ? undefined : { rate: 1 };
+            playNoteText(n, opt).catch(function (err) {
+              toast(err && err.message === "no-audio" ? "没有美音真人音，不播合成音" : "播放失败");
+            });
+          });
+        });
+        box.querySelectorAll("[data-edit]").forEach(function (btn) {
+          btn.addEventListener("click", async function (ev) {
+            ev.stopPropagation();
+            const n = notes.find(function (x) { return x.id === btn.getAttribute("data-edit"); });
+            if (!n) return;
+            if (n.kind === "phrase") {
+              noteEditId = n.id;
+              notePanel = "phrase";
+              render();
+              return;
+            }
+            const tag = await pickTag("「" + n.en + "」改到哪个标签？");
+            if (tag == null) return;
+            n.tag = tag;
+            n.at = Date.now();
+            noteTagFilter = tag;
+            saveNotes();
+            toast("已改到「" + tag + "」");
+            paintTagRail();
+            paintNoteList();
+          });
+        });
+        box.querySelectorAll("[data-del]").forEach(function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            const id = btn.getAttribute("data-del");
+            const n = notes.find(function (x) { return x.id === id; });
+            if (!n) return;
+            notes = notes.filter(function (x) { return x.id !== id; });
+            if (noteEditId === id) noteEditId = "";
+            if (openNoteId === id) openNoteId = "";
+            saveNotes();
+            render();
+          });
+        });
+      }
+      function paintTagRail() {
+        const rail = $("note-tag-rail");
+        if (!rail) return;
+        const tags = allTagNames();
+        let html = '<button type="button" class="chip' + (noteTagFilter === "all" ? " on" : "") +
+          '" data-tag-filter="all">全部 ' + notes.length + "</button>";
+        tags.forEach(function (t) {
+          html += '<button type="button" class="chip' + (noteTagFilter === t ? " on" : "") +
+            '" data-tag-filter="' + escapeHtml(t) + '">' + escapeHtml(t) + " " + countByTag(t) + "</button>";
+        });
+        html += '<button type="button" class="chip" id="btn-new-tag">+ 新标签</button>';
+        rail.innerHTML = html;
+        rail.querySelectorAll("[data-tag-filter]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const key = btn.getAttribute("data-tag-filter");
+            noteTagFilter = noteTagFilter === key ? null : key;
+            paintTagRail();
+            paintNoteList();
+          });
+        });
+        const neu = $("btn-new-tag");
+        if (neu) neu.addEventListener("click", function () {
+          const name = prompt("新标签名称：");
+          if (!name || !String(name).trim()) return;
+          const t = ensureTag(name);
+          noteTagFilter = t;
+          paintTagRail();
+          paintNoteList();
+          toast("已建标签「" + t + "」");
+        });
+      }
+      function readPhraseForm() {
+        return {
+          kind: "phrase",
+          en: ($("nf-en") && $("nf-en").value || "").trim(),
+          reply: ($("nf-reply") && $("nf-reply").value || "").trim(),
+          zh: ($("nf-zh") && $("nf-zh").value || "").trim(),
+          explain: ($("nf-explain") && $("nf-explain").value || "").trim(),
+          src: ($("nf-src") && $("nf-src").value || "").trim(),
+          audioUs: "",
+          audioUk: "",
+          ipa: "",
+          xieyin: "",
+          pos: "",
+          level: "",
+          levelNote: "",
+          ex: "",
+          tag: ($("nf-tag") && $("nf-tag").value || "").trim(),
+        };
+      }
+      async function upsertNote(draft) {
+        if (!draft.en) {
+          toast(draft.kind === "phrase" ? "先写问句或原句" : "先写英文");
+          return false;
+        }
+        if (draft.kind === "word" && !draft.zh) {
+          toast("单词至少要有中文；可点「保存」自动查");
+          return false;
+        }
+        const key = draft.en.toLowerCase();
+        const dup = notes.find(function (n) {
+          return n.kind === draft.kind && n.en.toLowerCase() === key &&
+            (draft.kind !== "phrase" || n.reply === draft.reply) &&
+            n.id !== noteEditId;
+        });
+        if (dup && !noteEditId) {
+          toast("已经记过了，可点标签里改");
+          noteTagFilter = dup.tag || "all";
+          render();
+          return false;
+        }
+        const picked = await pickTag(noteEditId ? "改存到哪个标签？" : "存到哪个标签？");
+        if (picked == null) return false;
+        const tag = ensureTag(picked);
+        draft.tag = tag;
+        if (noteEditId) {
+          const n = notes.find(function (x) { return x.id === noteEditId; });
+          if (n) Object.keys(draft).forEach(function (k) { n[k] = draft[k]; });
+        } else {
+          notes.unshift(Object.assign({
+            id: "n" + Date.now().toString(36),
+            mark: 0,
+            at: Date.now(),
+          }, draft));
+        }
+        const edited = !!noteEditId;
+        noteEditId = "";
+        noteTagFilter = tag || "all";
+        saveNotes();
+        toast(edited ? "已改" : "已保存到「" + tag + "」");
+        render();
+        return true;
+      }
+      async function autoAddWord() {
+        const en = ($("nf-quick") && $("nf-quick").value || "").trim();
+        if (!en) {
+          toast("先填一个英文单词");
+          return;
+        }
+        const btn = $("nf-join");
+        if (btn) { btn.disabled = true; btn.textContent = "查词中…"; }
+        try {
+          const hit = await lookupWord(en);
+          if (btn) { btn.disabled = false; btn.textContent = "保存"; }
+          const tag = await pickTag("「" + hit.en + "」存到哪个标签？");
+          if (tag == null) return;
+          const existing = notes.find(function (n) { return n.kind === "word" && n.en.toLowerCase() === hit.en.toLowerCase(); });
+          if (existing) {
+            ["zh", "ipa", "pos", "xieyin", "level", "levelNote", "audioUs", "audioUk"].forEach(function (k) {
+              if (!hit[k]) return;
+              existing[k] = hit[k];
+            });
+            if (hit.level) existing.level = hit.level;
+            existing.tag = tag;
+            existing.at = Date.now();
+            noteTagFilter = tag;
+            saveNotes();
+            toast("已更新并放到「" + tag + "」");
+            if ($("nf-quick")) $("nf-quick").value = "";
+            render();
+            return;
+          }
+          notes.unshift(Object.assign({
+            id: "n" + Date.now().toString(36),
+            mark: 0,
+            at: Date.now(),
+            xieyin: hit.xieyin || "",
+            ex: "",
+            reply: "",
+            explain: "",
+            tag: tag,
+          }, hit));
+          noteTagFilter = tag;
+          saveNotes();
+          toast("已保存到「" + tag + "」");
+          if ($("nf-quick")) $("nf-quick").value = "";
+          render();
+        } catch (_) {
+          toast("查词失败，换个词再试");
+          if (btn) { btn.disabled = false; btn.textContent = "保存"; }
+        }
+      }
+      function enrichNotesFromLexicon() {
+        let changed = false;
+        notes.forEach(function (n) {
+          if (!n || n.kind === "phrase") return;
+          const hit = localLexHit(n.en);
+          if (!hit) return;
+          ["zh", "ipa", "pos", "xieyin"].forEach(function (k) {
+            if (hit[k] && !n[k]) { n[k] = hit[k]; changed = true; }
+          });
+          if (hit.level && !n.level) { n.level = hit.level; changed = true; }
+          if (hit.levelNote && (!n.levelNote || n.levelNote === "课外 / 待确认" || n.levelNote === "课本词表")) {
+            n.levelNote = hit.levelNote;
+            if (hit.level) n.level = hit.level;
+            changed = true;
+          }
+          // textbook unit note wins when bank has it
+          const bank = bankHit(n.en);
+          if (bank && bank.levelNote && n.levelNote !== bank.levelNote) {
+            n.levelNote = bank.levelNote;
+            n.level = "mid";
+            changed = true;
+          }
+        });
+        if (changed) saveNotes();
+      }
+      function renderNotes() {
+        enrichNotesFromLexicon();
+        const editing = noteEditId ? notes.find(function (n) { return n.id === noteEditId; }) : null;
+        if (editing && editing.kind === "phrase") notePanel = "phrase";
+        else if (editing) noteEditId = ""; // 单词不再走手填表
+        if (notePanel === "trial") notePanel = "word";
+        let html = '<div class="note-tabs">' +
+          '<button type="button" class="chip' + (notePanel === "word" ? " on" : "") + '" data-panel="word">单词</button>' +
+          '<button type="button" class="chip' + (notePanel === "phrase" ? " on" : "") + '" data-panel="phrase">语句</button>' +
+          "</div>";
+
+        if (notePanel === "phrase") {
+          const val = editing && editing.kind === "phrase" ? editing : { en: "", reply: "", zh: "", explain: "", src: "", tag: "" };
+          html += '<div class="nform">';
+          html += '<p class="hint-line">记问答或句型。例：What do you have? → I have a book.</p>';
+          html += '<input id="nf-en" placeholder="问句 / 原句" value="' + escapeHtml(val.en) + '">';
+          html += '<input id="nf-reply" placeholder="回答 / 对应句，可空" value="' + escapeHtml(val.reply) + '">';
+          html += '<input id="nf-zh" placeholder="中文意思，可空" value="' + escapeHtml(val.zh) + '">';
+          html += '<textarea id="nf-explain" placeholder="解释：比如 I have a 表示我有…；a 表示…">' + escapeHtml(val.explain) + "</textarea>";
+          html += '<input id="nf-src" placeholder="哪里看到的，可空" value="' + escapeHtml(val.src) + '">';
+          html += '<input id="nf-tag" type="hidden" value="' + escapeHtml(val.tag || "") + '">';
+          html += '<div class="nrow"><button type="button" class="primary" id="nf-save">' + (editing ? "保存这条" : "保存语句") + "</button>";
+          if (editing) html += '<button type="button" id="nf-cancel">取消</button>';
+          html += "</div></div>";
+        } else {
+          html += '<div class="nform">';
+          html += '<p class="hint-line">只填英文点「保存」：自动补字段，再选标签收藏。</p>';
+          html += '<div class="nrow"><input id="nf-quick" placeholder="book" style="flex:2"><button type="button" class="primary" id="nf-join" style="flex:1">保存</button></div>';
+          html += "</div>";
+        }
+
+        html += '<div class="tag-rail" id="note-tag-rail"></div>';
+        html += '<input class="nsearch" id="note-q" placeholder="在当前展开的标签里搜" value="' + escapeHtml(noteQ) + '">';
+        html += '<div id="note-list"></div>';
+        html += '<details class="more"><summary>笔记导出 / 导入</summary><div class="more-row">' +
+          '<button type="button" id="note-export">导出</button><button type="button" id="note-import">导入</button></div></details>';
+        app.innerHTML = html;
+        paintTagRail();
+        paintNoteList();
+
+        app.querySelectorAll("[data-panel]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            notePanel = btn.getAttribute("data-panel") === "phrase" ? "phrase" : "word";
+            noteEditId = "";
+            render();
+          });
+        });
+        const join = $("nf-join");
+        if (join) join.addEventListener("click", function () { autoAddWord(); });
+        const quick = $("nf-quick");
+        if (quick) quick.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter") { ev.preventDefault(); autoAddWord(); }
+        });
+        const saveBtn = $("nf-save");
+        if (saveBtn) saveBtn.addEventListener("click", function () {
+          upsertNote(readPhraseForm());
+        });
+        const cancel = $("nf-cancel");
+        if (cancel) cancel.addEventListener("click", function () { noteEditId = ""; render(); });
+        $("note-q").addEventListener("input", function (ev) {
+          noteQ = ev.target.value;
+          paintNoteList();
+        });
+        $("note-export").addEventListener("click", exportNotes);
+        $("note-import").addEventListener("click", importNotes);
+      }
+      function exportNotes() {
+        const payload = JSON.stringify({
+          type: "fuxi-yingyu-notes",
+          notes: notes,
+          tags: noteTags,
+          exportedAt: new Date().toISOString(),
+        }, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(payload).then(function () { toast("笔记已复制"); }, function () { prompt("复制下面 JSON：", payload); });
+        } else {
+          prompt("复制下面 JSON：", payload);
+        }
+      }
+      function importNotes() {
+        const text = prompt("粘贴导出的笔记 JSON：");
+        if (!text) return;
+        try {
+          const raw = JSON.parse(text);
+          const incoming = raw && raw.type === "fuxi-yingyu-notes" ? raw.notes : null;
+          if (!Array.isArray(incoming)) throw new Error("bad");
+          if (Array.isArray(raw.tags)) {
+            raw.tags.forEach(function (t) { ensureTag(t); });
+          }
+          incoming.forEach(function (n) {
+            if (!n || !n.en) return;
+            const item = normalizeNote(n);
+            if (item.tag) ensureTag(item.tag);
+            const hit = notes.find(function (x) {
+              return (item.id && x.id === item.id) ||
+                (x.kind === item.kind && x.en.toLowerCase() === item.en.toLowerCase() &&
+                  (item.kind !== "phrase" || x.reply === item.reply));
+            });
+            if (hit) {
+              Object.keys(item).forEach(function (k) {
+                if (k === "id" || k === "mark") return;
+                if (item[k] !== "" && item[k] != null) hit[k] = item[k];
+              });
+              if (n.mark === 0 || n.mark === 1 || n.mark === 2) hit.mark = n.mark;
+            } else {
+              notes.push(item);
+            }
+          });
+          saveNotes();
+          toast("已并进笔记");
+          render();
+        } catch (_) {
+          toast("导入失败：格式不对");
+        }
+      }
+
+      function render() {
+        if (view === "notes") {
+          document.body.classList.remove("has-dock");
+          renderNotes();
+          return;
+        }
+        if (view === "lex") {
+          document.body.classList.remove("has-dock");
+          renderLex();
+          return;
+        }
+        document.body.classList.toggle("has-dock", screen === "play" && judged);
+        if (screen === "play") renderPlay();
+        else if (screen === "cards") renderCards();
+        else if (screen === "done") renderDone();
+        else renderHome();
+      }
+
+      function renderHome() {
+        const g = currentGrade();
+        const units = g.units || [];
+        const wrongN = Object.keys(state.wrong).length;
+        const current = pathCurrent(units);
+        const wave = [0, 45, 70, 45, 0, -45, -70, -45];
+        let html = '<div class="chips" id="grade-chips">';
+        BANK.grades.forEach(function (gr) {
+          html += '<button type="button" class="chip' + (gr.id === g.id ? " on" : "") + '" data-grade="' + gr.id + '">' +
+            escapeHtml(gr.name.replace("年级", "")) + "</button>";
+        });
+        html += "</div>";
+        html += '<div class="path-banner"><b>' + escapeHtml(g.name) + "</b><span>" +
+          escapeHtml(g.theme || "") + "</span></div>";
+        html += '<div class="path">';
+        units.forEach(function (u, i) {
+          const x = wave[i % wave.length];
+          const status = i < current ? "done" : i === current ? "now" : "lock";
+          html += '<div class="path-node" style="--x:' + x + 'px">';
+          if (status === "now") {
+            html += '<button type="button" class="start-pop" data-go="' + u.id + '">开始</button>';
+          }
+          html += '<button type="button" class="node ' + status + '"' +
+            (status === "lock" ? " disabled" : ' data-go="' + u.id + '"') + ">" +
+            (status === "done" ? "✓" : status === "lock" ? "·" : "") + "</button>";
+          if (status === "now") html += '<div class="node-name">' + escapeHtml(unitShort(u)) + "</div>";
+          html += "</div>";
+        });
+        html += "</div>";
+        const cur = units[current];
+        if (cur) {
+          html += '<p class="wrong-line"><button type="button" id="btn-cards" data-cards="' + cur.id + '">这一关先认词</button></p>';
+        }
+        if (wrongN) {
+          html += '<p class="wrong-line"><button type="button" id="btn-wrong">错题 ' + wrongN + " 道，再刷一局</button></p>";
+        }
+        html += '<details class="more"><summary>进度导出 / 导入</summary><div class="more-row">' +
+          '<button type="button" id="btn-export">导出</button><button type="button" id="btn-import">导入</button></div></details>';
+        app.innerHTML = html;
+
+        app.querySelectorAll("[data-grade]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const gr = gradeById(btn.getAttribute("data-grade"));
+            state.gradeId = gr.id;
+            state.unitId = (gr.units[0] && gr.units[0].id) || "";
+            save();
+            render();
+          });
+        });
+        app.querySelectorAll("[data-go]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const u = unitById(currentGrade(), btn.getAttribute("data-go"));
+            if (!u) return;
+            state.unitId = u.id;
+            save();
+            startRound(false);
+          });
+        });
+        const cards = $("btn-cards");
+        if (cards) cards.addEventListener("click", function () {
+          const u = unitById(currentGrade(), cards.getAttribute("data-cards"));
+          if (u) openCards(u);
+        });
+        const wrongBtn = $("btn-wrong");
+        if (wrongBtn) wrongBtn.addEventListener("click", function () { startRound(true); });
+        $("btn-export").addEventListener("click", exportProgress);
+        $("btn-import").addEventListener("click", importProgress);
+      }
+
+      function renderCards() {
+        const unit = currentUnit();
+        const words = (unit && unit.words) || [];
+        const w = words[cardIdx] || { en: "", zh: "" };
+        const front = cardDir === "zh" ? w.zh : w.en;
+        const back = cardDir === "zh" ? w.en : w.zh;
+        const last = cardIdx >= words.length - 1;
+        app.innerHTML =
+          '<div class="play-top"><button type="button" class="ghost" id="quit">返回</button>' +
+          '<div class="grow">认词 ' + (cardIdx + 1) + "/" + words.length + "</div>" +
+          '<button type="button" id="dir">' + (cardDir === "zh" ? "中→英" : "英→中") + "</button></div>" +
+          '<div class="bar"><i style="width:' + Math.round((cardIdx / words.length) * 100) + '%"></i></div>' +
+          '<button type="button" class="face' + (cardOpen ? " open" : "") + '" id="face">' +
+          escapeHtml(cardOpen ? back : front) + "</button>" +
+          '<p class="hint">' + (cardOpen ? "记住了就下一张" : "点卡片看答案") + "</p>" +
+          '<div class="stack"><button type="button" class="primary block" id="card-next">' +
+          (last ? "去开一局" : "下一张") + "</button></div>";
+        $("quit").addEventListener("click", quit);
+        $("dir").addEventListener("click", function () {
+          cardDir = cardDir === "zh" ? "en" : "zh";
+          cardOpen = false;
+          render();
+        });
+        $("face").addEventListener("click", function () {
+          cardOpen = !cardOpen;
+          render();
+        });
+        $("card-next").addEventListener("click", function () {
+          if (!last) {
+            cardIdx += 1;
+            cardOpen = false;
+            render();
+            return;
+          }
+          startRound(false);
+        });
+      }
+
+      function renderPlay() {
+        const item = round[idx];
+        const unit = currentUnit();
+        const doneN = results.filter(function (r) { return r; }).length;
+        const pct = Math.round((doneN / round.length) * 100);
+        let html =
+          '<div class="play-top"><button type="button" class="ghost" id="quit">退出</button>' +
+          '<div class="grow">' + (idx + 1) + "/" + round.length +
+          (streak >= 2 ? ' <span class="combo">连对 ' + streak + "</span>" : "") + "</div>" +
+          '<button type="button" class="ghost" id="skip"' + (judged ? " disabled" : "") + ">跳过</button></div>" +
+          '<div class="bar"><i id="bar-fill" style="width:' + shownPct + '%"></i></div>' +
+          '<div class="q-meta">' + escapeHtml((unit && unit.title) || "") + " · " +
+          escapeHtml(KIND_NAME[item.kind] || "") + "</div>";
+        if (item.kind === "dialogue" && item.lines) {
+          html += '<div class="lines">' + item.lines.map(escapeHtml).join("<br>") + "</div>";
+          html += '<div class="q-text">' + escapeHtml(item.q || "选一句接上") + "</div>";
+        } else if (item.kind === "zh2en") {
+          html += '<div class="q-text">' + escapeHtml(item.zh || "") + "</div>";
+          html += '<p class="hint">写出英语</p>';
+        } else if (item.kind === "mc") {
+          html += '<div class="q-text">' + escapeHtml(item.stem || "") + "</div>";
+        } else {
+          html += '<div class="q-text">' + escapeHtml(item.prompt || "") + "</div>";
+        }
+        html += '<div id="q-body"></div>';
+        if (judged) html += dockHtml(item);
+        app.innerHTML = html;
+        $("quit").addEventListener("click", quit);
+        $("skip").addEventListener("click", function () {
+          if (judged) return;
+          note("skip");
+          streak = 0;
+          goNext();
+        });
+        if (CHOICE[item.kind]) renderChoice(item);
+        else renderWrite(item);
+        const next = $("next");
+        if (next) next.addEventListener("click", goNext);
+        const fill = $("bar-fill");
+        const target = pct;
+        requestAnimationFrame(function () {
+          if (fill) fill.style.width = target + "%";
+        });
+        shownPct = target;
+      }
+
+      function renderChoice(item) {
+        const body = $("q-body");
+        const opts = item.options || [];
+        let html = "";
+        opts.forEach(function (o, i) {
+          const cls = ["opt"];
+          if (judged && o === item.answer) cls.push("right");
+          if (judged && picked === o && o !== item.answer) cls.push("wrong");
+          html += '<button type="button" class="' + cls.join(" ") + '" data-i="' + i + '">' + escapeHtml(o) + "</button>";
+        });
+        body.innerHTML = html;
+        body.querySelectorAll("[data-i]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            if (judged) return;
+            const val = opts[Number(btn.getAttribute("data-i"))];
+            picked = val;
+            judged = true;
+            if (val === item.answer) {
+              markOk(item.id);
+              streak += 1;
+              if (streak > bestStreak) bestStreak = streak;
+              note("ok");
+              playOk();
+            } else {
+              markWrong(item.id);
+              streak = 0;
+              note("bad");
+              playBad();
+            }
+            render();
+          });
+        });
+      }
+
+      function renderWrite(item) {
+        const body = $("q-body");
+        const accept = item.accept || [item.answer];
+        if (judged) return;
+        body.innerHTML =
+          '<input class="answer-box" id="write-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="输入英文">' +
+          '<div class="stack"><button type="button" class="primary block" id="check">提交</button></div>';
+        const input = $("write-input");
+        const submit = function () {
+          if (judged) return;
+          if (acceptMatch(input.value, accept)) {
+            picked = "ok";
+            judged = true;
+            markOk(item.id);
+            streak += 1;
+            if (streak > bestStreak) bestStreak = streak;
+            note("ok");
+            playOk();
+          } else {
+            picked = "bad";
+            judged = true;
+            markWrong(item.id);
+            streak = 0;
+            note("bad");
+            playBad();
+          }
+          render();
+        };
+        $("check").addEventListener("click", submit);
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" && !e.isComposing) submit();
+        });
+      }
+
+      function starCount(okN) {
+        if (!round.length) return 0;
+        const ratio = okN / round.length;
+        if (ratio >= 0.99) return 3;
+        if (ratio >= 0.8) return 2;
+        if (ratio >= 0.5) return 1;
+        return 0;
+      }
+      function confettiHtml(n) {
+        const colors = ["#58cc02", "#ffd900", "#ff4b4b", "#1cb0f6", "#ce82ff", "#ff9600"];
+        let h = '<div class="confetti">';
+        for (let i = 0; i < n; i++) {
+          h += '<i style="left:' + Math.round(Math.random() * 100) + "%;background:" + colors[i % colors.length] +
+            ";animation-delay:" + (Math.random() * 0.25).toFixed(2) + "s;animation-duration:" +
+            (0.85 + Math.random() * 0.55).toFixed(2) + 's"></i>';
+        }
+        return h + "</div>";
+      }
+      function nextUnit() {
+        const units = currentGrade().units || [];
+        const i = units.findIndex(function (u) { return u.id === state.unitId; });
+        return i >= 0 ? units[i + 1] : null;
+      }
+      function renderDone() {
+        const okN = results.filter(function (r) { return r && r.status === "ok"; }).length;
+        const misses = results.filter(function (r) { return r && r.status !== "ok"; });
+        const stars = starCount(okN);
+        const nxt = nextUnit();
+        const title = stars >= 3 ? "完美过关" : stars >= 1 ? "过关" : "再试一次";
+        let starsHtml = "";
+        for (let i = 1; i <= 3; i++) starsHtml += '<span class="star' + (i <= stars ? " on" : "") + '">★</span>';
+        let html = (stars >= 2 ? confettiHtml(22) : "") +
+          '<div class="play-top"><button type="button" class="ghost" id="quit">回目录</button><div class="grow"></div></div>' +
+          '<div class="stars">' + starsHtml + "</div>" +
+          '<div class="banner">' + title + "</div>" +
+          '<p class="score-sub">' + okN + "/" + round.length +
+          (bestStreak >= 2 ? " · 最高连对 " + bestStreak : "") + "</p>";
+        if (roundNote) html += '<p class="hint">' + escapeHtml(roundNote) + "</p>";
+        html += '<div class="stack">';
+        if (stars >= 1 && nxt && roundNote !== "错题再刷") {
+          html += '<button type="button" class="primary block" id="next-unit">下一关</button>';
+          html += '<button type="button" class="block" id="again">再刷这一关</button>';
+        } else {
+          html += '<button type="button" class="primary block" id="again">' + (stars >= 1 ? "再来一局" : "再试一次") + "</button>";
+        }
+        html += '<button type="button" class="block" id="to-cards">先认词</button></div>';
+        misses.forEach(function (r) {
+          html += '<div class="miss"><span class="tag">' + escapeHtml(KIND_NAME[r.kind] || "") +
+            (r.status === "skip" ? " · 跳过" : "") + "</span><b>" + escapeHtml(r.prompt) +
+            '</b><span>' + escapeHtml(r.answer) + "</span></div>";
+        });
+        app.innerHTML = html;
+        playWin(stars);
+        $("quit").addEventListener("click", quit);
+        const again = $("again");
+        if (again) again.addEventListener("click", function () { startRound(roundNote === "错题再刷"); });
+        const nu = $("next-unit");
+        if (nu) nu.addEventListener("click", function () {
+          state.unitId = nxt.id;
+          save();
+          startRound(false);
+        });
+        $("to-cards").addEventListener("click", function () {
+          const u = currentUnit();
+          if (u) openCards(u);
+        });
+      }
+
+      function exportProgress() {
+        const payload = JSON.stringify({
+          type: "fuxi-yingyu-progress",
+          ok: state.ok,
+          wrong: state.wrong,
+          gradeId: state.gradeId,
+          unitId: state.unitId,
+          exportedAt: new Date().toISOString(),
+        }, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(payload).then(function () {
+            toast("进度已复制");
+          }, function () { prompt("复制下面 JSON：", payload); });
+        } else {
+          prompt("复制下面 JSON：", payload);
+        }
+      }
+      function importProgress() {
+        const text = prompt("粘贴导出的进度 JSON：");
+        if (!text) return;
+        try {
+          const raw = JSON.parse(text);
+          if (!raw || raw.type !== "fuxi-yingyu-progress") throw new Error("bad");
+          state.ok = Object.assign({}, state.ok, raw.ok || {});
+          state.wrong = Object.assign({}, state.wrong, raw.wrong || {});
+          if (raw.gradeId) state.gradeId = raw.gradeId;
+          if (raw.unitId) state.unitId = raw.unitId;
+          save();
+          toast("已合并导入");
+          render();
+        } catch (_) {
+          toast("导入失败：格式不对");
+        }
+      }
+
+      $("mode-path").addEventListener("click", function () { setView("path"); });
+      $("mode-notes").addEventListener("click", function () { setView("notes"); });
+      $("mode-lex").addEventListener("click", function () { setView("lex"); });
+      document.body.classList.toggle("view-notes", view === "notes" || view === "lex");
+      $("mode-path").classList.toggle("on", view === "path");
+      $("mode-notes").classList.toggle("on", view === "notes");
+      $("mode-lex").classList.toggle("on", view === "lex");
+
+      (function wireThemePicker() {
+        const THEME_KEY = "fuxi-yingyu-theme-v1";
+        const FONT_KEY = "fuxi-yingyu-font-v1";
+        const overlay = $("theme-picker-overlay");
+        const closeBtn = $("theme-picker-close");
+        function currentTheme() {
+          try { return localStorage.getItem(THEME_KEY) || "default"; } catch (_) { return "default"; }
+        }
+        function currentFont() {
+          try { return localStorage.getItem(FONT_KEY) || "normal"; } catch (_) { return "normal"; }
+        }
+        function applyTheme(id) {
+          const allowed = { default: 1, pixel: 1, mist: 1 };
+          const t = allowed[id] ? id : "default";
+          if (t === "default") document.documentElement.removeAttribute("data-theme");
+          else document.documentElement.setAttribute("data-theme", t);
+          try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+          document.querySelectorAll(".theme-picker-opt[data-theme]").forEach(function (btn) {
+            btn.classList.toggle("is-on", btn.getAttribute("data-theme") === t);
+          });
+        }
+        function applyFont(id) {
+          const allowed = { normal: 1, large: 1, xlarge: 1 };
+          const f = allowed[id] ? id : "normal";
+          if (f === "normal") document.documentElement.removeAttribute("data-font");
+          else document.documentElement.setAttribute("data-font", f);
+          try { localStorage.setItem(FONT_KEY, f); } catch (_) {}
+          document.querySelectorAll(".theme-picker-opt[data-font]").forEach(function (btn) {
+            btn.classList.toggle("is-on", btn.getAttribute("data-font") === f);
+          });
+        }
+        function openPicker() {
+          applyTheme(currentTheme());
+          applyFont(currentFont());
+          overlay.hidden = false;
+          overlay.setAttribute("aria-hidden", "false");
+        }
+        function closePicker() {
+          overlay.hidden = true;
+          overlay.setAttribute("aria-hidden", "true");
+        }
+        applyTheme(currentTheme());
+        applyFont(currentFont());
+        $("btn-theme").addEventListener("click", openPicker);
+        closeBtn.addEventListener("click", closePicker);
+        overlay.addEventListener("click", function (e) {
+          if (e.target === overlay) closePicker();
+        });
+        document.querySelectorAll(".theme-picker-opt[data-theme]").forEach(function (btn) {
+          btn.addEventListener("click", function () { applyTheme(btn.getAttribute("data-theme")); });
+        });
+        document.querySelectorAll(".theme-picker-opt[data-font]").forEach(function (btn) {
+          btn.addEventListener("click", function () { applyFont(btn.getAttribute("data-font")); });
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && !overlay.hidden) closePicker();
+        });
+      })();
+
+      render();
+    })();
+  </script>
+</body>
+</html>
