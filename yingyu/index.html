@@ -502,10 +502,10 @@
 </head>
 <body>
   <div class="modes" role="tablist">
-    <button type="button" id="mode-path" role="tab">多邻国版</button>
     <button type="button" id="mode-notes" role="tab">笔记版</button>
     <button type="button" id="mode-lex" role="tab">词库</button>
     <button type="button" id="btn-theme" title="主题与字号">主题</button>
+    <button type="button" id="mode-path" role="tab">多邻国版</button>
   </div>
   <div class="wrap" id="app"></div>
   <div id="toast" class="toast" hidden></div>
@@ -535,6 +535,7 @@
   </div>
   <script src="data.js"></script>
   <script src="lexicon.js"></script>
+  <script src="lexicon-extra.js"></script>
   <script>
     (function () {
       const BANK = window.EN_BANK;
@@ -960,6 +961,21 @@
             if (tr.ok) {
               const tj = await tr.json();
               zh = ((tj.responseData && tj.responseData.translatedText) || "").trim();
+              if (zh.toLowerCase() === q) zh = "";
+            }
+          } catch (_) {}
+        }
+        // 本地词库没有、MyMemory 也挂时：再试一层轻量翻译（网络不稳仍可能空）
+        if (!zh) {
+          try {
+            const g = await fetch(
+              "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" +
+              encodeURIComponent(q)
+            );
+            if (g.ok) {
+              const gj = await g.json();
+              zh = (gj && gj[0] && gj[0].map(function (x) { return x && x[0]; }).join("")) || "";
+              zh = String(zh || "").trim();
               if (zh.toLowerCase() === q) zh = "";
             }
           } catch (_) {}
@@ -1829,52 +1845,87 @@
         render();
         return true;
       }
+      function splitQuickWords(raw) {
+        return String(raw || "")
+          .split("+")
+          .map(function (w) { return w.trim(); })
+          .filter(Boolean);
+      }
+      function saveLookupHit(hit, tag) {
+        const existing = notes.find(function (n) {
+          return n.kind === "word" && n.en.toLowerCase() === hit.en.toLowerCase();
+        });
+        if (existing) {
+          ["zh", "ipa", "pos", "xieyin", "level", "levelNote", "audioUs", "audioUk"].forEach(function (k) {
+            if (!hit[k]) return;
+            existing[k] = hit[k];
+          });
+          if (hit.level) existing.level = hit.level;
+          existing.tag = tag;
+          existing.at = Date.now();
+          noteTagFilter = tag;
+          saveNotes();
+          return "updated";
+        }
+        notes.unshift(Object.assign({
+          id: "n" + Date.now().toString(36),
+          mark: 0,
+          at: Date.now(),
+          xieyin: hit.xieyin || "",
+          ex: "",
+          reply: "",
+          explain: "",
+          tag: tag,
+        }, hit));
+        noteTagFilter = tag;
+        saveNotes();
+        return "added";
+      }
       async function autoAddWord() {
-        const en = ($("nf-quick") && $("nf-quick").value || "").trim();
-        if (!en) {
-          toast("先填一个英文单词");
+        const words = splitQuickWords($("nf-quick") && $("nf-quick").value);
+        if (!words.length) {
+          toast("先填英文；多个词用 + 连接，如 jacket+ticket");
           return;
         }
         const btn = $("nf-join");
-        if (btn) { btn.disabled = true; btn.textContent = "查词中…"; }
+        if (btn) btn.disabled = true;
+        let ok = 0;
+        let skipped = 0;
+        let failed = 0;
         try {
-          const hit = await lookupWord(en);
-          if (btn) { btn.disabled = false; btn.textContent = "保存"; }
-          const tag = await pickTag("「" + hit.en + "」存到哪个标签？");
-          if (tag == null) return;
-          const existing = notes.find(function (n) { return n.kind === "word" && n.en.toLowerCase() === hit.en.toLowerCase(); });
-          if (existing) {
-            ["zh", "ipa", "pos", "xieyin", "level", "levelNote", "audioUs", "audioUk"].forEach(function (k) {
-              if (!hit[k]) return;
-              existing[k] = hit[k];
-            });
-            if (hit.level) existing.level = hit.level;
-            existing.tag = tag;
-            existing.at = Date.now();
-            noteTagFilter = tag;
-            saveNotes();
-            toast("已更新并放到「" + tag + "」");
-            if ($("nf-quick")) $("nf-quick").value = "";
-            render();
-            return;
+          for (let i = 0; i < words.length; i++) {
+            const en = words[i];
+            if (btn) btn.textContent = "查词 " + (i + 1) + "/" + words.length + "…";
+            let hit;
+            try {
+              hit = await lookupWord(en);
+            } catch (_) {
+              failed++;
+              toast("「" + en + "」查词失败，跳过");
+              continue;
+            }
+            if (btn) btn.textContent = "选标签 " + (i + 1) + "/" + words.length;
+            const title = words.length > 1
+              ? ("第" + (i + 1) + "/" + words.length + "个「" + hit.en + "」存到哪个标签？")
+              : ("「" + hit.en + "」存到哪个标签？");
+            const tag = await pickTag(title);
+            if (tag == null) {
+              skipped++;
+              toast("已跳过「" + hit.en + "」");
+              continue;
+            }
+            const how = saveLookupHit(hit, tag);
+            ok++;
+            toast(how === "updated"
+              ? ("已更新「" + hit.en + "」→「" + tag + "」")
+              : ("已保存「" + hit.en + "」→「" + tag + "」"));
           }
-          notes.unshift(Object.assign({
-            id: "n" + Date.now().toString(36),
-            mark: 0,
-            at: Date.now(),
-            xieyin: hit.xieyin || "",
-            ex: "",
-            reply: "",
-            explain: "",
-            tag: tag,
-          }, hit));
-          noteTagFilter = tag;
-          saveNotes();
-          toast("已保存到「" + tag + "」");
           if ($("nf-quick")) $("nf-quick").value = "";
+          if (words.length > 1) {
+            toast("批量完成：成功 " + ok + (skipped ? "，跳过 " + skipped : "") + (failed ? "，失败 " + failed : ""));
+          }
           render();
-        } catch (_) {
-          toast("查词失败，换个词再试");
+        } finally {
           if (btn) { btn.disabled = false; btn.textContent = "保存"; }
         }
       }
@@ -1929,8 +1980,8 @@
           html += "</div></div>";
         } else {
           html += '<div class="nform">';
-          html += '<p class="hint-line">只填英文点「保存」：自动补字段，再选标签收藏。</p>';
-          html += '<div class="nrow"><input id="nf-quick" placeholder="book" style="flex:2"><button type="button" class="primary" id="nf-join" style="flex:1">保存</button></div>';
+          html += '<p class="hint-line">输完点「保存」才查。多个词用 + 连接，如 jacket+ticket，会挨个查、挨个选标签。</p>';
+          html += '<div class="nrow"><input id="nf-quick" placeholder="book 或 jacket+ticket" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" style="flex:2"><button type="button" class="primary" id="nf-join" style="flex:1">保存</button></div>';
           html += "</div>";
         }
 
@@ -1953,9 +2004,12 @@
         const join = $("nf-join");
         if (join) join.addEventListener("click", function () { autoAddWord(); });
         const quick = $("nf-quick");
-        if (quick) quick.addEventListener("keydown", function (ev) {
-          if (ev.key === "Enter") { ev.preventDefault(); autoAddWord(); }
-        });
+        if (quick) {
+          // 只认点「保存」：回车/输入法完成键不再触发查词，避免输一半就查
+          quick.addEventListener("keydown", function (ev) {
+            if (ev.key === "Enter") ev.preventDefault();
+          });
+        }
         const saveBtn = $("nf-save");
         if (saveBtn) saveBtn.addEventListener("click", function () {
           upsertNote(readPhraseForm());
