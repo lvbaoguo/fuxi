@@ -498,6 +498,10 @@
     .tag-pick .tag-list button { width: 100%; justify-content: flex-start; }
     .tag-pick .tag-actions { display: flex; gap: 8px; margin-top: 10px; }
     .tag-pick .tag-actions button { flex: 1; }
+    .tag-pick .tag-list button.danger,
+    .tag-pick button.danger {
+      background: #fff; color: #b42318; border-color: #f3b4ae;
+    }
     .note-sync-menu {
       position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
       z-index: 11000; width: min(420px, calc(100vw - 24px));
@@ -805,9 +809,60 @@
         }
         return t;
       }
+      function removeTag(name) {
+        const t = String(name || "").trim();
+        if (!t) return false;
+        const before = noteTags.length;
+        noteTags = noteTags.filter(function (x) { return x !== t; });
+        let touched = 0;
+        notes.forEach(function (n) {
+          if (n.tag === t) {
+            n.tag = "";
+            touched += 1;
+          }
+        });
+        if (noteTags.length !== before) saveTagNames();
+        if (touched) saveNotes();
+        if (noteTagFilter === t) noteTagFilter = "all";
+        return true;
+      }
       function countByTag(tag) {
         if (tag === "all") return notes.length;
         return notes.filter(function (n) { return n.tag === tag; }).length;
+      }
+      function pickTagToDelete() {
+        return new Promise(function (resolve) {
+          const overlay = $("tag-pick-overlay");
+          if (!overlay) { resolve(null); return; }
+          const tags = allTagNames();
+          let html = '<div class="tag-pick" role="dialog" aria-modal="true">';
+          html += "<h3>删除哪个标签？</h3>";
+          html += '<p class="hint-line">标签没了，里面的词会变成未分类，词本身不删</p><div class="tag-list">';
+          if (!tags.length) html += '<p class="hint-line">没有可删的标签</p>';
+          tags.forEach(function (t) {
+            html += '<button type="button" class="danger" data-del-tag="' + escapeHtml(t) + '">' +
+              escapeHtml(t) + " · " + countByTag(t) + "</button>";
+          });
+          html += '</div><div class="tag-actions"><button type="button" data-pick-cancel>取消</button></div></div>';
+          overlay.innerHTML = html;
+          overlay.hidden = false;
+          overlay.setAttribute("aria-hidden", "false");
+          function close(val) {
+            overlay.hidden = true;
+            overlay.setAttribute("aria-hidden", "true");
+            overlay.innerHTML = "";
+            overlay.onclick = null;
+            resolve(val);
+          }
+          overlay.onclick = function (ev) { if (ev.target === overlay) close(null); };
+          overlay.querySelectorAll("[data-del-tag]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              close(btn.getAttribute("data-del-tag"));
+            });
+          });
+          const cancel = overlay.querySelector("[data-pick-cancel]");
+          if (cancel) cancel.addEventListener("click", function () { close(null); });
+        });
       }
       function pickTag(title) {
         return new Promise(function (resolve) {
@@ -1866,6 +1921,7 @@
             '" data-tag-filter="' + escapeHtml(t) + '">' + escapeHtml(t) + " " + countByTag(t) + "</button>";
         });
         html += '<button type="button" class="chip" id="btn-new-tag">+ 新标签</button>';
+        html += '<button type="button" class="chip" id="btn-del-tag">删标签</button>';
         rail.innerHTML = html;
         rail.querySelectorAll("[data-tag-filter]").forEach(function (btn) {
           btn.addEventListener("click", function () {
@@ -1884,6 +1940,21 @@
           paintTagRail();
           paintNoteList();
           toast("已建标签「" + t + "」");
+        });
+        const delBtn = $("btn-del-tag");
+        if (delBtn) delBtn.addEventListener("click", async function () {
+          if (!allTagNames().length) {
+            toast("没有可删的标签");
+            return;
+          }
+          const name = await pickTagToDelete();
+          if (!name) return;
+          const n = countByTag(name);
+          if (!confirm("删除标签「" + name + "」？" + (n ? "里面 " + n + " 条会变成未分类。" : ""))) return;
+          removeTag(name);
+          paintTagRail();
+          paintNoteList();
+          toast("已删标签「" + name + "」");
         });
       }
       function readPhraseForm() {
