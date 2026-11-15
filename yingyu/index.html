@@ -920,11 +920,16 @@
           sel.addEventListener("change", function () {
             noteRate = sel.value === "slow" ? "slow" : "fast";
             savePlayRate();
-            (root || document).querySelectorAll("[data-play-rate]").forEach(function (other) {
+            document.querySelectorAll("[data-play-rate]").forEach(function (other) {
               if (other !== sel) other.value = noteRate;
             });
           });
         });
+      }
+      function effectivePlayRate(opt) {
+        if (opt && opt.rate != null) return Number(opt.rate) || 1;
+        // 慢速要听得出差别；设完 src/play 后还要再套一次，否则会被冲回 1
+        return noteRate === "slow" ? 0.65 : 1;
       }
       function buildBankLevelMap() {
         if (bankLevelMap) return bankLevelMap;
@@ -1201,22 +1206,24 @@
         if (!prefer && urls && urls.en) prefer = guessUsAudio(urls.en);
         if (!prefer) throw new Error("no-audio");
         warmUsAudio(prefer);
-        const forced = opt && opt.rate;
-        const rate = forced != null ? forced : (noteRate === "slow" ? 0.72 : 1);
+        const rate = effectivePlayRate(opt);
         const myToken = noteAudioToken;
         await new Promise(function (resolve, reject) {
           // 每次新建 Audio：第二次播放才稳；速度靠预置 URL + HTTP 缓存
           const a = new Audio();
           noteAudio = a;
           a.preload = "auto";
-          a.playbackRate = rate;
           let settled = false;
+          const applyRate = function () {
+            try { a.playbackRate = rate; } catch (_) {}
+          };
           const finish = function (ok, err) {
             if (settled) return;
             settled = true;
             a.onended = null;
             a.onerror = null;
-            a.onloadeddata = null;
+            a.onloadedmetadata = null;
+            a.onplaying = null;
             if (myToken !== noteAudioToken) {
               reject(new Error("aborted"));
               return;
@@ -1226,10 +1233,13 @@
           };
           a.onended = function () { finish(true); };
           a.onerror = function () { finish(false, new Error("audio")); };
+          a.onloadedmetadata = applyRate;
+          a.onplaying = applyRate;
           a.src = prefer;
+          applyRate();
           const p = a.play();
           if (p && p.then) {
-            p.then(function () {}, function (err) {
+            p.then(function () { applyRate(); }, function (err) {
               finish(false, err || new Error("audio"));
             });
           }
@@ -1505,8 +1515,7 @@
             btn.disabled = true;
             try {
               const us = guessUsAudio(en);
-              const opt = openLexEn === key ? undefined : { rate: 1 };
-              await playNoteText({ audioUs: us, en: en }, opt);
+              await playNoteText({ audioUs: us, en: en });
             } catch (err) {
               if (!(err && err.message === "aborted")) {
                 toast("没有美音真人音，不播合成音");
@@ -1967,9 +1976,8 @@
               saveNotes();
             }
             btn.disabled = true;
-            const opt = openNoteId === n.id ? undefined : { rate: 1 };
             try {
-              await playNoteText({ audioUs: us, en: n.en }, opt);
+              await playNoteText({ audioUs: us, en: n.en });
             } catch (err) {
               if (err && err.message === "aborted") return;
               toast(err && err.message === "no-audio" ? "没有美音真人音，不播合成音" : "播放失败");
