@@ -638,7 +638,10 @@
       let noteTagFilter = "all"; // 首次默认「全部」；null=收起, "all"=全部, 其它=标签名
       let noteEditId = "";
       let notePanel = "word"; // word | phrase
-      let noteRate = localStorage.getItem(RATE_STORE) === "slow" ? "slow" : "fast";
+      let noteRate = (function () {
+        const r = localStorage.getItem(RATE_STORE);
+        return r === "slow" || r === "xslow" ? r : "fast";
+      })();
       let openNoteId = "";
       let openLexEn = "";
       let noteAudio = null;
@@ -911,14 +914,16 @@
       }
       function playRateSelectHtml(disabled) {
         return '<select class="play-rate" data-play-rate' + (disabled ? " disabled" : "") + ">" +
-          '<option value="fast"' + (noteRate !== "slow" ? " selected" : "") + ">快速</option>" +
+          '<option value="fast"' + (noteRate === "fast" ? " selected" : "") + ">快速</option>" +
           '<option value="slow"' + (noteRate === "slow" ? " selected" : "") + ">慢速</option>" +
+          '<option value="xslow"' + (noteRate === "xslow" ? " selected" : "") + ">超慢速</option>" +
           "</select>";
       }
       function bindPlayRateSelects(root) {
         (root || document).querySelectorAll("[data-play-rate]").forEach(function (sel) {
           sel.addEventListener("change", function () {
-            noteRate = sel.value === "slow" ? "slow" : "fast";
+            const v = sel.value;
+            noteRate = v === "slow" || v === "xslow" ? v : "fast";
             savePlayRate();
             document.querySelectorAll("[data-play-rate]").forEach(function (other) {
               if (other !== sel) other.value = noteRate;
@@ -928,8 +933,10 @@
       }
       function effectivePlayRate(opt) {
         if (opt && opt.rate != null) return Number(opt.rate) || 1;
-        // 慢速要听得出差别；设完 src/play 后还要再套一次，否则会被冲回 1
-        return noteRate === "slow" ? 0.65 : 1;
+        // 设完 src/play 后还会再套一次，否则会被冲回 1
+        if (noteRate === "xslow") return 0.42; // 听清每个音节
+        if (noteRate === "slow") return 0.65;
+        return 1;
       }
       function buildBankLevelMap() {
         if (bankLevelMap) return bankLevelMap;
