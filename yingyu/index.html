@@ -1224,19 +1224,127 @@
         };
       }
       let noteAudioToken = 0;
+      let audioAbortHooks = [];
       function stopNoteAudio() {
         noteAudioToken += 1;
+        const hooks = audioAbortHooks.splice(0);
+        hooks.forEach(function (fn) {
+          try { fn(); } catch (_) {}
+        });
         if (noteAudio) {
           try { noteAudio.pause(); } catch (_) {}
           try {
+            noteAudio.onended = null;
+            noteAudio.onerror = null;
             noteAudio.removeAttribute("src");
             noteAudio.load();
           } catch (_) {}
           noteAudio = null;
         }
         try {
-          if (window.speechSynthesis) window.speechSynthesis.cancel();
+          if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          }
         } catch (_) {}
+      }
+      /** 可中断播放：点下一个喇叭时必须立刻 settle，否则上一个按钮会卡死 disabled */
+      function runAbortablePlay(work) {
+        const myToken = noteAudioToken;
+        return new Promise(function (resolve, reject) {
+          let settled = false;
+          const finish = function (ok, val) {
+            if (settled) return;
+            settled = true;
+            const idx = audioAbortHooks.indexOf(onAbort);
+            if (idx >= 0) audioAbortHooks.splice(idx, 1);
+            if (ok) resolve(val);
+            else reject(val || new Error("aborted"));
+          };
+          const onAbort = function () { finish(false, new Error("aborted")); };
+          audioAbortHooks.push(onAbort);
+          Promise.resolve()
+            .then(function () { return work(function () { return myToken === noteAudioToken; }); })
+            .then(function (v) {
+              if (myToken !== noteAudioToken) finish(false, new Error("aborted"));
+              else finish(true, v);
+            })
+            .catch(function (err) {
+              if (myToken !== noteAudioToken) finish(false, new Error("aborted"));
+              else finish(false, err || new Error("audio"));
+            });
+        });
+      }
+      function speakEnLocal(text, rate) {
+        return runAbortablePlay(function (stillMine) {
+          return new Promise(function (resolve, reject) {
+            if (!window.speechSynthesis) return reject(new Error("tts"));
+            const say = String(text || "").trim();
+            if (!say) return reject(new Error("tts"));
+            try { window.speechSynthesis.cancel(); } catch (_) {}
+            const u = new SpeechSynthesisUtterance(say);
+            u.lang = "en-US";
+            u.rate = Math.max(0.35, Math.min(1.1, rate != null ? rate : 1));
+            const timer = setTimeout(function () {
+              try { window.speechSynthesis.cancel(); } catch (_) {}
+              reject(new Error("tts-timeout"));
+            }, 6000);
+            u.onend = function () {
+              clearTimeout(timer);
+              if (!stillMine()) reject(new Error("aborted"));
+              else resolve("tts");
+            };
+            u.onerror = function () {
+              clearTimeout(timer);
+              reject(new Error("tts"));
+            };
+            window.speechSynthesis.speak(u);
+            try {
+              if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+            } catch (_) {}
+          });
+        });
+      }
+      function playUrlTimed(url, rate, timeoutMs) {
+        return runAbortablePlay(function (stillMine) {
+          return new Promise(function (resolve, reject) {
+            if (!url) return reject(new Error("audio"));
+            const a = new Audio();
+            noteAudio = a;
+            a.preload = "auto";
+            let settled = false;
+            const timer = setTimeout(function () {
+              done(false, new Error("timeout"));
+            }, timeoutMs != null ? timeoutMs : 2500);
+            const applyRate = function () {
+              try { a.playbackRate = rate; } catch (_) {}
+            };
+            const done = function (ok, err) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              a.onended = null;
+              a.onerror = null;
+              a.onloadedmetadata = null;
+              a.onplaying = null;
+              if (!stillMine()) return reject(new Error("aborted"));
+              if (ok) resolve("real");
+              else reject(err || new Error("audio"));
+            };
+            a.onended = function () { done(true); };
+            a.onerror = function () { done(false, new Error("audio")); };
+            a.onloadedmetadata = applyRate;
+            a.onplaying = applyRate;
+            a.src = url;
+            applyRate();
+            const p = a.play();
+            if (p && p.then) {
+              p.then(function () { applyRate(); }, function (err) {
+                done(false, err || new Error("audio"));
+              });
+            }
+          });
+        });
       }
       function findIpaItem(ipa) {
         const chart = window.EN_IPA_CHART || [];
@@ -1249,76 +1357,35 @@
         }
         return null;
       }
-      /** 右侧喇叭：播音标音。优先真人文件 → 有道美音保底 → 系统朗读 → 例词 */
+      /**
+       * 右侧喇叭：播音标音。
+       * 先本机 TTS（秒出声）→ 可选真人文件 → 例词。
+       * 禁止先等有道等外网：会卡住 Promise，下一个喇叭点了上一个按钮永久 disabled。
+       */
       async function playIpaPhoneme(ipa) {
         const item = findIpaItem(ipa) || { ipa: ipa, say: "", examples: [] };
         const say = String(item.say || "").trim();
-        const rate = effectivePlayRate();
+        const rate = Math.max(0.35, Math.min(1, effectivePlayRate() * 0.95));
         stopNoteAudio();
-        const myToken = noteAudioToken;
 
-        function stillMine() { return myToken === noteAudioToken; }
-
-        // 1) 若配了真人音标文件
-        if (item.sound) {
+        if (say) {
           try {
-            await playNoteText({ audioUs: item.sound });
-            return "real";
-          } catch (_) {}
-        }
-
-        // 2) 有道美音读 say（保底能出声；音标本身很少有词典 mp3）
-        if (say && stillMine()) {
-          const yd = "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(say) + "&type=2";
-          try {
-            await new Promise(function (resolve, reject) {
-              const a = new Audio();
-              noteAudio = a;
-              a.preload = "auto";
-              let settled = false;
-              const finish = function (ok) {
-                if (settled) return;
-                settled = true;
-                a.onended = null;
-                a.onerror = null;
-                if (!stillMine()) return reject(new Error("aborted"));
-                if (ok) resolve("yd");
-                else reject(new Error("yd"));
-              };
-              a.onended = function () { finish(true); };
-              a.onerror = function () { finish(false); };
-              a.src = yd;
-              try { a.playbackRate = rate; } catch (_) {}
-              const p = a.play();
-              if (p && p.then) {
-                p.then(function () { try { a.playbackRate = rate; } catch (_) {} }, function () { finish(false); });
-              }
-            });
-            return "yd";
+            await speakEnLocal(say, rate);
+            return "tts";
           } catch (err) {
             if (err && err.message === "aborted") throw err;
           }
         }
-
-        // 3) 系统 TTS 保底
-        if (say && stillMine() && window.speechSynthesis) {
-          await new Promise(function (resolve, reject) {
-            const u = new SpeechSynthesisUtterance(say);
-            u.lang = "en-US";
-            u.rate = Math.max(0.35, Math.min(1, rate * 0.95));
-            u.onend = function () {
-              if (!stillMine()) reject(new Error("aborted"));
-              else resolve("tts");
-            };
-            u.onerror = function () { reject(new Error("tts")); };
-            window.speechSynthesis.speak(u);
-          });
-          return "tts";
+        if (item.sound) {
+          try {
+            await playUrlTimed(item.sound, effectivePlayRate(), 2500);
+            return "real";
+          } catch (err) {
+            if (err && err.message === "aborted") throw err;
+          }
         }
-
-        // 4) 最后用例词，保证一定有声
         const ex = (item.examples && item.examples[0]) || "";
-        if (ex && stillMine()) {
+        if (ex) {
           await playNoteText({ audioUs: guessUsAudio(ex), en: ex });
           return "ex";
         }
@@ -1332,44 +1399,18 @@
         if (!prefer) throw new Error("no-audio");
         warmUsAudio(prefer);
         const rate = effectivePlayRate(opt);
-        const myToken = noteAudioToken;
-        await new Promise(function (resolve, reject) {
-          // 每次新建 Audio：第二次播放才稳；速度靠预置 URL + HTTP 缓存
-          const a = new Audio();
-          noteAudio = a;
-          a.preload = "auto";
-          let settled = false;
-          const applyRate = function () {
-            try { a.playbackRate = rate; } catch (_) {}
-          };
-          const finish = function (ok, err) {
-            if (settled) return;
-            settled = true;
-            a.onended = null;
-            a.onerror = null;
-            a.onloadedmetadata = null;
-            a.onplaying = null;
-            if (myToken !== noteAudioToken) {
-              reject(new Error("aborted"));
-              return;
-            }
-            if (ok) resolve("real");
-            else reject(err || new Error("audio"));
-          };
-          a.onended = function () { finish(true); };
-          a.onerror = function () { finish(false, new Error("audio")); };
-          a.onloadedmetadata = applyRate;
-          a.onplaying = applyRate;
-          a.src = prefer;
-          applyRate();
-          const p = a.play();
-          if (p && p.then) {
-            p.then(function () { applyRate(); }, function (err) {
-              finish(false, err || new Error("audio"));
-            });
+        try {
+          await playUrlTimed(prefer, rate, 8000);
+          return "real";
+        } catch (err) {
+          if (err && err.message === "aborted") throw err;
+          // 例词/单词外网挂了：本机朗读保底，保证有声
+          if (urls && urls.en && window.speechSynthesis) {
+            await speakEnLocal(urls.en, Math.max(0.35, rate * 0.95));
+            return "tts";
           }
-        });
-        return "real";
+          throw err || new Error("audio");
+        }
       }
       function bannerMetaHtml(zh, xieyin) {
         const parts = [];
@@ -2749,7 +2790,7 @@
 
       function renderIpa() {
         const chart = window.EN_IPA_CHART || [];
-        let html = '<p class="ipa-hint">右侧喇叭＝音标音 · 下面喇叭＝例词 · 语速共用</p>';
+        let html = '<p class="ipa-hint">右侧＝音标音（本机秒播）· 下面＝例词 · 语速共用</p>';
         html += '<div class="play-row" style="margin-bottom:10px">' + playRateSelectHtml(false) + "</div>";
         chart.forEach(function (sec) {
           html += '<section class="ipa-sec"><h2>' + escapeHtml(sec.name) + "</h2>";
