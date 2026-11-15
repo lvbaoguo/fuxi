@@ -1305,7 +1305,8 @@
           });
         });
       }
-      function playUrlTimed(url, rate, timeoutMs) {
+      /** startTimeoutMs：只限「起播」等待；一旦开始播就清掉，绝不中途掐断 */
+      function playUrlTimed(url, rate, startTimeoutMs) {
         return runAbortablePlay(function (stillMine) {
           return new Promise(function (resolve, reject) {
             if (!url) return reject(new Error("audio"));
@@ -1313,11 +1314,18 @@
             noteAudio = a;
             a.preload = "auto";
             let settled = false;
+            let started = false;
             const timer = setTimeout(function () {
-              done(false, new Error("timeout"));
-            }, timeoutMs != null ? timeoutMs : 2500);
+              if (!started) done(false, new Error("timeout"));
+            }, startTimeoutMs != null ? startTimeoutMs : 1000);
             const applyRate = function () {
               try { a.playbackRate = rate; } catch (_) {}
+            };
+            const markStarted = function () {
+              if (started) return;
+              started = true;
+              clearTimeout(timer);
+              applyRate();
             };
             const done = function (ok, err) {
               if (settled) return;
@@ -1329,17 +1337,20 @@
               a.onplaying = null;
               if (!stillMine()) return reject(new Error("aborted"));
               if (ok) resolve("real");
-              else reject(err || new Error("audio"));
+              else {
+                try { a.pause(); } catch (_) {}
+                reject(err || new Error("audio"));
+              }
             };
             a.onended = function () { done(true); };
             a.onerror = function () { done(false, new Error("audio")); };
             a.onloadedmetadata = applyRate;
-            a.onplaying = applyRate;
+            a.onplaying = markStarted;
             a.src = url;
             applyRate();
             const p = a.play();
             if (p && p.then) {
-              p.then(function () { applyRate(); }, function (err) {
+              p.then(function () { markStarted(); }, function (err) {
                 done(false, err || new Error("audio"));
               });
             }
@@ -1358,57 +1369,51 @@
         return null;
       }
       /**
-       * 右侧喇叭：播音标音。
-       * 先本机 TTS（秒出声）→ 可选真人文件 → 例词。
-       * 禁止先等有道等外网：会卡住 Promise，下一个喇叭点了上一个按钮永久 disabled。
+       * 统一听音策略（笔记/词库/音标例词共用）：
+       * 有预置真人 URL → 最多等 ~1s 起播；起不来立刻本机 TTS。
+       * 禁止干等外网数秒；点下一个必须能打断。
        */
-      async function playIpaPhoneme(ipa) {
-        const item = findIpaItem(ipa) || { ipa: ipa, say: "", examples: [] };
-        const say = String(item.say || "").trim();
-        const rate = Math.max(0.35, Math.min(1, effectivePlayRate() * 0.95));
+      async function playEnHearable(en, opt) {
+        const word = String(en || "").trim();
+        if (!word) throw new Error("no-audio");
         stopNoteAudio();
-
-        if (say) {
+        const rate = effectivePlayRate(opt);
+        const prefer = precomputedUsAudio(word) || guessUsAudio(word);
+        if (prefer) {
+          warmUsAudio(prefer);
           try {
-            await speakEnLocal(say, rate);
-            return "tts";
-          } catch (err) {
-            if (err && err.message === "aborted") throw err;
-          }
-        }
-        if (item.sound) {
-          try {
-            await playUrlTimed(item.sound, effectivePlayRate(), 2500);
+            await playUrlTimed(prefer, rate, 1000);
             return "real";
           } catch (err) {
             if (err && err.message === "aborted") throw err;
           }
         }
-        const ex = (item.examples && item.examples[0]) || "";
-        if (ex) {
-          await playNoteText({ audioUs: guessUsAudio(ex), en: ex });
-          return "ex";
-        }
-        throw new Error("no-audio");
+        await speakEnLocal(word, Math.max(0.35, Math.min(1.1, rate * 0.95)));
+        return "tts";
+      }
+      /** 右侧喇叭：音标音一律本机秒播（音素几乎无词典真人文件） */
+      async function playIpaPhoneme(ipa) {
+        const item = findIpaItem(ipa) || { ipa: ipa, say: "", examples: [] };
+        const say = String(item.say || "").trim() || String(ipa || "").trim();
+        const rate = Math.max(0.35, Math.min(1, effectivePlayRate() * 0.95));
+        stopNoteAudio();
+        if (!say) throw new Error("no-audio");
+        await speakEnLocal(say, rate);
+        return "tts";
       }
       async function playNoteText(urls, opt) {
+        const en = (urls && urls.en) || "";
+        const prefer = (urls && urls.audioUs) || "";
+        if (en) return playEnHearable(en, opt);
+        // 只有 URL、没有英文时：短超时起播，失败就报错
         stopNoteAudio();
-        // 只播美音真人；优先已存/预置 URL，绝不 TTS / 英音凑数
-        let prefer = (urls && urls.audioUs) || "";
-        if (!prefer && urls && urls.en) prefer = guessUsAudio(urls.en);
         if (!prefer) throw new Error("no-audio");
-        warmUsAudio(prefer);
         const rate = effectivePlayRate(opt);
         try {
-          await playUrlTimed(prefer, rate, 8000);
+          await playUrlTimed(prefer, rate, 1000);
           return "real";
         } catch (err) {
           if (err && err.message === "aborted") throw err;
-          // 例词/单词外网挂了：本机朗读保底，保证有声
-          if (urls && urls.en && window.speechSynthesis) {
-            await speakEnLocal(urls.en, Math.max(0.35, rate * 0.95));
-            return "tts";
-          }
           throw err || new Error("audio");
         }
       }
@@ -2790,7 +2795,7 @@
 
       function renderIpa() {
         const chart = window.EN_IPA_CHART || [];
-        let html = '<p class="ipa-hint">右侧＝音标音（本机秒播）· 下面＝例词 · 语速共用</p>';
+        let html = '<p class="ipa-hint">右侧＝音标音（本机）· 下面＝例词（真人优先，1秒起不来就本机保底）</p>';
         html += '<div class="play-row" style="margin-bottom:10px">' + playRateSelectHtml(false) + "</div>";
         chart.forEach(function (sec) {
           html += '<section class="ipa-sec"><h2>' + escapeHtml(sec.name) + "</h2>";
@@ -2835,25 +2840,9 @@
             const en = btn.getAttribute("data-ipa-play");
             btn.disabled = true;
             try {
-              await playNoteText({ audioUs: guessUsAudio(en), en: en });
+              await playEnHearable(en);
             } catch (err) {
-              if (!(err && err.message === "aborted")) {
-                // 例词也保底：系统朗读单词
-                try {
-                  if (!window.speechSynthesis) throw new Error("no");
-                  stopNoteAudio();
-                  await new Promise(function (resolve, reject) {
-                    const u = new SpeechSynthesisUtterance(en);
-                    u.lang = "en-US";
-                    u.rate = Math.max(0.35, effectivePlayRate() * 0.95);
-                    u.onend = function () { resolve(); };
-                    u.onerror = function () { reject(new Error("tts")); };
-                    window.speechSynthesis.speak(u);
-                  });
-                } catch (_) {
-                  toast("没有美音，暂不播");
-                }
-              }
+              if (!(err && err.message === "aborted")) toast("播放失败");
             } finally {
               btn.disabled = false;
             }
