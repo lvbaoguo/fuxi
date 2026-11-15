@@ -1234,6 +1234,95 @@
           } catch (_) {}
           noteAudio = null;
         }
+        try {
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+        } catch (_) {}
+      }
+      function findIpaItem(ipa) {
+        const chart = window.EN_IPA_CHART || [];
+        const key = String(ipa || "");
+        for (let i = 0; i < chart.length; i++) {
+          const items = chart[i].items || [];
+          for (let j = 0; j < items.length; j++) {
+            if (items[j].ipa === key) return items[j];
+          }
+        }
+        return null;
+      }
+      /** 右侧喇叭：播音标音。优先真人文件 → 有道美音保底 → 系统朗读 → 例词 */
+      async function playIpaPhoneme(ipa) {
+        const item = findIpaItem(ipa) || { ipa: ipa, say: "", examples: [] };
+        const say = String(item.say || "").trim();
+        const rate = effectivePlayRate();
+        stopNoteAudio();
+        const myToken = noteAudioToken;
+
+        function stillMine() { return myToken === noteAudioToken; }
+
+        // 1) 若配了真人音标文件
+        if (item.sound) {
+          try {
+            await playNoteText({ audioUs: item.sound });
+            return "real";
+          } catch (_) {}
+        }
+
+        // 2) 有道美音读 say（保底能出声；音标本身很少有词典 mp3）
+        if (say && stillMine()) {
+          const yd = "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(say) + "&type=2";
+          try {
+            await new Promise(function (resolve, reject) {
+              const a = new Audio();
+              noteAudio = a;
+              a.preload = "auto";
+              let settled = false;
+              const finish = function (ok) {
+                if (settled) return;
+                settled = true;
+                a.onended = null;
+                a.onerror = null;
+                if (!stillMine()) return reject(new Error("aborted"));
+                if (ok) resolve("yd");
+                else reject(new Error("yd"));
+              };
+              a.onended = function () { finish(true); };
+              a.onerror = function () { finish(false); };
+              a.src = yd;
+              try { a.playbackRate = rate; } catch (_) {}
+              const p = a.play();
+              if (p && p.then) {
+                p.then(function () { try { a.playbackRate = rate; } catch (_) {} }, function () { finish(false); });
+              }
+            });
+            return "yd";
+          } catch (err) {
+            if (err && err.message === "aborted") throw err;
+          }
+        }
+
+        // 3) 系统 TTS 保底
+        if (say && stillMine() && window.speechSynthesis) {
+          await new Promise(function (resolve, reject) {
+            const u = new SpeechSynthesisUtterance(say);
+            u.lang = "en-US";
+            u.rate = Math.max(0.35, Math.min(1, rate * 0.95));
+            u.onend = function () {
+              if (!stillMine()) reject(new Error("aborted"));
+              else resolve("tts");
+            };
+            u.onerror = function () { reject(new Error("tts")); };
+            window.speechSynthesis.speak(u);
+          });
+          return "tts";
+        }
+
+        // 4) 最后用例词，保证一定有声
+        const ex = (item.examples && item.examples[0]) || "";
+        if (ex && stillMine()) {
+          await playNoteText({ audioUs: guessUsAudio(ex), en: ex });
+          return "ex";
+        }
+        throw new Error("no-audio");
       }
       async function playNoteText(urls, opt) {
         stopNoteAudio();
@@ -2660,26 +2749,23 @@
 
       function renderIpa() {
         const chart = window.EN_IPA_CHART || [];
-        let html = '<p class="ipa-hint">点喇叭听例词美音 · 语速跟笔记里的快速/慢速/超慢速</p>';
+        let html = '<p class="ipa-hint">右侧喇叭＝音标音 · 下面喇叭＝例词 · 语速共用</p>';
         html += '<div class="play-row" style="margin-bottom:10px">' + playRateSelectHtml(false) + "</div>";
         chart.forEach(function (sec) {
           html += '<section class="ipa-sec"><h2>' + escapeHtml(sec.name) + "</h2>";
           (sec.items || []).forEach(function (it, ii) {
             const id = sec.id + "-" + ii;
-            const ex0 = (it.examples && it.examples[0]) || "";
             html += '<article class="ipa-card" data-ipa-id="' + escapeHtml(id) + '">';
             html += '<div class="ipa-top">';
             html += '<span class="ipa-sym">/' + escapeHtml(it.ipa) + "/</span>";
             html += '<span class="ipa-tip">' + escapeHtml(it.tip || "") + "</span>";
-            if (ex0) {
-              html += '<button type="button" class="spk" data-ipa-play="' + escapeHtml(ex0) +
-                '" title="听例词">📢</button>';
-            }
+            html += '<button type="button" class="spk" data-ipa-sound="' + escapeHtml(it.ipa) +
+              '" title="听音标音">📢</button>';
             html += "</div><div class=\"ipa-ex\">";
             (it.examples || []).forEach(function (ex) {
               html += '<span class="ex-chip">' + escapeHtml(ex) +
                 '<button type="button" class="spk" data-ipa-play="' + escapeHtml(ex) +
-                '" title="听 ' + escapeHtml(ex) + '">📢</button></span>';
+                '" title="听例词 ' + escapeHtml(ex) + '">📢</button></span>';
             });
             html += "</div></article>";
           });
@@ -2688,6 +2774,20 @@
         if (!chart.length) html = '<p class="nempty">缺少 ipa.js</p>';
         app.innerHTML = html;
         bindPlayRateSelects(app);
+        app.querySelectorAll("[data-ipa-sound]").forEach(function (btn) {
+          btn.addEventListener("click", async function (ev) {
+            ev.stopPropagation();
+            const ipa = btn.getAttribute("data-ipa-sound");
+            btn.disabled = true;
+            try {
+              await playIpaPhoneme(ipa);
+            } catch (err) {
+              if (!(err && err.message === "aborted")) toast("音标音播放失败");
+            } finally {
+              btn.disabled = false;
+            }
+          });
+        });
         app.querySelectorAll("[data-ipa-play]").forEach(function (btn) {
           btn.addEventListener("click", async function (ev) {
             ev.stopPropagation();
@@ -2696,7 +2796,23 @@
             try {
               await playNoteText({ audioUs: guessUsAudio(en), en: en });
             } catch (err) {
-              if (!(err && err.message === "aborted")) toast("没有美音，暂不播");
+              if (!(err && err.message === "aborted")) {
+                // 例词也保底：系统朗读单词
+                try {
+                  if (!window.speechSynthesis) throw new Error("no");
+                  stopNoteAudio();
+                  await new Promise(function (resolve, reject) {
+                    const u = new SpeechSynthesisUtterance(en);
+                    u.lang = "en-US";
+                    u.rate = Math.max(0.35, effectivePlayRate() * 0.95);
+                    u.onend = function () { resolve(); };
+                    u.onerror = function () { reject(new Error("tts")); };
+                    window.speechSynthesis.speak(u);
+                  });
+                } catch (_) {
+                  toast("没有美音，暂不播");
+                }
+              }
             } finally {
               btn.disabled = false;
             }
