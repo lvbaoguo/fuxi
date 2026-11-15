@@ -1025,7 +1025,7 @@
         const map = window.EN_LEXICON_AUDIO || {};
         return (key && map[key]) || "";
       }
-      /** 保存用：直接给最可能美音 URL，不现场探测 */
+      /** 保存/播放用：直接给最可能美音 URL，不现场探测 */
       function guessUsAudio(word, apiUrls) {
         const pref = precomputedUsAudio(word);
         if (pref) return pref;
@@ -1038,6 +1038,22 @@
         const gs = gstaticCandidates(word, "us");
         if (gs.length) return gs[0];
         return camUsPath(word) || "";
+      }
+      function noteUsAudio(n) {
+        if (!n) return "";
+        if (n.audioUs) return n.audioUs;
+        if (n.kind === "phrase") return "";
+        return guessUsAudio(n.en);
+      }
+      const usAudioCache = {};
+      function warmUsAudio(url) {
+        if (!url || usAudioCache[url]) return;
+        try {
+          const a = new Audio();
+          a.preload = "auto";
+          a.src = url;
+          usAudioCache[url] = a;
+        } catch (_) {}
       }
       async function resolveAccentAudio(word, accent, apiUrls) {
         if (accent === "us") {
@@ -1180,19 +1196,35 @@
       }
       async function playNoteText(urls, opt) {
         stopNoteAudio();
-        // 只播美音真人；没有就不播，绝不 TTS / 英音凑数
-        const prefer = (urls && urls.audioUs) || "";
+        // 只播美音真人；优先已存/预置 URL，绝不 TTS / 英音凑数
+        let prefer = (urls && urls.audioUs) || "";
+        if (!prefer && urls && urls.en) prefer = guessUsAudio(urls.en);
         if (!prefer) throw new Error("no-audio");
         const forced = opt && opt.rate;
         const rate = forced != null ? forced : (noteRate === "slow" ? 0.72 : 1);
         await new Promise(function (resolve, reject) {
-          const a = new Audio(prefer);
+          let a = usAudioCache[prefer];
+          if (!a) {
+            a = new Audio();
+            a.preload = "auto";
+            a.src = prefer;
+            usAudioCache[prefer] = a;
+          } else {
+            try { a.pause(); } catch (_) {}
+            try { a.currentTime = 0; } catch (_) {}
+          }
           noteAudio = a;
           a.playbackRate = rate;
-          a.onended = function () { resolve("real"); };
-          a.onerror = function () { reject(new Error("audio")); };
+          const onEnd = function () { cleanup(); resolve("real"); };
+          const onErr = function () { cleanup(); reject(new Error("audio")); };
+          function cleanup() {
+            a.removeEventListener("ended", onEnd);
+            a.removeEventListener("error", onErr);
+          }
+          a.addEventListener("ended", onEnd);
+          a.addEventListener("error", onErr);
           const p = a.play();
-          if (p && p.then) p.then(function () {}, reject);
+          if (p && p.then) p.then(function () {}, onErr);
         });
         return "real";
       }
@@ -1403,8 +1435,9 @@
           return;
         }
         let html = "";
-        words.forEach(function (w) {
+        words.forEach(function (w, idx) {
           const key = String(w.en || "").trim().toLowerCase();
+          if (idx < 16) warmUsAudio(guessUsAudio(w.en));
           const open = openLexEn === key;
           if (!open) {
             html += '<article class="ncard ncard-banner" data-lex-toggle="' + escapeHtml(key) + '"><div class="nbanner-lite">';
@@ -1463,10 +1496,10 @@
             const key = String(en || "").trim().toLowerCase();
             btn.disabled = true;
             try {
-              let us = precomputedUsAudio(en);
-              if (!us) us = await resolveAccentAudio(en, "us", []);
+              // 只查本地预置/猜 URL，不再现场探测
+              const us = guessUsAudio(en);
               const opt = openLexEn === key ? undefined : { rate: 1 };
-              await playNoteText({ audioUs: us }, opt);
+              await playNoteText({ audioUs: us, en: en }, opt);
             } catch (_) {
               toast("没有美音真人音，不播合成音");
             }
@@ -1835,8 +1868,15 @@
           return;
         }
         let html = "";
+        let audioFilled = false;
         list.forEach(function (n) {
-          const hasReal = !!n.audioUs;
+          const us = noteUsAudio(n);
+          if (us && !n.audioUs && n.kind !== "phrase") {
+            n.audioUs = us;
+            audioFilled = true;
+          }
+          if (us) warmUsAudio(us);
+          const hasReal = !!us;
           const open = openNoteId === n.id;
           if (!open) {
             html += '<article class="ncard ncard-banner" data-note-toggle="' + n.id + '"><div class="nbanner-lite">';
@@ -1887,6 +1927,7 @@
               '">删</button><button type="button" data-note-fold="' + n.id + '">收起</button></div></article>';
           }
         });
+        if (audioFilled) saveNotes();
         box.innerHTML = html;
         bindPlayRateSelects(box);
         bindNoteInlineEdit(box);
@@ -1910,8 +1951,13 @@
             ev.stopPropagation();
             const n = notes.find(function (x) { return x.id === btn.getAttribute("data-play"); });
             if (!n) return;
+            const us = noteUsAudio(n);
+            if (us && n.audioUs !== us) {
+              n.audioUs = us;
+              saveNotes();
+            }
             const opt = openNoteId === n.id ? undefined : { rate: 1 };
-            playNoteText(n, opt).catch(function (err) {
+            playNoteText({ audioUs: us, en: n.en }, opt).catch(function (err) {
               toast(err && err.message === "no-audio" ? "没有美音真人音，不播合成音" : "播放失败");
             });
           });
@@ -2149,6 +2195,8 @@
         let changed = false;
         notes.forEach(function (n) {
           if (!n || n.kind === "phrase") return;
+          const us = guessUsAudio(n.en);
+          if (us && !n.audioUs) { n.audioUs = us; changed = true; }
           const hit = localLexHit(n.en);
           if (!hit) return;
           ["zh", "ipa", "pos", "xieyin"].forEach(function (k) {
