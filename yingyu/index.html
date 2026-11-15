@@ -1000,7 +1000,7 @@
           "https://ssl.gstatic.com/dictionary/static/sounds/oxford/" + w + "--_" + tag + "_1.mp3",
         ];
       }
-      function probeAudioUrl(url) {
+      function probeAudioUrl(url, timeoutMs) {
         return new Promise(function (resolve) {
           if (!url) return resolve("");
           const a = new Audio();
@@ -1009,10 +1009,10 @@
             if (done) return;
             done = true;
             a.removeAttribute("src");
-            a.load();
+            try { a.load(); } catch (_) {}
             resolve(ok ? url : "");
           };
-          const t = setTimeout(function () { finish(false); }, 1800);
+          const t = setTimeout(function () { finish(false); }, timeoutMs != null ? timeoutMs : 700);
           a.preload = "metadata";
           a.onloadeddata = function () { clearTimeout(t); finish(true); };
           a.oncanplaythrough = function () { clearTimeout(t); finish(true); };
@@ -1025,14 +1025,27 @@
         const map = window.EN_LEXICON_AUDIO || {};
         return (key && map[key]) || "";
       }
+      /** 保存用：直接给最可能美音 URL，不现场探测 */
+      function guessUsAudio(word, apiUrls) {
+        const pref = precomputedUsAudio(word);
+        if (pref) return pref;
+        const api = (apiUrls || []).find(function (u) {
+          if (!u) return false;
+          const low = String(u).toLowerCase();
+          return low.indexOf("-us") >= 0 || low.indexOf("_us") >= 0 || low.indexOf("/us") >= 0;
+        });
+        if (api) return api;
+        const gs = gstaticCandidates(word, "us");
+        if (gs.length) return gs[0];
+        return camUsPath(word) || "";
+      }
       async function resolveAccentAudio(word, accent, apiUrls) {
-        const list = [];
-        // 词库预探测美音优先，避免每次点喇叭现场撞墙
         if (accent === "us") {
           const pref = precomputedUsAudio(word);
-          if (pref) list.push(pref);
-          list.push(camUsPath(word));
+          if (pref) return pref;
         }
+        const list = [];
+        if (accent === "us") list.push(camUsPath(word));
         gstaticCandidates(word, accent).forEach(function (u) { list.push(u); });
         (apiUrls || []).forEach(function (u) {
           if (!u) return;
@@ -1043,7 +1056,6 @@
           else if (accent === "uk" && matchUk) list.unshift(u);
           else if (list.indexOf(u) < 0) list.push(u);
         });
-        // 去重保序
         const seen = {};
         const uniq = [];
         list.forEach(function (u) {
@@ -1051,11 +1063,20 @@
           seen[u] = 1;
           uniq.push(u);
         });
-        for (let i = 0; i < uniq.length; i++) {
-          const ok = await probeAudioUrl(uniq[i]);
+        const maxTry = Math.min(uniq.length, 3);
+        for (let i = 0; i < maxTry; i++) {
+          const ok = await probeAudioUrl(uniq[i], 700);
           if (ok) return ok;
         }
-        return "";
+        return uniq[0] || "";
+      }
+      function fetchJsonTimed(url, ms) {
+        const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const timer = setTimeout(function () { if (ctrl) try { ctrl.abort(); } catch (_) {} }, ms || 2500);
+        return fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .catch(function () { return null; })
+          .then(function (data) { clearTimeout(timer); return data; });
       }
       async function lookupWord(word) {
         const q = String(word || "").trim().toLowerCase();
@@ -1068,53 +1089,74 @@
         let level = local.level || "high";
         let levelNote = local.levelNote || "课外 / 待确认";
         let apiAudio = [];
-        try {
-          const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q));
-          if (res.ok) {
-            const data = await res.json();
+        const audioReady = precomputedUsAudio(q);
+
+        // 词库已有中译 + 预置音：零外网，立刻可保存
+        if (zh && audioReady) {
+          return {
+            en: local.en || q,
+            zh: zh,
+            ipa: ipa,
+            xieyin: xieyin,
+            pos: pos,
+            level: level,
+            levelNote: levelNote,
+            ex: "",
+            src: "",
+            audioUs: audioReady,
+            audioUk: "",
+            kind: "word",
+          };
+        }
+
+        const needZh = !zh;
+        const needMeta = !ipa || !pos;
+        const tasks = [];
+        if (needMeta || needZh) {
+          tasks.push(fetchJsonTimed(
+            "https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q),
+            2500
+          ).then(function (data) {
             const entry = data && data[0];
-            if (entry) {
-              const posList = [];
-              (entry.phonetics || []).forEach(function (p) {
-                if (p && p.audio) apiAudio.push(p.audio);
-                if (!ipa && p && p.text) ipa = p.text;
-              });
-              if (!ipa && entry.phonetic) ipa = entry.phonetic;
-              (entry.meanings || []).forEach(function (m) {
-                const p = POS_ZH[m.partOfSpeech] || m.partOfSpeech || "";
-                if (p && posList.indexOf(p) < 0) posList.push(p);
-              });
-              if (!pos && posList.length) pos = posList.join(" / ");
-            }
-          }
-        } catch (_) {}
-        if (!zh) {
-          try {
-            const tr = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=en|zh-CN");
-            if (tr.ok) {
-              const tj = await tr.json();
-              zh = ((tj.responseData && tj.responseData.translatedText) || "").trim();
-              if (zh.toLowerCase() === q) zh = "";
-            }
-          } catch (_) {}
+            if (!entry) return;
+            const posList = [];
+            (entry.phonetics || []).forEach(function (p) {
+              if (p && p.audio) apiAudio.push(p.audio);
+              if (!ipa && p && p.text) ipa = p.text;
+            });
+            if (!ipa && entry.phonetic) ipa = entry.phonetic;
+            (entry.meanings || []).forEach(function (m) {
+              const p = POS_ZH[m.partOfSpeech] || m.partOfSpeech || "";
+              if (p && posList.indexOf(p) < 0) posList.push(p);
+            });
+            if (!pos && posList.length) pos = posList.join(" / ");
+          }));
         }
-        // 本地词库没有、MyMemory 也挂时：再试一层轻量翻译（网络不稳仍可能空）
-        if (!zh) {
-          try {
-            const g = await fetch(
-              "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" +
-              encodeURIComponent(q)
-            );
-            if (g.ok) {
-              const gj = await g.json();
-              zh = (gj && gj[0] && gj[0].map(function (x) { return x && x[0]; }).join("")) || "";
-              zh = String(zh || "").trim();
-              if (zh.toLowerCase() === q) zh = "";
-            }
-          } catch (_) {}
+        if (needZh) {
+          tasks.push((async function () {
+            const raced = await Promise.all([
+              fetchJsonTimed(
+                "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=en|zh-CN",
+                2500
+              ),
+              fetchJsonTimed(
+                "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" +
+                encodeURIComponent(q),
+                2500
+              ),
+            ]);
+            if (zh) return;
+            const tj = raced[0];
+            let t = ((tj && tj.responseData && tj.responseData.translatedText) || "").trim();
+            if (t && t.toLowerCase() !== q) { zh = t; return; }
+            const gj = raced[1];
+            t = (gj && gj[0] && gj[0].map(function (x) { return x && x[0]; }).join("")) || "";
+            t = String(t || "").trim();
+            if (t && t.toLowerCase() !== q) zh = t;
+          })());
         }
-        const audioUs = precomputedUsAudio(q) || await resolveAccentAudio(q, "us", apiAudio);
-        const audioUk = await resolveAccentAudio(q, "uk", apiAudio);
+        if (tasks.length) await Promise.all(tasks);
+
         return {
           en: local.en || q,
           zh: zh,
@@ -1125,8 +1167,8 @@
           levelNote: levelNote,
           ex: "",
           src: "",
-          audioUs: audioUs,
-          audioUk: audioUk,
+          audioUs: guessUsAudio(q, apiAudio),
+          audioUk: "",
           kind: "word",
         };
       }
