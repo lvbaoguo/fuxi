@@ -1321,15 +1321,16 @@
         await speakEnLocal(word, Math.max(0.35, Math.min(1.1, rate * 0.95)));
         return "tts";
       }
-      /** 右侧喇叭：音标音一律本机秒播（音素几乎无词典真人文件） */
+      /**
+       * 右侧喇叭：播该音标的例词真人音（词典美音）。
+       * 不用浏览器 speechSynthesis 读 "ee"/"ih"：短音节+慢速会抽搐难听。
+       * 豆包那种朗读是云端神经网络 TTS，和系统朗读不是一类东西。
+       */
       async function playIpaPhoneme(ipa) {
         const item = findIpaItem(ipa) || { ipa: ipa, say: "", examples: [] };
-        const say = String(item.say || "").trim() || String(ipa || "").trim();
-        const rate = Math.max(0.35, Math.min(1, effectivePlayRate() * 0.95));
-        stopNoteAudio();
-        if (!say) throw new Error("no-audio");
-        await speakEnLocal(say, rate);
-        return "tts";
+        const ex = (item.examples && item.examples[0]) || "";
+        if (!ex) throw new Error("no-audio");
+        return playEnHearable(ex);
       }
       async function playNoteText(urls, opt) {
         const en = (urls && urls.en) || "";
@@ -2725,7 +2726,7 @@
 
       function renderIpa() {
         const chart = window.EN_IPA_CHART || [];
-        let html = '<p class="ipa-hint">右侧＝音标音（本机）· 下面＝例词（真人优先，1秒起不来就本机保底）</p>';
+        let html = '<p class="ipa-hint">右侧＝该音举例词真人音 · 下面＝更多例词 · 都是词典美音</p>';
         html += '<div class="play-row" style="margin-bottom:10px">' + playRateSelectHtml(false) + "</div>";
         chart.forEach(function (sec) {
           html += '<section class="ipa-sec"><h2>' + escapeHtml(sec.name) + "</h2>";
@@ -2736,7 +2737,7 @@
             html += '<span class="ipa-sym">/' + escapeHtml(it.ipa) + "/</span>";
             html += '<span class="ipa-tip">' + escapeHtml(it.tip || "") + "</span>";
             html += '<button type="button" class="spk" data-ipa-sound="' + escapeHtml(it.ipa) +
-              '" title="听音标音">📢</button>';
+              '" title="听该音举例词（真人）">📢</button>';
             html += "</div><div class=\"ipa-ex\">";
             (it.examples || []).forEach(function (ex) {
               html += '<span class="ex-chip">' + escapeHtml(ex) +
