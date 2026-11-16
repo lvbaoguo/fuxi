@@ -339,6 +339,7 @@
     "origin": {"en":"origin","zh":"起源","pos":"名词","ipa":"/ˈɒrɪdʒɪn/","level":"high","levelNote":"高中常见","xieyin":""},
     "original": {"en":"original","zh":"原来的；原创的","pos":"形容词","ipa":"/əˈrɪdʒənl/","level":"high","levelNote":"高中常见","xieyin":""},
     "owe": {"en":"owe","zh":"欠","pos":"动词","ipa":"/əʊ/","level":"high","levelNote":"高中常见","xieyin":""},
+    "outside": {"en":"outside","zh":"外面；在外面","pos":"名词 / 副词 / 形容词","ipa":"/ˌaʊtˈsaɪd/","level":"high","levelNote":"初中常见","xieyin":""},
     "own": {"en":"own","zh":"自己的；拥有","pos":"形容词 / 动词","ipa":"/əʊn/","level":"high","levelNote":"初中常见","xieyin":""},
     "package": {"en":"package","zh":"包裹","pos":"名词","ipa":"/ˈpækɪdʒ/","level":"high","levelNote":"初中常见","xieyin":""},
     "page": {"en":"page","zh":"页","pos":"名词","ipa":"/peɪdʒ/","level":"high","levelNote":"初中常见","xieyin":""},

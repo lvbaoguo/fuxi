@@ -34,8 +34,11 @@ TIMEOUT_SLOW = 12
 
 def load_words() -> list[str]:
     words: list[str] = []
-    for name in ("lexicon.js", "lexicon-extra.js"):
-        text = (ROOT / name).read_text(encoding="utf-8")
+    for name in ("lexicon.js", "lexicon-extra.js", "lexicon-cet4.js"):
+        p = ROOT / name
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8")
         words.extend(re.findall(r'^\s*"([a-zA-Z][a-zA-Z\'-]*)"\s*:\s*\{', text, re.M))
     return sorted(set(w.lower() for w in words))
 
@@ -168,6 +171,10 @@ def resolve_slow(word: str) -> tuple[str, str, str]:
     api = dictapi_audio(word)
     if api:
         return word, api, "dictapi"
+    # 有道美音兜底（outside 等词 gstatic 首条 404、oxford 才有；有道覆盖面宽）
+    yd = f"https://dict.youdao.com/dictvoice?audio={urllib.parse.quote(norm(word))}&type=2"
+    if url_ok(yd, True, TIMEOUT_SLOW) or url_ok(yd, False, TIMEOUT_FAST):
+        return word, yd, "youdao"
     return word, "", "miss"
 
 
