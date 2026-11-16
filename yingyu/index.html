@@ -457,6 +457,12 @@
     .note-sync-panel .danger {
       background: #fff; color: #b42318; border-color: #f3b4ae;
     }
+    .note-sync-log {
+      margin: 6px 0 0; max-height: 140px; overflow: auto;
+      padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+      background: #f8fafc; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace;
+      white-space: pre-wrap; word-break: break-all; color: var(--muted);
+    }
     .ipa-sec { margin: 14px 0 8px; }
     .ipa-sec h2 {
       margin: 0 0 8px; font-size: 0.95rem; font-weight: 900; color: var(--muted);
@@ -508,6 +514,9 @@
       <button type="button" class="danger" id="note-cloud-replace" title="用仓库 notes-latest.json 整份覆盖本机">从云端覆盖</button>
       <button type="button" id="note-import-cancel">取消</button>
     </div>
+    <p class="hint-line" style="margin-top:10px">同步日志（上传/拉取会写这里，也在控制台 [yingyu-sync]）</p>
+    <pre id="note-sync-log" class="note-sync-log" aria-live="polite"></pre>
+    <div class="nrow"><button type="button" id="note-sync-log-clear">清空日志</button></div>
   </div>
   <div id="note-token-panel" class="note-sync-panel" hidden>
     <label for="note-gh-token">GitHub Token（Fine-grained：只勾 fuxi · Contents=Read and write）</label>
@@ -2427,7 +2436,44 @@
       const GH_TOKEN_STORE = "fuxi-yingyu-gh-token";
       const GH_TOKEN_FALLBACK = "pansan2-zuoye-gh-token";
       const CLOUD_NOTES_URL = "https://lvbaoguo.github.io/fuxi/yingyu/notes-latest.json";
+      const CLOUD_NOTES_RAW = "https://raw.githubusercontent.com/lvbaoguo/fuxi/master/yingyu/notes-latest.json";
+      const SYNC_LOG_KEY = "fuxi-yingyu-sync-log-v1";
 
+      function syncLog(msg, detail) {
+        const row = {
+          at: new Date().toISOString(),
+          msg: String(msg || ""),
+          detail: detail == null ? null : detail,
+        };
+        try { console.log("[yingyu-sync]", row.msg, row.detail); } catch (_) {}
+        try {
+          const prev = JSON.parse(localStorage.getItem(SYNC_LOG_KEY) || "[]");
+          const list = Array.isArray(prev) ? prev : [];
+          list.push(row);
+          while (list.length > 40) list.shift();
+          localStorage.setItem(SYNC_LOG_KEY, JSON.stringify(list));
+        } catch (_) {}
+        const box = $("note-sync-log");
+        if (box) {
+          const line = row.at.slice(11, 19) + " " + row.msg +
+            (row.detail && row.detail.summary ? " · " + row.detail.summary : "");
+          box.textContent = (box.textContent ? box.textContent + "\n" : "") + line;
+          box.scrollTop = box.scrollHeight;
+        }
+        return row;
+      }
+      function notesPayloadSummary(raw) {
+        const list = (raw && raw.notes) || [];
+        const ens = list.slice(0, 8).map(function (n) { return n && n.en; }).filter(Boolean);
+        return {
+          summary: (raw && raw.exportedAt ? String(raw.exportedAt).slice(0, 19) : "?") +
+            " · " + list.length + "条 · " + ens.join(","),
+          exportedAt: raw && raw.exportedAt,
+          count: list.length,
+          ens: ens,
+          tags: (raw && raw.tags) || [],
+        };
+      }
       function buildNotesPayload() {
         const tags = allTagNames();
         notes.forEach(function (n) {
@@ -2456,6 +2502,24 @@
         hideNoteSyncPanels();
         menu.hidden = !open;
       }
+      function paintSyncLogBox() {
+        const box = $("note-sync-log");
+        if (!box) return;
+        try {
+          const list = JSON.parse(localStorage.getItem(SYNC_LOG_KEY) || "[]");
+          if (!Array.isArray(list) || !list.length) {
+            box.textContent = "（暂无日志）";
+            return;
+          }
+          box.textContent = list.slice(-20).map(function (row) {
+            return String(row.at || "").slice(11, 19) + " " + row.msg +
+              (row.detail && row.detail.summary ? " · " + row.detail.summary : "");
+          }).join("\n");
+          box.scrollTop = box.scrollHeight;
+        } catch (_) {
+          box.textContent = "（日志读取失败）";
+        }
+      }
       function toggleNoteImportPanel() {
         const panel = $("note-import-panel");
         if (!panel) return;
@@ -2465,6 +2529,7 @@
         if (!panel.hidden) {
           const ta = $("note-import-text");
           if (ta) { ta.value = ""; ta.focus(); }
+          paintSyncLogBox();
         }
       }
       function showNoteTokenPanel(prefill) {
@@ -2494,11 +2559,53 @@
         bytes.forEach(function (b) { bin += String.fromCharCode(b); });
         return btoa(bin);
       }
-      function cloudNotesFetchUrl() {
-        if (location.protocol === "file:") return CLOUD_NOTES_URL + "?t=" + Date.now();
-        const url = new URL("notes-latest.json", location.href);
-        url.searchParams.set("t", String(Date.now()));
-        return url.href;
+      function cloudNotesFetchCandidates() {
+        const t = String(Date.now());
+        // 优先 raw（跟仓库同步快）；Pages CDN 常滞后，本地 file:// 以前只打 Pages 会拉到旧包
+        const list = [
+          CLOUD_NOTES_RAW + "?t=" + t,
+          CLOUD_NOTES_URL + "?t=" + t,
+        ];
+        if (location.protocol !== "file:") {
+          try {
+            const url = new URL("notes-latest.json", location.href);
+            url.searchParams.set("t", t);
+            list.push(url.href);
+          } catch (_) {}
+        }
+        return list;
+      }
+      async function fetchCloudNotesJson() {
+        const urls = cloudNotesFetchCandidates();
+        let lastErr = null;
+        for (let i = 0; i < urls.length; i++) {
+          const url = urls[i];
+          syncLog("拉取尝试", { summary: url.replace(/^https?:\/\//, "").slice(0, 72) });
+          try {
+            const res = await fetch(url, {
+              cache: "no-store",
+              headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+            });
+            if (!res.ok) {
+              lastErr = new Error("http " + res.status);
+              syncLog("拉取失败", { summary: res.status + " · " + url.slice(0, 60) });
+              continue;
+            }
+            const raw = await res.json();
+            if (!raw || raw.type !== "fuxi-yingyu-notes" || !Array.isArray(raw.notes)) {
+              lastErr = new Error("bad payload");
+              syncLog("拉取格式不对", notesPayloadSummary(raw));
+              continue;
+            }
+            const sum = notesPayloadSummary(raw);
+            syncLog("拉取成功", Object.assign({ summary: sum.summary + " · via#" + (i + 1) }, sum));
+            return { raw: raw, url: url, summary: sum };
+          } catch (err) {
+            lastErr = err;
+            syncLog("拉取异常", { summary: String(err && err.message || err) });
+          }
+        }
+        throw lastErr || new Error("fetch");
       }
       async function readGhError(res) {
         try {
@@ -2546,6 +2653,8 @@
           return;
         }
         const payload = buildNotesPayload();
+        const sum = notesPayloadSummary(payload);
+        syncLog("开始上传", sum);
         const bodyText = JSON.stringify(payload, null, 2);
         const apiBase = "https://api.github.com/repos/" + GH_OWNER + "/" + GH_REPO + "/contents/" + GH_NOTES_PATH;
         const headers = {
@@ -2561,14 +2670,18 @@
               setNoteGhToken("");
               showNoteTokenPanel("");
               toast(got.status === 403 ? "无权限(403)：Token 须勾 fuxi 且 Contents=读写" : "Token 无效(401)");
+              syncLog("上传读 sha 鉴权失败", { summary: String(got.status) });
               return;
             }
             toast("读云端失败 " + got.status);
+            syncLog("上传读 sha 失败", { summary: String(got.status) });
             return;
           }
           sha = got.sha;
+          syncLog("上传取得 sha", { summary: sha ? String(sha).slice(0, 12) : "(新建)" });
         } catch (_) {
           toast("连不上 GitHub API");
+          syncLog("上传连不上 API", null);
           return;
         }
         const stamp = payload.exportedAt || new Date().toISOString();
@@ -2576,26 +2689,32 @@
         try {
           put = await putCloudNotes(apiBase, headers, bodyText, sha, stamp);
           if (put.status === 409) {
+            syncLog("上传 409 重试", null);
             const again = await fetchCloudNotesSha(apiBase, headers);
             if (again.ok) put = await putCloudNotes(apiBase, headers, bodyText, again.sha, stamp);
           }
         } catch (_) {
           toast("上传请求失败");
+          syncLog("上传请求异常", null);
           return;
         }
         if (put.status === 401 || put.status === 403) {
           setNoteGhToken("");
           showNoteTokenPanel("");
           toast("Token 无效或无权限");
+          syncLog("上传鉴权失败", { summary: String(put.status) });
           return;
         }
         if (!put.ok) {
-          toast("上传失败 " + put.status + " · " + (await readGhError(put)));
+          const detail = await readGhError(put);
+          toast("上传失败 " + put.status + " · " + detail);
+          syncLog("上传失败", { summary: put.status + " · " + detail });
           return;
         }
         setNoteGhToken(token);
         hideNoteSyncPanels();
-        toast("已上传云端 · 手机强刷后可「从云端覆盖」");
+        syncLog("上传成功", sum);
+        toast("已上传仓库 " + sum.count + " 条 · 另一端点「从云端覆盖」（勿等 Pages）");
       }
       async function onNoteCloudUploadClick() {
         hideNoteSyncPanels();
@@ -2636,7 +2755,13 @@
         noteTags = [];
         if (Array.isArray(raw.tags)) raw.tags.forEach(function (t) { ensureTag(t); });
         notes.forEach(function (n) { if (n.tag) ensureTag(n.tag); });
+        noteTagFilter = "all";
         saveNotes();
+        syncLog("本机已替换", notesPayloadSummary({
+          exportedAt: raw.exportedAt,
+          notes: notes,
+          tags: noteTags,
+        }));
       }
       function downloadNotesJson(payload) {
         const text = JSON.stringify(payload, null, 2);
@@ -2682,15 +2807,22 @@
         if (ir) ir.addEventListener("click", async function () {
           if (!confirm("用云端 notes-latest.json 整份覆盖本机笔记？本机多出来的会丢。确定？")) return;
           try {
-            const res = await fetch(cloudNotesFetchUrl(), { cache: "no-store" });
-            if (!res.ok) throw new Error("http");
-            applyNotesReplace(await res.json());
+            syncLog("开始从云端覆盖", { summary: "本地先 " + notes.length + " 条" });
+            const got = await fetchCloudNotesJson();
+            applyNotesReplace(got.raw);
             hideNoteSyncPanels();
-            toast("已从云端覆盖本机笔记");
+            toast("已覆盖 · 云端 " + got.summary.count + " 条 · " + String(got.summary.exportedAt || "").slice(0, 19));
             render();
-          } catch (_) {
-            toast("拉取云端失败：确认已推 notes-latest.json");
+          } catch (err) {
+            syncLog("从云端覆盖失败", { summary: String(err && err.message || err) });
+            toast("拉取云端失败：看导入面板底部日志");
           }
+        });
+        const logClr = $("note-sync-log-clear");
+        if (logClr) logClr.addEventListener("click", function () {
+          try { localStorage.removeItem(SYNC_LOG_KEY); } catch (_) {}
+          if ($("note-sync-log")) $("note-sync-log").textContent = "";
+          toast("已清同步日志");
         });
         const ic = $("note-import-cancel");
         if (ic) ic.addEventListener("click", function () { hideNoteSyncPanels(); });
@@ -2714,11 +2846,9 @@
       async function maybeSeedNotesFromCloud() {
         if (notes.length) return false;
         try {
-          const res = await fetch(cloudNotesFetchUrl(), { cache: "no-store" });
-          if (!res.ok) return false;
-          const raw = await res.json();
-          if (!raw || !Array.isArray(raw.notes) || !raw.notes.length) return false;
-          applyNotesReplace(raw);
+          const got = await fetchCloudNotesJson();
+          if (!got.raw.notes.length) return false;
+          applyNotesReplace(got.raw);
           toast("已从云端载入笔记 " + notes.length + " 条");
           return true;
         } catch (_) { return false; }
