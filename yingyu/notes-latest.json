@@ -1,8 +1,28 @@
 {
   "v": 1,
   "type": "fuxi-yingyu-notes",
-  "exportedAt": "2026-11-16T08:00:23.378Z",
+  "exportedAt": "2026-11-16T08:01:14.512Z",
   "notes": [
+    {
+      "id": "nmwiz5ck2",
+      "mark": 0,
+      "at": 1794816072146,
+      "xieyin": "",
+      "ex": "",
+      "reply": "",
+      "explain": "",
+      "tag": "小动物们",
+      "en": "cat",
+      "zh": "猫",
+      "ipa": "/kæt/",
+      "pos": "名词",
+      "level": "mid",
+      "levelNote": "三年级上 · Unit 4 We love animals",
+      "src": "",
+      "audioUs": "https://ssl.gstatic.com/dictionary/static/sounds/20200429/cat--_us_1.mp3",
+      "audioUk": "",
+      "kind": "word"
+    },
     {
       "id": "nmwhev116",
       "kind": "word",
