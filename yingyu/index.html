@@ -8,7 +8,8 @@
     (function () {
       try {
         var t = localStorage.getItem("fuxi-yingyu-theme-v1") || "default";
-        if (t === "pixel" || t === "mist") document.documentElement.setAttribute("data-theme", t);
+        if (t === "pixel") { t = "default"; try { localStorage.setItem("fuxi-yingyu-theme-v1", "default"); } catch (_) {} }
+        if (t === "mist") document.documentElement.setAttribute("data-theme", t);
         var f = localStorage.getItem("fuxi-yingyu-font-v1") || "normal";
         if (f === "large" || f === "xlarge") document.documentElement.setAttribute("data-font", f);
       } catch (_) {}
@@ -78,73 +79,6 @@
     html[data-theme="mist"] .node.now { background: #3d9a6a; border-bottom-color: #2f8f5b; }
     html[data-theme="mist"] .start-pop { color: #2f8f5b; border-color: #3d9a6a; }
     html[data-theme="mist"] .modes button.on { background: #243028; border-color: #243028; }
-    html[data-theme="pixel"] {
-      --bg: rgba(255, 244, 214, 0.82);
-      --card: #fff8dc;
-      --ink: #2d220e;
-      --text: #2d220e;
-      --muted: #6e5728;
-      --line: rgba(110, 78, 22, 0.28);
-      --border: rgba(110, 78, 22, 0.28);
-      --sticky: rgba(255, 236, 180, 0.92);
-      --accent: #c47a12;
-      --accent-soft: rgba(255, 220, 120, 0.9);
-      --ok: #4a7a32;
-      --red: #c44a28;
-      --ok-bg: #e8f0d8;
-      --bad-bg: #f8e0d8;
-      --shadow: rgba(58, 42, 16, 0.08);
-      --radius: 0px;
-    }
-    html[data-theme="pixel"] body,
-    html[data-theme="pixel"] body.view-notes {
-      color: var(--ink);
-      background-color: #f3e08a;
-      background-image:
-        radial-gradient(ellipse 80% 50% at 20% 88%, rgba(255, 246, 200, 0.5) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 35% at 82% 12%, rgba(160, 110, 30, 0.16) 0%, transparent 55%),
-        linear-gradient(180deg, #c9a24a 0%, #e2c25c 36%, #f0da82 68%, #f8ecc0 100%);
-      background-attachment: fixed;
-    }
-    html[data-theme="pixel"] body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background:
-        repeating-linear-gradient(
-          118deg,
-          transparent 0 17px,
-          rgba(70, 48, 10, 0.07) 17px 18px,
-          transparent 18px 41px
-        );
-      opacity: 0.85;
-    }
-    html[data-theme="pixel"] .modes,
-    html[data-theme="pixel"] .wrap,
-    html[data-theme="pixel"] .toast,
-    html[data-theme="pixel"] .dock,
-    html[data-theme="pixel"] .theme-picker-overlay { position: relative; z-index: 1; }
-    html[data-theme="pixel"] .modes button,
-    html[data-theme="pixel"] .chip,
-    html[data-theme="pixel"] .node,
-    html[data-theme="pixel"] .start-pop,
-    html[data-theme="pixel"] .opt,
-    html[data-theme="pixel"] .face,
-    html[data-theme="pixel"] .nform,
-    html[data-theme="pixel"] .ncard,
-    html[data-theme="pixel"] .answer-box,
-    html[data-theme="pixel"] .nsearch,
-    html[data-theme="pixel"] .theme-picker-dialog,
-    html[data-theme="pixel"] .theme-picker-opt,
-    html[data-theme="pixel"] .theme-picker-close { border-radius: 0 !important; }
-    html[data-theme="pixel"] .path-banner { background: #c47a12; border-bottom-color: #8a5410; border-radius: 0; }
-    html[data-theme="pixel"] .node { background: #f0c43a; border-bottom-color: #3a2a10; color: #3a2a10; }
-    html[data-theme="pixel"] .node.now { background: #c47a12; border-bottom-color: #3a2a10; color: #fff8dc; }
-    html[data-theme="pixel"] .node.lock { background: #e6d39a; border-bottom-color: #b59a4a; color: #8a7438; }
-    html[data-theme="pixel"] .start-pop { color: #8a5410; border-color: #3a2a10; }
-    html[data-theme="pixel"] .modes button.on { background: #3a2a10; border-color: #3a2a10; }
     html[data-font="large"] .wrap,
     html[data-font="large"] .modes { zoom: 1.28; }
     html[data-font="xlarge"] .wrap,
@@ -597,7 +531,6 @@
         <div class="theme-picker-opts">
           <button type="button" class="theme-picker-opt" data-theme="default">默认<small>暖纸橙条</small></button>
           <button type="button" class="theme-picker-opt" data-theme="mist">雾灰护眼<small>薄荷绿纸 · 不刺眼</small></button>
-          <button type="button" class="theme-picker-opt" data-theme="pixel">像素风<small>土黄废土</small></button>
         </div>
       </div>
       <div class="theme-picker-section">
@@ -3211,8 +3144,10 @@
           try { return localStorage.getItem(FONT_KEY) || "normal"; } catch (_) { return "normal"; }
         }
         function applyTheme(id) {
-          const allowed = { default: 1, pixel: 1, mist: 1 };
-          const t = allowed[id] ? id : "default";
+          // 废土/pixel 已下线：会挡点击导致主题弹层点不开
+          const raw = id === "pixel" ? "default" : id;
+          const allowed = { default: 1, mist: 1 };
+          const t = allowed[raw] ? raw : "default";
           if (t === "default") document.documentElement.removeAttribute("data-theme");
           else document.documentElement.setAttribute("data-theme", t);
           try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
