@@ -994,6 +994,40 @@
           "https://ssl.gstatic.com/dictionary/static/sounds/oxford/" + w + "--_" + tag + "_1.mp3",
         ];
       }
+      /** 有道美音兜底（type=2）；gstatic 对部分词只在 oxford 路径有文件 */
+      function youdaoUs(word) {
+        const w = String(word || "").trim().toLowerCase().replace(/[^a-z'-]/g, "");
+        if (!w) return "";
+        return "https://dict.youdao.com/dictvoice?audio=" + encodeURIComponent(w) + "&type=2";
+      }
+      function uniqUrls(list) {
+        const seen = {};
+        const out = [];
+        (list || []).forEach(function (u) {
+          if (!u || seen[u]) return;
+          seen[u] = 1;
+          out.push(u);
+        });
+        return out;
+      }
+      /** 播放用候选：预置 → API → gstatic/oxford → 有道 → 剑桥；按序短超时试，别死磕第一条 404 */
+      function usAudioCandidates(word, apiUrls) {
+        const q = String(word || "").trim();
+        const list = [];
+        const pref = precomputedUsAudio(q);
+        if (pref) list.push(pref);
+        (apiUrls || []).forEach(function (u) {
+          if (!u) return;
+          const low = String(u).toLowerCase();
+          if (low.indexOf("-us") >= 0 || low.indexOf("_us") >= 0 || low.indexOf("/us") >= 0) list.push(u);
+        });
+        gstaticCandidates(q, "us").forEach(function (u) { list.push(u); });
+        const yd = youdaoUs(q);
+        if (yd) list.push(yd);
+        const cam = camUsPath(q);
+        if (cam) list.push(cam);
+        return uniqUrls(list);
+      }
       function probeAudioUrl(url, timeoutMs) {
         return new Promise(function (resolve) {
           if (!url) return resolve("");
@@ -1019,19 +1053,10 @@
         const map = window.EN_LEXICON_AUDIO || {};
         return (key && map[key]) || "";
       }
-      /** 保存/播放用：直接给最可能美音 URL，不现场探测 */
+      /** 保存/展示用：取候选首条；真正播放走 usAudioCandidates 逐条试 */
       function guessUsAudio(word, apiUrls) {
-        const pref = precomputedUsAudio(word);
-        if (pref) return pref;
-        const api = (apiUrls || []).find(function (u) {
-          if (!u) return false;
-          const low = String(u).toLowerCase();
-          return low.indexOf("-us") >= 0 || low.indexOf("_us") >= 0 || low.indexOf("/us") >= 0;
-        });
-        if (api) return api;
-        const gs = gstaticCandidates(word, "us");
-        if (gs.length) return gs[0];
-        return camUsPath(word) || "";
+        const cands = usAudioCandidates(word, apiUrls);
+        return cands[0] || "";
       }
       function noteUsAudio(n) {
         if (!n) return "";
@@ -1331,11 +1356,13 @@
         if (!word) throw new Error("no-audio");
         stopNoteAudio();
         const rate = effectivePlayRate(opt);
-        const prefer = precomputedUsAudio(word) || guessUsAudio(word);
-        if (prefer) {
-          warmUsAudio(prefer);
+        const cands = usAudioCandidates(word);
+        const maxTry = Math.min(cands.length, 4);
+        for (let i = 0; i < maxTry; i++) {
+          const url = cands[i];
+          if (i === 0) warmUsAudio(url);
           try {
-            await playUrlTimed(prefer, rate, 1000);
+            await playUrlTimed(url, rate, i === 0 ? 1000 : 800);
             return "real";
           } catch (err) {
             if (err && err.message === "aborted") throw err;
