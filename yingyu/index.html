@@ -333,9 +333,23 @@
     .ncard { padding: 10px 12px; }
     .ncard .ntop { display: flex; align-items: flex-start; gap: 8px; }
     .ncard .ntop > div { flex: 1; min-width: 0; }
+    .ncard .nword-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0;
+    }
     .ncard b.nword-tall {
       display: block; font-size: 1.32rem; font-weight: 900; color: var(--accent); letter-spacing: 0.01em;
     }
+    .ncard .copy-en {
+      flex: 0 0 auto; margin: 0; padding: 0;
+      width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 8px; border: 1px solid var(--line); background: #fff;
+      color: var(--muted); cursor: pointer;
+    }
+    .ncard .copy-en svg { width: 14px; height: 14px; display: block; }
+    .ncard .copy-en:hover {
+      border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+    }
+    .ncard .copy-en:active { transform: scale(0.96); }
     .ncard .meta, .ncard .ex, .ncard .src, .ncard .explain, .ncard .row {
       display: block; margin-top: 5px; color: var(--ink); font-size: 0.9rem; font-weight: 600;
     }
@@ -536,7 +550,7 @@
         <p class="theme-picker-section-title">主题</p>
         <div class="theme-picker-opts">
           <button type="button" class="theme-picker-opt" data-theme="default">默认<small>暖纸橙条</small></button>
-          <button type="button" class="theme-picker-opt" data-theme="mist">雾灰护眼<small>薄荷绿纸 · 不刺眼</small></button>
+          <button type="button" class="theme-picker-opt" data-theme="mist">雾灰<small>薄荷绿纸 · 不刺眼</small></button>
         </div>
       </div>
       <div class="theme-picker-section">
@@ -884,7 +898,7 @@
         return '<select class="play-rate" data-play-rate' + (disabled ? " disabled" : "") + ">" +
           '<option value="fast"' + (noteRate === "fast" ? " selected" : "") + ">快速</option>" +
           '<option value="slow"' + (noteRate === "slow" ? " selected" : "") + ">慢速</option>" +
-          '<option value="xslow"' + (noteRate === "xslow" ? " selected" : "") + ">超慢速</option>" +
+          '<option value="xslow"' + (noteRate === "xslow" ? " selected" : "") + ">超慢</option>" +
           "</select>";
       }
       function bindPlayRateSelects(root) {
@@ -1994,7 +2008,7 @@
         }
         const list = noteShown();
         if (!list.length) {
-          box.innerHTML = '<p class="nempty">' + (notes.length ? "这个标签下还没有词" : "还没有笔记。填英文点「保存」，选个标签存放。") + "</p>";
+          box.innerHTML = '<p class="nempty">' + (notes.length ? "这个标签下还没有词" : "还没有笔记。填英文点「查询」，选个标签存放。") + "</p>";
           return;
         }
         let html = "";
@@ -2030,12 +2044,16 @@
             html += '<article class="ncard is-open" data-note-toggle="' + n.id + '">';
             html += '<p class="fold-hint">点字段可改 · 回车保存 / Esc取消 · 再点空白处收起</p>';
             html += '<div class="ntop"><div>';
-            html += '<b class="nword-tall">' + escapeHtml(n.en) + "</b>";
+            html += '<div class="nword-row"><b class="nword-tall">' + escapeHtml(n.en) + "</b>" +
+              '<button type="button" class="copy-en" data-copy-en="' + n.id + '" title="复制英文" aria-label="复制英文">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<rect x="9" y="9" width="13" height="13" rx="2"></rect>' +
+              '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>' +
+              "</svg></button></div>";
             if (n.kind === "phrase") {
               html += editRow("标签：", "tag", n.tag || "未分类", false);
               html += editRow("回答：", "reply", n.reply, false);
               html += editRow("中译：", "zh", n.zh, true);
-              html += editRow("解释：", "explain", n.explain, false);
             } else {
               html += editRow("标签：", "tag", n.tag || "未分类", false);
               html += '<div class="row row-dim"><span class="k">课本：</span>' +
@@ -2063,7 +2081,7 @@
         bindNoteInlineEdit(box);
         box.querySelectorAll("[data-note-toggle]").forEach(function (card) {
           card.addEventListener("click", function (ev) {
-            if (ev.target.closest("[data-play],[data-edit],[data-del],[data-note-fold],[data-play-rate],.play-rate,.v-edit,button,select,a,input,textarea")) return;
+            if (ev.target.closest("[data-play],[data-edit],[data-del],[data-note-fold],[data-copy-en],[data-play-rate],.play-rate,.v-edit,button,select,a,input,textarea")) return;
             const id = card.getAttribute("data-note-toggle");
             openNoteId = openNoteId === id ? "" : id;
             paintNoteList();
@@ -2095,6 +2113,18 @@
             } finally {
               btn.disabled = false;
             }
+          });
+        });
+        box.querySelectorAll("[data-copy-en]").forEach(function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            const n = notes.find(function (x) { return x.id === btn.getAttribute("data-copy-en"); });
+            if (!n || !n.en) return;
+            const text = String(n.en);
+            function ok() { toast("已复制「" + text + "」"); }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(ok, function () { prompt("复制英文：", text); });
+            } else prompt("复制英文：", text);
           });
         });
         box.querySelectorAll("[data-edit]").forEach(function (btn) {
@@ -2186,8 +2216,8 @@
           en: ($("nf-en") && $("nf-en").value || "").trim(),
           reply: ($("nf-reply") && $("nf-reply").value || "").trim(),
           zh: ($("nf-zh") && $("nf-zh").value || "").trim(),
-          explain: ($("nf-explain") && $("nf-explain").value || "").trim(),
-          src: ($("nf-src") && $("nf-src").value || "").trim(),
+          explain: "",
+          src: "",
           audioUs: "",
           audioUk: "",
           ipa: "",
@@ -2205,7 +2235,7 @@
           return false;
         }
         if (draft.kind === "word" && !draft.zh) {
-          toast("单词至少要有中文；可点「保存」自动查");
+          toast("单词至少要有中文；可点「查询」自动查");
           return false;
         }
         const key = draft.en.toLowerCase();
@@ -2323,7 +2353,7 @@
           }
           render();
         } finally {
-          if (btn) { btn.disabled = false; btn.textContent = "保存"; }
+          if (btn) { btn.disabled = false; btn.textContent = "查询"; }
         }
       }
       function enrichNotesFromLexicon() {
@@ -2371,16 +2401,14 @@
           html += '<input id="nf-en" placeholder="问句 / 原句" value="' + escapeHtml(val.en) + '">';
           html += '<input id="nf-reply" placeholder="回答 / 对应句，可空" value="' + escapeHtml(val.reply) + '">';
           html += '<input id="nf-zh" placeholder="中文意思，可空" value="' + escapeHtml(val.zh) + '">';
-          html += '<textarea id="nf-explain" placeholder="解释：比如 I have a 表示我有…；a 表示…">' + escapeHtml(val.explain) + "</textarea>";
-          html += '<input id="nf-src" placeholder="哪里看到的，可空" value="' + escapeHtml(val.src) + '">';
           html += '<input id="nf-tag" type="hidden" value="' + escapeHtml(val.tag || "") + '">';
           html += '<div class="nrow"><button type="button" class="primary" id="nf-save">' + (editing ? "保存这条" : "保存语句") + "</button>";
           if (editing) html += '<button type="button" id="nf-cancel">取消</button>';
           html += "</div></div>";
         } else {
           html += '<div class="nform">';
-          html += '<p class="hint-line">输完点「保存」才查。多个词用 + 连接，如 jacket+ticket，会挨个查、挨个选标签。</p>';
-          html += '<div class="nrow"><input id="nf-quick" placeholder="book 或 jacket+ticket" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" style="flex:2"><button type="button" class="primary" id="nf-join" style="flex:1">保存</button></div>';
+          html += '<p class="hint-line">输完点「查询」才查。多个词用 + 连接，如 jacket+ticket，会挨个查、挨个选标签。</p>';
+          html += '<div class="nrow"><input id="nf-quick" placeholder="book 或 jacket+ticket" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" style="flex:2"><button type="button" class="primary" id="nf-join" style="flex:1">查询</button></div>';
           html += "</div>";
         }
 
