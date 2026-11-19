@@ -8,8 +8,9 @@
 顶上自选（顺序：笔记 → 词库 → 主题 → 音标库）：
 
 - **笔记版**：自己收集的单词 / 语句
-- **词库**：按词性浏览；本地 = `lexicon.js` + `lexicon-extra.js` + `lexicon-cet4.js`；美音 `lexicon-audio.js`（脚本 `scripts/probe_lexicon_audio.py`）
+- **词库**：按词性浏览；本地 = `lexicon.js` + `lexicon-extra.js` + `lexicon-cet4.js` + `lexicon-gaokao.js`；美音 `lexicon-audio.js`（脚本 `scripts/probe_lexicon_audio.py`）
 - **年级阶梯（levelNote）**：小学高频 → 初中常见 → 高中常见 → **大学四级** → 大学六级 → 考研英语 → 雅思常见（再往上可选托福/GRE）
+- **查词音标**：本地优先；外网词典常空 phonetics 时用 Datamuse 发音兜底
 - **主题**：默认 / 雾灰 + 字号
 - **音标库**：长短元音 / 双元音 / 辅音表；喇叭播例词美音（`ipa.js`）
 
@@ -28,6 +29,6 @@
 
 ## 结构
 - `ipa.js` — 音标库数据
-- `lexicon.js` / `lexicon-extra.js` / `lexicon-cet4.js` / `lexicon-audio.js` — 词库与美音
+- `lexicon.js` / `lexicon-extra.js` / `lexicon-cet4.js` / `lexicon-gaokao.js` / `lexicon-audio.js` — 词库与美音
 - `data.js` — 课本年级词表（词库课本标注仍用）
 - `index.html` — 笔记 / 词库 / 音标库

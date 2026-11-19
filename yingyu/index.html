@@ -447,6 +447,36 @@
     .tag-pick button.danger {
       background: #fff; color: #b42318; border-color: #f3b4ae;
     }
+    .tag-manage-list { display: flex; flex-direction: column; gap: 8px; }
+    .tag-manage-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px;
+      background: #fff;
+    }
+    .tag-manage-row.is-pin {
+      background: var(--accent-soft); border-color: var(--accent);
+    }
+    .tag-manage-row .tm-main {
+      flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+      text-align: left; background: none; border: 0; padding: 0; margin: 0;
+      font: inherit; color: inherit; cursor: pointer;
+    }
+    .tag-manage-row .tm-name {
+      font-weight: 800; font-size: 0.95rem; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tag-manage-row .tm-sub {
+      color: var(--muted); font-size: 0.75rem; font-weight: 700;
+    }
+    .tag-manage-row .tm-ops {
+      display: flex; gap: 4px; flex: 0 0 auto;
+    }
+    .tag-manage-row .tm-ops button {
+      width: 34px; height: 34px; min-width: 34px; padding: 0;
+      border-radius: 10px; font-size: 0.95rem; font-weight: 800;
+      line-height: 1;
+    }
+    .tag-manage-row .tm-ops button:disabled { opacity: 0.35; cursor: default; }
     .note-sync-menu {
       position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
       z-index: 11000; width: min(420px, calc(100vw - 24px));
@@ -568,6 +598,7 @@
   <script src="lexicon.js"></script>
   <script src="lexicon-extra.js"></script>
   <script src="lexicon-cet4.js"></script>
+  <script src="lexicon-gaokao.js"></script>
   <script src="lexicon-audio.js"></script>
   <script src="ipa.js"></script>
   <script>
@@ -581,6 +612,7 @@
       const STORE = "fuxi-yingyu-progress-v1";
       const NOTE_STORE = "fuxi-yingyu-notes-v1";
       const TAG_STORE = "fuxi-yingyu-note-tags-v1";
+      const FIXED_PHRASE_TAG = "语句";
       const VIEW_STORE = "fuxi-yingyu-view";
       const RATE_STORE = "fuxi-yingyu-rate-v1";
       const POS_ZH = {
@@ -736,10 +768,22 @@
         try {
           const raw = JSON.parse(localStorage.getItem(NOTE_STORE) || "[]");
           if (!Array.isArray(raw)) return [];
-          return raw.filter(function (n) { return n && n.en; }).map(normalizeNote);
+          return raw.filter(function (n) {
+            if (!n) return false;
+            if (n.kind === "phrase") return !!(n.en || n.reply || n.zh);
+            return !!n.en;
+          }).map(normalizeNote);
         } catch (_) {
           return [];
         }
+      }
+      function phraseTitle(n) {
+        if (!n) return "";
+        return String(n.en || n.reply || n.zh || "").trim() || "（空语句）";
+      }
+      function phraseSpeakText(n) {
+        if (!n) return "";
+        return String(n.en || n.reply || "").trim();
       }
       function normalizeNote(n) {
         const mark = n.mark === 1 || n.mark === 2 ? n.mark : 0;
@@ -780,24 +824,91 @@
       function saveTagNames() {
         try { localStorage.setItem(TAG_STORE, JSON.stringify(noteTags)); } catch (_) {}
       }
+      /** 保留用户排序：语句固定第一，其余按 noteTags 顺序，新出现的标签跟在末尾 */
+      function rebuildTagOrder() {
+        const known = {};
+        noteTags.forEach(function (t) { if (t) known[t] = 1; });
+        notes.forEach(function (n) { if (n.tag) known[n.tag] = 1; });
+        known[FIXED_PHRASE_TAG] = 1;
+        const ordered = [FIXED_PHRASE_TAG];
+        noteTags.forEach(function (t) {
+          if (!t || t === FIXED_PHRASE_TAG || !known[t]) return;
+          if (ordered.indexOf(t) < 0) ordered.push(t);
+        });
+        Object.keys(known).forEach(function (t) {
+          if (t !== FIXED_PHRASE_TAG && ordered.indexOf(t) < 0) ordered.push(t);
+        });
+        noteTags = ordered;
+        saveTagNames();
+      }
       function allTagNames() {
-        const map = {};
-        noteTags.forEach(function (t) { if (t) map[t] = 1; });
-        notes.forEach(function (n) { if (n.tag) map[n.tag] = 1; });
-        return Object.keys(map).sort(function (a, b) { return a.localeCompare(b, "zh"); });
+        rebuildTagOrder();
+        return noteTags.slice();
       }
       function ensureTag(name) {
         const t = String(name || "").trim();
         if (!t) return "";
         if (noteTags.indexOf(t) < 0) {
           noteTags.push(t);
-          saveTagNames();
+          rebuildTagOrder();
         }
         return t;
+      }
+      function ensureBuiltinTags() {
+        rebuildTagOrder();
+      }
+      ensureBuiltinTags();
+      function renameTag(oldName, newName) {
+        const from = String(oldName || "").trim();
+        const to = String(newName || "").trim();
+        if (!from || !to) return false;
+        if (from === FIXED_PHRASE_TAG) {
+          toast("「语句」是固定标签，不能改名");
+          return false;
+        }
+        if (to === FIXED_PHRASE_TAG) {
+          toast("「语句」已占用，换个名字");
+          return false;
+        }
+        if (from === to) return true;
+        if (noteTags.indexOf(to) >= 0 || notes.some(function (n) { return n.tag === to; })) {
+          toast("已有标签「" + to + "」");
+          return false;
+        }
+        noteTags = noteTags.map(function (t) { return t === from ? to : t; });
+        let touched = 0;
+        notes.forEach(function (n) {
+          if (n.tag === from) {
+            n.tag = to;
+            touched += 1;
+          }
+        });
+        if (noteTagFilter === from) noteTagFilter = to;
+        rebuildTagOrder();
+        if (touched) saveNotes();
+        return true;
+      }
+      function moveTag(name, dir) {
+        const t = String(name || "").trim();
+        if (!t || t === FIXED_PHRASE_TAG) return false;
+        rebuildTagOrder();
+        const i = noteTags.indexOf(t);
+        if (i <= 0) return false; // 0 是语句
+        const j = dir < 0 ? i - 1 : i + 1;
+        if (j <= 0 || j >= noteTags.length) return false; // 不能越过语句
+        const tmp = noteTags[i];
+        noteTags[i] = noteTags[j];
+        noteTags[j] = tmp;
+        saveTagNames();
+        return true;
       }
       function removeTag(name) {
         const t = String(name || "").trim();
         if (!t) return false;
+        if (t === FIXED_PHRASE_TAG) {
+          toast("「语句」是固定标签，不能删");
+          return false;
+        }
         const before = noteTags.length;
         noteTags = noteTags.filter(function (x) { return x !== t; });
         let touched = 0;
@@ -816,39 +927,96 @@
         if (tag === "all") return notes.length;
         return notes.filter(function (n) { return n.tag === tag; }).length;
       }
-      function pickTagToDelete() {
-        return new Promise(function (resolve) {
-          const overlay = $("tag-pick-overlay");
-          if (!overlay) { resolve(null); return; }
+      function openTagManage() {
+        const overlay = $("tag-pick-overlay");
+        if (!overlay) return;
+        function paint() {
           const tags = allTagNames();
           let html = '<div class="tag-pick" role="dialog" aria-modal="true">';
-          html += "<h3>删除哪个标签？</h3>";
-          html += '<p class="hint-line">标签没了，里面的词会变成未分类，词本身不删</p><div class="tag-list">';
-          if (!tags.length) html += '<p class="hint-line">没有可删的标签</p>';
-          tags.forEach(function (t) {
-            html += '<button type="button" class="danger" data-del-tag="' + escapeHtml(t) + '">' +
-              escapeHtml(t) + " · " + countByTag(t) + "</button>";
+          html += "<h3>整理标签</h3>";
+          html += '<p class="hint-line">点名称改名 · 箭头调序 ·「语句」固定在全部后</p>';
+          html += '<div class="tag-manage-list">';
+          tags.forEach(function (t, idx) {
+            const pinned = t === FIXED_PHRASE_TAG;
+            const canUp = !pinned && idx > 1;
+            const canDown = !pinned && idx < tags.length - 1;
+            html += '<div class="tag-manage-row' + (pinned ? " is-pin" : "") + '" data-tag-row="' + escapeHtml(t) + '">';
+            html += '<button type="button" class="tm-main" data-tag-rename="' + escapeHtml(t) + '"' +
+              (pinned ? " disabled title=\"固定标签\"" : " title=\"点这里改名\"") + ">" +
+              '<span class="tm-name">' + escapeHtml(t) + (pinned ? " · 固定" : "") + "</span>" +
+              '<span class="tm-sub">' + countByTag(t) + " 条" + (pinned ? " · 不可改名删除" : "") + "</span>" +
+              "</button>";
+            html += '<div class="tm-ops">';
+            if (!pinned) {
+              html += '<button type="button" data-tag-up="' + escapeHtml(t) + '" title="上移"' +
+                (canUp ? "" : " disabled") + ">↑</button>";
+              html += '<button type="button" data-tag-down="' + escapeHtml(t) + '" title="下移"' +
+                (canDown ? "" : " disabled") + ">↓</button>";
+              html += '<button type="button" class="danger" data-tag-del="' + escapeHtml(t) + '" title="删除">删</button>';
+            }
+            html += "</div></div>";
           });
-          html += '</div><div class="tag-actions"><button type="button" data-pick-cancel>取消</button></div></div>';
+          html += "</div>";
+          html += '<div class="tag-actions"><button type="button" class="primary" data-pick-done>完成</button></div></div>';
           overlay.innerHTML = html;
           overlay.hidden = false;
           overlay.setAttribute("aria-hidden", "false");
-          function close(val) {
-            overlay.hidden = true;
-            overlay.setAttribute("aria-hidden", "true");
-            overlay.innerHTML = "";
-            overlay.onclick = null;
-            resolve(val);
-          }
-          overlay.onclick = function (ev) { if (ev.target === overlay) close(null); };
-          overlay.querySelectorAll("[data-del-tag]").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-              close(btn.getAttribute("data-del-tag"));
+          overlay.onclick = function (ev) {
+            if (ev.target === overlay) finish();
+          };
+          const done = overlay.querySelector("[data-pick-done]");
+          if (done) done.addEventListener("click", finish);
+          overlay.querySelectorAll("[data-tag-rename]").forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              if (btn.disabled) return;
+              const old = btn.getAttribute("data-tag-rename");
+              const next = prompt("重命名标签：", old);
+              if (next == null) return;
+              if (!String(next).trim()) {
+                toast("名字不能为空");
+                return;
+              }
+              if (renameTag(old, next)) {
+                toast("已改为「" + String(next).trim() + "」");
+                paint();
+              }
             });
           });
-          const cancel = overlay.querySelector("[data-pick-cancel]");
-          if (cancel) cancel.addEventListener("click", function () { close(null); });
-        });
+          overlay.querySelectorAll("[data-tag-up]").forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              if (moveTag(btn.getAttribute("data-tag-up"), -1)) paint();
+            });
+          });
+          overlay.querySelectorAll("[data-tag-down]").forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              if (moveTag(btn.getAttribute("data-tag-down"), 1)) paint();
+            });
+          });
+          overlay.querySelectorAll("[data-tag-del]").forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              const name = btn.getAttribute("data-tag-del");
+              const n = countByTag(name);
+              if (!confirm("删除标签「" + name + "」？" + (n ? "里面 " + n + " 条会变成未分类。" : ""))) return;
+              if (removeTag(name)) {
+                toast("已删标签「" + name + "」");
+                paint();
+              }
+            });
+          });
+        }
+        function finish() {
+          overlay.hidden = true;
+          overlay.setAttribute("aria-hidden", "true");
+          overlay.innerHTML = "";
+          overlay.onclick = null;
+          paintTagRail();
+          paintNoteList();
+        }
+        paint();
       }
       function pickTag(title) {
         return new Promise(function (resolve) {
@@ -1062,7 +1230,10 @@
       function noteUsAudio(n) {
         if (!n) return "";
         if (n.audioUs) return n.audioUs;
-        if (n.kind === "phrase") return "";
+        if (n.kind === "phrase") {
+          const speak = phraseSpeakText(n);
+          return speak ? guessUsAudio(speak) : "";
+        }
         return guessUsAudio(n.en);
       }
       // 只做预热（推进浏览器 HTTP 缓存）；播放时每次 new Audio，避免复用同一元素第二次无声
@@ -1115,6 +1286,46 @@
           .catch(function () { return null; })
           .then(function (data) { clearTimeout(timer); return data; });
       }
+      /** Datamuse ARPAbet → 简易 IPA（外网词典常返回空 phonetics 时兜底） */
+      function arpaToIpa(pron) {
+        const map = {
+          AA: "ɑ", AE: "æ", AH: "ʌ", AO: "ɔ", AW: "aʊ", AY: "aɪ",
+          B: "b", CH: "tʃ", D: "d", DH: "ð", EH: "ɛ", ER: "ɝ", EY: "eɪ",
+          F: "f", G: "ɡ", HH: "h", IH: "ɪ", IY: "i", JH: "dʒ", K: "k",
+          L: "l", M: "m", N: "n", NG: "ŋ", OW: "oʊ", OY: "ɔɪ", P: "p",
+          R: "r", S: "s", SH: "ʃ", T: "t", TH: "θ", UH: "ʊ", UW: "u",
+          V: "v", W: "w", Y: "j", Z: "z", ZH: "ʒ",
+        };
+        const parts = String(pron || "").trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return "";
+        let out = "";
+        parts.forEach(function (tok) {
+          const m = String(tok).match(/^([A-Za-z]+)([012])?$/);
+          if (!m) return;
+          const st = m[2];
+          if (st === "1") out += "ˈ";
+          else if (st === "2") out += "ˌ";
+          const phone = m[1].toUpperCase();
+          out += map[phone] || phone.toLowerCase();
+        });
+        return out ? "/" + out + "/" : "";
+      }
+      async function fetchIpaFallback(word) {
+        const q = String(word || "").trim().toLowerCase();
+        if (!q) return "";
+        const data = await fetchJsonTimed(
+          "https://api.datamuse.com/words?sp=" + encodeURIComponent(q) + "&md=r&max=1",
+          2000
+        );
+        const row = data && data[0];
+        if (!row || String(row.word || "").toLowerCase() !== q) return "";
+        const tags = row.tags || [];
+        for (let i = 0; i < tags.length; i++) {
+          const t = String(tags[i] || "");
+          if (t.indexOf("pron:") === 0) return arpaToIpa(t.slice(5));
+        }
+        return "";
+      }
       async function lookupWord(word) {
         const q = String(word || "").trim().toLowerCase();
         if (!q) throw new Error("empty");
@@ -1126,8 +1337,8 @@
         let level = local.level || "high";
         let levelNote = local.levelNote || "课外 / 待确认";
         let apiAudio = [];
-        // 本地已有中译：零外网秒存（音用预置/猜 URL）
-        if (zh) {
+        // 本地中译+音标齐全：零外网秒存
+        if (zh && ipa) {
           return {
             en: local.en || q,
             zh: zh,
@@ -1144,27 +1355,32 @@
           };
         }
 
-        // 仅词库没有中译时才打外网；超时 2.5s，翻译并行
-        const tasks = [
-          fetchJsonTimed(
-            "https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q),
-            2500
-          ).then(function (data) {
-            const entry = data && data[0];
-            if (!entry) return;
-            const posList = [];
-            (entry.phonetics || []).forEach(function (p) {
-              if (p && p.audio) apiAudio.push(p.audio);
-              if (!ipa && p && p.text) ipa = p.text;
-            });
-            if (!ipa && entry.phonetic) ipa = entry.phonetic;
-            (entry.meanings || []).forEach(function (m) {
-              const p = POS_ZH[m.partOfSpeech] || m.partOfSpeech || "";
-              if (p && posList.indexOf(p) < 0) posList.push(p);
-            });
-            if (!pos && posList.length) pos = posList.join(" / ");
-          }),
-          (async function () {
+        // 缺中译或缺音标才打外网；词典常给空 phonetics，再用 Datamuse 兜底
+        const tasks = [];
+        if (!ipa || !pos || !zh) {
+          tasks.push(
+            fetchJsonTimed(
+              "https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(q),
+              2500
+            ).then(function (data) {
+              const entry = data && data[0];
+              if (!entry) return;
+              const posList = [];
+              (entry.phonetics || []).forEach(function (p) {
+                if (p && p.audio) apiAudio.push(p.audio);
+                if (!ipa && p && p.text) ipa = p.text;
+              });
+              if (!ipa && entry.phonetic) ipa = entry.phonetic;
+              (entry.meanings || []).forEach(function (m) {
+                const p = POS_ZH[m.partOfSpeech] || m.partOfSpeech || "";
+                if (p && posList.indexOf(p) < 0) posList.push(p);
+              });
+              if (!pos && posList.length) pos = posList.join(" / ");
+            })
+          );
+        }
+        if (!zh) {
+          tasks.push((async function () {
             const raced = await Promise.all([
               fetchJsonTimed(
                 "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=en|zh-CN",
@@ -1183,9 +1399,15 @@
             t = (gj && gj[0] && gj[0].map(function (x) { return x && x[0]; }).join("")) || "";
             t = String(t || "").trim();
             if (t && t.toLowerCase() !== q) zh = t;
-          })(),
-        ];
+          })());
+        }
         await Promise.all(tasks);
+        if (!ipa) {
+          try {
+            const fb = await fetchIpaFallback(q);
+            if (fb) ipa = fb;
+          } catch (_) {}
+        }
 
         return {
           en: local.en || q,
@@ -2050,11 +2272,12 @@
           if (us) warmUsAudio(us);
           const hasReal = !!us;
           const open = openNoteId === n.id;
+          const titleText = n.kind === "phrase" ? phraseTitle(n) : n.en;
           if (!open) {
             html += '<article class="ncard ncard-banner" data-note-toggle="' + n.id + '"><div class="nbanner-lite">';
             html += '<div class="nbanner-main">';
-            html += '<b class="nword" title="' + escapeHtml(n.en) + '">' + escapeHtml(n.en) + "</b>";
-            html += '<div class="nmeta">' + bannerMetaHtml(n.zh, n.xieyin) + "</div>";
+            html += '<b class="nword" title="' + escapeHtml(titleText) + '">' + escapeHtml(titleText) + "</b>";
+            html += '<div class="nmeta">' + bannerMetaHtml(n.zh, n.kind === "phrase" ? "" : n.xieyin) + "</div>";
             html += "</div>";
             html += '<button type="button" class="spk" data-play="' + n.id + '"' +
               (hasReal ? "" : " disabled") +
@@ -2072,7 +2295,7 @@
             html += '<article class="ncard is-open" data-note-toggle="' + n.id + '">';
             html += '<p class="fold-hint">点字段可改 · 回车保存 / Esc取消 · 再点空白处收起</p>';
             html += '<div class="ntop"><div>';
-            html += '<div class="nword-row"><b class="nword-tall">' + escapeHtml(n.en) + "</b>" +
+            html += '<div class="nword-row"><b class="nword-tall">' + escapeHtml(titleText) + "</b>" +
               '<button type="button" class="copy-en" data-copy-en="' + n.id + '" title="复制英文" aria-label="复制英文">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
               '<rect x="9" y="9" width="13" height="13" rx="2"></rect>' +
@@ -2080,6 +2303,7 @@
               "</svg></button></div>";
             if (n.kind === "phrase") {
               html += editRow("标签：", "tag", n.tag || "未分类", false);
+              html += editRow("问句/句子：", "en", n.en, false);
               html += editRow("回答：", "reply", n.reply, false);
               html += editRow("中译：", "zh", n.zh, true);
             } else {
@@ -2127,6 +2351,7 @@
             ev.stopPropagation();
             const n = notes.find(function (x) { return x.id === btn.getAttribute("data-play"); });
             if (!n) return;
+            const speak = n.kind === "phrase" ? phraseSpeakText(n) : n.en;
             const us = noteUsAudio(n);
             if (us && n.audioUs !== us) {
               n.audioUs = us;
@@ -2134,7 +2359,7 @@
             }
             btn.disabled = true;
             try {
-              await playNoteText({ audioUs: us, en: n.en });
+              await playNoteText({ audioUs: us, en: speak });
             } catch (err) {
               if (err && err.message === "aborted") return;
               toast(err && err.message === "no-audio" ? "没有美音真人音，不播合成音" : "播放失败");
@@ -2147,8 +2372,8 @@
           btn.addEventListener("click", function (ev) {
             ev.stopPropagation();
             const n = notes.find(function (x) { return x.id === btn.getAttribute("data-copy-en"); });
-            if (!n || !n.en) return;
-            const text = String(n.en);
+            const text = n ? (n.kind === "phrase" ? phraseTitle(n) : String(n.en || "")) : "";
+            if (!n || !text || text === "（空语句）") return;
             function ok() { toast("已复制「" + text + "」"); }
             if (navigator.clipboard && navigator.clipboard.writeText) {
               navigator.clipboard.writeText(text).then(ok, function () { prompt("复制英文：", text); });
@@ -2194,6 +2419,8 @@
       function paintTagRail() {
         const rail = $("note-tag-rail");
         if (!rail) return;
+        ensureBuiltinTags();
+        // 横栏顺序：全部 → 按 noteTags（语句固定第一）→ +新标签 / 整理
         const tags = allTagNames();
         let html = '<button type="button" class="chip' + (noteTagFilter === "all" ? " on" : "") +
           '" data-tag-filter="all">全部 ' + notes.length + "</button>";
@@ -2202,7 +2429,7 @@
             '" data-tag-filter="' + escapeHtml(t) + '">' + escapeHtml(t) + " " + countByTag(t) + "</button>";
         });
         html += '<button type="button" class="chip" id="btn-new-tag">+ 新标签</button>';
-        html += '<button type="button" class="chip" id="btn-del-tag">删标签</button>';
+        html += '<button type="button" class="chip" id="btn-manage-tag">整理</button>';
         rail.innerHTML = html;
         rail.querySelectorAll("[data-tag-filter]").forEach(function (btn) {
           btn.addEventListener("click", function () {
@@ -2222,21 +2449,8 @@
           paintNoteList();
           toast("已建标签「" + t + "」");
         });
-        const delBtn = $("btn-del-tag");
-        if (delBtn) delBtn.addEventListener("click", async function () {
-          if (!allTagNames().length) {
-            toast("没有可删的标签");
-            return;
-          }
-          const name = await pickTagToDelete();
-          if (!name) return;
-          const n = countByTag(name);
-          if (!confirm("删除标签「" + name + "」？" + (n ? "里面 " + n + " 条会变成未分类。" : ""))) return;
-          removeTag(name);
-          paintTagRail();
-          paintNoteList();
-          toast("已删标签「" + name + "」");
-        });
+        const manageBtn = $("btn-manage-tag");
+        if (manageBtn) manageBtn.addEventListener("click", function () { openTagManage(); });
       }
       function readPhraseForm() {
         return {
@@ -2258,19 +2472,27 @@
         };
       }
       async function upsertNote(draft) {
-        if (!draft.en) {
-          toast(draft.kind === "phrase" ? "先写问句或原句" : "先写英文");
+        if (draft.kind === "phrase") {
+          if (!draft.en && !draft.reply && !draft.zh) {
+            toast("问句/句子、回答、中文至少填一项");
+            return false;
+          }
+        } else if (!draft.en) {
+          toast("先写英文");
           return false;
         }
         if (draft.kind === "word" && !draft.zh) {
           toast("单词至少要有中文；可点「查询」自动查");
           return false;
         }
-        const key = draft.en.toLowerCase();
         const dup = notes.find(function (n) {
-          return n.kind === draft.kind && n.en.toLowerCase() === key &&
-            (draft.kind !== "phrase" || n.reply === draft.reply) &&
-            n.id !== noteEditId;
+          if (n.kind !== draft.kind || n.id === noteEditId) return false;
+          if (draft.kind === "phrase") {
+            return (n.en || "") === (draft.en || "") &&
+              (n.reply || "") === (draft.reply || "") &&
+              (n.zh || "") === (draft.zh || "");
+          }
+          return n.en.toLowerCase() === draft.en.toLowerCase();
         });
         if (dup && !noteEditId) {
           toast("已经记过了，可点标签里改");
@@ -2278,9 +2500,16 @@
           render();
           return false;
         }
-        const picked = await pickTag(noteEditId ? "改存到哪个标签？" : "存到哪个标签？");
-        if (picked == null) return false;
-        const tag = ensureTag(picked);
+        let tag;
+        if (draft.kind === "phrase") {
+          // 语句默认进固定标签「语句」，不再弹选标签
+          tag = ensureTag(noteEditId && draft.tag ? draft.tag : FIXED_PHRASE_TAG);
+          if (!tag) tag = ensureTag(FIXED_PHRASE_TAG);
+        } else {
+          const picked = await pickTag(noteEditId ? "改存到哪个标签？" : "存到哪个标签？");
+          if (picked == null) return false;
+          tag = ensureTag(picked);
+        }
         draft.tag = tag;
         if (noteEditId) {
           const n = notes.find(function (x) { return x.id === noteEditId; });
@@ -2425,8 +2654,8 @@
         if (notePanel === "phrase") {
           const val = editing && editing.kind === "phrase" ? editing : { en: "", reply: "", zh: "", explain: "", src: "", tag: "" };
           html += '<div class="nform">';
-          html += '<p class="hint-line">记问答或句型。例：What do you have? → I have a book.</p>';
-          html += '<input id="nf-en" placeholder="问句 / 原句" value="' + escapeHtml(val.en) + '">';
+          html += '<p class="hint-line">问句或句子都行；回答、中文可空。三项至少填一项，默认存到「语句」。</p>';
+          html += '<input id="nf-en" placeholder="问句 / 句子" value="' + escapeHtml(val.en) + '">';
           html += '<input id="nf-reply" placeholder="回答 / 对应句，可空" value="' + escapeHtml(val.reply) + '">';
           html += '<input id="nf-zh" placeholder="中文意思，可空" value="' + escapeHtml(val.zh) + '">';
           html += '<input id="nf-tag" type="hidden" value="' + escapeHtml(val.tag || "") + '">';

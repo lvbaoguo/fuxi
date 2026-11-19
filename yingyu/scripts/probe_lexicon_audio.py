@@ -34,7 +34,7 @@ TIMEOUT_SLOW = 12
 
 def load_words() -> list[str]:
     words: list[str] = []
-    for name in ("lexicon.js", "lexicon-extra.js", "lexicon-cet4.js"):
+    for name in ("lexicon.js", "lexicon-extra.js", "lexicon-cet4.js", "lexicon-gaokao.js"):
         p = ROOT / name
         if not p.exists():
             continue
