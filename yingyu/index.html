@@ -781,9 +781,20 @@
         if (!n) return "";
         return String(n.en || n.reply || n.zh || "").trim() || "（空语句）";
       }
+      /** 喇叭只播英文；含汉字的别送进美音 CDN / en-US TTS（会卡带抽搐） */
+      function isEnglishSpeakText(text) {
+        const s = String(text || "").trim();
+        if (!s) return false;
+        if (/[\u4e00-\u9fff]/.test(s)) return false;
+        return /[a-zA-Z]/.test(s);
+      }
       function phraseSpeakText(n) {
         if (!n) return "";
-        return String(n.en || n.reply || "").trim();
+        const en = String(n.en || "").trim();
+        if (isEnglishSpeakText(en)) return en;
+        const reply = String(n.reply || "").trim();
+        if (isEnglishSpeakText(reply)) return reply;
+        return "";
       }
       function normalizeNote(n) {
         const mark = n.mark === 1 || n.mark === 2 ? n.mark : 0;
@@ -1657,6 +1668,8 @@
       async function playEnHearable(en, opt) {
         const word = String(en || "").trim();
         if (!word) throw new Error("no-audio");
+        // 中文/混中文：禁止走有道美音+慢速，否则后半段会像卡带抽搐
+        if (!isEnglishSpeakText(word)) throw new Error("not-english");
         stopNoteAudio();
         const rate = effectivePlayRate(opt);
         const preferUrl = (opt && opt.preferUrl) || "";
@@ -2342,13 +2355,14 @@
         let html = "";
         let audioFilled = false;
         list.forEach(function (n) {
-          const us = noteUsAudio(n);
+          const speakEn = n.kind === "phrase" ? phraseSpeakText(n) : n.en;
+          const us = speakEn ? noteUsAudio(n.kind === "phrase" ? { en: speakEn, audioUs: n.audioUs, kind: "word" } : n) : "";
           if (us && !n.audioUs && n.kind !== "phrase") {
             n.audioUs = us;
             audioFilled = true;
           }
           if (us) warmUsAudio(us);
-          const hasReal = !!us;
+          const hasReal = !!us && !!speakEn;
           const open = openNoteId === n.id;
           const titleText = n.kind === "phrase" ? phraseTitle(n) : n.en;
           if (!open) {
@@ -2359,7 +2373,7 @@
             html += "</div>";
             html += '<button type="button" class="spk" data-play="' + n.id + '"' +
               (hasReal ? "" : " disabled") +
-              ' title="' + (hasReal ? "美音真人 · 快速" : "没有美音真人音") + '">📢</button>';
+              ' title="' + (hasReal ? "美音真人 · 快速" : (n.kind === "phrase" && phraseTitle(n) ? "喇叭只播英文句子" : "没有美音真人音")) + '">📢</button>';
             html += "</div></article>";
           } else {
             function editRow(label, field, value, hi) {
@@ -2396,9 +2410,11 @@
             }
             html += '<div class="play-row"><button type="button" class="spk" data-play="' + n.id + '"' +
               (hasReal ? "" : " disabled") +
-              ' title="' + (hasReal ? "美音真人" : "没有美音真人音") + '">📢</button>' +
+              ' title="' + (hasReal ? "美音真人" : (n.kind === "phrase" ? "喇叭只播英文句子" : "没有美音真人音")) + '">📢</button>' +
               playRateSelectHtml(!hasReal);
-            if (!hasReal) html += "<span>暂无真人音</span>";
+            if (!hasReal) {
+              html += "<span>" + (n.kind === "phrase" && !speakEn ? "中文不播音 · 英文写在问句/句子" : "暂无真人音") + "</span>";
+            }
             html += "</div></div></div>";
             html += '<div class="nops"><button type="button" data-edit="' + n.id +
               '">换标签</button><button type="button" data-del="' + n.id +
@@ -2430,7 +2446,11 @@
             const n = notes.find(function (x) { return x.id === btn.getAttribute("data-play"); });
             if (!n) return;
             const speak = n.kind === "phrase" ? phraseSpeakText(n) : n.en;
-            const us = noteUsAudio(n);
+            if (n.kind === "phrase" && !speak) {
+              toast("喇叭只播英文。把英文写在「问句/句子」，中文放「中文意思」");
+              return;
+            }
+            const us = noteUsAudio(n.kind === "phrase" ? { en: speak, audioUs: n.audioUs, kind: "word" } : n);
             if (us && n.audioUs !== us) {
               n.audioUs = us;
               saveNotes();
@@ -2440,6 +2460,10 @@
               await playNoteText({ audioUs: us, en: speak });
             } catch (err) {
               if (err && err.message === "aborted") return;
+              if (err && err.message === "not-english") {
+                toast("喇叭只播英文，中文句子不朗读");
+                return;
+              }
               toast(err && err.message === "no-audio" ? "没有美音真人音，不播合成音" : "播放失败");
             } finally {
               btn.disabled = false;
@@ -2732,9 +2756,9 @@
         if (notePanel === "phrase") {
           const val = editing && editing.kind === "phrase" ? editing : { en: "", reply: "", zh: "", explain: "", src: "", tag: "" };
           html += '<div class="nform">';
-          html += '<p class="hint-line">问句或句子都行；回答、中文可空。三项至少填一项，默认存到「语句」。</p>';
-          html += '<input id="nf-en" placeholder="问句 / 句子" value="' + escapeHtml(val.en) + '">';
-          html += '<input id="nf-reply" placeholder="回答 / 对应句，可空" value="' + escapeHtml(val.reply) + '">';
+          html += '<p class="hint-line">英文写在问句/句子（喇叭只播英文）；中文放最后一栏。三项至少填一项，默认存「语句」。</p>';
+          html += '<input id="nf-en" placeholder="英文问句 / 句子（喇叭播这个）" value="' + escapeHtml(val.en) + '">';
+          html += '<input id="nf-reply" placeholder="英文回答 / 对应句，可空" value="' + escapeHtml(val.reply) + '">';
           html += '<input id="nf-zh" placeholder="中文意思，可空" value="' + escapeHtml(val.zh) + '">';
           html += '<input id="nf-tag" type="hidden" value="' + escapeHtml(val.tag || "") + '">';
           html += '<div class="nrow"><button type="button" class="primary" id="nf-save">' + (editing ? "保存这条" : "保存语句") + "</button>";
