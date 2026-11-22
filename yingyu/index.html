@@ -1158,12 +1158,13 @@
         const w = String(word || "").trim().toLowerCase().replace(/[^a-z'-]/g, "");
         if (!w) return [];
         const tag = accent === "uk" ? "gb" : "us";
+        // oxford 常比 20200429 更全；国内 gstatic 易挂起，别只押第一条
         return [
-          "https://ssl.gstatic.com/dictionary/static/sounds/20200429/" + w + "--_" + tag + "_1.mp3",
           "https://ssl.gstatic.com/dictionary/static/sounds/oxford/" + w + "--_" + tag + "_1.mp3",
+          "https://ssl.gstatic.com/dictionary/static/sounds/20200429/" + w + "--_" + tag + "_1.mp3",
         ];
       }
-      /** 有道美音兜底（type=2）；gstatic 对部分词只在 oxford 路径有文件 */
+      /** 有道美音（type=2）；国内往往比 gstatic 更快起播 */
       function youdaoUs(word) {
         const w = String(word || "").trim().toLowerCase().replace(/[^a-z'-]/g, "");
         if (!w) return "";
@@ -1179,20 +1180,25 @@
         });
         return out;
       }
-      /** 播放用候选：预置 → API → gstatic/oxford → 有道 → 剑桥；按序短超时试，别死磕第一条 404 */
-      function usAudioCandidates(word, apiUrls) {
+      // 本会话起播成功的 URL，二次点击直接用，避免再串行干等 CDN
+      const usAudioOkCache = {};
+      /** 播放候选：缓存/预置 → 有道 → oxford/gstatic → 剑桥（国内优先有道） */
+      function usAudioCandidates(word, apiUrls, preferUrl) {
         const q = String(word || "").trim();
+        const key = q.toLowerCase();
         const list = [];
+        if (preferUrl) list.push(preferUrl);
+        if (usAudioOkCache[key]) list.push(usAudioOkCache[key]);
         const pref = precomputedUsAudio(q);
         if (pref) list.push(pref);
+        const yd = youdaoUs(q);
+        if (yd) list.push(yd);
         (apiUrls || []).forEach(function (u) {
           if (!u) return;
           const low = String(u).toLowerCase();
           if (low.indexOf("-us") >= 0 || low.indexOf("_us") >= 0 || low.indexOf("/us") >= 0) list.push(u);
         });
         gstaticCandidates(q, "us").forEach(function (u) { list.push(u); });
-        const yd = youdaoUs(q);
-        if (yd) list.push(yd);
         const cam = camUsPath(q);
         if (cam) list.push(cam);
         return uniqUrls(list);
@@ -1222,7 +1228,7 @@
         const map = window.EN_LEXICON_AUDIO || {};
         return (key && map[key]) || "";
       }
-      /** 保存/展示用：取候选首条；真正播放走 usAudioCandidates 逐条试 */
+      /** 保存/展示用：取候选首条；真正播放走并行抢起播 */
       function guessUsAudio(word, apiUrls) {
         const cands = usAudioCandidates(word, apiUrls);
         return cands[0] || "";
@@ -1570,26 +1576,98 @@
         return null;
       }
       /**
+       * 多 URL 并行抢起播：谁先 playing 谁赢，其余立刻停掉。
+       * 总预算短，避免串行 1s×N；成功 URL 写入缓存。
+       */
+      function racePlayUrls(urls, rate, budgetMs) {
+        return runAbortablePlay(function (stillMine) {
+          return new Promise(function (resolve, reject) {
+            const list = (urls || []).filter(Boolean);
+            if (!list.length) return reject(new Error("audio"));
+            const players = [];
+            let settled = false;
+            const budget = setTimeout(function () { fail(new Error("timeout")); }, budgetMs != null ? budgetMs : 700);
+            function nuke(a) {
+              if (!a) return;
+              try {
+                a.onended = null;
+                a.onerror = null;
+                a.onplaying = null;
+                a.onloadedmetadata = null;
+                a.pause();
+                a.removeAttribute("src");
+                a.load();
+              } catch (_) {}
+            }
+            function fail(err) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(budget);
+              players.forEach(nuke);
+              if (!stillMine()) return reject(new Error("aborted"));
+              reject(err || new Error("audio"));
+            }
+            function win(winner, url) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(budget);
+              players.forEach(function (a) { if (a !== winner) nuke(a); });
+              if (!stillMine()) {
+                nuke(winner);
+                return reject(new Error("aborted"));
+              }
+              noteAudio = winner;
+              try { winner.playbackRate = rate; } catch (_) {}
+              // 起播成功就认赢；Promise 仍等到播完，和旧逻辑一致（按钮不会中途解开）
+              winner.onended = function () {
+                if (!stillMine()) return reject(new Error("aborted"));
+                resolve(url);
+              };
+              winner.onerror = function () {
+                fail(new Error("audio"));
+              };
+            }
+            list.forEach(function (url) {
+              const a = new Audio();
+              players.push(a);
+              a.preload = "auto";
+              let started = false;
+              const mark = function () {
+                if (started || settled) return;
+                started = true;
+                win(a, url);
+              };
+              a.onplaying = mark;
+              a.onloadedmetadata = function () {
+                try { a.playbackRate = rate; } catch (_) {}
+              };
+              a.onerror = function () { /* 等预算或别的源 */ };
+              a.src = url;
+              const p = a.play();
+              if (p && p.then) p.then(mark, function () { /* 自动播放被拒等，忽略，看别人 */ });
+            });
+          });
+        });
+      }
+      /**
        * 统一听音策略（笔记/词库/音标例词共用）：
-       * 有预置真人 URL → 最多等 ~1s 起播；起不来立刻本机 TTS。
-       * 禁止干等外网数秒；点下一个必须能打断。
+       * 缓存/预置/有道等并行抢起播（~0.7s）；都起不来立刻 TTS。
+       * 禁止串行干等外网；点下一个必须能打断。
        */
       async function playEnHearable(en, opt) {
         const word = String(en || "").trim();
         if (!word) throw new Error("no-audio");
         stopNoteAudio();
         const rate = effectivePlayRate(opt);
-        const cands = usAudioCandidates(word);
-        const maxTry = Math.min(cands.length, 4);
-        for (let i = 0; i < maxTry; i++) {
-          const url = cands[i];
-          if (i === 0) warmUsAudio(url);
-          try {
-            await playUrlTimed(url, rate, i === 0 ? 1000 : 800);
-            return "real";
-          } catch (err) {
-            if (err && err.message === "aborted") throw err;
-          }
+        const preferUrl = (opt && opt.preferUrl) || "";
+        const cands = usAudioCandidates(word, null, preferUrl).slice(0, 3);
+        if (cands[0]) warmUsAudio(cands[0]);
+        try {
+          const url = await racePlayUrls(cands, rate, 700);
+          if (url) usAudioOkCache[word.toLowerCase()] = url;
+          return "real";
+        } catch (err) {
+          if (err && err.message === "aborted") throw err;
         }
         await speakEnLocal(word, Math.max(0.35, Math.min(1.1, rate * 0.95)));
         return "tts";
@@ -1608,13 +1686,13 @@
       async function playNoteText(urls, opt) {
         const en = (urls && urls.en) || "";
         const prefer = (urls && urls.audioUs) || "";
-        if (en) return playEnHearable(en, opt);
+        if (en) return playEnHearable(en, Object.assign({}, opt || {}, { preferUrl: prefer }));
         // 只有 URL、没有英文时：短超时起播，失败就报错
         stopNoteAudio();
         if (!prefer) throw new Error("no-audio");
         const rate = effectivePlayRate(opt);
         try {
-          await playUrlTimed(prefer, rate, 1000);
+          await racePlayUrls([prefer], rate, 700);
           return "real";
         } catch (err) {
           if (err && err.message === "aborted") throw err;
